@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import type { BotTeamRequestChoice } from '../../../src/shared/bot-team-request-choice'
+import { withSenderTimeZone } from '../../../src/shared/bot-team-routine-zone'
 import {
   BotTeamTaskSchema,
   type BotTeamTask
@@ -77,7 +78,7 @@ export function assignMobileBotTeamRequest(
   client: HostClient,
   input: MobileBotTeamRequestFiling
 ): Promise<MobileBotTeamFiling> {
-  return fileWith(client, 'botTeams.assignRequest', { ...input, start: true })
+  return fileWith(client, 'botTeams.assignRequest', withSenderTimeZone({ ...input, start: true }))
 }
 
 /** A hand-over either happens, is refused, or is unsupported: it never asks a question. */

@@ -7,9 +7,11 @@ import {
   deleteMobilePrototypeRequest,
   hostListsDesignSystems,
   hostMayArchivePrototypes,
+  hostMayRestorePrototypeVersions,
   listMobilePrototypeSets,
   readMobilePrototypeDesignSystem,
   readMobilePrototypeFile,
+  restoreMobilePrototypeVersion,
   unarchiveMobilePrototypeRequest,
   writeMobilePrototypeAttachment
 } from './mobile-prototype-host-rpc'
@@ -359,5 +361,66 @@ describe('archive, unarchive and delete of a set', () => {
     expect(await archiveMobilePrototypeRequest(older, target)).toEqual({ kind: 'unsupported-host' })
     expect(hostMayArchivePrototypes(older)).toBe(false)
     expect(hostMayArchivePrototypes(current)).toBe(true)
+  })
+})
+
+describe('restoreMobilePrototypeVersion', () => {
+  const params = { sessionId: SESSION, requestId: REQUEST, letter: 'B', version: 2 }
+  const restoredFile = `prototypes/${REQUEST}/B.v3.html`
+
+  function recordingClient(reply: RpcResponse | Error) {
+    return {
+      sendRequest: vi.fn((_method: string, _params: unknown, _options: unknown) =>
+        reply instanceof Error ? Promise.reject(reply) : Promise.resolve(reply)
+      )
+    }
+  }
+
+  it('asks the host to restore one earlier version and reads the new current file', async () => {
+    const client = recordingClient(ok({ ok: true, fileName: restoredFile, version: 3 }))
+    expect(await restoreMobilePrototypeVersion(client, params)).toEqual({
+      kind: 'restored',
+      fileName: restoredFile,
+      version: 3
+    })
+    expect(client.sendRequest).toHaveBeenCalledWith(
+      'prototypes.restoreVersion',
+      params,
+      expect.anything()
+    )
+  })
+
+  it('reads each refusal the host gives as that verdict', async () => {
+    for (const error of ['not_found', 'conflict', 'unwritable']) {
+      expect(
+        await restoreMobilePrototypeVersion(clientAnswering(ok({ ok: false, error })), params)
+      ).toEqual({ kind: 'refused', error })
+    }
+  })
+
+  it('reads an answer that is not a restore reply as unreachable', async () => {
+    expect(
+      await restoreMobilePrototypeVersion(clientAnswering(ok({ ok: true, version: 1 })), params)
+    ).toEqual({ kind: 'unreachable' })
+  })
+
+  it('reads a dropped reply and an internal error as unreachable', async () => {
+    expect(
+      await restoreMobilePrototypeVersion(clientAnswering(new Error('socket closed')), params)
+    ).toEqual({ kind: 'unreachable' })
+    expect(
+      await restoreMobilePrototypeVersion(clientAnswering(failed('internal_error')), params)
+    ).toEqual({ kind: 'unreachable' })
+  })
+
+  it('reads an older host as unsupported-host, and remembers it for that host alone', async () => {
+    const older = clientAnswering(failed('method_not_found'))
+    const current = clientAnswering(ok({ ok: true, fileName: restoredFile, version: 3 }))
+    expect(hostMayRestorePrototypeVersions(older)).toBe(true)
+    expect(await restoreMobilePrototypeVersion(older, params)).toEqual({
+      kind: 'unsupported-host'
+    })
+    expect(hostMayRestorePrototypeVersions(older)).toBe(false)
+    expect(hostMayRestorePrototypeVersions(current)).toBe(true)
   })
 })

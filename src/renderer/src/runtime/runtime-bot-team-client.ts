@@ -171,7 +171,7 @@ export function fileBotTeamRequest(input: BotTeamRequestFiling): Promise<{
   startError: string | null
   choice?: BotTeamRequestChoice
 }> {
-  return call('botTeams.assignRequest', input)
+  return call('botTeams.assignRequest', withSenderTimeZone(input))
 }
 
 export async function startBotTeamTask(taskId: string): Promise<BotTeamTask> {

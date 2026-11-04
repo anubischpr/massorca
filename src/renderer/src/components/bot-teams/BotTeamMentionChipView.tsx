@@ -1,4 +1,5 @@
 import { NodeViewWrapper, type ReactNodeViewProps } from '@tiptap/react'
+import { FilePathTooltip } from '../native-chat/FilePathTooltip'
 import {
   BOT_TEAM_MENTION_CHIP_CLASS,
   BotTeamMentionChipFace,
@@ -13,6 +14,8 @@ function chipIcon(attrs: ReactNodeViewProps['node']['attrs'], name: string): Bot
       return { name, kind: 'team', character: attrs.character }
     case 'project':
       return { name, kind: 'project', logo: attrs.logo ?? null }
+    case 'app':
+      return { name, kind: 'app', id: attrs.appId }
     default:
       return { name, kind: 'file' }
   }
@@ -22,9 +25,18 @@ function chipIcon(attrs: ReactNodeViewProps['node']['attrs'], name: string): Bot
 export function BotTeamMentionChipView({ node }: ReactNodeViewProps): React.JSX.Element {
   const token = String(node.attrs.token ?? '')
   const name = token.slice(1)
+  const icon = chipIcon(node.attrs, name)
+  const face = <BotTeamMentionChipFace icon={icon}>{name}</BotTeamMentionChipFace>
   return (
     <NodeViewWrapper as="span" className={BOT_TEAM_MENTION_CHIP_CLASS} data-bot-team-mention={name}>
-      <BotTeamMentionChipFace icon={chipIcon(node.attrs, name)}>{name}</BotTeamMentionChipFace>
+      {icon.kind === 'file' ? (
+        // The wrapper takes no ref, so the hover target is an inner span laid out as the chip.
+        <FilePathTooltip path={name}>
+          <span className="inline-flex items-center gap-1">{face}</span>
+        </FilePathTooltip>
+      ) : (
+        face
+      )}
     </NodeViewWrapper>
   )
 }

@@ -5,12 +5,17 @@ import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { BotTeam } from '../../../../shared/rpc-contract/bot-team-params'
+import type { BotTeamRoutine } from '../../../../shared/rpc-contract/bot-team-routine-params'
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true
 
 const createBotTeamRoutine = vi.hoisted(() => vi.fn())
+const updateBotTeamRoutine = vi.hoisted(() => vi.fn())
 const openSettingsTarget = vi.hoisted(() => vi.fn())
-vi.mock('@/runtime/runtime-bot-team-client-routines', () => ({ createBotTeamRoutine }))
+vi.mock('@/runtime/runtime-bot-team-client-routines', () => ({
+  createBotTeamRoutine,
+  updateBotTeamRoutine
+}))
 vi.mock('@/store', () => ({
   useAppStore: (select: (state: unknown) => unknown) => select({ openSettingsTarget })
 }))
@@ -47,7 +52,7 @@ afterEach(() => {
   vi.clearAllMocks()
 })
 
-async function mount() {
+async function mount(routine?: BotTeamRoutine) {
   const onBack = vi.fn()
   const onCreated = vi.fn()
   const container = document.createElement('div')
@@ -55,7 +60,9 @@ async function mount() {
   const root = createRoot(container)
   mounted.push({ container, root })
   await act(async () =>
-    root.render(<BotTeamRoutineNew team={TEAM} onBack={onBack} onCreated={onCreated} />)
+    root.render(
+      <BotTeamRoutineNew team={TEAM} routine={routine} onBack={onBack} onCreated={onCreated} />
+    )
   )
   const button = (name: string): HTMLButtonElement | undefined =>
     [...container.querySelectorAll('button')].find((entry) => entry.textContent?.trim() === name)
@@ -148,13 +155,24 @@ describe('New routine', () => {
     )
   })
 
-  it('creates a one-time routine on the chosen date', async () => {
+  it('creates a one-time routine on the day picked in the calendar', async () => {
     createBotTeamRoutine.mockResolvedValue({})
-    const { button, type } = await mount()
+    const { button, type, container } = await mount()
     await type('#routine-name', 'Front review')
     await type('#routine-prompt', 'Review the front end.')
     act(() => button('Once')?.click())
-    await type('input[type="date"]', '2026-11-04')
+    expect(container.querySelector('input[type="date"]')).toBeNull()
+    act(() => container.querySelector<HTMLButtonElement>('[aria-label="Date"]')?.click())
+    const inPopover = (name: string): HTMLButtonElement | undefined =>
+      [
+        ...document.querySelectorAll<HTMLButtonElement>(
+          '[role="grid"] button, [aria-label="Next month"]'
+        )
+      ].find((entry) => entry.textContent === name || entry.getAttribute('aria-label') === name)
+    act(() => inPopover('Next month')?.click())
+    act(() => inPopover('15')?.click())
+    const next = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 15)
+    const picked = `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, '0')}-15`
     act(() => button('Noon 12:00')?.click())
     await act(async () => button('Create routine')?.click())
     expect(createBotTeamRoutine).toHaveBeenCalledWith(
@@ -164,13 +182,45 @@ describe('New routine', () => {
           time: '12:00',
           weekday: null,
           monthDay: null,
-          date: '2026-11-04',
+          date: picked,
           timeZone: expect.any(String)
         }
       })
     )
-    await type('input[type="date"]', '')
-    expect(button('Create routine')?.disabled).toBe(true)
+  })
+
+  it('edits a routine filled in, and saves it in place of creating one', async () => {
+    updateBotTeamRoutine.mockResolvedValue({})
+    const { button, container, type, onCreated } = await mount({
+      id: 'r1',
+      teamId: 'mk',
+      botId: 'iris',
+      name: 'Launch flyer',
+      prompt: 'Make the flyer.',
+      schedule: {
+        frequency: 'once',
+        time: '15:00',
+        weekday: null,
+        monthDay: null,
+        date: '2026-11-03'
+      },
+      paused: false,
+      nextRun: null,
+      lastRun: { scheduledFor: { date: '2026-11-03', time: '15:00' }, taskId: 't1', error: null }
+    })
+    expect(container.querySelector('h1')?.textContent).toBe('Edit routine')
+    expect(container.querySelector<HTMLInputElement>('#routine-name')?.value).toBe('Launch flyer')
+    expect(button('Iris')?.getAttribute('aria-pressed')).toBe('true')
+    // The day already passed, so it starts again from tomorrow.
+    expect(container.querySelector('[aria-label="Date"]')?.textContent).not.toBe('')
+    await type('#routine-name', 'Launch flyer v2')
+    await act(async () => button('Save')?.click())
+    expect(updateBotTeamRoutine).toHaveBeenCalledWith(
+      expect.objectContaining({ routineId: 'r1', botId: 'iris', name: 'Launch flyer v2' })
+    )
+    expect(updateBotTeamRoutine.mock.calls[0]?.[0].schedule.date > '2026-11-03').toBe(true)
+    expect(createBotTeamRoutine).not.toHaveBeenCalled()
+    expect(onCreated).toHaveBeenCalled()
   })
 
   it('shows the bot job, the access it uses and where to change it', async () => {

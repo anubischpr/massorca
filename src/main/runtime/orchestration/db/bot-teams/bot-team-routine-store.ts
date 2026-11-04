@@ -14,6 +14,7 @@ import {
   type BotTeamRoutineRun
 } from '../../../../../shared/rpc-contract/bot-team-routine-params'
 import { generateId } from '../generated-id'
+import { keptSchedule, requireTeamBot } from './bot-team-routine-input'
 import type { OrchestrationDb } from '../orchestration-db'
 
 // Plain functions over the database, not methods, so this store stays out of the shared method lists.
@@ -108,21 +109,8 @@ export function createBotTeamRoutine(
   input: BotTeamRoutineInput,
   now: number
 ): BotTeamRoutine {
-  const bot = db.db
-    .prepare('SELECT id FROM bot_team_bots WHERE id = ? AND team_id = ?')
-    .get(input.botId, input.teamId)
-  if (bot === undefined) {
-    throw new Error(`Bot ${input.botId} is not on team ${input.teamId}.`)
-  }
-  // A frequency keeps only the day it uses, so a stale day never changes when it runs.
-  const schedule: BotTeamRoutineSchedule = {
-    frequency: input.schedule.frequency,
-    time: input.schedule.time,
-    weekday: input.schedule.frequency === 'weekly' ? input.schedule.weekday : null,
-    monthDay: input.schedule.frequency === 'monthly' ? input.schedule.monthDay : null,
-    date: input.schedule.frequency === 'once' ? (input.schedule.date ?? null) : null,
-    timeZone: input.schedule.timeZone ?? null
-  }
+  requireTeamBot(db, input.teamId, input.botId)
+  const schedule = keptSchedule(input.schedule)
   const id = generateId('botroutine')
   db.db
     .prepare(
@@ -181,6 +169,25 @@ export function listBotTeamRoutineRuns(
         .all(routineId, limit)
     )
     .map((row) => toRun(row, timeZone.success ? timeZone.data.time_zone : null))
+}
+
+/** The scheduled times of a routine's claimed runs in [from, to), earliest first. */
+export function listBotTeamRoutineRunTimes(
+  db: OrchestrationDb,
+  routineId: string,
+  from: number,
+  to: number
+): number[] {
+  return z
+    .array(z.object({ scheduled_for: z.number() }))
+    .parse(
+      db.db
+        .prepare(
+          'SELECT scheduled_for FROM bot_team_routine_runs WHERE routine_id = ? AND scheduled_for >= ? AND scheduled_for < ? ORDER BY scheduled_for'
+        )
+        .all(routineId, from, to)
+    )
+    .map((row) => row.scheduled_for)
 }
 
 /** Resuming starts from now: what was due while it was paused is not run. */

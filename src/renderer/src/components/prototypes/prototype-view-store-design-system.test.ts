@@ -4,7 +4,6 @@ import { usePrototypeViewStore } from './prototype-view-store'
 
 beforeEach(() => {
   usePrototypeViewStore.setState({
-    filter: 'all',
     selectedRequestId: null,
     selectedProjectKey: null,
     states: {},

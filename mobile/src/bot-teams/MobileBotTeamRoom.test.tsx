@@ -24,6 +24,7 @@ vi.mock('lucide-react-native', () => ({
   FileText: 'FileText',
   Folder: 'Folder',
   FolderPlus: 'FolderPlus',
+  Calendar: 'Calendar',
   LayoutGrid: 'LayoutGrid',
   MessageSquare: 'MessageSquare',
   SlidersHorizontal: 'SlidersHorizontal',
@@ -180,6 +181,7 @@ async function render(
         onOpenBots,
         onOpenTask,
         onOpenWork: vi.fn(),
+        onOpenRoutines: vi.fn(),
         onAddBot: vi.fn(),
         onNewTeam: vi.fn(),
         ...extra
@@ -198,6 +200,21 @@ const press = async (renderer: ReactTestRenderer, label: string) => {
   )[0]
   await act(async () => target.props.onPress())
 }
+
+// A room answer: its team, started, asking the project, with the sender's zone for its days.
+const assigned = (text: string, fields: object = {}) =>
+  [
+    'botTeams.assignRequest',
+    {
+      teamId: 'team',
+      text,
+      start: true,
+      askProject: true,
+      ...fields,
+      timeZone: expect.any(String)
+    },
+    expect.anything()
+  ] as const
 
 describe('MobileBotTeamRoom', () => {
   it('sends through the chat composer and starts the bot', async () => {
@@ -393,7 +410,7 @@ describe('MobileBotTeamRoom', () => {
     const onOpenWork = vi.fn()
     const renderer = await render(client, vi.fn(), vi.fn(), vi.fn(), { onOpenWork })
     await press(renderer, 'Room menu')
-    await press(renderer, 'Team board')
+    await press(renderer, 'Tasks')
     expect(onOpenWork).toHaveBeenLastCalledWith({ name: 'board', teamId: 'team' })
     await press(renderer, 'Room menu')
     await press(renderer, 'Launch')
@@ -406,6 +423,15 @@ describe('MobileBotTeamRoom', () => {
     await press(renderer, 'Room menu')
     await press(renderer, 'New project')
     expect(onOpenWork).toHaveBeenLastCalledWith({ name: 'newProject', teamId: 'team' })
+  })
+
+  it('opens the team routines from the room menu', async () => {
+    const onOpenRoutines = vi.fn()
+    const client = hostAnswering({ tasks: [], messages: [], projects: [], workspaceId: null })
+    const renderer = await render(client, vi.fn(), vi.fn(), vi.fn(), { onOpenRoutines })
+    await press(renderer, 'Room menu')
+    await press(renderer, 'Routines')
+    expect(onOpenRoutines).toHaveBeenCalledTimes(1)
   })
 
   it('offers the team files after the bots while an @ mention is typed', async () => {
@@ -551,16 +577,7 @@ describe('MobileBotTeamRoom', () => {
     await press(renderer, 'Continue')
     await settle()
     expect(client.sendRequest).toHaveBeenCalledWith(
-      'botTeams.assignRequest',
-      {
-        teamId: 'team',
-        text: 'Hi',
-        start: true,
-        askProject: true,
-        botId: 'bot',
-        projectId: 'project'
-      },
-      expect.anything()
+      ...assigned('Hi', { botId: 'bot', projectId: 'project' })
     )
     expect(JSON.stringify(renderer.toJSON())).not.toContain('Which project is this for?')
   })
@@ -623,9 +640,7 @@ describe('MobileBotTeamRoom', () => {
     await press(renderer, 'Send to Warehouse')
     await settle()
     expect(client.sendRequest).toHaveBeenCalledWith(
-      'botTeams.assignRequest',
-      { teamId: 'team', text: 'Inventory?', start: true, askProject: true, toTeamId: 'team_2' },
-      expect.anything()
+      ...assigned('Inventory?', { toTeamId: 'team_2' })
     )
     expect(JSON.stringify(renderer.toJSON())).not.toContain('Choose where this task goes')
   })
@@ -641,11 +656,7 @@ describe('MobileBotTeamRoom', () => {
     })
     await press(renderer, 'Keep in Marketing')
     await settle()
-    expect(client.sendRequest).toHaveBeenCalledWith(
-      'botTeams.assignRequest',
-      { teamId: 'team', text: 'Hi', start: true, askProject: true },
-      expect.anything()
-    )
+    expect(client.sendRequest).toHaveBeenCalledWith(...assigned('Hi'))
   })
 
   it('offers the bots of the team, and opens the add-bot form from the choice', async () => {
@@ -665,11 +676,7 @@ describe('MobileBotTeamRoom', () => {
     expect(onAddBot).toHaveBeenCalled()
     await press(renderer, 'Send to Iris')
     await settle()
-    expect(client.sendRequest).toHaveBeenCalledWith(
-      'botTeams.assignRequest',
-      { teamId: 'team', text: 'Hi', start: true, askProject: true, botId: 'bot' },
-      expect.anything()
-    )
+    expect(client.sendRequest).toHaveBeenCalledWith(...assigned('Hi', { botId: 'bot' }))
   })
 
   it('offers a new team or an existing one for a request that fits no team', async () => {
@@ -692,11 +699,7 @@ describe('MobileBotTeamRoom', () => {
     expect(onNewTeam).toHaveBeenCalled()
     await press(renderer, 'Send to Warehouse')
     await settle()
-    expect(client.sendRequest).toHaveBeenCalledWith(
-      'botTeams.assignRequest',
-      { teamId: 'team', text: 'Taxes', start: true, askProject: true, toTeamId: 'team_2' },
-      expect.anything()
-    )
+    expect(client.sendRequest).toHaveBeenCalledWith(...assigned('Taxes', { toTeamId: 'team_2' }))
   })
 
   it('says the request did not send when the host refuses it', async () => {

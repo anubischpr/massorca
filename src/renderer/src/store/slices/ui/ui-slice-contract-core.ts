@@ -37,7 +37,8 @@ export type BotTeamsSection =
   | { kind: 'files'; path?: string }
   | { kind: 'memory' }
   | { kind: 'routines' }
-  | { kind: 'routine-new' }
+  /** With a routineId, the form edits that routine. */
+  | { kind: 'routine-new'; routineId?: string }
   | { kind: 'routine'; routineId: string }
   /** A team's web address that starts a task; no id means making a new one. */
   | { kind: 'webhook'; webhookId?: string }

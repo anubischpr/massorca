@@ -17902,18 +17902,9 @@
       "fieldWidth": "幅",
       "fillHex": "背景の 16 進数",
       "fillLabel": "背景",
-      "filter": {
-        "all": "すべて",
-        "claude": "Claude",
-        "codex": "Codex",
-        "gentleShell": "Gentle Shell",
-        "stitch": "Stitch"
-      },
-      "filterGroup": "絞り込み",
       "fontSizeLabel": "フォントサイズ",
       "frameError": "このプロトタイプを開けませんでした",
       "frameTitle": "プロトタイプ",
-      "heading": "プロトタイプ",
       "heightLabel": "高さ",
       "heightUnit": "高さの単位",
       "heightValue": "高さの値",
@@ -17984,12 +17975,32 @@
       "toolBrowse": "閲覧",
       "toolGroup": "ツール",
       "unstarLabel": "{{letter}} の統合用スターを外す",
+      "versionBackToCurrent": "現在のバージョンに戻る",
+      "versionCurrent": "現在 · v{{version}}",
+      "versionEarlier": "v{{version}}",
+      "versionPreview": "プレビュー",
+      "versionPreviewTag": "{{letter}} · v{{version}} · 以前のバージョン、読み取り専用",
+      "versionRestore": "復元",
+      "versionRestoreAction": "v{{version}} を復元",
+      "versionRestoreCancel": "キャンセル",
+      "versionRestored": "バージョンを復元しました",
+      "versionRestoreFailed": "このバージョンを復元できませんでした。もう一度お試しください。",
+      "versionRestoreHelp": "v{{version}} の内容で、新しいバージョン {{next}}（現在のバージョン）になります。バージョン 1 から {{latest}} までは一覧に残ります。",
+      "versionRestoreOutdated": "このホストはまだバージョンの復元に対応していません。",
+      "versionRestoreTitle": "{{letter}} のバージョン {{version}} を復元しますか？",
+      "versionsButton": "バージョン",
+      "versionsNote": "復元すると、そのバージョンの内容が新しいバージョンとしてコピーされます。どのバージョンも削除されません。",
+      "versionsTitle": "{{letter}} のバージョン",
       "viewportDesktop": "デスクトップ",
       "viewportGroup": "表示サイズ",
       "viewportPhone": "スマートフォン",
       "widthLabel": "幅",
       "widthUnit": "幅の単位",
-      "widthValue": "幅の値"
+      "widthValue": "幅の値",
+      "tree": {
+        "expand": "プロトタイプを展開",
+        "collapse": "プロトタイプを折りたたむ"
+      }
     },
     "onboarding": {
       "flow": {

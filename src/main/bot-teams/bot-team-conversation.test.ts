@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { botTeamClockNote } from '../../shared/bot-team-person-clock'
 import type { BotTeamBot } from '../../shared/rpc-contract/bot-team-params'
 import type { BotTeamMessage, BotTeamTask } from '../../shared/rpc-contract/bot-team-room-params'
 import {
@@ -29,6 +30,43 @@ const base = {
   usagePercentByAgent: new Map<string, number>(),
   lastBotId: null as string | null
 }
+
+describe("the sender's clock in a conversation prompt", () => {
+  const clock = botTeamClockNote(Date.UTC(2026, 10, 4, 4, 38), 'America/Lima')
+  const question = {
+    team: { name: 'Web', purpose: '' },
+    bot: IRIS,
+    bots: BOTS,
+    messages: [],
+    tasks: [],
+    text: '¿Qué día es mañana?',
+    clock
+  }
+
+  it('carries the clock into a plain conversation', () => {
+    expect(buildBotTeamConversationPrompt(question)).toContain(
+      'Tuesday 2026-11-03 23:38 America/Lima'
+    )
+  })
+
+  it('carries the clock into a researched answer', () => {
+    expect(
+      buildBotTeamConversationPrompt({ ...question, research: true, canSearch: true })
+    ).toContain('Tuesday 2026-11-03 23:38 America/Lima')
+  })
+
+  it('carries the clock into a code answer', () => {
+    expect(
+      buildBotTeamConversationPrompt({ ...question, codeRead: { projectName: 'Web' } })
+    ).toContain('Tuesday 2026-11-03 23:38 America/Lima')
+  })
+
+  it('adds no clock when the sender zone is unknown', () => {
+    expect(buildBotTeamConversationPrompt({ ...question, clock: null })).not.toContain(
+      "The person's clock"
+    )
+  })
+})
 
 describe('chooseConversationBot', () => {
   it('lets the bot whose description fits the subject answer', () => {
@@ -204,6 +242,16 @@ describe('buildBotTeamConversationPrompt for research', () => {
     const prompt = buildBotTeamConversationPrompt({ ...args, research: false })
     expect(prompt).toContain('Secret room history')
     expect(prompt).not.toMatch(/search the web/i)
+    expect(prompt).not.toContain('MCP server')
+  })
+
+  it('tells the bot to use an app the question names, plain or researched', () => {
+    const text = 'Qué recuerda @Engram del RAG?'
+    for (const research of [false, true]) {
+      expect(buildBotTeamConversationPrompt({ ...args, text, research })).toMatch(
+        /Use the Engram tools \(MCP server engram\) for this request\.$/
+      )
+    }
   })
 })
 

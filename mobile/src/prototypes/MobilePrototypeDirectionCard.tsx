@@ -20,7 +20,8 @@ export function MobilePrototypeDirectionCard({
   starred,
   height,
   onOpen,
-  onToggleStar
+  onToggleStar,
+  onMore
 }: {
   client: RpcClient | null
   set: PrototypeListedSet
@@ -30,6 +31,7 @@ export function MobilePrototypeDirectionCard({
   height: number
   onOpen: () => void
   onToggleStar: () => void
+  onMore: () => void
 }) {
   return (
     <View style={[styles.card, { height }]}>
@@ -62,11 +64,22 @@ export function MobilePrototypeDirectionCard({
           />
         </Pressable>
       </View>
-      <View style={styles.text}>
-        <Text style={styles.name}>{directionCardLine(direction, tag)}</Text>
-        {direction.tradeoff === undefined ? null : (
-          <Text style={styles.tradeoff}>{direction.tradeoff}</Text>
-        )}
+      <View style={styles.footer}>
+        <View style={styles.text}>
+          <Text style={styles.name}>{directionCardLine(direction, tag)}</Text>
+          {direction.tradeoff === undefined ? null : (
+            <Text style={styles.tradeoff}>{direction.tradeoff}</Text>
+          )}
+        </View>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`More for direction ${direction.letter}`}
+          onPress={onMore}
+          hitSlop={4}
+          style={styles.more}
+        >
+          <Text style={styles.moreText}>⋯</Text>
+        </Pressable>
       </View>
     </View>
   )
@@ -90,7 +103,10 @@ const styles = StyleSheet.create({
     borderColor: colors.borderSubtle,
     backgroundColor: colors.scrimOverTile
   },
-  text: { gap: 2 },
+  footer: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  text: { flex: 1, gap: 2 },
+  more: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  moreText: { color: colors.textSecondary, fontSize: 20 },
   name: { color: colors.textPrimary, fontSize: 15, fontWeight: '600' },
   tradeoff: { color: colors.textSecondary, fontSize: 13 }
 })

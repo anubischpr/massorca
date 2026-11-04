@@ -1,4 +1,7 @@
+import { useMemo } from 'react'
 import type { TuiAgent } from '../../../../shared/tui-agent'
+import { useAgentDetectionTargetForWorktree } from '@/hooks/useAgentDetectionTarget'
+import type { AgentDetectionTarget } from '@/hooks/useDetectedAgents'
 import type { TabBarProps } from './tab-bar-props'
 import type { TabAgentLaunchOption } from './tab-agent-launch-options'
 
@@ -20,4 +23,17 @@ export function withHostAgentLaunch<
       createHost.launchAgent(agent, option?.label ?? agent)
     }
   }
+}
+
+/** Agent detection for a "+" menu: the followed host's own when the strip has one, else its workspace's. */
+export function useMenuAgentDetectionTarget(
+  worktreeId: string,
+  hostEnvironmentId: string | undefined
+): AgentDetectionTarget | undefined {
+  const worktreeTarget = useAgentDetectionTargetForWorktree(worktreeId)
+  return useMemo<AgentDetectionTarget | undefined>(
+    () =>
+      hostEnvironmentId ? { kind: 'runtime', environmentId: hostEnvironmentId } : worktreeTarget,
+    [hostEnvironmentId, worktreeTarget]
+  )
 }

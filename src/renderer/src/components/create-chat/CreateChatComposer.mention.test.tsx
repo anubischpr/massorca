@@ -21,6 +21,7 @@ vi.mock('../native-chat/use-native-chat-mention-files', () => ({
 }))
 
 const { CreateChatComposer } = await import('./CreateChatComposer')
+const { useAppStore } = await import('@/store')
 
 const mounted: { container: HTMLDivElement; root: Root }[] = []
 
@@ -72,6 +73,7 @@ afterEach(() => {
     container.remove()
   }
   mentionQueries.length = 0
+  useAppStore.setState({ marketplaceApps: { status: 'loading' } })
 })
 
 describe('CreateChatComposer @ files', () => {
@@ -85,6 +87,17 @@ describe('CreateChatComposer @ files', () => {
     expect(mentionQueries.at(-1)).toEqual({ query: 'rou', worktreeId: 'wt-1' })
   })
 
+  it('shows a file row’s full path as its tooltip', async () => {
+    const container = mount('wt-1')
+    type(container, 'Fix @rou')
+    const row = container.querySelector<HTMLButtonElement>('[role="option"]')
+    expect(row?.getAttribute('data-slot')).toBe('tooltip-trigger')
+    await act(async () => row?.focus())
+    expect(document.body.querySelector('[role="tooltip"]')?.textContent).toBe(
+      'src/shared/routine.ts'
+    )
+  })
+
   it('inserts the picked path on Enter instead of creating the session', () => {
     const container = mount('wt-1')
     const box = type(container, 'Fix @rou')
@@ -93,6 +106,37 @@ describe('CreateChatComposer @ files', () => {
     })
     expect(box.value).toBe('Fix @src/shared/routine.ts ')
     expect(container.querySelector('[role="listbox"]')).toBeNull()
+  })
+
+  it('lists connected apps after the files under their headings, and inserts the app’s name', () => {
+    useAppStore.setState({
+      marketplaceApps: {
+        status: 'ready',
+        apps: [
+          { id: 'engram', connected: true, agents: [] },
+          { id: 'openmetadata', connected: false, agents: [] }
+        ]
+      }
+    })
+    const container = mount('wt-1')
+    const box = type(container, 'Fix @')
+    const listbox = container.querySelector('[role="listbox"]')
+    const rows = [...(listbox?.children ?? [])].filter((row) => !row.matches('[aria-live]'))
+    expect(rows.map((row) => row.textContent)).toEqual([
+      'Files',
+      expect.stringContaining('routine.ts'),
+      expect.stringContaining('brief.md'),
+      'Apps',
+      'EngramInstalled from Marketplace'
+    ])
+    expect(listbox?.querySelector('svg.lucide-brain')).not.toBeNull()
+    act(() => {
+      box.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true }))
+    })
+    act(() => {
+      box.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
+    })
+    expect(box.value).toBe('Fix @Engram ')
   })
 
   it('offers nothing without a project', () => {

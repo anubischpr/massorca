@@ -254,6 +254,9 @@ export function MobileBotTeamsScreen({
           onOpenBots={() => setScreen({ name: 'teamBots', teamId: openTeam.id })}
           onOpenTask={(workspaceId, task) => onOpenTask(workspaceId, task)}
           onOpenWork={setScreen}
+          onOpenRoutines={() =>
+            setScreen({ name: 'routines', teamId: openTeam.id, origin: 'room' })
+          }
           onAddBot={() => setScreen({ name: 'teamBot', teamId: openTeam.id })}
           onNewTeam={() => setScreen({ name: 'newTeam' })}
         />

@@ -5,7 +5,7 @@ import { forwardRef, useCallback, useState } from 'react'
 import { useNativeChatComposerInterrupt } from './use-native-chat-composer-interrupt'
 import { useNativeChatContextUsageSummary } from './use-native-chat-context-usage-summary'
 import { getSettingsForAgentTabRuntimeOwner } from '@/lib/agent-paste-draft'
-import { useNativeChatMentionFiles } from './use-native-chat-mention-files'
+import { useNativeChatMentionFilesAndApps } from './use-native-chat-mention-apps'
 import { useNativeChatDraft } from './use-native-chat-draft'
 import { useNativeChatComposerRecall } from './use-native-chat-composer-recall'
 import { useNativeChatLaunchDraftAdoption } from './use-native-chat-launch-draft-adoption'
@@ -142,7 +142,7 @@ const NativeChatComposerPane = forwardRef<NativeChatComposerHandle, NativeChatCo
       dismiss,
       handleDraftOrCaretChange
     } = picker
-    const mentionFiles = useNativeChatMentionFiles({
+    const mentionFiles = useNativeChatMentionFilesAndApps({
       query: autocomplete.mode === 'mention' ? autocomplete.query : null,
       terminalTabId,
       structuredWorktreeId: structuredTransport?.worktreeId

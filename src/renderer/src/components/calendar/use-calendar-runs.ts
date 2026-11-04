@@ -1,25 +1,28 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useAppStore } from '@/store'
 import { AUTOMATIONS_CHANGED_EVENT } from '@/lib/automations-changed-window-event'
 import { installWindowVisibilityInterval } from '@/lib/window-visibility-interval'
 import type { Automation } from '../../../../shared/automations-types'
 import { calendarAutomationTargets, listCalendarAutomations } from './calendar-automation-runs'
 import { loadBotRuns } from './calendar-bot-runs-source'
-import { loadCalendarRuns } from './calendar-runs-source'
+import { loadCalendarRuns, nextRunStartAfter, type LoadBotRuns } from './calendar-runs-source'
 import type { CalendarRange, CalendarRun } from './calendar-types'
 
 const MINUTE_MS = 60 * 1000
+// setTimeout's longest delay; a later start re-arms when this one fires.
+const MAX_TIMER_MS = 2_147_483_647
 
 /** Wall-clock time for the page, refreshed each minute while the window is visible. */
-export function useCalendarNow(initialNow?: number): number {
+export function useCalendarNow(initialNow?: number): [number, () => void] {
   const [now, setNow] = useState(() => initialNow ?? Date.now())
+  const refreshNow = useCallback(() => setNow(Date.now()), [])
   useEffect(() => {
     if (initialNow !== undefined) {
       return
     }
-    return installWindowVisibilityInterval({ run: () => setNow(Date.now()), intervalMs: MINUTE_MS })
-  }, [initialNow])
-  return now
+    return installWindowVisibilityInterval({ run: refreshNow, intervalMs: MINUTE_MS })
+  }, [initialNow, refreshNow])
+  return [now, refreshNow]
 }
 
 function useCalendarAutomations(): Automation[] {
@@ -46,36 +49,58 @@ function useCalendarAutomations(): Automation[] {
   return automations
 }
 
-function useRunsInRange(range: CalendarRange | null, automations: Automation[]): CalendarRun[] {
-  const [runs, setRuns] = useState<CalendarRun[]>([])
-  const from = range?.from
-  const to = range?.to
+type RunSnapshot = { runs: CalendarRun[]; upcomingRuns: CalendarRun[] }
+const NO_RUNS: RunSnapshot = { runs: [], upcomingRuns: [] }
+
+/**
+ * Runs in the visible and upcoming windows, loaded together so both views change in one render.
+ * `onRunStart` fires the moment the next run starts, so a started run turns over on time. Only the
+ * visible window asks for runs that already started, since Upcoming never shows them.
+ */
+export function useCalendarRuns(
+  visible: CalendarRange,
+  upcoming: CalendarRange | null,
+  options: { now: number; includeDoneRuns: boolean; onRunStart?: () => void }
+): RunSnapshot {
+  const { now, includeDoneRuns, onRunStart } = options
+  const automations = useCalendarAutomations()
+  const [snapshot, setSnapshot] = useState<RunSnapshot>(NO_RUNS)
+  const visibleFrom = visible.from
+  const visibleTo = visible.to
+  const upcomingFrom = upcoming?.from
+  const upcomingTo = upcoming?.to
   useEffect(() => {
-    if (from === undefined || to === undefined) {
-      setRuns([])
-      return
-    }
     let current = true
-    void loadCalendarRuns({ from, to }, automations, loadBotRuns).then((loaded) => {
+    const loadVisibleRuns: LoadBotRuns = (range) =>
+      loadBotRuns(range, { includePast: includeDoneRuns })
+    const upcomingWindow =
+      upcomingFrom === undefined || upcomingTo === undefined
+        ? null
+        : { from: upcomingFrom, to: upcomingTo }
+    void Promise.all([
+      loadCalendarRuns({ from: visibleFrom, to: visibleTo }, automations, loadVisibleRuns),
+      upcomingWindow ? loadCalendarRuns(upcomingWindow, automations, loadBotRuns) : []
+    ]).then(([runs, upcomingRuns]) => {
       if (current) {
-        setRuns(loaded)
+        setSnapshot({ runs, upcomingRuns })
       }
     })
     return () => {
       current = false
     }
-  }, [from, to, automations])
-  return runs
-}
+  }, [visibleFrom, visibleTo, upcomingFrom, upcomingTo, automations, includeDoneRuns])
 
-/** Runs in the visible window, and in the upcoming window when one is given. */
-export function useCalendarRuns(
-  visible: CalendarRange,
-  upcoming: CalendarRange | null
-): { runs: CalendarRun[]; upcomingRuns: CalendarRun[] } {
-  const automations = useCalendarAutomations()
-  return {
-    runs: useRunsInRange(visible, automations),
-    upcomingRuns: useRunsInRange(upcoming, automations)
-  }
+  const nextStartAt = nextRunStartAfter([...snapshot.runs, ...snapshot.upcomingRuns], now)
+  useEffect(() => {
+    if (nextStartAt === null || onRunStart === undefined) {
+      return
+    }
+    // The real clock, not `now`: a minute tick can be old while a load was in flight.
+    // One millisecond past the start, so the run has started when the page reads the clock.
+    const delay = Math.min(Math.max(nextStartAt - Date.now() + 1, 0), MAX_TIMER_MS)
+    const timer = window.setTimeout(onRunStart, delay)
+    return () => window.clearTimeout(timer)
+  }, [nextStartAt, now, onRunStart])
+
+  return snapshot
 }

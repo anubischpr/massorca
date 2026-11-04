@@ -7,6 +7,11 @@ import { flushMicrotasks } from './agent-status-test-harness'
 import { createTestStore, makeTab } from './store-test-helpers'
 import type { TerminalTab } from '../../../../shared/terminal-tab-types'
 import type { RetainedAgentEntry } from './agent-status'
+import type { AppState } from '../types'
+import {
+  structuredAgentSessionPaneKey,
+  structuredAgentSessionTabId
+} from '../../../../shared/structured-agent-session-projection'
 
 {
   describe('agent status freshness expiry', () => {
@@ -390,6 +395,56 @@ import type { RetainedAgentEntry } from './agent-status'
       expect(s.agentStatusByPaneKey['tab-active-child:0']).toBeDefined()
       expect(s.agentStatusByPaneKey['tab-live:0']).toBeDefined()
       expect(s.agentStatusByPaneKey['tab-other-orphan:0']).toBeDefined()
+    })
+
+    it('closeTab keeps idle structured sessions, whose tabs live only in the unified tab list', () => {
+      vi.useFakeTimers()
+      const store = createTestStore()
+      // Shape captured from a paired VPS worktree: stray terminals beside three idle chat sessions.
+      const sessionIds = [
+        'claude_a020924f_f87e_43b9_a865_f24c3d2abe57',
+        'antigravity_70b901a7_7387_4007_a467_5416d0dcaa69',
+        'pi_011c1aa0_df6e_4dce_8708_1110bf2898f7'
+      ]
+      const paneKeys = sessionIds.map((sessionId) =>
+        structuredAgentSessionPaneKey(structuredAgentSessionTabId(sessionId), sessionId)
+      )
+      store.setState({
+        tabsByWorktree: {
+          'wt-vps': [
+            makeTab({ id: 'stray-1', worktreeId: 'wt-vps' }),
+            makeTab({ id: 'stray-2', worktreeId: 'wt-vps' })
+          ]
+        },
+        // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: partial unified tabs; the sweep reads only id and worktreeId.
+        unifiedTabsByWorktree: {
+          'wt-vps': sessionIds.map((sessionId) => ({
+            id: structuredAgentSessionTabId(sessionId),
+            worktreeId: 'wt-vps',
+            contentType: 'agent-session'
+          }))
+        } as unknown as AppState['unifiedTabsByWorktree']
+      })
+      for (const paneKey of paneKeys) {
+        store
+          .getState()
+          .setAgentStatus(
+            paneKey,
+            { state: 'done', prompt: 'idle chat', agentType: 'claude' },
+            undefined,
+            undefined,
+            { worktreeId: 'wt-vps' }
+          )
+      }
+
+      store.getState().closeTab('stray-1')
+      store.getState().closeTab('stray-2')
+
+      const s = store.getState()
+      expect(s.tabsByWorktree['wt-vps']).toEqual([])
+      for (const paneKey of paneKeys) {
+        expect(s.agentStatusByPaneKey[paneKey]).toBeDefined()
+      }
     })
 
     it('on a paneKey with neither live nor retained entry: no-op (same state reference, no epoch bumps)', () => {

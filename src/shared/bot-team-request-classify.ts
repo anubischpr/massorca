@@ -19,7 +19,7 @@ export function buildBotTeamClassifyPrompt(
   bots: readonly Pick<DescribedBot, 'name' | 'job'>[],
   otherTeams: readonly Pick<DescribedTeam, 'name' | 'purpose'>[],
   request: string,
-  /** The host's clock now, as "Tuesday 2026-11-03 11:00", so a named day can be read as a date. */
+  /** The person's clock now, with its zone, as "Tuesday 2026-11-03 23:38 America/Lima". */
   now?: string
 ): string {
   const roster = bots.map((bot) => `- ${bot.name}: ${bot.job || 'no description'}`).join('\n')
@@ -40,7 +40,7 @@ export function buildBotTeamClassifyPrompt(
       'Add "later":true to a bot, composite or team-scope reply when the person wants the work later: tomorrow, later, or added to the Todo. It is still a task for the bot that covers its subject.',
       ...(now
         ? [
-            `Add "when":"YYYY-MM-DD HH:MM" to a bot, composite or team-scope reply only when the person asks to schedule the work for a day, such as "programen para mañana" or "schedule it for Monday", or names the time of day it should start, such as "mañana a las 10". A day alone, such as "para mañana, agrégalo al Todo", gets no "when". Read it against now: ${now}. Use 09:00 when only a day is named.`
+            `Add "when":"YYYY-MM-DD HH:MM" to a bot, composite or team-scope reply only when the person asks to schedule the work for a day, such as "programen para mañana" or "schedule it for Monday", or names the time of day it should start, such as "mañana a las 10". A day alone, such as "para mañana, agrégalo al Todo", gets no "when". Read it against now, on this clock: ${now}. Use 09:00 when only a day is named.`
           ]
         : []),
       'Add "research":true to a conversation reply only when a good answer needs knowledge from outside the room, such as a product, technology, company or news that must be looked up on the web. Greetings, chat, and questions about this room, its bots or its board never need research.',

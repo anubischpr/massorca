@@ -35,9 +35,7 @@ vi.mock('@/lib/agent-catalog', () => ({
 vi.mock('@/lib/use-pi-runtime', () => ({ usePiDisplayRuntime: () => 'unknown' }))
 vi.mock('../bot-teams/use-bot-teams', () => ({ useBotTeams: () => ({ teams: teams.current }) }))
 vi.mock('../bot-teams/BotTeamCharacterIcon', () => ({
-  BotTeamCharacterIcon: ({ character }: { character: string }) => (
-    <i data-character={character} />
-  )
+  BotTeamCharacterIcon: ({ character }: { character: string }) => <i data-character={character} />
 }))
 vi.mock('./calendar-bot-runs-source', () => ({ loadBotRuns }))
 vi.mock('../automations/automation-host-client', () => ({
@@ -123,12 +121,19 @@ async function click(c: ParentNode, label: string): Promise<void> {
 beforeEach(() => {
   teams.current = [marketing]
   listAutomations.mockReset().mockResolvedValue([triage])
-  loadBotRuns.mockReset().mockImplementation(async ({ from, to }: { from: number; to: number }) =>
-    [
-      botRun('Launch brief', local(2026, 10, 31, 15, 0)),
-      botRun('Competitor scan', local(2026, 11, 1, 8, 30))
-    ].filter((run) => run.at >= from && run.at < to)
-  )
+  loadBotRuns
+    .mockReset()
+    .mockImplementation(
+      async ({ from, to }: { from: number; to: number }, options?: { includePast?: boolean }) =>
+        [
+          botRun('Launch brief', local(2026, 10, 31, 15, 0)),
+          botRun('Competitor scan', local(2026, 11, 1, 8, 30)),
+          // Only the done-run filter asks for runs that already started.
+          ...(options?.includePast === true
+            ? [botRun('Morning sync', local(2026, 10, 31, 8, 0))]
+            : [])
+        ].filter((run) => run.at >= from && run.at < to)
+    )
 })
 
 afterEach(() => {
@@ -147,16 +152,24 @@ describe('the Calendar page', () => {
     const days = [...c.querySelectorAll('[data-calendar-day]')]
     expect(days).toHaveLength(7)
     expect(days.map((d) => d.getAttribute('data-today'))).toEqual([
-      'false', 'false', 'false', 'false', 'false', 'true', 'false'
+      'false',
+      'false',
+      'false',
+      'false',
+      'false',
+      'true',
+      'false'
     ])
     const saturday = days[5]
     expect(plain(saturday.textContent)).toContain('Sat31')
     expect(plain(saturday.textContent)).toContain('3:00 PMLaunch briefNora · Marketing')
-    expect(plain(saturday.textContent)).toContain('9:00 AMNightly triageClaude · Automations')
+    expect(plain(saturday.textContent)).not.toContain('9:00 AMNightly triageClaude · Automations')
     expect(saturday.querySelector('[data-character="square"]')).not.toBeNull()
-    // The 9:00 AM run is already past at 2:24 PM; Launch brief is still to come.
-    const dots = [...saturday.querySelectorAll('[data-past]')].map((d) => d.getAttribute('data-past'))
-    expect(dots).toEqual(['true', 'false'])
+    // At 2:24 PM the 9:00 AM run is done and hidden by default; Launch brief is still to come.
+    const dots = [...saturday.querySelectorAll('[data-past]')].map((d) =>
+      d.getAttribute('data-past')
+    )
+    expect(dots).toEqual(['false'])
   })
 
   it('moves the range with Previous, Next and Today', async () => {
@@ -216,5 +229,109 @@ describe('the Calendar page', () => {
     expect(c.querySelectorAll('[data-calendar-run]')).toHaveLength(0)
     expect(c.querySelectorAll('[data-calendar-day]')).toHaveLength(7)
     expect(c.textContent).not.toContain('Upcoming runs')
+  })
+})
+
+describe('the Calendar page as a run starts', () => {
+  afterEach(() => {
+    for (const { container, root } of mounted.splice(0)) {
+      act(() => root.unmount())
+      container.remove()
+    }
+    vi.useRealTimers()
+  })
+
+  it('takes a bot run off the grid and Upcoming runs together when it starts', async () => {
+    vi.useFakeTimers({ now: NOW })
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    const root = createRoot(container)
+    mounted.push({ container, root })
+    await act(async () => root.render(<CalendarPage />))
+    await settle()
+    expect(container.textContent).toContain('Launch brief')
+    // Launch brief starts at 3:00 PM, 36 minutes after NOW.
+    await act(async () => {
+      vi.advanceTimersByTime(36 * 60 * 1000 + 1000)
+    })
+    await settle()
+    expect(container.textContent).not.toContain('Launch brief')
+    expect(container.textContent).toContain('Competitor scan')
+  })
+})
+
+describe('the done-run filter', () => {
+  let uiSet: ReturnType<typeof vi.fn>
+
+  beforeEach(() => {
+    uiSet = vi.fn(() => Promise.resolve())
+    Object.defineProperty(window, 'api', { value: { ui: { set: uiSet } }, configurable: true })
+  })
+
+  afterEach(() => {
+    for (const { container, root } of mounted.splice(0)) {
+      act(() => root.unmount())
+      container.remove()
+    }
+    vi.useRealTimers()
+    store.setState({ calendarShowDoneRuns: false })
+    Reflect.deleteProperty(window, 'api')
+  })
+
+  async function toggleDoneRuns(c: ParentNode): Promise<void> {
+    const control = c.querySelector<HTMLButtonElement>('[role="switch"]')
+    if (!control) {
+      throw new Error('No done-run switch')
+    }
+    await act(async () => control.click())
+    await settle()
+  }
+
+  function chipFor(c: ParentNode, name: string): Element | undefined {
+    return [...c.querySelectorAll('[data-calendar-run]')].find((el) =>
+      el.textContent?.includes(name)
+    )
+  }
+
+  it('hides done runs by default, and shows a finished bot run greyed once the filter is on', async () => {
+    const c = await mount()
+    expect(c.textContent).not.toContain('Morning sync')
+    await toggleDoneRuns(c)
+    expect(c.querySelector('[role="switch"]')?.getAttribute('aria-checked')).toBe('true')
+    expect(uiSet).toHaveBeenCalledWith({ calendarShowDoneRuns: true })
+    expect(
+      chipFor(c, 'Morning sync')?.querySelector('[data-past]')?.getAttribute('data-past')
+    ).toBe('true')
+  })
+
+  it('keeps the choice when the page is shown again', async () => {
+    await toggleDoneRuns(await mount())
+    for (const { container, root } of mounted.splice(0)) {
+      act(() => root.unmount())
+      container.remove()
+    }
+    const again = await mount()
+    expect(again.querySelector('[role="switch"]')?.getAttribute('aria-checked')).toBe('true')
+    expect(chipFor(again, 'Morning sync')).toBeDefined()
+  })
+
+  it('with done runs shown, a run that starts turns grey in the grid and leaves Upcoming', async () => {
+    vi.useFakeTimers({ now: NOW })
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    const root = createRoot(container)
+    mounted.push({ container, root })
+    await act(async () => root.render(<CalendarPage />))
+    await settle()
+    await toggleDoneRuns(container)
+    // Launch brief starts at 3:00 PM, 36 minutes after NOW.
+    await act(async () => {
+      vi.advanceTimersByTime(36 * 60 * 1000 + 1000)
+    })
+    await settle()
+    expect(
+      chipFor(container, 'Launch brief')?.querySelector('[data-past]')?.getAttribute('data-past')
+    ).toBe('true')
+    expect(container.textContent).not.toContain('Today at 3:00 PM')
   })
 })

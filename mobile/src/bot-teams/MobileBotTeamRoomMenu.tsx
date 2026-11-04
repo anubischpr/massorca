@@ -3,6 +3,7 @@ import { Alert, Pressable, Text, View } from 'react-native'
 import {
   Bot,
   Brain,
+  Calendar,
   FileText,
   Folder,
   FolderPlus,
@@ -61,6 +62,7 @@ export function MobileBotTeamRoomMenu({
   projects,
   projectTaskCount,
   onOpenBoard,
+  onOpenRoutines,
   onOpenProject,
   onNewProject,
   onOpenBots,
@@ -86,6 +88,7 @@ export function MobileBotTeamRoomMenu({
   projects: readonly BotTeamProject[]
   projectTaskCount: (projectId: string) => number
   onOpenBoard: () => void
+  onOpenRoutines: () => void
   onOpenProject: (projectId: string) => void
   onNewProject: () => void
   onOpenBots: () => void
@@ -171,9 +174,14 @@ export function MobileBotTeamRoomMenu({
       />
       <MenuRow
         icon={<LayoutGrid size={18} color={colors.textSecondary} />}
-        title="Team board"
+        title="Tasks"
         meta={taskCountMeta(taskCount)}
         onPress={onOpenBoard}
+      />
+      <MenuRow
+        icon={<Calendar size={18} color={colors.textSecondary} />}
+        title="Routines"
+        onPress={onOpenRoutines}
       />
       <View style={styles.sheetHeader}>
         <Text style={[styles.label, styles.grow]}>Projects</Text>

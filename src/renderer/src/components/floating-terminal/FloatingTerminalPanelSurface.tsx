@@ -70,6 +70,8 @@ export function renderFloatingTerminalPanelSurface({
   newBrowserShortcut,
   newMarkdownShortcut,
   openMarkdownShortcut,
+  newChecklistShortcut,
+  openSessionShortcut,
   closeShortcut,
   showOrchestrationSetup,
   dismissOrchestrationSetup,
@@ -289,6 +291,8 @@ export function renderFloatingTerminalPanelSurface({
                   newBrowserShortcut={newBrowserShortcut}
                   newMarkdownShortcut={newMarkdownShortcut}
                   openMarkdownShortcut={openMarkdownShortcut}
+                  newChecklistShortcut={newChecklistShortcut}
+                  openSessionShortcut={openSessionShortcut}
                   closeShortcut={closeShortcut}
                 />
               )}

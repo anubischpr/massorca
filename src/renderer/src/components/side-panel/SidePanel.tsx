@@ -31,7 +31,6 @@ function SidePanelFor({
   const focused = useAppStore((s) => s.activeGroupIdByWorktree[worktreeId] === panelGroupId)
   const width = useAppStore((s) => s.sidePanelWidth)
   const setWidth = useAppStore((s) => s.setSidePanelWidth)
-  const setOpen = useAppStore((s) => s.setSidePanelOpen)
   const model = useSidePanelModel(worktreeId)
   const { containerRef, onResizeStart } = useSidebarResize<HTMLElement>({
     isOpen: open,
@@ -62,7 +61,6 @@ function SidePanelFor({
         onActivate={model.activate}
         onClose={model.close}
         onCreate={model.create}
-        onClosePanel={() => setOpen(worktreeId, false)}
       />
       {model.items.length > 0 ? (
         <TabGroupPanel

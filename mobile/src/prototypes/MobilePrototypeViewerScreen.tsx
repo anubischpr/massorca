@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import type { NativeChatVisualAnnotateEvent } from '../../../src/shared/native-chat-visual-annotate'
+import type {
+  NativeChatVisualAnnotateEvent,
+  NativeChatVisualAnnotateState
+} from '../../../src/shared/native-chat-visual-annotate'
 import { latestVersionOf } from '../../../src/shared/prototype-list-model'
 import type { PrototypeDraftField, PrototypeDraftItem } from '../../../src/shared/prototype-draft'
 import {
@@ -26,6 +29,7 @@ import {
   sendSucceeded
 } from '../../../src/shared/prototype-set-view'
 import { KeyedBottomDrawer } from '../components/keyed-bottom-drawer'
+import { hostMayRestorePrototypeVersions } from '../session/mobile-prototype-host-rpc'
 import { useOpenMobileSession } from '../session/use-open-mobile-session'
 import { useWorktreeAgentRows } from '../session/use-worktree-agent-rows'
 import { useHostClient } from '../transport/host-client-hooks'
@@ -43,6 +47,8 @@ import { mobilePrototypeAgentLabel } from './mobile-prototype-list-model'
 import { originChipOf } from './mobile-prototype-origin'
 import { findMobilePrototypeSet } from './mobile-prototype-sets-state'
 import { pulseFieldFor, viewerChips, viewerHeaderLines } from './mobile-prototype-viewer-model'
+import { MobilePrototypeRestoreBar } from './MobilePrototypeRestoreBar'
+import { canRestoreVersions, earlierVersionHeader } from './mobile-prototype-versions-model'
 import { mobilePrototypeStateKey, useMobilePrototypeViewStore } from './mobile-prototype-view-store'
 import { useMobilePrototypeFile } from './use-mobile-prototype-file'
 import { useMobilePrototypeSets } from './use-mobile-prototype-sets'
@@ -52,14 +58,22 @@ type Sheet = 'pin' | 'draft'
 /** The control a draft item jumped to, kept while its pin is the one open. */
 type Jump = { letter: string; pinKey: string; field: PrototypeDraftField; nonce: number }
 
-/** One prototype: its direction chips, the live page with its pins, and the Browse and Annotate tools. */
+// An earlier version is read-only: its pins belong to the current file, so none are drawn or picked.
+const NO_ANNOTATE: NativeChatVisualAnnotateState = { enabled: false, pins: [], overrides: [] }
+
+/**
+ * One prototype: its direction chips, the live page with its pins, and the Browse and Annotate tools.
+ * With `earlierVersion`, one earlier version of its direction, read-only, with Restore when offered.
+ */
 export function MobilePrototypeViewerScreen({
   hostId,
   requestId,
+  earlierVersion = null,
   onBack
 }: {
   hostId: string
   requestId: string
+  earlierVersion?: number | null
   onBack: () => void
 }) {
   const { client } = useHostClient(hostId)
@@ -86,14 +100,20 @@ export function MobilePrototypeViewerScreen({
   const [draftOpen, setDraftOpen] = useState(false)
   const frameHandle = useRef<MobilePrototypeFrameHandle | null>(null)
   const [jump, setJump] = useState<Jump | null>(null)
+  const [hostLacksRestore, setHostLacksRestore] = useState(false)
 
   const viewDirection = set?.directions.find((direction) => direction.letter === state?.view)
   const latest = latestVersionOf(viewDirection)
+  // Why: an earlier version is shown by its own file; the current one by the latest file.
+  const shown =
+    earlierVersion === null
+      ? latest
+      : (viewDirection?.versions.find((version) => version.version === earlierVersion) ?? null)
   const file = useMobilePrototypeFile(
     client,
-    set === null || latest === null
+    set === null || shown === null
       ? null
-      : { sessionId: set.sessionId, requestId: set.requestId, fileName: latest.fileName }
+      : { sessionId: set.sessionId, requestId: set.requestId, fileName: shown.fileName }
   )
   const onAnnotateEvent = useCallback(
     (event: NativeChatVisualAnnotateEvent) =>
@@ -140,15 +160,27 @@ export function MobilePrototypeViewerScreen({
       </SafeAreaView>
     )
   }
-  const lines = viewerHeaderLines(set, state)
-  const chips = viewerChips(set, state)
+  const lines =
+    earlierVersion === null
+      ? viewerHeaderLines(set, state)
+      : earlierVersionHeader(state.view, earlierVersion)
+  const chips = earlierVersion === null ? viewerChips(set, state) : []
   const originChip = originChipOf(set.origin, worktrees, (chat) =>
     openSession({ hostId, worktreeId: chat.worktreeId, paneKey: chat.paneKey })
   )
   const pin = selectedPinOf(state)
   const agentName = mobilePrototypeAgentLabel(set.agent)
-  const sheet: Sheet | null = draftOpen ? 'draft' : pin === null ? null : 'pin'
+  const sheet: Sheet | null =
+    earlierVersion !== null ? null : draftOpen ? 'draft' : pin === null ? null : 'pin'
   const pulseField = pulseFieldFor(jump, state)
+  // Why: a host that lacks restore is remembered per connection, and this screen re-reads it on the next tap.
+  const restoreHost =
+    client !== null &&
+    earlierVersion !== null &&
+    latest !== null &&
+    canRestoreVersions(set, !hostLacksRestore && hostMayRestorePrototypeVersions(client))
+      ? client
+      : null
 
   return (
     <SafeAreaView style={styles.screen} edges={['top', 'bottom']}>
@@ -156,7 +188,7 @@ export function MobilePrototypeViewerScreen({
         title={lines.title}
         subtitle={lines.subtitle}
         {...(originChip === null ? {} : { origin: originChip })}
-        backLabel={chips.length > 0 ? 'Back to the set' : 'Back'}
+        backLabel={earlierVersion !== null || chips.length > 0 ? 'Back to the set' : 'Back'}
         onBack={onBack}
         trailing={
           <MobilePrototypeViewportToggle
@@ -195,7 +227,7 @@ export function MobilePrototypeViewerScreen({
           ))}
         </ScrollView>
       )}
-      {isReadOnlyView(state) ? (
+      {isReadOnlyView(state) && earlierVersion === null ? (
         <MobilePrototypeReadOnlyBanner
           view={state.view}
           main={state.active}
@@ -205,36 +237,59 @@ export function MobilePrototypeViewerScreen({
       ) : null}
       <MobilePrototypeFrame
         file={file}
-        fileKey={`${set.requestId}:${latest?.fileName ?? ''}`}
+        fileKey={`${set.requestId}:${shown?.fileName ?? ''}`}
         viewport={state.viewport}
-        annotate={annotateStateOf(state, state.view)}
+        annotate={earlierVersion === null ? annotateStateOf(state, state.view) : NO_ANNOTATE}
         onAnnotateEvent={onAnnotateEvent}
         handle={frameHandle}
       />
-      <Pressable
-        accessibilityRole="button"
-        onPress={() => setDraftOpen(true)}
-        style={styles.draftBar}
-      >
-        <Text style={styles.draftCount}>{draftOf(state).itemCount}</Text>
-        <Text style={styles.draftLabel}>{`items ready for ${agentName}`}</Text>
-        <Text style={styles.draftAction}>Review &amp; send ›</Text>
-      </Pressable>
-      <View accessibilityRole="toolbar" accessibilityLabel="Prototype tools" style={styles.toolbar}>
-        {(['browse', 'annotate'] as const).map((tool) => (
+      {earlierVersion !== null ? (
+        restoreHost !== null && latest !== null ? (
+          <MobilePrototypeRestoreBar
+            client={restoreHost}
+            set={set}
+            letter={state.view}
+            version={earlierVersion}
+            latestVersion={latest.version}
+            onRestored={() => {
+              listed.reload()
+              onBack()
+            }}
+            onUnsupported={() => setHostLacksRestore(true)}
+          />
+        ) : null
+      ) : (
+        <>
           <Pressable
-            key={tool}
             accessibilityRole="button"
-            accessibilityState={{ selected: state.tool === tool }}
-            onPress={() => update((current) => setTool(current, tool))}
-            style={[styles.tool, state.tool === tool && styles.toolOn]}
+            onPress={() => setDraftOpen(true)}
+            style={styles.draftBar}
           >
-            <Text style={[styles.toolText, state.tool === tool && styles.toolTextOn]}>
-              {tool === 'browse' ? 'Browse' : 'Annotate'}
-            </Text>
+            <Text style={styles.draftCount}>{draftOf(state).itemCount}</Text>
+            <Text style={styles.draftLabel}>{`items ready for ${agentName}`}</Text>
+            <Text style={styles.draftAction}>Review &amp; send ›</Text>
           </Pressable>
-        ))}
-      </View>
+          <View
+            accessibilityRole="toolbar"
+            accessibilityLabel="Prototype tools"
+            style={styles.toolbar}
+          >
+            {(['browse', 'annotate'] as const).map((tool) => (
+              <Pressable
+                key={tool}
+                accessibilityRole="button"
+                accessibilityState={{ selected: state.tool === tool }}
+                onPress={() => update((current) => setTool(current, tool))}
+                style={[styles.tool, state.tool === tool && styles.toolOn]}
+              >
+                <Text style={[styles.toolText, state.tool === tool && styles.toolTextOn]}>
+                  {tool === 'browse' ? 'Browse' : 'Annotate'}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+        </>
+      )}
       <KeyedBottomDrawer<Sheet>
         sheet={sheet}
         sheetKey={(presented) => presented}

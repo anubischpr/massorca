@@ -147,3 +147,15 @@ export function latestVersionOf(
   }
   return latest
 }
+
+/** The versions of a direction, newest first: the first one is the current version. */
+export function versionsNewestFirst(
+  direction: PrototypeListedDirection | undefined
+): PrototypeListedDirection['versions'] {
+  return [...(direction?.versions ?? [])].sort((left, right) => right.version - left.version)
+}
+
+/** Gentle Shell keeps one file per artboard, so its sets have no earlier version to restore. */
+export function canRestoreVersions(set: Pick<PrototypeListedSet, 'agent'>): boolean {
+  return set.agent !== 'gentle-shell'
+}

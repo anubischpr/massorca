@@ -2,11 +2,13 @@ import { describe, expect, it } from 'vitest'
 import type { PrototypeListedSet } from './rpc-contract/prototype-params'
 import {
   buildPrototypeListRows,
+  canRestoreVersions,
   latestVersionOf,
   prototypeAge,
   prototypeMatchesFilter,
   prototypeStatus,
-  prototypeTitle
+  prototypeTitle,
+  versionsNewestFirst
 } from './prototype-list-model'
 
 const NOW = Date.parse('2026-10-29T12:00:00.000Z')
@@ -183,5 +185,32 @@ describe('latestVersionOf', () => {
     }
     expect(latestVersionOf(direction)).toEqual({ version: 2, fileName: 'B-v2.html' })
     expect(latestVersionOf(undefined)).toBeNull()
+  })
+})
+
+describe('versionsNewestFirst', () => {
+  it('lists the versions of a direction newest first, whatever order the host sent them in', () => {
+    const direction = {
+      letter: 'B',
+      versions: [
+        { version: 2, fileName: 'B-v2.html', mtime: 2 },
+        { version: 3, fileName: 'B-v3.html', mtime: 3 },
+        { version: 1, fileName: 'B.html', mtime: 1 }
+      ]
+    }
+    expect(versionsNewestFirst(direction).map((entry) => entry.version)).toEqual([3, 2, 1])
+    expect(direction.versions.map((entry) => entry.version)).toEqual([2, 3, 1])
+  })
+
+  it('is empty for a direction the set does not list', () => {
+    expect(versionsNewestFirst(undefined)).toEqual([])
+  })
+})
+
+describe('canRestoreVersions', () => {
+  it('is off for Gentle Shell, whose sets keep one file per artboard', () => {
+    expect(canRestoreVersions({ agent: 'gentle-shell' })).toBe(false)
+    expect(canRestoreVersions({ agent: 'claude' })).toBe(true)
+    expect(canRestoreVersions({ agent: 'codex' })).toBe(true)
   })
 })

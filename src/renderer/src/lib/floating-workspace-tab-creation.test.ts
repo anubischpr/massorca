@@ -12,6 +12,7 @@ import {
   seedStore
 } from '../store/slices/store-test-helpers'
 import { selectReferencedSessions } from '../store/slices/tabs/pane-session-ref'
+import { planSidePanelNormalization } from '../store/slices/tabs/side-panel-group'
 import {
   FLOATING_HOST_NO_WORKSPACE_REASON,
   FLOATING_HOST_THIS_COMPUTER
@@ -25,8 +26,13 @@ const liveApp = vi.hoisted((): { store: { getState(): unknown } | undefined } =>
 }))
 
 vi.mock('@/store', () => ({
-  useAppStore: { getState: () => liveApp.store?.getState() }
+  useAppStore: {
+    getState: () => liveApp.store?.getState(),
+    subscribe: () => () => {}
+  }
 }))
+const hostCreate = vi.hoisted(() => ({ createWebRuntimeSessionTerminal: vi.fn() }))
+vi.mock('../runtime/web-runtime-terminal-creation', () => hostCreate)
 vi.mock('./focus-terminal-tab-surface', () => ({ focusTerminalTabSurface: vi.fn() }))
 vi.mock('sonner', () => ({ toast: { error: vi.fn() } }))
 
@@ -99,18 +105,56 @@ describe('creating a floating terminal on the selected host', () => {
     expect(selectReferencedSessions(store.getState()).size).toBe(0)
   })
 
-  it('creates the terminal in the selected host workspace and shows it in the floating pane', async () => {
+  it('has the selected host create the terminal, then shows the tab the host publishes', async () => {
     useFloatingWorkspaceHostStore.setState({ chosen: VPS })
-
-    const tab = await createFloatingWorkspaceTerminalTab(store.getState())
-
-    expect(tab).not.toBeNull()
-    expect(store.getState().tabsByWorktree[OWNER]?.map((entry) => entry.id)).toEqual([tab?.id])
-    expect(store.getState().tabsByWorktree[FLOATING]).toEqual([])
-    expect(selectReferencedSessions(store.getState()).get(tab?.id ?? '')).toMatchObject({
-      ownerWorktreeId: OWNER,
-      layoutWorktreeId: FLOATING
+    let hostTabId = ''
+    hostCreate.createWebRuntimeSessionTerminal.mockImplementation(async () => {
+      // The host publishes its own tab id; the client never mints a provisional one.
+      hostTabId = store
+        .getState()
+        .createTab(OWNER, 'owner-main', undefined, { activate: false, viewMode: 'terminal' }).id
+      return { status: 'created' }
     })
+
+    const tab = await createFloatingWorkspaceTerminalTab(store.getState(), 'powershell.exe')
+
+    expect(tab).toBeNull()
+    expect(hostCreate.createWebRuntimeSessionTerminal).toHaveBeenCalledWith({
+      worktreeId: OWNER,
+      environmentId: VPS,
+      activate: false,
+      selectWorktree: false,
+      viewMode: 'terminal'
+    })
+    await vi.waitFor(() =>
+      expect(selectReferencedSessions(store.getState()).get(hostTabId)).toMatchObject({
+        ownerWorktreeId: OWNER,
+        layoutWorktreeId: FLOATING
+      })
+    )
+    expect(store.getState().tabsByWorktree[FLOATING]).toEqual([])
+    expect(
+      store
+        .getState()
+        .unifiedTabsByWorktree[FLOATING]?.find((entry) => entry.contentType === 'session-ref')
+        ?.sessionRef
+    ).toEqual({ worktreeId: OWNER, tabId: hostTabId, endsSessionOnClose: true })
+    // The host's terminal is a session of its workspace, so the side panel never takes it.
+    expect(planSidePanelNormalization(store.getState(), OWNER)).toBeNull()
+  })
+
+  it('reports a host that cannot create the terminal and shows nothing', async () => {
+    useFloatingWorkspaceHostStore.setState({ chosen: VPS })
+    hostCreate.createWebRuntimeSessionTerminal.mockResolvedValue({
+      status: 'failed',
+      message: 'not connected'
+    })
+
+    await createFloatingWorkspaceTerminalTab(store.getState())
+
+    expect(toast.error).toHaveBeenCalledWith('not connected')
+    expect(store.getState().tabsByWorktree[OWNER]).toEqual([])
+    expect(selectReferencedSessions(store.getState()).size).toBe(0)
   })
 
   it('reports the reason and creates nothing when the selected host has no workspace', async () => {

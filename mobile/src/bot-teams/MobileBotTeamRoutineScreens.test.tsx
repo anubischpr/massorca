@@ -40,9 +40,12 @@ vi.mock('../components/BottomDrawer', () => ({
 }))
 vi.mock('lucide-react-native', () => ({
   Check: 'Check',
+  ChevronDown: 'ChevronDown',
   ChevronLeft: 'ChevronLeft',
   ChevronRight: 'ChevronRight',
-  Plug: 'Plug'
+  Pencil: 'Pencil',
+  Plug: 'Plug',
+  Trash2: 'Trash2'
 }))
 vi.mock('../platform/clipboard', () => ({ useClipboardWriter: () => ({ writeText }) }))
 vi.mock('./MobileBotAgentIcon', () => ({ MobileBotAgentIcon: 'MobileBotAgentIcon' }))
@@ -234,6 +237,131 @@ describe('Routines on the phone', () => {
       expect.anything()
     )
     expect(text(renderer)).toContain('Last run Mon 2 Nov, done. Paused.')
+  })
+
+  it('goes back to the room when the list was opened from the room menu', async () => {
+    const client = host({
+      'botTeams.listRoutines': { routines: [ROUTINE] },
+      'botTeams.listWebhooks': { webhooks: [], endpoint: OFF }
+    })
+    const { renderer, props } = await render(client, {
+      name: 'routines',
+      teamId: 'team',
+      origin: 'room'
+    })
+    await press(renderer, 'Open Monday check-in')
+    expect(props.onScreen).toHaveBeenLastCalledWith({
+      name: 'routineRuns',
+      teamId: 'team',
+      routineId: 'r1',
+      origin: 'room'
+    })
+    await press(renderer, 'Back')
+    expect(props.onScreen).toHaveBeenLastCalledWith({ name: 'team', teamId: 'team' })
+  })
+
+  it('archives a Once routine that ran, closed by default with its count and no switch', async () => {
+    const ran = {
+      ...ROUTINE,
+      id: 'r2',
+      name: 'Launch flyer',
+      schedule: {
+        frequency: 'once',
+        time: '15:00',
+        weekday: null,
+        monthDay: null,
+        date: '2026-11-03'
+      },
+      nextRun: null
+    }
+    const client = host({
+      'botTeams.listRoutines': { routines: [ROUTINE, ran] },
+      'botTeams.listWebhooks': { webhooks: [], endpoint: OFF }
+    })
+    const { renderer } = await render(client, { name: 'routines', teamId: 'team' })
+    expect(text(renderer)).toContain('Archived 1')
+    expect(text(renderer)).not.toContain('Launch flyer')
+    await press(renderer, 'Archived 1')
+    expect(text(renderer)).toContain('Launch flyer')
+    // Only the active routine has the On and Paused switch.
+    expect(renderer.root.findAll((node) => node.children.includes('Paused'))).toHaveLength(1)
+  })
+
+  it('edits a routine from the sheet its long press opens', async () => {
+    const client = host({
+      'botTeams.listRoutines': { routines: [ROUTINE] },
+      'botTeams.listWebhooks': { webhooks: [], endpoint: OFF }
+    })
+    const { renderer, props } = await render(client, { name: 'routines', teamId: 'team' })
+    const row = renderer.root.findAll(
+      (node) => node.props.accessibilityLabel === 'Open Monday check-in'
+    )[0]
+    await act(async () => row.props.onLongPress())
+    await press(renderer, 'Edit')
+    expect(props.onScreen).toHaveBeenLastCalledWith({
+      name: 'routineEdit',
+      teamId: 'team',
+      routineId: 'r1'
+    })
+  })
+
+  it('deletes a routine only after the alert confirms it', async () => {
+    const client = host({
+      'botTeams.listRoutines': { routines: [ROUTINE] },
+      'botTeams.listWebhooks': { webhooks: [], endpoint: OFF },
+      'botTeams.deleteRoutine': { deleted: true }
+    })
+    const { renderer } = await render(client, { name: 'routines', teamId: 'team' })
+    const row = renderer.root.findAll(
+      (node) => node.props.accessibilityLabel === 'Open Monday check-in'
+    )[0]
+    await act(async () => row.props.onLongPress())
+    await press(renderer, 'Delete')
+    expect(alert).toHaveBeenLastCalledWith(
+      'Delete Monday check-in?',
+      expect.any(String),
+      expect.any(Array)
+    )
+    expect(client.sendRequest).not.toHaveBeenCalledWith(
+      'botTeams.deleteRoutine',
+      expect.anything(),
+      expect.anything()
+    )
+    const buttons: { text: string; onPress?: () => void }[] = alert.mock.lastCall?.[2] ?? []
+    await act(async () => buttons.find((button) => button.text === 'Delete')?.onPress?.())
+    expect(client.sendRequest).toHaveBeenCalledWith(
+      'botTeams.deleteRoutine',
+      { routineId: 'r1' },
+      expect.anything()
+    )
+    expect(text(renderer)).not.toContain('Monday check-in')
+  })
+
+  it('opens Edit routine filled in and saves it in place of creating one', async () => {
+    const client = host({
+      'botTeams.listRoutines': { routines: [ROUTINE] },
+      'botTeams.updateRoutine': { routine: ROUTINE }
+    })
+    const { renderer, props } = await render(client, {
+      name: 'routineEdit',
+      teamId: 'team',
+      routineId: 'r1'
+    })
+    expect(text(renderer)).toContain('Edit routine')
+    expect(fieldValue(renderer, 'Name')).toBe('Monday check-in')
+    await type(renderer, 'Name', 'Monday review')
+    await press(renderer, 'Save')
+    expect(client.sendRequest).toHaveBeenCalledWith(
+      'botTeams.updateRoutine',
+      expect.objectContaining({ routineId: 'r1', botId: 'bot', name: 'Monday review' }),
+      expect.anything()
+    )
+    expect(client.sendRequest).not.toHaveBeenCalledWith(
+      'botTeams.createRoutine',
+      expect.anything(),
+      expect.anything()
+    )
+    expect(props.onScreen).toHaveBeenLastCalledWith({ name: 'routines', teamId: 'team' })
   })
 
   it('says so on a host that cannot run routines', async () => {

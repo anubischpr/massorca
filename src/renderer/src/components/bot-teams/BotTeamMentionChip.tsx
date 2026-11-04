@@ -3,6 +3,9 @@ import type { ExtraProps } from 'react-markdown'
 import { RepoIconGlyph } from '@/components/repo/repo-icon'
 import type { CommentMarkdownExtension } from '@/components/sidebar/CommentMarkdown'
 import { getFileTypeIcon } from '@/lib/file-type-icons'
+import { FilePathTooltip } from '../native-chat/FilePathTooltip'
+import { MarketplaceItemIcon } from '../marketplace/MarketplaceItemIcon'
+import type { MarketplaceAppId } from '../../../../shared/marketplace-apps'
 import type { RepoIcon } from '../../../../shared/repo-icon'
 import type { BotTeam, BotTeamBot } from '../../../../shared/rpc-contract/bot-team-params'
 import { BotAgentIcon } from './BotAgentIcon'
@@ -15,12 +18,13 @@ import {
   remarkBotTeamMentions
 } from './bot-team-mention-markdown'
 
-/** A bot, team, project or file the room can mention, with the icon its chip shows. */
+/** A bot, team, project, file or app the room can mention, with the icon its chip shows. */
 export type BotTeamMentionIcon =
   | { name: string; kind: 'bot'; agent: BotTeamBot['agent'] }
   | { name: string; kind: 'team'; character: BotTeam['character'] }
   | { name: string; kind: 'project'; logo: RepoIcon | null }
   | { name: string; kind: 'file' }
+  | { name: string; kind: 'app'; id: MarketplaceAppId }
 
 type SpanProps = ComponentPropsWithoutRef<'span'> & ExtraProps
 
@@ -63,6 +67,7 @@ export function BotTeamMentionChipFace({
             'aria-hidden': true
           })
         : null}
+      {icon?.kind === 'app' ? <MarketplaceItemIcon id={icon.id} className="size-3" /> : null}
       {children}
     </>
   )
@@ -87,12 +92,13 @@ function createMentionSpan(icons: ReadonlyMap<string, BotTeamMentionIcon>) {
     if (!icon) {
       return <span {...props}>{children}</span>
     }
-    return (
+    const chip = (
       <span {...props} className={BOT_TEAM_MENTION_CHIP_CLASS}>
         {/* The chip shows the name alone; the message text keeps its "@Name". */}
         <BotTeamMentionChipFace icon={icon}>{icon.name}</BotTeamMentionChipFace>
       </span>
     )
+    return icon.kind === 'file' ? <FilePathTooltip path={icon.name}>{chip}</FilePathTooltip> : chip
   }
 }
 

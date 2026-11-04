@@ -8,7 +8,7 @@ import type { ProjectExecutionRuntimeResolution } from '../../../../shared/proje
 import { useAppStore } from '../../store'
 import { buildStatusMap } from '../right-sidebar/status-display'
 import { useDetectedAgents } from '@/hooks/useDetectedAgents'
-import { useAgentDetectionTargetForWorktree } from '@/hooks/useAgentDetectionTarget'
+import { useMenuAgentDetectionTarget } from './tab-bar-host-agent-launch'
 import { getConnectionIdFromState } from '@/lib/connection-context'
 import { getLocalProjectExecutionRuntimeContext } from '@/lib/local-preflight-context'
 import { isNativeChatTranscriptLocalReadable } from '@/lib/native-chat-transcript-readability'
@@ -92,12 +92,15 @@ export type TabBarRuntimeModel = {
 export function useTabBarRuntimeModel({
   worktreeId,
   groupId,
-  hostWorktreeId
+  hostWorktreeId,
+  hostEnvironmentId
 }: {
   worktreeId: string
   groupId?: string
   /** The workspace whose host the "+" menu's agents and shells come from; defaults to `worktreeId`. */
   hostWorktreeId?: string
+  /** The paired host the "+" menu follows; its own detection names the agents, with or without a workspace. */
+  hostEnvironmentId?: string
 }): TabBarRuntimeModel {
   const menuHostWorktreeId = hostWorktreeId ?? worktreeId
   const newTerminalShortcut = useShortcutLabel('tab.newTerminal')
@@ -133,7 +136,10 @@ export function useTabBarRuntimeModel({
   const settings = useAppStore((s) => s.settings)
   // Why: use the worktree's owning host so offered Windows shells match the host that actually runs the terminal.
   const activeRuntimeEnvironmentId = useAppStore(
-    (s) => getRuntimeEnvironmentIdForWorktree(s, menuHostWorktreeId)?.trim() || null
+    (s) =>
+      hostEnvironmentId?.trim() ||
+      getRuntimeEnvironmentIdForWorktree(s, menuHostWorktreeId)?.trim() ||
+      null
   )
   // Why: retained tab strips rerun selectors on every store write; reuse canonical indexes, don't flatten both slices here.
   const worktreeConnectionId = useAppStore(
@@ -152,7 +158,7 @@ export function useTabBarRuntimeModel({
   const agentCmdOverrides = useAppStore(
     (s) => s.settings?.agentCmdOverrides ?? EMPTY_AGENT_CMD_OVERRIDES
   )
-  const agentDetectionTarget = useAgentDetectionTargetForWorktree(menuHostWorktreeId)
+  const agentDetectionTarget = useMenuAgentDetectionTarget(menuHostWorktreeId, hostEnvironmentId)
   const { detectedIds } = useDetectedAgents(agentDetectionTarget)
   const agentLaunchOptions = useMemo(
     () =>

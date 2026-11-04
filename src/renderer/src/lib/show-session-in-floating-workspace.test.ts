@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { FLOATING_TERMINAL_WORKTREE_ID } from '../../../shared/constants'
 import {
   createTestStore,
+  makeTab,
   makeTabGroup,
   makeUnifiedTab,
   seedStore
@@ -10,7 +11,10 @@ import {
   referencedPlacement,
   selectReferencedSessions
 } from '../store/slices/tabs/pane-session-ref'
-import { showSessionInFloatingWorkspace } from './show-session-in-floating-workspace'
+import {
+  awaitNewSessionTab,
+  showSessionInFloatingWorkspace
+} from './show-session-in-floating-workspace'
 
 const OWNER = 'repo-a::/srv/owner'
 const FLOATING = FLOATING_TERMINAL_WORKTREE_ID
@@ -172,5 +176,65 @@ describe('showing another workspace session in the floating workspace', () => {
     expect(state.groupsByWorktree[FLOATING]?.[0]?.tabOrder).toEqual(['float-checklist'])
     expect(state.unifiedTabsByWorktree[OWNER]?.some((tab) => tab.id === 'owner-chat')).toBe(true)
     expect(state.groupsByWorktree[OWNER]?.[0]?.tabOrder).toEqual(['owner-chat'])
+  })
+})
+
+describe('waiting for the session a host publishes', () => {
+  it('finds the terminal a host opens after declining a chat, though it has no view mode yet', async () => {
+    const before = store.getState()
+    store.setState({
+      tabsByWorktree: {
+        ...before.tabsByWorktree,
+        [OWNER]: [makeTab({ id: 'pi-terminal', worktreeId: OWNER, launchAgent: 'pi' })]
+      },
+      unifiedTabsByWorktree: {
+        ...before.unifiedTabsByWorktree,
+        [OWNER]: [
+          ...(before.unifiedTabsByWorktree[OWNER] ?? []),
+          makeUnifiedTab({
+            id: 'pi-terminal',
+            entityId: 'pi-terminal',
+            worktreeId: OWNER,
+            groupId: 'owner-main',
+            contentType: 'terminal',
+            label: 'Gentle Shell'
+          })
+        ]
+      }
+    })
+
+    await expect(
+      awaitNewSessionTab(
+        { worktreeId: OWNER, knownTabIds: new Set(['owner-chat']), timeoutMs: 10 },
+        store
+      )
+    ).resolves.toBe('pi-terminal')
+  })
+
+  it('ignores a plain terminal that no agent launched', async () => {
+    const before = store.getState()
+    store.setState({
+      unifiedTabsByWorktree: {
+        ...before.unifiedTabsByWorktree,
+        [OWNER]: [
+          ...(before.unifiedTabsByWorktree[OWNER] ?? []),
+          makeUnifiedTab({
+            id: 'shell',
+            entityId: 'shell',
+            worktreeId: OWNER,
+            groupId: 'owner-main',
+            contentType: 'terminal',
+            label: 'Terminal'
+          })
+        ]
+      }
+    })
+
+    await expect(
+      awaitNewSessionTab(
+        { worktreeId: OWNER, knownTabIds: new Set(['owner-chat']), timeoutMs: 10 },
+        store
+      )
+    ).resolves.toBeNull()
   })
 })

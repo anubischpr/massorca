@@ -16,7 +16,8 @@ const MENTIONS = [
   { name: 'Iris', kind: 'bot' as const, agent: 'claude' as const },
   { name: 'Marketing', kind: 'team' as const, character: 'square' as const },
   { name: 'Shop', kind: 'project' as const, logo: { type: 'emoji' as const, emoji: '🛒' } },
-  { name: 'Spring', kind: 'project' as const, logo: null }
+  { name: 'Spring', kind: 'project' as const, logo: null },
+  { name: 'Engram', kind: 'app' as const, id: 'engram' as const }
 ]
 
 const mounted: { container: HTMLDivElement; root: Root }[] = []
@@ -78,6 +79,22 @@ describe('the room message body', () => {
     expect(chip?.textContent).toBe('site/flyer.html')
     expect(chip?.querySelector('svg.lucide-file-code')).not.toBeNull()
     expect(container.textContent).toContain('Usa site/flyer.html.')
+  })
+
+  it('shows a file chip’s full path as its tooltip', async () => {
+    const container = render('Usa @site/flyer.html')
+    const chip = container.querySelector<HTMLElement>('[data-bot-team-mention-file]')
+    expect(chip?.getAttribute('data-slot')).toBe('tooltip-trigger')
+    chip?.setAttribute('tabindex', '0')
+    await act(async () => chip?.focus())
+    expect(document.body.querySelector('[role="tooltip"]')?.textContent).toBe('site/flyer.html')
+  })
+
+  it('draws an installed app mention as a chip with the app’s logo', () => {
+    const container = render('Busca en @Engram')
+    const chip = container.querySelector('[data-bot-team-mention="Engram"]')
+    expect(chip?.textContent).toBe('Engram')
+    expect(chip?.querySelector('svg.lucide-brain')).not.toBeNull()
   })
 
   it('does not render raw HTML from a message', () => {

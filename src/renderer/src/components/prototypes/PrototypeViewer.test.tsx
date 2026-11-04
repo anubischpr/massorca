@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import type {
   NativeChatVisualAnnotateEvent,
+  NativeChatVisualAnnotateState,
   NativeChatVisualPickedElement
 } from '../../../../shared/native-chat-visual-annotate'
 import { beginMerge } from '../../../../shared/prototype-merge-state'
@@ -26,15 +27,36 @@ import { activateStructuredAgentSessionById } from '@/lib/structured-agent-sessi
 import { activateAndRevealWorktree } from '@/lib/worktree-activation'
 import { useAppStore } from '@/store'
 import type { Tab } from '../../../../shared/tab-types'
-import { PrototypeViewer } from './PrototypeViewer'
+import { PrototypeViewer, type PrototypeVersionRestoreControls } from './PrototypeViewer'
 import { usePrototypeViewStore } from './prototype-view-store'
 import { setPageTopBandActionsTarget } from '../../app-shell/page-top-band-slot'
+import {
+  PrototypeHostOutdatedError,
+  restorePrototypeVersionOnHost
+} from '@/runtime/runtime-prototype-client'
 
 const frame = vi.hoisted(() => {
-  const captured: { onAnnotateEvent: ((event: NativeChatVisualAnnotateEvent) => void) | null } = {
-    onAnnotateEvent: null
+  const captured: {
+    onAnnotateEvent: ((event: NativeChatVisualAnnotateEvent) => void) | null
+    annotate: NativeChatVisualAnnotateState | null
+  } = {
+    onAnnotateEvent: null,
+    annotate: null
   }
   return captured
+})
+
+const sonner = vi.hoisted(() => ({ toast: Object.assign(vi.fn(), { error: vi.fn() }) }))
+
+const fileHtml = vi.hoisted(() => ({
+  usePrototypeFileHtml: vi.fn<(file: unknown) => null>(() => null)
+}))
+
+vi.mock('sonner', () => ({ toast: sonner.toast }))
+
+vi.mock('@/runtime/runtime-prototype-client', () => {
+  class PrototypeHostOutdatedError extends Error {}
+  return { restorePrototypeVersionOnHost: vi.fn(), PrototypeHostOutdatedError }
 })
 
 vi.mock('@/i18n/i18n', () => ({
@@ -59,7 +81,9 @@ vi.mock('@/lib/worktree-activation', async (importOriginal) => ({
   activateAndRevealWorktree: vi.fn()
 }))
 
-vi.mock('./use-prototype-file-html', () => ({ usePrototypeFileHtml: () => null }))
+vi.mock('./use-prototype-file-html', () => ({
+  usePrototypeFileHtml: fileHtml.usePrototypeFileHtml
+}))
 
 vi.mock('./use-prototype-direction-html', () => ({
   usePrototypeDirectionsHtml: () => ({ ready: false, htmlByLetter: {} })
@@ -68,8 +92,12 @@ vi.mock('./use-prototype-direction-html', () => ({
 vi.mock('./PrototypeThumbnail', () => ({ PrototypeThumbnail: () => null }))
 
 vi.mock('./PrototypeFrame', () => ({
-  PrototypeFrame: (props: { onAnnotateEvent: (event: NativeChatVisualAnnotateEvent) => void }) => {
+  PrototypeFrame: (props: {
+    onAnnotateEvent: (event: NativeChatVisualAnnotateEvent) => void
+    annotate: NativeChatVisualAnnotateState
+  }) => {
     frame.onAnnotateEvent = props.onAnnotateEvent
+    frame.annotate = props.annotate
     return <div data-testid="frame" />
   }
 }))
@@ -124,6 +152,7 @@ function renderViewer(state: PrototypeSetState, update: Update): void {
         nextLetter="C"
         onMerge={vi.fn()}
         onSendMerge={vi.fn()}
+        versions={versionControls()}
       />
     </TooltipProvider>
   )
@@ -260,6 +289,7 @@ function renderSet3(
         nextLetter={extra.nextLetter === undefined ? 'D' : extra.nextLetter}
         onMerge={extra.onMerge ?? vi.fn()}
         onSendMerge={vi.fn()}
+        versions={versionControls()}
       />
     </TooltipProvider>
   )
@@ -796,6 +826,238 @@ describe('PrototypeViewer origin link', () => {
       worktreeId: 'wt-2',
       sessionId: 'child-1'
     })
+  })
+})
+
+const VERSIONED: PrototypeListedSet = {
+  ...SET,
+  count: 2,
+  directions: [
+    {
+      letter: 'A',
+      versions: [
+        {
+          version: 1,
+          fileName: 'prototypes/20261028-201500-aaaaaa/A.html',
+          mtime: Date.UTC(2026, 9, 28, 20, 15)
+        },
+        {
+          version: 2,
+          fileName: 'prototypes/20261028-201500-aaaaaa/A-v2.html',
+          mtime: Date.UTC(2026, 9, 28, 21, 0)
+        },
+        {
+          version: 3,
+          fileName: 'prototypes/20261028-201500-aaaaaa/A-v3.html',
+          mtime: Date.UTC(2026, 9, 28, 22, 0)
+        }
+      ]
+    },
+    {
+      letter: 'B',
+      versions: [{ version: 1, fileName: 'prototypes/20261028-201500-aaaaaa/B.html', mtime: 1 }]
+    }
+  ]
+}
+
+const restoreMock = vi.mocked(restorePrototypeVersionOnHost)
+
+function versionControls(
+  overrides: Partial<PrototypeVersionRestoreControls> = {}
+): PrototypeVersionRestoreControls {
+  return { supports: () => true, onOutdated: vi.fn(), onRestored: vi.fn(), ...overrides }
+}
+
+function rowButton(scope: HTMLElement, name: string, nth: number): HTMLElement {
+  const found = within(scope).getAllByRole('button', { name })[nth]
+  if (found === undefined) {
+    throw new Error(`${name} ${nth} missing`)
+  }
+  return found
+}
+
+function renderVersioned(
+  options: { set?: PrototypeListedSet; versions?: PrototypeVersionRestoreControls } = {}
+): PrototypeVersionRestoreControls {
+  const versions = options.versions ?? versionControls()
+  render(
+    <TooltipProvider>
+      <PrototypeViewer
+        set={options.set ?? VERSIONED}
+        state={createSetState(['A', 'B'])}
+        update={vi.fn<Update>()}
+        frameBoxRef={createRef<HTMLDivElement>()}
+        onOpenDesignSystem={vi.fn()}
+        nextLetter="C"
+        onMerge={vi.fn()}
+        onSendMerge={vi.fn()}
+        versions={versions}
+      />
+    </TooltipProvider>
+  )
+  return versions
+}
+
+/** Opens the Versions panel from the toolbar, and returns it. */
+function openVersionsPanel(): HTMLElement {
+  fireEvent.click(screen.getByRole('button', { name: 'Versions' }))
+  return screen.getByRole('complementary')
+}
+
+describe('PrototypeViewer versions panel', () => {
+  beforeEach(() => {
+    usePrototypeViewStore.setState({ sidePanelHidden: false, states: {} })
+    sonner.toast.mockReset()
+    sonner.toast.error.mockReset()
+    restoreMock.mockReset()
+    fileHtml.usePrototypeFileHtml.mockClear()
+  })
+  afterEach(cleanup)
+
+  it('lists the current version first, then each earlier one newest first', () => {
+    renderVersioned()
+    expect(screen.queryByRole('complementary')).toBeNull()
+    const panel = openVersionsPanel()
+    expect(within(panel).getByRole('heading', { name: 'Versions of A' })).toBeInTheDocument()
+    const text = panel.textContent ?? ''
+    expect(text.indexOf('Current · v3')).toBeLessThan(text.indexOf('v2'))
+    expect(text.indexOf('v2')).toBeLessThan(text.indexOf('v1'))
+    expect(within(panel).getAllByRole('button', { name: 'Preview' })).toHaveLength(2)
+    expect(within(panel).getAllByRole('button', { name: 'Restore' })).toHaveLength(2)
+    expect(text).toContain('Restoring copies that version into a new one. No version is deleted.')
+  })
+
+  it('previews an earlier file read-only, tagged with its letter and version, and goes back to current', () => {
+    renderVersioned()
+    const panel = openVersionsPanel()
+    fireEvent.click(rowButton(panel, 'Preview', 0))
+    expect(screen.getByText('A · v2 · earlier version, read-only')).toBeInTheDocument()
+    expect(fileHtml.usePrototypeFileHtml).toHaveBeenLastCalledWith({
+      sessionId: VERSIONED.sessionId,
+      requestId: VERSIONED.requestId,
+      fileName: 'prototypes/20261028-201500-aaaaaa/A-v2.html'
+    })
+    expect(frame.annotate?.enabled).toBe(false)
+    const toolbar = screen.getByRole('toolbar')
+    expect(within(toolbar).getByRole('button', { name: 'Back to current' })).toHaveAttribute(
+      'data-variant',
+      'outline'
+    )
+    expect(within(toolbar).getByRole('button', { name: 'Restore v2' })).toHaveAttribute(
+      'data-variant',
+      'default'
+    )
+    fireEvent.click(within(toolbar).getByRole('button', { name: 'Back to current' }))
+    expect(screen.getByText('A · main · v3 · click any element to add a note')).toBeInTheDocument()
+    expect(fileHtml.usePrototypeFileHtml).toHaveBeenLastCalledWith({
+      sessionId: VERSIONED.sessionId,
+      requestId: VERSIONED.requestId,
+      fileName: 'prototypes/20261028-201500-aaaaaa/A-v3.html'
+    })
+  })
+
+  it('asks before restoring, copies the version, and returns the viewer to the current version', async () => {
+    restoreMock.mockResolvedValue({
+      ok: true,
+      fileName: 'prototypes/20261028-201500-aaaaaa/A-v4.html',
+      version: 4
+    })
+    const versions = renderVersioned()
+    const panel = openVersionsPanel()
+    fireEvent.click(rowButton(panel, 'Preview', 0))
+    fireEvent.click(within(screen.getByRole('toolbar')).getByRole('button', { name: 'Restore v2' }))
+    const dialog = screen.getByRole('dialog')
+    expect(
+      within(dialog).getByRole('heading', { name: 'Restore version 2 of A?' })
+    ).toBeInTheDocument()
+    expect(
+      within(dialog).getByText(
+        'It becomes version 4, the current one, with the content of v2. Versions 1 to 3 stay in the list.'
+      )
+    ).toBeInTheDocument()
+    expect(restoreMock).not.toHaveBeenCalled()
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }))
+    expect(screen.queryByRole('dialog')).toBeNull()
+
+    fireEvent.click(within(screen.getByRole('toolbar')).getByRole('button', { name: 'Restore v2' }))
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Restore' }))
+    await waitFor(() => expect(versions.onRestored).toHaveBeenCalledTimes(1))
+    expect(restoreMock).toHaveBeenCalledTimes(1)
+    expect(restoreMock).toHaveBeenCalledWith(
+      { kind: 'local' },
+      { sessionId: VERSIONED.sessionId, requestId: VERSIONED.requestId, letter: 'A', version: 2 }
+    )
+    expect(sonner.toast).toHaveBeenCalledWith('Version restored')
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(screen.getByText('A · main · v3 · click any element to add a note')).toBeInTheDocument()
+  })
+
+  it('offers no Restore for a Gentle Shell set, which keeps one file per artboard', () => {
+    renderVersioned({ set: { ...VERSIONED, agent: 'gentle-shell' } })
+    const panel = openVersionsPanel()
+    expect(within(panel).getAllByRole('button', { name: 'Preview' })).toHaveLength(2)
+    expect(within(panel).queryByRole('button', { name: 'Restore' })).toBeNull()
+  })
+
+  it('hides Restore while the host does not support restoring, and keeps Preview', () => {
+    renderVersioned({ versions: versionControls({ supports: () => false }) })
+    const panel = openVersionsPanel()
+    expect(within(panel).queryByRole('button', { name: 'Restore' })).toBeNull()
+    fireEvent.click(rowButton(panel, 'Preview', 0))
+    const toolbar = screen.getByRole('toolbar')
+    expect(within(toolbar).getByRole('button', { name: 'Back to current' })).toBeInTheDocument()
+    expect(within(toolbar).queryByRole('button', { name: 'Restore v2' })).toBeNull()
+  })
+
+  it('reports an outdated host, and closes the dialog with a note', async () => {
+    restoreMock.mockRejectedValue(new PrototypeHostOutdatedError())
+    const versions = renderVersioned()
+    const panel = openVersionsPanel()
+    fireEvent.click(rowButton(panel, 'Restore', 0))
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Restore' }))
+    await waitFor(() => expect(versions.onOutdated).toHaveBeenCalledWith(VERSIONED))
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(sonner.toast.error).toHaveBeenCalledWith(
+      'This host does not support restoring versions yet.'
+    )
+    expect(versions.onRestored).not.toHaveBeenCalled()
+  })
+
+  it('keeps the dialog open when the host refuses the restore, and says so', async () => {
+    restoreMock.mockResolvedValue({ ok: false, error: 'conflict' })
+    const versions = renderVersioned()
+    const panel = openVersionsPanel()
+    fireEvent.click(rowButton(panel, 'Restore', 0))
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Restore' }))
+    await waitFor(() =>
+      expect(sonner.toast.error).toHaveBeenCalledWith("Couldn't restore this version. Try again.")
+    )
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+    expect(versions.onRestored).not.toHaveBeenCalled()
+  })
+
+  it('ends a preview when its direction is left, so coming back shows the current version', () => {
+    const viewer = (state: PrototypeSetState): React.JSX.Element => (
+      <TooltipProvider>
+        <PrototypeViewer
+          set={VERSIONED}
+          state={state}
+          update={vi.fn<Update>()}
+          frameBoxRef={createRef<HTMLDivElement>()}
+          onOpenDesignSystem={vi.fn()}
+          nextLetter="C"
+          onMerge={vi.fn()}
+          onSendMerge={vi.fn()}
+          versions={versionControls()}
+        />
+      </TooltipProvider>
+    )
+    const { rerender } = render(viewer(createSetState(['A', 'B'])))
+    fireEvent.click(rowButton(openVersionsPanel(), 'Preview', 0))
+    expect(screen.getByText('A · v2 · earlier version, read-only')).toBeInTheDocument()
+    rerender(viewer(openDirection(createSetState(['A', 'B']), 'B')))
+    rerender(viewer(createSetState(['A', 'B'])))
+    expect(screen.getByText('A · main · v3 · click any element to add a note')).toBeInTheDocument()
   })
 })
 

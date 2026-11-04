@@ -32,8 +32,7 @@ test('no side panel control is a window drag region, with the terminal focused o
   const controls = [
     `${PANEL} button[aria-label="New tab"]`,
     `${PANEL} [role="tab"]`,
-    `${PANEL} button[aria-label="Close tab"]`,
-    `${PANEL} button[aria-label="Close panel"]`
+    `${PANEL} button[aria-label="Close tab"]`
   ]
   for (const terminalFocused of [true, false]) {
     // Why: main.css turns focus-release surfaces into drag regions unless xterm owns focus, so a

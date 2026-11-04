@@ -19,3 +19,14 @@ export const paneSessionFocusSchema = z.object({
   ownerWorktreeId: z.string().min(1),
   groupId: z.string().min(1)
 })
+
+// Why catch: a session tab whose reference this build cannot read closes on hydration instead of
+// failing the whole-session parse.
+export const tabSessionRefSchema = z
+  .object({
+    worktreeId: z.string().min(1),
+    tabId: z.string().min(1),
+    endsSessionOnClose: z.literal(true).optional().catch(undefined)
+  })
+  .optional()
+  .catch(undefined)
