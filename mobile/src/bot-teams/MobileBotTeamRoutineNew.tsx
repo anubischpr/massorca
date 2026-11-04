@@ -9,11 +9,12 @@ import {
 } from '../../../src/shared/bot-team-routine-schedule'
 import { localTimeZone } from '../../../src/shared/bot-team-routine-zone'
 import type { BotTeam } from '../../../src/shared/rpc-contract/bot-team-params'
+import type { BotTeamRoutine } from '../../../src/shared/rpc-contract/bot-team-routine-params'
 import { colors } from '../theme/mobile-theme'
 import type { RpcClient } from '../transport/rpc-client'
 import { MobileBotAgentIcon } from './MobileBotAgentIcon'
 import { MOBILE_ROUTINE_WEEKDAYS, mobileRoutineWeekdayName } from './MobileBotTeamRoutineLabels'
-import { createMobileBotTeamRoutine } from './MobileBotTeamRoutineRpc'
+import { createMobileBotTeamRoutine, updateMobileBotTeamRoutine } from './MobileBotTeamRoutineRpc'
 import { MobileBotTeamRoutineTimePicker } from './MobileBotTeamRoutineTimePicker'
 import { MobileBotTeamWorkBar } from './MobileBotTeamWorkBar'
 import { botTeamStyles as styles } from './mobile-bot-team-styles'
@@ -51,10 +52,11 @@ function Choice({
   )
 }
 
-/** New routine (M38): what it does, when, and which bot does it. */
+/** New routine (M38), or Edit routine filled in (board 57): what it does, when, and which bot does it. */
 export function MobileBotTeamRoutineNew({
   client,
   team,
+  routine,
   offline,
   onBack,
   onCreated,
@@ -62,20 +64,26 @@ export function MobileBotTeamRoutineNew({
 }: {
   client: RpcClient
   team: BotTeam
+  /** The routine Edit opens; absent for a new one. */
+  routine?: BotTeamRoutine
   offline: boolean
   onBack: () => void
   onCreated: () => void
   /** Opens the Bot teams settings, where the team's access is set. */
   onChangeAccess: () => void
 }) {
-  const [name, setName] = useState('')
-  const [prompt, setPrompt] = useState('')
-  const [frequency, setFrequency] = useState<BotTeamRoutineFrequency>('weekly')
-  const [time, setTime] = useState('09:00')
-  const [weekday, setWeekday] = useState(1)
-  const [monthDay, setMonthDay] = useState(1)
-  const [date, setDate] = useState(tomorrowDate)
-  const [botId, setBotId] = useState(team.bots[0]?.id ?? '')
+  const kept = routine?.schedule
+  const [name, setName] = useState(routine?.name ?? '')
+  const [prompt, setPrompt] = useState(routine?.prompt ?? '')
+  const [frequency, setFrequency] = useState<BotTeamRoutineFrequency>(kept?.frequency ?? 'weekly')
+  const [time, setTime] = useState(kept?.time ?? '09:00')
+  const [weekday, setWeekday] = useState(kept?.weekday ?? 1)
+  const [monthDay, setMonthDay] = useState(kept?.monthDay ?? 1)
+  // A day already past, as an archived Once routine has, starts over from tomorrow.
+  const [date, setDate] = useState(() =>
+    kept?.date && kept.date > hostWallTime(Date.now()).date ? kept.date : tomorrowDate()
+  )
+  const [botId, setBotId] = useState(routine?.botId ?? team.bots[0]?.id ?? '')
   const bot = team.bots.find((entry) => entry.id === botId)
   // Null when this device cannot name its zone: the routine then runs on the host's clock.
   const zone = localTimeZone()
@@ -92,13 +100,10 @@ export function MobileBotTeamRoutineNew({
   const ready =
     name.trim() !== '' && prompt.trim() !== '' && TIME.test(time) && bot !== undefined && dateOk
   const create = async () => {
-    const made = await createMobileBotTeamRoutine(client, {
-      teamId: team.id,
-      botId,
-      name: name.trim(),
-      prompt: prompt.trim(),
-      schedule
-    })
+    const fields = { botId, name: name.trim(), prompt: prompt.trim(), schedule }
+    const made = routine
+      ? await updateMobileBotTeamRoutine(client, { routineId: routine.id, ...fields })
+      : await createMobileBotTeamRoutine(client, { teamId: team.id, ...fields })
     if (made === null) {
       Alert.alert('That did not save', 'Check the connection to this host and try again.')
       return
@@ -107,7 +112,7 @@ export function MobileBotTeamRoutineNew({
   }
   return (
     <View style={styles.grow}>
-      <MobileBotTeamWorkBar title="New routine" onBack={onBack} />
+      <MobileBotTeamWorkBar title={routine ? 'Edit routine' : 'New routine'} onBack={onBack} />
       <ScrollView contentContainerStyle={styles.form} keyboardShouldPersistTaps="handled">
         <Text style={styles.label}>Name</Text>
         <TextInput
@@ -222,7 +227,7 @@ export function MobileBotTeamRoutineNew({
           onPress={() => void create()}
           style={[styles.primary, (!ready || offline) && styles.primaryDisabled]}
         >
-          <Text style={styles.primaryText}>Create routine</Text>
+          <Text style={styles.primaryText}>{routine ? 'Save' : 'Create routine'}</Text>
         </Pressable>
         <Pressable accessibilityRole="button" onPress={onBack} style={styles.secondary}>
           <Text style={styles.rowTitle}>Cancel</Text>

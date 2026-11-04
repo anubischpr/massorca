@@ -11,11 +11,12 @@ import {
   setBotTeamRoutinePaused
 } from '@/runtime/runtime-bot-team-client-routines'
 import { useAppStore } from '@/store'
+import { isArchivedBotTeamRoutine } from '../../../../shared/bot-team-routine-archive'
 import type { BotTeam } from '../../../../shared/rpc-contract/bot-team-params'
 import type { BotTeamRoutine } from '../../../../shared/rpc-contract/bot-team-routine-params'
 import { BotAgentIcon } from './BotAgentIcon'
 import { BotTeamFilesBar } from './BotTeamFilesBar'
-import { BotTeamRoutineMenu, isArchivedBotTeamRoutine } from './BotTeamRoutineActions'
+import { BotTeamRoutineMenu } from './BotTeamRoutineActions'
 import {
   routineAccessLabel,
   routineRunStatus,

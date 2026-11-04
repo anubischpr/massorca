@@ -3,7 +3,8 @@ import {
   BotTeamRoutineRunSchema,
   BotTeamRoutineSchema,
   type BotTeamRoutine,
-  type BotTeamRoutineInput
+  type BotTeamRoutineInput,
+  type BotTeamRoutineUpdateInput
 } from '../../../src/shared/rpc-contract/bot-team-routine-params'
 import { isMobileMethodUnavailableError } from '../transport/mobile-method-unavailable'
 import type { RpcClient } from '../transport/rpc-client'
@@ -67,6 +68,25 @@ async function changeRoutine(
 /** The routine the host kept, or null when it refused or could not be reached. */
 export function createMobileBotTeamRoutine(client: HostClient, input: BotTeamRoutineInput) {
   return changeRoutine(client, 'botTeams.createRoutine', input)
+}
+
+/** Saves an edited routine; a finished Once routine with a new date runs again. */
+export function updateMobileBotTeamRoutine(client: HostClient, input: BotTeamRoutineUpdateInput) {
+  return changeRoutine(client, 'botTeams.updateRoutine', input)
+}
+
+/** True once the host deleted the routine and its runs; tasks it started stay. */
+export async function deleteMobileBotTeamRoutine(
+  client: HostClient,
+  routineId: string
+): Promise<boolean> {
+  const read = await readFromHost(
+    client,
+    'botTeams.deleteRoutine',
+    { routineId },
+    z.object({ deleted: z.literal(true) })
+  )
+  return read.kind === 'ready'
 }
 
 export function setMobileBotTeamRoutinePaused(
