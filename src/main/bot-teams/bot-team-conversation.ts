@@ -1,6 +1,7 @@
 import { getCommitMessageAgentSpec } from '../../shared/commit-message-agent-spec'
 import { BOT_TEAM_ALL_AUTHOR } from '../../shared/bot-team-greeting'
 import { isTuiAgent } from '../../shared/tui-agent-config'
+import { withMarketplaceAppPromptLines } from '../../shared/marketplace-app-mentions'
 import type { BotTeam, BotTeamBot } from '../../shared/rpc-contract/bot-team-params'
 import type { BotTeamMessage, BotTeamTask } from '../../shared/rpc-contract/bot-team-room-params'
 import { buildBotTeamCodeAnswerPrompt, CODE_NOT_READ_NOTE } from './bot-team-code-answer'
@@ -164,8 +165,15 @@ function researchPrompt(args: {
   ].join('\n\n')
 }
 
-/** One short question to the bot's own agent: read the room and the board, answer once, do nothing. */
-export function buildBotTeamConversationPrompt(args: {
+/** One short question to the bot's own agent, told to use the apps the question names. */
+export function buildBotTeamConversationPrompt(
+  args: Parameters<typeof conversationPrompt>[0]
+): string {
+  return withMarketplaceAppPromptLines(conversationPrompt(args), args.text)
+}
+
+/** Read the room and the board, answer once, do nothing. */
+function conversationPrompt(args: {
   team: Pick<BotTeam, 'name' | 'purpose'>
   bot: BotTeamBot
   bots: readonly BotTeamBot[]

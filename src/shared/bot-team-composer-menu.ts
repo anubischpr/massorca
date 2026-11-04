@@ -1,3 +1,4 @@
+import type { MarketplaceAppMention } from './marketplace-app-mentions'
 import type { RepoIcon } from './repo-icon'
 import type { BotTeam, BotTeamBot } from './rpc-contract/bot-team-params'
 
@@ -17,6 +18,7 @@ export type BotTeamComposerItem =
   | { kind: 'team'; team: BotTeamMentionTeam; insert: string }
   | { kind: 'project'; project: BotTeamMentionProject; insert: string }
   | { kind: 'file'; path: string; insert: string }
+  | { kind: 'app'; app: MarketplaceAppMention; insert: string }
   | { kind: 'command'; command: BotTeamRoomCommand; insert: string }
 
 export type BotTeamComposerMenu = {
@@ -39,7 +41,7 @@ export function botTeamProjectLogo(icon: RepoIcon | null | undefined): RepoIcon 
   return icon && icon.type !== 'lucide' ? icon : null
 }
 
-/** What the room's composer offers at the caret: bots, other teams, projects and files after `@`, commands after a leading `/`. */
+/** What the room's composer offers at the caret: bots, other teams, projects, files and apps after `@`, commands after a leading `/`. */
 export function botTeamComposerMenu(args: {
   text: string
   caret: number
@@ -48,6 +50,8 @@ export function botTeamComposerMenu(args: {
   teams?: readonly BotTeamMentionTeam[]
   projects?: readonly BotTeamMentionProject[]
   files?: readonly string[]
+  /** Installed Marketplace apps, listed last. */
+  apps?: readonly MarketplaceAppMention[]
   /** A surface that cannot run the room's commands offers none. */
   commands?: readonly BotTeamRoomCommand[]
 }): BotTeamComposerMenu | null {
@@ -77,7 +81,14 @@ export function botTeamComposerMenu(args: {
   const files: BotTeamComposerItem[] = (args.files ?? [])
     .filter((path) => path.toLowerCase().includes(query))
     .map((path) => ({ kind: 'file', path, insert: `@${path} ` }))
-  const items = [...bots, ...teams, ...projects, ...files].slice(0, MAX_ITEMS)
+  const apps: BotTeamComposerItem[] = (args.apps ?? [])
+    .filter((app) => app.name.toLowerCase().includes(query))
+    .map((app) => ({ kind: 'app', app, insert: `@${app.name} ` }))
+  // Why: the few apps keep their room at the end, so a long file list never pushes them out.
+  const items = [
+    ...[...bots, ...teams, ...projects, ...files].slice(0, MAX_ITEMS - apps.length),
+    ...apps
+  ]
   return items.length > 0
     ? { items, start: args.caret - mention[1].length - 1, end: args.caret }
     : null

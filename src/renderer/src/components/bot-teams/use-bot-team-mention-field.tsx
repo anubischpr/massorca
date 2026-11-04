@@ -24,6 +24,7 @@ import {
   type BotTeamMentionName
 } from '../../../../shared/bot-team-mention-text'
 import type { BotTeam } from '../../../../shared/rpc-contract/bot-team-params'
+import { useConnectedMarketplaceApps } from '../marketplace/use-connected-marketplace-apps'
 import { BotTeamComposerMenu } from './BotTeamComposerMenu'
 import { botTeamComposerChipAttrs } from './bot-team-composer-document'
 import { useBotTeamComposerEditor } from './bot-team-composer-editor'
@@ -61,13 +62,15 @@ export function useBotTeamMentionField(args: {
   const [menuDismissed, setMenuDismissed] = useState(false)
   const menuId = useId()
   const files = useBotTeamFilePaths(team.id, !offline && botTeamMentionOpen(text, caret))
+  const apps = useConnectedMarketplaceApps()
   const mentionNames = useMemo<BotTeamMentionName[]>(
     () => [
       ...team.bots.map((bot) => ({ name: bot.name, kind: 'bot' as const })),
       ...otherTeams.map((entry) => ({ name: entry.name, kind: 'team' as const })),
-      ...projects.map((entry) => ({ name: entry.name, kind: 'project' as const }))
+      ...projects.map((entry) => ({ name: entry.name, kind: 'project' as const })),
+      ...apps.map((app) => ({ name: app.name, kind: 'app' as const }))
     ],
-    [team.bots, otherTeams, projects]
+    [team.bots, otherTeams, projects, apps]
   )
   const menu =
     menuDismissed || offline
@@ -79,6 +82,7 @@ export function useBotTeamMentionField(args: {
           teams: otherTeams,
           projects,
           files,
+          apps,
           commands
         })
   const editor = useBotTeamComposerEditor({

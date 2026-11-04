@@ -8,6 +8,7 @@ import { botTeamRepoProjectKey } from '../../../../shared/bot-team-project-works
 import type { Repo } from '../../../../shared/repo-types'
 import type { BotTeam } from '../../../../shared/rpc-contract/bot-team-params'
 import type { BotTeamProject } from '../../../../shared/rpc-contract/bot-team-room-params'
+import { useConnectedMarketplaceApps } from '../marketplace/use-connected-marketplace-apps'
 import type { BotTeamMentionIcon } from './BotTeamMentionChip'
 
 /** The icon of the Workspaces repo a project is linked to; null for a team folder or a repo without one. */
@@ -34,13 +35,14 @@ export function useBotTeamMentionProjects(
   )
 }
 
-/** The room's mentionable projects, and every name a message can chip: bots, other teams, then projects. */
+/** The room's mentionable projects, and every name a message can chip: bots, other teams, projects, then apps. */
 export function useBotTeamRoomMentions(
   team: BotTeam,
   otherTeams: readonly BotTeam[],
   projects: readonly BotTeamProject[]
 ): { mentionProjects: BotTeamMentionProject[]; mentionIcons: BotTeamMentionIcon[] } {
   const mentionProjects = useBotTeamMentionProjects(projects)
+  const apps = useConnectedMarketplaceApps()
   const mentionIcons = useMemo<BotTeamMentionIcon[]>(
     () => [
       ...team.bots.map((bot) => ({ name: bot.name, kind: 'bot' as const, agent: bot.agent })),
@@ -53,9 +55,10 @@ export function useBotTeamRoomMentions(
         name: entry.name,
         kind: 'project' as const,
         logo: entry.logo
-      }))
+      })),
+      ...apps.map((app) => ({ name: app.name, kind: 'app' as const, id: app.id }))
     ],
-    [team.bots, otherTeams, mentionProjects]
+    [team.bots, otherTeams, mentionProjects, apps]
   )
   return { mentionProjects, mentionIcons }
 }

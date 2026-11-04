@@ -1,13 +1,13 @@
 import { useId, useState, type KeyboardEventHandler, type ReactNode, type RefObject } from 'react'
 import { useAppStore } from '@/store'
-import { NativeChatMentionMenu } from '../native-chat/NativeChatAutocompleteMenus'
+import { NativeChatMentionMenu } from '../native-chat/NativeChatMentionMenu'
 import {
   applyMentionSuggestion,
   deriveComposerAutocomplete,
   type ComposerAutocomplete
 } from '../native-chat/native-chat-composer-state'
 import { useNativeChatComposerKeyDown } from '../native-chat/use-native-chat-composer-keydown'
-import { useNativeChatMentionFiles } from '../native-chat/use-native-chat-mention-files'
+import { useNativeChatMentionFilesAndApps } from '../native-chat/use-native-chat-mention-apps'
 import type { CreateChatSelection } from './create-chat-selection'
 
 const CLOSED: ComposerAutocomplete = { mode: 'none' }
@@ -27,7 +27,7 @@ export function useCreateChatMentionWorktreeId(selection: CreateChatSelection): 
   return mainWorktreeId
 }
 
-/** The workspace chat's @ file menu for a plain textarea: its files, menu, keys and insertion. */
+/** The workspace chat's @ menu for a plain textarea: its files and apps, menu, keys and insertion. */
 export function useCreateChatMention(args: {
   worktreeId: string | null
   draft: string
@@ -51,7 +51,7 @@ export function useCreateChatMention(args: {
     worktreeId === null ? CLOSED : deriveComposerAutocomplete(draft, caret, [], [], null, undefined)
   const autocomplete: ComposerAutocomplete =
     derived.mode === 'mention' && derived.triggerKey !== dismissed ? derived : CLOSED
-  const mentionFiles = useNativeChatMentionFiles({
+  const mentionFiles = useNativeChatMentionFilesAndApps({
     query: autocomplete.mode === 'mention' ? autocomplete.query : null,
     terminalTabId: '',
     structuredWorktreeId: worktreeId ?? undefined

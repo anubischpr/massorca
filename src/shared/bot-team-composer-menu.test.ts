@@ -30,6 +30,25 @@ describe('botTeamComposerMenu', () => {
     ])
   })
 
+  it('offers installed apps last, after the files, and keeps them when files fill the menu', () => {
+    const apps = [
+      { id: 'engram' as const, name: 'Engram' },
+      { id: 'github' as const, name: 'GitHub' }
+    ]
+    expect(inserts('@', { files: ['notes.md'], apps })).toEqual([
+      '@Nora ',
+      '@Max Power ',
+      '@notes.md ',
+      '@Engram ',
+      '@GitHub '
+    ])
+    expect(inserts('@git', { apps })).toEqual(['@GitHub '])
+    const files = Array.from({ length: 20 }, (_, index) => `file${index}.md`)
+    const items = botTeamComposerMenu({ text: '@', caret: 1, bots: BOTS, files, apps })?.items
+    expect(items).toHaveLength(12)
+    expect(items?.slice(-2).map((item) => item.kind)).toEqual(['app', 'app'])
+  })
+
   it('offers the other teams between the bots and the files, each with its character', () => {
     const teams = [
       { id: 'wh', name: 'Warehouse', character: 'square' as const },

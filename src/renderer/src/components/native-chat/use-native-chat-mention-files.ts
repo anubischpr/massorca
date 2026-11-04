@@ -5,6 +5,7 @@ import { rankQuickOpenFilesWithHistory } from '@/components/quick-open-history-r
 import { useQuickOpenHistory } from '@/lib/quick-open-file-history'
 import { findTerminalTabWorktreeId } from './native-chat-file-link'
 import { useKnownWorktreeById } from '@/store/selectors'
+import type { MarketplaceAppMention } from '../../../../shared/marketplace-app-mentions'
 
 const MENTION_FILE_LIMIT = 20
 const NO_FILES: readonly string[] = []
@@ -14,6 +15,8 @@ export type NativeChatMentionFiles = {
   files: readonly string[]
   loading: boolean
   failed: boolean
+  /** Installed apps the query matches; their names close `files`, so the keys walk one list. */
+  apps?: readonly MarketplaceAppMention[]
 }
 
 /** `query` is null while no `@` token is open. */

@@ -14,6 +14,8 @@ function chipIcon(attrs: ReactNodeViewProps['node']['attrs'], name: string): Bot
       return { name, kind: 'team', character: attrs.character }
     case 'project':
       return { name, kind: 'project', logo: attrs.logo ?? null }
+    case 'app':
+      return { name, kind: 'app', id: attrs.appId }
     default:
       return { name, kind: 'file' }
   }

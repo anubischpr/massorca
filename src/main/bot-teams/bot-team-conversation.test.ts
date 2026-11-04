@@ -204,6 +204,16 @@ describe('buildBotTeamConversationPrompt for research', () => {
     const prompt = buildBotTeamConversationPrompt({ ...args, research: false })
     expect(prompt).toContain('Secret room history')
     expect(prompt).not.toMatch(/search the web/i)
+    expect(prompt).not.toContain('MCP server')
+  })
+
+  it('tells the bot to use an app the question names, plain or researched', () => {
+    const text = 'Qué recuerda @Engram del RAG?'
+    for (const research of [false, true]) {
+      expect(buildBotTeamConversationPrompt({ ...args, text, research })).toMatch(
+        /Use the Engram tools \(MCP server engram\) for this request\.$/
+      )
+    }
   })
 })
 
