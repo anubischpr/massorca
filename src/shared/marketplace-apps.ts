@@ -73,6 +73,44 @@ export function isMarketplaceAppAllowedForBot(
   return allowedByMode(policy.bots.mode, picked)
 }
 
+/** Connected apps a bot is kept out of; a bot run must leave their MCP servers and tokens out. */
+export function marketplaceAppsDeniedForBot(
+  apps: readonly MarketplaceAppStatus[],
+  bot: { botId: string; teamId: string }
+): MarketplaceAppStatus[] {
+  return apps.filter(
+    (app) =>
+      app.connected && app.access !== undefined && !isMarketplaceAppAllowedForBot(app.access, bot)
+  )
+}
+
+/** MCP server entry names MassOrca writes for an app in every agent's config. */
+export function marketplaceAppMcpServerNames(app: MarketplaceAppStatus): string[] {
+  switch (app.id) {
+    case 'engram':
+      return ['engram']
+    case 'openmetadata':
+      return ['openmetadata', ...(app.profiles ?? []).map((profile) => profile.name)]
+    case 'github':
+      return []
+  }
+}
+
+/** Env vars MassOrca injects for an app; a bot kept out of it must not receive them. */
+export function marketplaceAppTokenEnvNames(app: MarketplaceAppStatus): string[] {
+  switch (app.id) {
+    case 'engram':
+      return [ENGRAM_CLOUD_TOKEN_ENV, ENGRAM_CLOUD_SERVER_ENV]
+    case 'openmetadata':
+      return [
+        OPENMETADATA_TOKEN_ENV,
+        ...(app.profiles ?? []).map((profile) => openMetadataProfileTokenEnv(profile.name))
+      ]
+    case 'github':
+      return []
+  }
+}
+
 /** True when neither agents nor bots are limited, so the record says nothing a default would not. */
 export function isUnrestrictedAccessPolicy(policy: MarketplaceAppAccessPolicy): boolean {
   return policy.agents.mode === 'everyone' && policy.bots.mode === 'everyone'

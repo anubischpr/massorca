@@ -57,12 +57,15 @@ describe('marketplace.apps.* methods', () => {
     }
   })
 
-  it('lets a phone read the list but keeps every change desktop-only', () => {
-    expect(MOBILE_RPC_METHOD_ALLOWLIST.has('marketplace.apps.list')).toBe(true)
+  it('lets a phone list, connect and set keys, and keeps every other change desktop-only', () => {
+    const phone = new Set([
+      'marketplace.apps.list',
+      'marketplace.apps.connect',
+      'marketplace.apps.setOpenMetadataToken',
+      'marketplace.apps.setEngramServer'
+    ])
     for (const method of MARKETPLACE_APPS_METHODS) {
-      if (method.name !== 'marketplace.apps.list') {
-        expect(MOBILE_RPC_METHOD_ALLOWLIST.has(method.name)).toBe(false)
-      }
+      expect(MOBILE_RPC_METHOD_ALLOWLIST.has(method.name), method.name).toBe(phone.has(method.name))
     }
   })
 

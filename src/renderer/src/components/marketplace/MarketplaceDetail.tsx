@@ -1,4 +1,4 @@
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, ChevronRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { translate } from '@/i18n/i18n'
 import { cn } from '@/lib/utils'
@@ -38,6 +38,133 @@ export function MarketplaceDetail({
         <MarketplaceStatusBadge state={badgeState} />
       </div>
       <GitDetail state={badgeState} />
+    </div>
+  )
+}
+
+/** "Marketplace > <item>" above an item page; Marketplace returns to the catalog. */
+export function MarketplaceBreadcrumb({
+  name,
+  onBack
+}: {
+  name: string
+  onBack: () => void
+}): React.JSX.Element {
+  return (
+    <nav
+      aria-label={translate(
+        'auto.components.marketplace.MarketplaceDetail.breadcrumb',
+        'Breadcrumb'
+      )}
+      className="flex items-center gap-1.5 text-sm"
+    >
+      <button
+        type="button"
+        onClick={onBack}
+        className="text-muted-foreground transition-colors hover:text-foreground"
+      >
+        {translate('auto.components.marketplace.MarketplaceDetail.marketplace', 'Marketplace')}
+      </button>
+      <ChevronRight className="size-3.5 text-muted-foreground" aria-hidden />
+      <span className="min-w-0 truncate">{name}</span>
+    </nav>
+  )
+}
+
+/** Icon tile, name, description and status line of an item page, with an optional action. */
+export function MarketplaceItemHeader({
+  icon,
+  name,
+  description,
+  statusTone,
+  status,
+  action
+}: {
+  icon: React.ReactNode
+  name: string
+  description: string | null
+  statusTone: MarketplaceStatusTone
+  status: string
+  action?: React.ReactNode
+}): React.JSX.Element {
+  return (
+    <header className="flex items-start gap-4">
+      <span className="flex size-14 shrink-0 items-center justify-center rounded-2xl border border-border bg-secondary">
+        {icon}
+      </span>
+      <div className="flex min-w-0 flex-1 flex-col gap-1">
+        <h2 className="text-xl font-semibold">{name}</h2>
+        {description ? <p className="text-sm text-muted-foreground">{description}</p> : null}
+        <p className="mt-0.5 flex items-center gap-1.5 text-xs" data-marketplace-status-line>
+          <MarketplaceStatusDot tone={statusTone} />
+          <span>{status}</span>
+        </p>
+      </div>
+      {action}
+    </header>
+  )
+}
+
+export type MarketplaceStatusTone = 'ok' | 'bad' | 'pending' | 'warn'
+
+/** The colored dot in front of a status line or badge. */
+export function MarketplaceStatusDot({ tone }: { tone: MarketplaceStatusTone }): React.JSX.Element {
+  return (
+    <span
+      aria-hidden
+      data-tone={tone}
+      className="size-1.5 shrink-0 rounded-full data-[tone=bad]:bg-destructive data-[tone=ok]:bg-status-success data-[tone=pending]:bg-muted-foreground data-[tone=warn]:bg-status-warning"
+    />
+  )
+}
+
+/** Small heading above a card on an item page. */
+export function MarketplaceCardLabel({
+  children
+}: {
+  children: React.ReactNode
+}): React.JSX.Element {
+  return <h3 className="mb-1.5 text-sm font-medium">{children}</h3>
+}
+
+/** A bordered card of rows separated by hairlines. */
+export function MarketplaceCard({ children }: { children: React.ReactNode }): React.JSX.Element {
+  return (
+    <div className="flex flex-col divide-y divide-border rounded-xl border border-border bg-card">
+      {children}
+    </div>
+  )
+}
+
+/** One card row: a name with an optional muted line under it, and trailing controls. */
+export function MarketplaceCardRow({
+  name,
+  description,
+  mono = false,
+  leading,
+  children
+}: {
+  name: React.ReactNode
+  description?: React.ReactNode
+  mono?: boolean
+  leading?: React.ReactNode
+  children?: React.ReactNode
+}): React.JSX.Element {
+  return (
+    <div className="flex items-center gap-3 px-4 py-3">
+      {leading}
+      <div className="min-w-0 flex-1">
+        <span className="block text-sm font-medium">{name}</span>
+        {description ? (
+          <span
+            data-mono={mono}
+            className="block truncate text-xs text-muted-foreground data-[mono=true]:font-mono"
+          >
+            {description}
+          </span>
+        ) : null}
+      </div>
+      {children}
     </div>
   )
 }

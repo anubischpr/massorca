@@ -157,6 +157,8 @@ export function createGitHubApi(): WebGitHubApi {
       ),
     // Why: switching gh's active login is a host action the web client cannot reach.
     switchActiveAccount: () => Promise.resolve({ ok: false, reason: 'unsupported' }),
+    // Why: removing a gh login runs `gh auth logout` on the host, which the web client cannot reach.
+    removeAccount: () => Promise.resolve({ ok: false, reason: 'unsupported' }),
     // Why: gh sign-in runs `gh auth login` on the host, which the web client cannot reach.
     startSignIn: () => Promise.resolve({ ok: false, reason: 'unsupported' }),
     cancelSignIn: () => Promise.resolve(),

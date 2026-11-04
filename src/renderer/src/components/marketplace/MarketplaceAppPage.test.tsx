@@ -412,7 +412,39 @@ describe('MarketplaceAppPage', () => {
 
   describe('Who can use it', () => {
     const AGENTS_MODE = 'Workspaces agents: who can use it'
+    const BOTS_MODE = 'Bot teams: who can use it'
     const EVERYONE = everyoneAccessPolicy()
+    const alphaTeam: BotTeam = {
+      id: 'team-alpha',
+      name: 'Alpha',
+      purpose: '',
+      character: 'square',
+      workspacesEnabled: false,
+      accessMode: 'default',
+      bots: [
+        {
+          id: 'bot-max',
+          name: 'Max',
+          job: 'Writes code',
+          agent: 'claude',
+          modelMode: 'auto',
+          model: null,
+          effort: null,
+          skills: []
+        },
+        {
+          id: 'bot-ana',
+          name: 'Ana',
+          job: 'Reviews code',
+          agent: 'codex',
+          modelMode: 'auto',
+          model: null,
+          effort: null,
+          skills: []
+        }
+      ]
+    }
+
     function radioOf(scope: ParentNode, label: string, option: string): HTMLButtonElement {
       const group = scope.querySelector(`[aria-label="${label}"]`)
       const radio = [...(group?.querySelectorAll<HTMLButtonElement>('[role="radio"]') ?? [])].find(
@@ -436,13 +468,13 @@ describe('MarketplaceAppPage', () => {
     }
 
     it.each<MarketplaceAppId>(['engram', 'openmetadata', 'github'])(
-      'defaults Workspaces agents to Everyone and shows no Bot teams row on the %s page',
+      'defaults agents and bots to Everyone on the %s page',
       async (appId) => {
         const container = await mount(appId)
         expect(radioOf(container, AGENTS_MODE, 'Everyone').getAttribute('aria-checked')).toBe(
           'true'
         )
-        expect(container.querySelector('[aria-label="Bot teams: who can use it"]')).toBeNull()
+        expect(radioOf(container, BOTS_MODE, 'Everyone').getAttribute('aria-checked')).toBe('true')
         expect(mocks.setAccessPolicy).not.toHaveBeenCalled()
       }
     )
@@ -474,9 +506,125 @@ describe('MarketplaceAppPage', () => {
       })
     })
 
+    it('removes a picked bot from the chips and keeps the others', async () => {
+      mocks.teams.push(alphaTeam)
+      seedApps([
+        {
+          ...engram,
+          access: {
+            ...EVERYONE,
+            bots: { mode: 'only', botIds: ['bot-max', 'bot-ana'], teamIds: [] }
+          }
+        },
+        openmetadata,
+        github
+      ])
+      const container = await mount('engram')
+      await act(async () => {
+        container.querySelector<HTMLButtonElement>('button[aria-label="Remove Max"]')?.click()
+      })
+      expect(mocks.setAccessPolicy).toHaveBeenCalledWith({
+        id: 'engram',
+        policy: { ...EVERYONE, bots: { mode: 'only', botIds: ['bot-ana'], teamIds: [] } }
+      })
+    })
+
+    it('adds a whole team from the picker', async () => {
+      mocks.teams.push(alphaTeam)
+      seedApps([
+        { ...engram, access: { ...EVERYONE, bots: { mode: 'except', botIds: [], teamIds: [] } } },
+        openmetadata,
+        github
+      ])
+      await mount('engram')
+      await clickButton(document.body, 'Add a bot or team')
+      const wholeTeam = [...document.querySelectorAll('[cmdk-item]')].find((item) =>
+        item.textContent?.includes('Whole team')
+      )
+      await act(async () => {
+        wholeTeam?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+      })
+      expect(mocks.setAccessPolicy).toHaveBeenCalledWith({
+        id: 'engram',
+        policy: { ...EVERYONE, bots: { mode: 'except', botIds: [], teamIds: ['team-alpha'] } }
+      })
+    })
+
     it('says that GitHub limits only change what MassOrca shows', async () => {
       const container = await mount('github')
       expect(container.textContent).toContain('For GitHub this only changes what MassOrca shows.')
     })
+  })
+
+  it('names each app in its example chip without an @, and keeps the @ in the hint', async () => {
+    const container = await mount('openmetadata')
+    const chips = [...container.querySelectorAll('span')].map((span) => span.textContent?.trim())
+    expect(chips).toContain('OpenMetadata')
+    expect(chips).not.toContain('@OpenMetadata')
+    expect(container.textContent).toContain(
+      'Type @OpenMetadata in any chat or room to ask it directly.'
+    )
+  })
+
+  it('keeps one Connect button, in the header beside Copy link, when OpenMetadata is not connected', async () => {
+    seedApps([
+      engram,
+      {
+        ...openmetadata,
+        connected: false,
+        serverUrl: null,
+        credential: { stored: false },
+        profiles: []
+      },
+      github
+    ])
+    const container = await mount('openmetadata')
+    expect(buttonWithText(headerOf(container), 'Copy link')).toBeDefined()
+    expect(buttonWithText(headerOf(container), 'Connect')).toBeDefined()
+    expect(buttonWithText(sectionOf(container, 'connection'), 'Connect')).toBeUndefined()
+  })
+
+  it('shows the Server address and Token rows with Change and Add token, as on the board', async () => {
+    seedApps([
+      engram,
+      {
+        ...openmetadata,
+        connected: false,
+        serverUrl: null,
+        credential: { stored: false },
+        profiles: []
+      },
+      github
+    ])
+    const container = await mount('openmetadata')
+    const connection = sectionOf(container, 'connection')
+    expect(connection.textContent).toContain('Server address')
+    expect(connection.textContent).toContain('Token')
+    expect(connection.textContent).toContain(
+      'Not set. Kept in the MassOrca vault and never shown once saved.'
+    )
+    expect(buttonWithText(connection, 'Change')).toBeDefined()
+    expect(buttonWithText(connection, 'Add token')).toBeDefined()
+  })
+
+  it('lists how each agent uses OpenMetadata whether or not it is connected', async () => {
+    seedApps([
+      engram,
+      {
+        ...openmetadata,
+        connected: false,
+        serverUrl: null,
+        credential: { stored: false },
+        profiles: []
+      },
+      github
+    ])
+    const container = await mount('openmetadata')
+    const rows = [...sectionOf(container, 'information').querySelectorAll('li')].map(
+      (row) => row.textContent ?? ''
+    )
+    expect(rows).toHaveLength(4)
+    expect(rows[0]).toContain('Claude Code')
+    expect(rows[3]).toContain('Gentle Shell')
   })
 })

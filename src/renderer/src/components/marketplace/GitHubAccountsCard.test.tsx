@@ -9,7 +9,12 @@ type TestRepo = { displayName: string; ghAccount?: { host: string; user: string 
 
 const mocks = vi.hoisted(() => {
   const repos: TestRepo[] = []
-  return { listHostBindableAccounts: vi.fn(), switchActiveAccount: vi.fn(), repos }
+  return {
+    listHostBindableAccounts: vi.fn(),
+    switchActiveAccount: vi.fn(),
+    removeAccount: vi.fn(),
+    repos
+  }
 })
 
 vi.mock('@/store', () => ({
@@ -54,6 +59,12 @@ function buttonByText(container: ParentNode, text: string): HTMLButtonElement | 
   return [...container.querySelectorAll('button')].find((b) => b.textContent?.includes(text))
 }
 
+function submitDialog(): void {
+  document
+    .querySelector('form')
+    ?.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
+}
+
 describe('GitHubAccountsCard', () => {
   beforeEach(() => {
     globalThis.IS_REACT_ACT_ENVIRONMENT = true
@@ -67,11 +78,13 @@ describe('GitHubAccountsCard', () => {
       accounts: [account('personal', { active: true }), account('work')]
     })
     mocks.switchActiveAccount.mockResolvedValue({ ok: true })
+    mocks.removeAccount.mockResolvedValue({ ok: true })
     Object.assign(window, {
       api: {
         gh: {
           listHostBindableAccounts: mocks.listHostBindableAccounts,
-          switchActiveAccount: mocks.switchActiveAccount
+          switchActiveAccount: mocks.switchActiveAccount,
+          removeAccount: mocks.removeAccount
         },
         ui: { writeClipboardText: vi.fn() }
       }
@@ -131,6 +144,47 @@ describe('GitHubAccountsCard', () => {
     expect(buttonByText(container, 'Make active')).toBeUndefined()
     expect(container.textContent).toContain('Comes from GH_TOKEN')
     expect(container.textContent).toContain('Update it to 2.40 or newer')
+  })
+
+  it('offers Remove only on the active keyring account, and removes it after a confirmation', async () => {
+    const container = await renderCard()
+    const removeButtons = [...container.querySelectorAll('button')].filter(
+      (button) => button.textContent?.trim() === 'Remove'
+    )
+    expect(removeButtons).toHaveLength(1)
+    await act(async () => {
+      removeButtons[0]?.click()
+    })
+    expect(mocks.removeAccount).not.toHaveBeenCalled()
+    expect(document.body.textContent).toContain('Remove personal from this computer?')
+    await act(async () => {
+      submitDialog()
+    })
+    expect(mocks.removeAccount).toHaveBeenCalledWith({ host: 'github.com', user: 'personal' })
+    expect(mocks.listHostBindableAccounts).toHaveBeenCalledTimes(2)
+  })
+
+  it('keeps the account when the removal is cancelled', async () => {
+    const container = await renderCard()
+    await act(async () => {
+      buttonByText(container, 'Remove')?.click()
+    })
+    await act(async () => {
+      buttonByText(document.body, 'Cancel')?.click()
+    })
+    expect(mocks.removeAccount).not.toHaveBeenCalled()
+  })
+
+  it('explains a failed removal without showing gh output', async () => {
+    mocks.removeAccount.mockResolvedValue({ ok: false, reason: 'failed' })
+    const container = await renderCard()
+    await act(async () => {
+      buttonByText(container, 'Remove')?.click()
+    })
+    await act(async () => {
+      submitDialog()
+    })
+    expect(document.body.textContent).toContain('Could not remove personal.')
   })
 
   it('flags a project bound to a login that is not signed in here', async () => {

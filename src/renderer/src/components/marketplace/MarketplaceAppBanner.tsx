@@ -1,4 +1,5 @@
 import { ArrowRight } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { translate } from '@/i18n/i18n'
 import type { MarketplaceAppId } from '../../../../shared/marketplace-apps'
@@ -12,7 +13,7 @@ const BANNER_STYLE = {
     'linear-gradient(135deg, color-mix(in srgb, var(--ai-action-accent) 12%, var(--card)), color-mix(in srgb, var(--primary) 6%, var(--card)))'
 }
 
-/** Example prompts for one app; each arrow copies the prompt with its @ mention. */
+/** Example prompts for one app; each chip names the app, and each arrow copies the prompt with its @ mention. */
 export function MarketplaceAppBanner({ appId }: { appId: MarketplaceAppId }): React.JSX.Element {
   const { name, prompts } = MARKETPLACE_APP_INFO[appId]
   return (
@@ -24,10 +25,10 @@ export function MarketplaceAppBanner({ appId }: { appId: MarketplaceAppId }): Re
             key={prompt.key}
             className="flex items-center gap-3 rounded-lg border border-border bg-card px-3 py-2"
           >
-            <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-border bg-muted px-2 py-0.5 text-xs font-medium">
-              <MarketplaceItemIcon id={appId} className="size-3.5 text-foreground" />
-              {`@${name}`}
-            </span>
+            <Badge variant="secondary" className="shrink-0">
+              <MarketplaceItemIcon id={appId} className="text-foreground" />
+              {name}
+            </Badge>
             <span className="min-w-0 flex-1 truncate text-sm">{text}</span>
             <Button
               type="button"

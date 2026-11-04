@@ -3,7 +3,8 @@ import { Badge } from '@/components/ui/badge'
 import { translate } from '@/i18n/i18n'
 import {
   MARKETPLACE_APP_AGENTS,
-  type MarketplaceAppAgentStatus
+  type MarketplaceAppAgentStatus,
+  type MarketplaceAppId
 } from '../../../../shared/marketplace-apps'
 import { MarketplaceAgentMark } from './marketplace-agent-mark'
 import type { MarketplaceAppContext } from './marketplace-app-context'
@@ -11,7 +12,7 @@ import { marketplaceAgentLabel } from './marketplace-catalog'
 import { websiteLabel } from './marketplace-app-info'
 import { MarketplaceAppSection } from './MarketplaceAppSection'
 
-/** Description, developer facts, and how each agent uses the app. */
+/** Description, developer facts, and how each agent uses the app, whether it is connected or not. */
 export function MarketplaceAppInformation({
   ctx
 }: {
@@ -89,9 +90,9 @@ export function MarketplaceAppInformation({
           </InfoRow>
         ) : null}
       </dl>
-      {agents.length > 0 ? (
-        <div className="flex flex-col gap-2 rounded-xl border border-border p-4">
-          <p className="text-sm font-medium">
+      <div className="flex flex-col rounded-xl border border-border bg-card">
+        <div className="flex flex-col gap-0.5 px-4 py-3">
+          <p className="text-sm font-semibold">
             {translate(
               'auto.components.marketplace.MarketplaceAppInformation.agentUsage',
               'How each agent uses it'
@@ -100,17 +101,17 @@ export function MarketplaceAppInformation({
           <p className="text-xs text-muted-foreground">
             {translate(
               'auto.components.marketplace.MarketplaceAppInformation.everyAgent',
-              'Every agent and bot gets {{app}} once it is connected.',
+              'Every agent and bot gets {{app}} once it is connected. To limit it, use Who can use it in Advanced options.',
               { app: info.name }
             )}
           </p>
-          <ul className="flex flex-col">
-            {agents.map((agent) => (
-              <AgentUsageRow key={agent.agent} app={info.name} agent={agent} />
-            ))}
-          </ul>
         </div>
-      ) : null}
+        <ul className="flex flex-col">
+          {agents.map((agent) => (
+            <AgentUsageRow key={agent.agent} appId={ctx.appId} agent={agent} />
+          ))}
+        </ul>
+      </div>
     </MarketplaceAppSection>
   )
 }
@@ -157,20 +158,20 @@ function LinkValue({ url }: { url: string }): React.JSX.Element {
 }
 
 function AgentUsageRow({
-  app,
+  appId,
   agent
 }: {
-  app: string
+  appId: MarketplaceAppId
   agent: MarketplaceAppAgentStatus
 }): React.JSX.Element {
-  const usage = usageCopy(app, agent)
+  const usage = usageCopy(appId, agent)
   return (
-    <li className="flex items-start gap-3 border-b border-border py-2.5 last:border-b-0">
-      <span className="mt-0.5 flex shrink-0 items-center justify-center">
+    <li className="flex items-center gap-3 border-t border-border px-4 py-3">
+      <span className="flex shrink-0 items-center justify-center">
         <MarketplaceAgentMark agent={agent.agent} />
       </span>
       <div className="min-w-0 flex-1">
-        <p className="text-sm">{marketplaceAgentLabel(agent.agent)}</p>
+        <p className="text-sm font-medium">{marketplaceAgentLabel(agent.agent)}</p>
         <p className="text-xs text-muted-foreground">{usage.line}</p>
         {agent.entry === 'unreadable' ? (
           <p className="text-xs text-destructive">
@@ -181,24 +182,22 @@ function AgentUsageRow({
           </p>
         ) : null}
       </div>
-      <Badge variant={usage.variant}>{usage.label}</Badge>
+      <Badge variant="secondary">{usage.label}</Badge>
     </li>
   )
 }
 
 function usageCopy(
-  app: string,
+  appId: MarketplaceAppId,
   agent: MarketplaceAppAgentStatus
-): { label: string; line: string; variant: 'secondary' | 'outline' } {
+): { label: string; line: string } {
   if (agent.entry === 'built-in' || agent.level === 'built-in') {
     return {
       label: translate('auto.components.marketplace.MarketplaceAppInformation.builtIn', 'Built in'),
       line: translate(
         'auto.components.marketplace.MarketplaceAppInformation.builtInLine',
-        'Already has {{app}} support built in.',
-        { app }
-      ),
-      variant: 'outline'
+        'Brings it itself. MassOrca keeps it and adds nothing.'
+      )
     }
   }
   if (agent.level === 'full') {
@@ -207,12 +206,7 @@ function usageCopy(
         'auto.components.marketplace.MarketplaceAppInformation.fullIntegration',
         'Full integration'
       ),
-      line: translate(
-        'auto.components.marketplace.MarketplaceAppInformation.fullLine',
-        'Uses {{app}} on its own, without being asked.',
-        { app }
-      ),
-      variant: 'secondary'
+      line: fullLine(appId)
     }
   }
   return {
@@ -220,11 +214,47 @@ function usageCopy(
       'auto.components.marketplace.MarketplaceAppInformation.toolsOnly',
       'Tools only'
     ),
-    line: translate(
-      'auto.components.marketplace.MarketplaceAppInformation.toolsOnlyLine',
-      'Uses {{app}} tools when you ask for them.',
-      { app }
-    ),
-    variant: 'outline'
+    line: toolsOnlyLine(appId)
+  }
+}
+
+// Why: the board words each app's two levels on its own, so the sentences are not built from the app name.
+function fullLine(appId: MarketplaceAppId): string {
+  switch (appId) {
+    case 'engram':
+      return translate(
+        'auto.components.marketplace.MarketplaceAppInformation.engramFullLine',
+        'Uses memory by itself in every session.'
+      )
+    case 'openmetadata':
+      return translate(
+        'auto.components.marketplace.MarketplaceAppInformation.openMetadataFullLine',
+        'Checks the context center by itself when a prompt needs company data.'
+      )
+    case 'github':
+      return translate(
+        'auto.components.marketplace.MarketplaceAppInformation.githubFullLine',
+        'Uses GitHub by itself when the work needs it.'
+      )
+  }
+}
+
+function toolsOnlyLine(appId: MarketplaceAppId): string {
+  switch (appId) {
+    case 'engram':
+      return translate(
+        'auto.components.marketplace.MarketplaceAppInformation.engramToolsLine',
+        'Saves and searches memories when you ask.'
+      )
+    case 'openmetadata':
+      return translate(
+        'auto.components.marketplace.MarketplaceAppInformation.openMetadataToolsLine',
+        'Uses OpenMetadata when you ask.'
+      )
+    case 'github':
+      return translate(
+        'auto.components.marketplace.MarketplaceAppInformation.githubToolsLine',
+        'Uses GitHub when you ask.'
+      )
   }
 }

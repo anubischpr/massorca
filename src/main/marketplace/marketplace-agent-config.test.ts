@@ -274,6 +274,99 @@ describe('readAgentEntryNames', () => {
   })
 })
 
+describe('applyAgentMcpEdits with the reported Antigravity file shape', () => {
+  const BOM = String.fromCharCode(0xfeff)
+  const BACKSLASH = String.fromCharCode(92)
+  // Seven servers, Windows paths with escaped backslashes, nested arrays and objects, and an engram entry the user wrote.
+  const ANTIGRAVITY_SHAPE = `{
+  "mcpServers": {
+    "context7": {
+      "command": "npx",
+      "args": ["-y", "@upstash/context7-mcp@latest"]
+    },
+    "sequential-thinking": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-sequential-thinking"],
+      "env": {}
+    },
+    "filesystem": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "C:@BS@@BS@Users@BS@@BS@palom@BS@@BS@projects"],
+      "autoApprove": ["read_file", "list_directory"],
+      "disabled": false
+    },
+    "github": {
+      "command": "C:@BS@@BS@Program Files@BS@@BS@GitHub CLI@BS@@BS@gh.exe",
+      "args": ["mcp"],
+      "env": { "GH_HOST": "github.com", "TIMEOUT": 30000 },
+      "timeout": 30000
+    },
+    "engram": {
+      "command": "C:@BS@@BS@Users@BS@@BS@palom@BS@@BS@go@BS@@BS@bin@BS@@BS@engram.exe",
+      "args": ["mcp"],
+      "env": {}
+    },
+    "playwright": {
+      "command": "npx",
+      "args": ["-y", "@playwright/mcp@latest", "--browser=chrome"],
+      "timeout": 60000
+    },
+    "fetch": {
+      "command": "uvx",
+      "args": ["mcp-server-fetch"],
+      "includeTools": ["fetch"]
+    }
+  }
+}
+`.replaceAll('@BS@', BACKSLASH)
+
+  it('leaves a user-written engram entry alone in a file without a byte order mark', () => {
+    const paths = testAgentPaths(home)
+    writeFixture(paths.mcpConfig('antigravity'), ANTIGRAVITY_SHAPE)
+    expect(applyAgentMcpEdits('antigravity', paths, [engram('antigravity')])).toMatchObject({
+      ok: true,
+      outcomes: { engram: 'left-existing' }
+    })
+    expect(readFileSync(paths.mcpConfig('antigravity'), 'utf8')).toBe(ANTIGRAVITY_SHAPE)
+  })
+
+  it('leaves the same entry alone when the file was saved with a byte order mark', () => {
+    const paths = testAgentPaths(home)
+    const path = paths.mcpConfig('antigravity')
+    writeFixture(path, `${BOM}${ANTIGRAVITY_SHAPE}`)
+    expect(applyAgentMcpEdits('antigravity', paths, [engram('antigravity')])).toMatchObject({
+      ok: true,
+      outcomes: { engram: 'left-existing' }
+    })
+    expect(readFileSync(path, 'utf8')).toBe(`${BOM}${ANTIGRAVITY_SHAPE}`)
+  })
+
+  it('adds OpenMetadata beside the user-written engram entry and keeps the byte order mark', () => {
+    const paths = testAgentPaths(home)
+    const path = paths.mcpConfig('antigravity')
+    writeFixture(path, `${BOM}${ANTIGRAVITY_SHAPE}`)
+    expect(
+      applyAgentMcpEdits('antigravity', paths, [
+        {
+          action: 'set',
+          name: 'openmetadata',
+          owned: false,
+          ...openMetadataEntrySpec(
+            'antigravity',
+            'https://om.example.com/mcp',
+            'OPENMETADATA_TOKEN'
+          )
+        }
+      ])
+    ).toMatchObject({ ok: true, outcomes: { openmetadata: 'added' } })
+    const text = readFileSync(path, 'utf8')
+    expect(text.startsWith(BOM)).toBe(true)
+    const servers = JSON.parse(text.slice(BOM.length)).mcpServers
+    expect(Object.keys(servers)).toHaveLength(8)
+    expect(servers.engram).toEqual(JSON.parse(ANTIGRAVITY_SHAPE).mcpServers.engram)
+  })
+})
+
 describe('applyAgentInstructionsBlock', () => {
   it('adds the block once, round-trips, and skips a foreign Engram section', () => {
     const paths = testAgentPaths(home)

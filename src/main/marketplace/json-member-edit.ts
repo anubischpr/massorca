@@ -91,9 +91,16 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
+const UTF8_BOM = String.fromCharCode(0xfeff)
+
+// Why: Windows tools often save JSON with a UTF-8 byte order mark, which JSON.parse rejects.
+function withoutBom(text: string): string {
+  return text.startsWith(UTF8_BOM) ? text.slice(UTF8_BOM.length) : text
+}
+
 export function parseJsonObject(text: string): Record<string, unknown> | null {
   try {
-    const value: unknown = JSON.parse(text)
+    const value: unknown = JSON.parse(withoutBom(text))
     return isPlainObject(value) ? value : null
   } catch {
     return null
@@ -183,7 +190,7 @@ function newFile(container: string, name: string, value: unknown): string {
 /**
  * Sets (value given) or removes (`undefined`) `root[container][name]`, touching nothing else.
  * Returns the same text when nothing changes and null when the shape is not an object holding an
- * object (or when a key repeats, which no parser agrees on).
+ * object (or when a key repeats, which no parser agrees on). A leading byte order mark is kept.
  */
 export function editJsonContainerMember(
   text: string | null,
@@ -194,6 +201,17 @@ export function editJsonContainerMember(
   if (text === null || text.trim() === '') {
     return value === undefined ? (text ?? '') : newFile(container, name, value)
   }
+  const bom = text.startsWith(UTF8_BOM) ? UTF8_BOM : ''
+  const edited = editJsonBody(withoutBom(text), container, name, value)
+  return edited === null ? null : `${bom}${edited}`
+}
+
+function editJsonBody(
+  text: string,
+  container: string,
+  name: string,
+  value: unknown
+): string | null {
   const parsed = parseJsonObject(text)
   const servers = parsed?.[container]
   if (!parsed || (servers !== undefined && !isPlainObject(servers))) {
