@@ -12,11 +12,11 @@ vi.mock('@/i18n/i18n', () => ({
   getIntlLocale: () => 'en-GB'
 }))
 
-const mocks = vi.hoisted(() => ({
-  read: vi.fn(),
+const mocks = vi.hoisted(() => {
   // The chat composer's attach flow, past its picker and upload: the paths it would attach.
-  picked: [] as string[]
-}))
+  const picked: string[] = []
+  return { read: vi.fn(), picked }
+})
 vi.mock('../../runtime/runtime-prototype-client', () => ({
   readDesignSystemOnHost: mocks.read
 }))
@@ -43,13 +43,22 @@ const SYSTEM: PrototypeListedDesignSystem = {
 
 beforeEach(() => {
   mocks.read.mockReset()
-  mocks.picked = []
+  mocks.picked.length = 0
   usePrototypeViewStore.setState({ designSystemViews: {} })
   Object.defineProperty(window, 'api', {
     configurable: true,
     value: { shell: { pickAttachments: () => Promise.resolve([]) } }
   })
 })
+
+// The row a label sits in, with the attach button beside it.
+function rowOf(label: string): HTMLElement {
+  const row = screen.getByText(label).parentElement
+  if (row === null) {
+    throw new Error(`no row around ${label}`)
+  }
+  return row
+}
 
 function readableSystem(): PrototypeListedDesignSystem {
   mocks.read.mockResolvedValue({
@@ -131,11 +140,9 @@ describe('PrototypeDesignSystemScreen', () => {
     const sendText = vi.fn().mockResolvedValue(true)
     render(<PrototypeDesignSystemScreen system={readableSystem()} sets={[]} sendText={sendText} />)
     await screen.findByText('Design system · landing-site')
-    mocks.picked = ['/shots/brand.png']
-    const anythingElse = screen.getByText('Anything else').parentElement
-    fireEvent.click(
-      within(anythingElse as HTMLElement).getByRole('button', { name: 'Attach file' })
-    )
+    mocks.picked.push('/shots/brand.png')
+    const anythingElse = rowOf('Anything else')
+    fireEvent.click(within(anythingElse).getByRole('button', { name: 'Attach file' }))
     const list = await screen.findByRole('list', { name: 'Attached images' })
     expect(within(list).getByText('brand.png')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Send to Claude' }))
@@ -154,9 +161,9 @@ describe('PrototypeDesignSystemScreen', () => {
   it('attaches an image from a component note into the same draft', async () => {
     render(<PrototypeDesignSystemScreen system={readableSystem()} sets={[]} sendText={vi.fn()} />)
     await screen.findByText('Design system · landing-site')
-    mocks.picked = ['/shots/hover.gif']
-    const note = screen.getByText('Note — anything Edit can’t do').parentElement
-    fireEvent.click(within(note as HTMLElement).getByRole('button', { name: 'Attach file' }))
+    mocks.picked.push('/shots/hover.gif')
+    const note = rowOf('Note — anything Edit can’t do')
+    fireEvent.click(within(note).getByRole('button', { name: 'Attach file' }))
     const list = await screen.findByRole('list', { name: 'Attached images' })
     expect(within(list).getByText('hover.gif')).toBeInTheDocument()
     fireEvent.click(within(list).getByRole('button', { name: 'Remove hover.gif' }))
@@ -166,11 +173,9 @@ describe('PrototypeDesignSystemScreen', () => {
   it('says only images can be attached, and attaches nothing else', async () => {
     render(<PrototypeDesignSystemScreen system={readableSystem()} sets={[]} sendText={vi.fn()} />)
     await screen.findByText('Design system · landing-site')
-    mocks.picked = ['/docs/brief.pdf']
-    const anythingElse = screen.getByText('Anything else').parentElement
-    fireEvent.click(
-      within(anythingElse as HTMLElement).getByRole('button', { name: 'Attach file' })
-    )
+    mocks.picked.push('/docs/brief.pdf')
+    const anythingElse = rowOf('Anything else')
+    fireEvent.click(within(anythingElse).getByRole('button', { name: 'Attach file' }))
     expect(await screen.findByRole('alert')).toHaveTextContent('Only images can be attached here.')
     expect(screen.queryByRole('list', { name: 'Attached images' })).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Send to Claude' })).toBeDisabled()

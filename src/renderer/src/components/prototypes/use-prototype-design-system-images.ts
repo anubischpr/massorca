@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState } from 'react'
 import { translate } from '@/i18n/i18n'
+import { createBrowserUuid } from '@/lib/browser-uuid'
 import { useAppStore } from '@/store'
 import { structuredAgentSessionTargetForTab } from '@/runtime/structured-agent-session-owner'
 import { isNativeChatImageAttachmentPath } from '../native-chat/native-chat-image-paste'
@@ -65,7 +66,7 @@ export function usePrototypeDesignSystemImages({
       .designSystemViews[projectKey]?.images.some((image) => image.id === id) === true
   const pendingChips: NativeChatPendingAttachmentChips = {
     begin: (_previewUrl, pendingName) => {
-      const id = crypto.randomUUID()
+      const id = createBrowserUuid()
       update((latest) => beginDraftImage(latest, { id, name: pendingName ?? '' }))
       return id
     },
@@ -89,7 +90,7 @@ export function usePrototypeDesignSystemImages({
       const images = paths.filter(isNativeChatImageAttachmentPath)
       setNotice(images.length < paths.length ? imagesOnlyNotice() : null)
       for (const path of images) {
-        const id = crypto.randomUUID()
+        const id = createBrowserUuid()
         update((latest) =>
           resolveDraftImage(
             beginDraftImage(latest, { id, name: basename(path) }),

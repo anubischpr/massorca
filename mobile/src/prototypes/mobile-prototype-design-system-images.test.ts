@@ -13,7 +13,7 @@ vi.mock('../session/mobile-clipboard-image', () => ({
   saveMobileClipboardImageAsTempFile: upload.save
 }))
 
-const CLIENT = {} as RpcClient
+const CLIENT: RpcClient = Object.create(null)
 
 /** A picker that yields the given images, or throws the given error before yielding. */
 async function* pickerOf(

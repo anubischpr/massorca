@@ -99,7 +99,7 @@ describe('the draft text', () => {
 describe('sending the draft images', () => {
   const ready = { id: 'a', name: 'Image 1', path: '/h/a.png', connectionId: 'conn-1' }
 
-  const client = {} as RpcClient
+  const client: RpcClient = Object.create(null)
 
   it('sends the ready images with the draft through the host and clears them once it takes it', async () => {
     host.send.mockResolvedValue(true)
