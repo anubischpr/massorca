@@ -6,6 +6,10 @@ import {
   type PrototypeSetState
 } from '../../../../shared/prototype-set-state'
 import {
+  NO_DESIGN_SYSTEM_VERSION_VIEW,
+  type DesignSystemVersionView
+} from './prototype-design-system-version-view'
+import {
   emptyDesignSystemViewState,
   type DesignSystemViewState
 } from '../../../../shared/prototype-design-system-view-state'
@@ -20,6 +24,8 @@ type PrototypeViewStore = {
   selectedProjectKey: string | null
   states: Readonly<Record<string, PrototypeSetState>>
   designSystemViews: Readonly<Record<string, DesignSystemViewState>>
+  /** Each design system's Versions panel and the earlier version on screen, per project. */
+  designSystemVersionViews: Readonly<Record<string, DesignSystemVersionView>>
   /** The side panel is hidden; hiding it changes no set state, so every draft stays. */
   sidePanelHidden: boolean
   /** The list tree in the left sidebar is hidden during a merge; the page clears it once no merge is under way. */
@@ -40,6 +46,10 @@ type PrototypeViewStore = {
     projectKey: string,
     update: (state: DesignSystemViewState) => DesignSystemViewState
   ) => void
+  updateDesignSystemVersionView: (
+    projectKey: string,
+    update: (view: DesignSystemVersionView) => DesignSystemVersionView
+  ) => void
 }
 
 export const usePrototypeViewStore = create<PrototypeViewStore>()((set) => ({
@@ -47,6 +57,7 @@ export const usePrototypeViewStore = create<PrototypeViewStore>()((set) => ({
   selectedProjectKey: null,
   states: {},
   designSystemViews: {},
+  designSystemVersionViews: {},
   sidePanelHidden: false,
   listPanelHidden: false,
   focusedSetSessions: null,
@@ -85,6 +96,15 @@ export const usePrototypeViewStore = create<PrototypeViewStore>()((set) => ({
       designSystemViews: {
         ...current.designSystemViews,
         [projectKey]: update(current.designSystemViews[projectKey] ?? emptyDesignSystemViewState())
+      }
+    })),
+  updateDesignSystemVersionView: (projectKey, update) =>
+    set((current) => ({
+      designSystemVersionViews: {
+        ...current.designSystemVersionViews,
+        [projectKey]: update(
+          current.designSystemVersionViews[projectKey] ?? NO_DESIGN_SYSTEM_VERSION_VIEW
+        )
       }
     }))
 }))

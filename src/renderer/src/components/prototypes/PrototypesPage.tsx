@@ -182,7 +182,12 @@ export default function PrototypesPage(): React.JSX.Element {
   if (system !== undefined) {
     return (
       <div className="flex min-h-0 min-w-0 flex-1 bg-chat-canvas">
-        <PrototypeDesignSystemScreen system={system} sets={activeSets} sendText={sendToChat} />
+        <PrototypeDesignSystemScreen
+          system={system}
+          sets={activeSets}
+          sendText={sendToChat}
+          onRestored={reload}
+        />
       </div>
     )
   }
