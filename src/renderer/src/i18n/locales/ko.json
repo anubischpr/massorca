@@ -17902,18 +17902,9 @@
       "fieldWidth": "너비",
       "fillHex": "배경 16진수",
       "fillLabel": "배경",
-      "filter": {
-        "all": "전체",
-        "claude": "Claude",
-        "codex": "Codex",
-        "gentleShell": "Gentle Shell",
-        "stitch": "Stitch"
-      },
-      "filterGroup": "에이전트별 필터",
       "fontSizeLabel": "글자 크기",
       "frameError": "이 프로토타입을 열 수 없습니다",
       "frameTitle": "프로토타입",
-      "heading": "프로토타입",
       "heightLabel": "높이",
       "heightUnit": "높이 단위",
       "heightValue": "높이 값",
@@ -18005,7 +17996,11 @@
       "viewportPhone": "휴대폰",
       "widthLabel": "너비",
       "widthUnit": "너비 단위",
-      "widthValue": "너비 값"
+      "widthValue": "너비 값",
+      "tree": {
+        "expand": "프로토타입 펼치기",
+        "collapse": "프로토타입 접기"
+      }
     },
     "onboarding": {
       "flow": {

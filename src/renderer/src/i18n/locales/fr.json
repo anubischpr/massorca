@@ -18004,18 +18004,9 @@
       "fieldWidth": "largeur",
       "fillHex": "Fond en hex",
       "fillLabel": "Fond",
-      "filter": {
-        "all": "Tous",
-        "claude": "Claude",
-        "codex": "Codex",
-        "gentleShell": "Gentle Shell",
-        "stitch": "Stitch"
-      },
-      "filterGroup": "Filtrer par agent",
       "fontSizeLabel": "Taille de police",
       "frameError": "Impossible d’ouvrir ce prototype",
       "frameTitle": "Prototype",
-      "heading": "Prototypes",
       "heightLabel": "Hauteur",
       "heightUnit": "Unité de hauteur",
       "heightValue": "Valeur de hauteur",
@@ -18107,7 +18098,11 @@
       "viewportPhone": "Téléphone",
       "widthLabel": "Largeur",
       "widthUnit": "Unité de largeur",
-      "widthValue": "Valeur de largeur"
+      "widthValue": "Valeur de largeur",
+      "tree": {
+        "expand": "Développer les prototypes",
+        "collapse": "Réduire les prototypes"
+      }
     },
     "nativeChatSummary": {
       "loadedResults": "Modifications de fichiers et visuels enregistrées dans l'historique chargé du chat.",

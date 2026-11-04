@@ -17902,18 +17902,9 @@
       "fieldWidth": "宽度",
       "fillHex": "填充十六进制",
       "fillLabel": "填充",
-      "filter": {
-        "all": "全部",
-        "claude": "Claude",
-        "codex": "Codex",
-        "gentleShell": "Gentle Shell",
-        "stitch": "Stitch"
-      },
-      "filterGroup": "按代理筛选",
       "fontSizeLabel": "字号",
       "frameError": "无法打开此原型",
       "frameTitle": "原型",
-      "heading": "原型",
       "heightLabel": "高度",
       "heightUnit": "高度单位",
       "heightValue": "高度值",
@@ -18005,7 +17996,11 @@
       "viewportPhone": "手机",
       "widthLabel": "宽度",
       "widthUnit": "宽度单位",
-      "widthValue": "宽度值"
+      "widthValue": "宽度值",
+      "tree": {
+        "expand": "展开原型",
+        "collapse": "收起原型"
+      }
     },
     "nativeChatSummary": {
       "loadedResults": "已加载聊天记录中的文件更改和可视化内容",

@@ -109,12 +109,7 @@ export function PrototypeViewerToolbar({
   // Why: a merge under way hides the draft panel, so its toggle waits until the merge ends.
   const mergeUnderWay = state.merge !== null
   const topBandTarget = usePageTopBandActionsTarget()
-  const draftShown = prototypePanelsShown({
-    sidePanelHidden,
-    listPanelHidden,
-    mergeUnderWay,
-    sidebarOpen: true
-  }).draft
+  const draftShown = prototypePanelsShown({ sidePanelHidden, listPanelHidden, mergeUnderWay }).draft
   const agentLabel = prototypeAgentLabel(set.agent)
   const chatTitle = set.chatTitle?.trim() ?? ''
   const openChat = (): void => {

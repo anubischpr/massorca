@@ -17902,18 +17902,9 @@
       "fieldWidth": "幅",
       "fillHex": "背景の 16 進数",
       "fillLabel": "背景",
-      "filter": {
-        "all": "すべて",
-        "claude": "Claude",
-        "codex": "Codex",
-        "gentleShell": "Gentle Shell",
-        "stitch": "Stitch"
-      },
-      "filterGroup": "絞り込み",
       "fontSizeLabel": "フォントサイズ",
       "frameError": "このプロトタイプを開けませんでした",
       "frameTitle": "プロトタイプ",
-      "heading": "プロトタイプ",
       "heightLabel": "高さ",
       "heightUnit": "高さの単位",
       "heightValue": "高さの値",
@@ -18005,7 +17996,11 @@
       "viewportPhone": "スマートフォン",
       "widthLabel": "幅",
       "widthUnit": "幅の単位",
-      "widthValue": "幅の値"
+      "widthValue": "幅の値",
+      "tree": {
+        "expand": "プロトタイプを展開",
+        "collapse": "プロトタイプを折りたたむ"
+      }
     },
     "onboarding": {
       "flow": {

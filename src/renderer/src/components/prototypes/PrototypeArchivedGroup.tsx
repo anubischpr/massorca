@@ -22,7 +22,7 @@ import {
 
 /** What the list needs to archive, unarchive and delete sets; absent, the list offers none of them. */
 export type PrototypeArchiveControls = {
-  /** The Archived group's rows, after the agent filter. */
+  /** The Archived group's rows, newest first. */
   rows: readonly PrototypeListRow[]
   /** False for a set whose host predates archiving, so its actions are not offered. */
   supports: (set: PrototypeListedSet) => boolean
@@ -31,7 +31,7 @@ export type PrototypeArchiveControls = {
   onDelete: (set: PrototypeListedSet) => void
 }
 
-/** The end of the list: archived sets under a heading with their count, collapsed until it is opened. */
+/** The end of the Prototypes tree: archived sets under a heading with their count, collapsed until it is opened. */
 export function PrototypeArchivedGroup({
   controls,
   selectedRequestId,
