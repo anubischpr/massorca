@@ -41,3 +41,29 @@ T1: main-process catalog detection (`src/main/marketplace/`), IPC `marketplace:d
 - D9. Remove account and other hosts' accounts are not built. Only this computer's accounts are listed, and SSH and runtime repos are left out. Rejected: running `gh auth logout` from the app without a confirmation design.
 - D10. No new board: the approved "GitHub: connected" board already shows accounts per host with Active, Make active and Add account.
 
+## pv84 build (2026-11-03, boards approved: canvas v44)
+
+Branch: claude/marketplace-pv84 (from custom/pv27-unified 2805b178a70). Commits are reviewable slices that can be merged on their own.
+
+### Specs pv84
+- P1. Marketplace sidebar matched to the Catalog board: Search; All, Tools, Agents, Skills, Services; "Your apps" with "All of them" and a count, then the installed apps.
+- P2. Standard five-section app page (boards: Engram: standard app page, OpenMetadata: standard app page, GitHub: standard app page, several accounts): header plus @ prompt banner; Connection (only what the app needs to connect); Information (description, developer, category, version, website, privacy, terms, "How each agent uses it" with level badges); Advanced options; Danger zone with Disconnect.
+- P3. Engram and OpenMetadata for Claude Code, Codex, Antigravity and Gentle Shell, on for everyone by default. Gentle Shell: detect what it already has, never add a duplicate, back up its config before writing, keep the rose icon.
+- P4. Credentials in the vault on this computer (integration-credential-file over safeStorage); agents launched by MassOrca get them as environment variables; no token in any config file. (a) answered: agents started outside MassOrca keep today's token files.
+- P5. GitHub accounts on the standard page (existing accounts card).
+- P6. Disconnect removes the app's entries from every agent and its stored credentials.
+- Then, in order, as far as time allows: P7 token handoff over SSH/VPS and the VPS vault; P8 Who can use it; P9 @ for installed apps in the composers (shared installed-apps list for the Bot teams session); P10 Agents and Skills sections, Git one-click install, in-app GitHub sign-in, Engram cloud sync and import, phone boards.
+
+### Log pv84
+- L7 (2026-11-03, orchestrator relaying the user): approved "ya lo veo, ahora sí, aprobado"; scope "intentemos agregar lo máximo posible en la pv84, quisiera que la pv85 y 86 sean más para depurar que para agregar features".
+- L8 (2026-11-03, the user's decision relayed by the orchestrator; it replaces my proposal (b)). User: "si el usuario se queda sin pc o trabaja desde celular, entonces no perdería las credenciales? ... en VPS no me cuadra tanto la idea. No hay una forma de crear un llavero sencillo en caso la versión base no lo tenga? Algo así como lo tiene paperclip"; then "Sí, dale". Decision:
+  - Every host that runs agents keeps its own vault (the desktop, a paired VPS, SSH/relay hosts), with AES-256-GCM at rest.
+  - The master key comes from the OS keychain (safeStorage or libsecret). Otherwise it is a separate key file, mode 0600, under the host's Orca data dir, never next to the ciphertext, and generated on first use.
+  - Any client sets or replaces a token over the existing RPC, write-only. A token is never read back; the UI shows only "set" or "not set" and when it was last changed.
+  - The host injects tokens into the agents it launches with no client connected.
+  - "SSH stores nothing" is dropped; desktop-local agents keep the desktop vault.
+  - The page says where each credential lives, for example "Stored encrypted on srv2056164".
+  - The new RPC methods are capability-gated.
+  - Risk: item 2 (security). It ships as its own slice.
+- P7 (rewritten by L8): per-host vault as above, write-only RPC, host-side injection, a location label on the page.
+
