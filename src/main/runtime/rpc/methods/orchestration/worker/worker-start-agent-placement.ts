@@ -35,6 +35,11 @@ import {
   type WorkerSetupReceipt
 } from './worker-topology'
 import { createWorkerWorktree } from './worker-worktree-creation'
+import { botRunOfDelegatedDispatch } from '../../../../../bot-teams/bot-team-delegated-run'
+import {
+  botRunOptions,
+  resolveBotRunDenial
+} from '../../../../../marketplace/marketplace-bot-run-denial'
 
 /** Only what the placement itself reads. The runtime's own worktree accessors are untyped, so
  *  naming the two fields keeps `any` out of this module's unions. */
@@ -132,6 +137,9 @@ async function launchWorkerAgent(
         args.onStage(stage === 'worktree_create' ? 'worktree_create' : 'terminal_create'),
       workspaces: {
         createWorktree: async ({ startupAgent }) => {
+          if (startupAgent !== undefined) {
+            await refuseTerminalForDeniedBot(args)
+          }
           created = await createWorkerWorktree({
             runtime: args.runtime,
             db: args.db,
@@ -197,6 +205,7 @@ function workerSurfaceFactory(
         worktreeId,
         agent,
         dispatchId: args.dispatchId,
+        db: args.db,
         ...(args.launchPreferences ? { launchPreferences: args.launchPreferences } : {}),
         ...(args.accessMode ? { accessMode: args.accessMode } : {}),
         ...(args.piRuntime ? { piRuntime: args.piRuntime } : {}),
@@ -218,6 +227,7 @@ function workerSurfaceFactory(
           { effectsApplied: false }
         )
       }
+      await refuseTerminalForDeniedBot(args)
       recordSurfaceStage(worktreeId)
       const terminal = await createExistingWorktreeWorkerTerminal({
         runtime: args.runtime,
@@ -229,6 +239,18 @@ function workerSurfaceFactory(
       })
       return { handle: terminal.handle, ...(terminal.warning ? { warning: terminal.warning } : {}) }
     }
+  }
+}
+
+/** A terminal worker gets the host's app tokens and config, so a teammate kept out of an app runs as a chat. */
+async function refuseTerminalForDeniedBot(args: WorkerAgentPlacementArgs): Promise<void> {
+  const botRun = botRunOfDelegatedDispatch(args.db, args.dispatchId)
+  if (botRun && (await resolveBotRunDenial(botRunOptions(botRun)))) {
+    throw new OrchestrationError(
+      'capability_unsupported',
+      'This teammate is kept out of a Marketplace app, and a terminal worker cannot be kept away from it. Run this part as a chat.',
+      { effectsApplied: false }
+    )
   }
 }
 

@@ -178,6 +178,7 @@ async function askConversationBot(
         clock: botTeamClockNote(Date.now(), args.timeZone)
       }),
       agent: own,
+      botRun: { botId: bot.id, teamId: team.id },
       settings: ctx.runtime.getClientSettings(),
       getAgentEnvResolvers: () => ctx.runtime.getCommitMessageAgentEnvironmentResolvers(),
       research: canSearch,
