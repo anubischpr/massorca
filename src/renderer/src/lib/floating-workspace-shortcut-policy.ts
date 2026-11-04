@@ -22,6 +22,8 @@ const FLOATING_WORKSPACE_PANEL_SHORTCUT_ACTIONS = [
   'tab.newBrowser',
   'tab.newMarkdown',
   'tab.openMarkdown',
+  'tab.newChecklist',
+  'tab.openSession',
   'tab.close'
 ] as const satisfies readonly KeybindingActionId[]
 

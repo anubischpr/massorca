@@ -378,7 +378,8 @@ describe('FloatingTerminalWindowControls host selection', () => {
     })
     expect(mocks.showSessionInFloatingWorkspace).toHaveBeenCalledWith(
       { worktreeId: REMOTE_WORKSPACE, tabId: NEW_AGENT_TAB_ID },
-      expect.anything()
+      expect.anything(),
+      {}
     )
     expect(mocks.createTab).not.toHaveBeenCalled()
     expect(mocks.activateTab).not.toHaveBeenCalled()
