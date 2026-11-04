@@ -4,10 +4,11 @@ import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { MarketplaceAppStatus } from '../../../../shared/marketplace-apps'
+import { getDefaultSettings } from '../../../../shared/constants'
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true
 
-const mocks = vi.hoisted((): { agents: string[] | null } => ({ agents: [] }))
+const mocks = vi.hoisted((): { detected: string[] | null } => ({ detected: [] }))
 
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 vi.mock('react-i18next', () => ({ useTranslation: () => ({}) }))
@@ -19,20 +20,37 @@ vi.mock('@/lib/local-preflight-context', () => ({
   getLocalPreflightContext: () => ({}),
   localPreflightContextKey: () => 'local'
 }))
-vi.mock('@/lib/agent-catalog', () => ({
-  AgentIcon: () => null,
-  getAgentLabel: (agent: string) => {
-    const labels: Record<string, string> = {
-      claude: 'Claude Code',
-      codex: 'Codex',
-      antigravity: 'Antigravity'
-    }
-    return labels[agent] ?? agent
+vi.mock('@/lib/agent-catalog', () => {
+  const entries = [
+    {
+      id: 'claude',
+      label: 'Claude Code',
+      cmd: 'claude',
+      homepageUrl: 'https://example.test/claude'
+    },
+    { id: 'codex', label: 'Codex', cmd: 'codex', homepageUrl: 'https://example.test/codex' }
+  ]
+  const labelFor = (agent: string): string =>
+    entries.find((entry) => entry.id === agent)?.label ?? agent
+  return {
+    AgentIcon: () => null,
+    getAgentCatalog: () => entries,
+    getAgentLabel: labelFor,
+    getAgentDisplayLabel: labelFor
   }
-}))
+})
 vi.mock('@/lib/agent-icon-gentle-shell', () => ({ GentleShellIcon: () => null }))
 vi.mock('@/lib/pi-agent-display', () => ({ piRuntimeLabel: () => 'Gentle Shell' }))
-vi.mock('./use-marketplace-agents', () => ({ useMarketplaceAgents: () => mocks.agents }))
+vi.mock('@/lib/use-pi-runtime', () => ({ usePiDisplayRuntime: () => 'unknown' }))
+vi.mock('@/hooks/useDetectedAgents', () => ({
+  useDetectedAgents: () => ({
+    detectedIds: mocks.detected,
+    isLoading: false,
+    detectionFailed: false,
+    isRefreshing: false,
+    refresh: vi.fn()
+  })
+}))
 
 const { createTestStore, seedStore } = await import('../../store/slices/store-test-helpers')
 const store = createTestStore()
@@ -100,7 +118,7 @@ describe('MarketplacePage', () => {
   beforeEach(() => {
     globalThis.IS_REACT_ACT_ENVIRONMENT = true
     vi.clearAllMocks()
-    mocks.agents = ['claude', 'gentle-shell']
+    mocks.detected = ['claude']
     // Why: the web client has no marketplace bridge; the page must still render.
     Object.assign(window, { api: undefined })
     seedStore(store, {
@@ -202,25 +220,37 @@ describe('MarketplacePage', () => {
     expect(container.textContent).toContain('Engram on this computer')
   })
 
-  it('lists the detected agents in the Agents section, with a link to Settings', async () => {
+  it('lists every known agent in the Agents section, found ones first', async () => {
     seedStore(store, { marketplaceSection: 'agents' })
     const container = await renderPage()
 
-    expect(container.textContent).toContain('Claude Code')
-    expect(container.textContent).toContain('Gentle Shell')
-
-    await clickButtonWithText(container, 'Open Agents in Settings')
-
-    expect(store.getState().activeView).toBe('settings')
-    expect(store.getState().settingsNavigationTarget?.pane).toBe('agents')
+    expect(container.textContent).toContain('Found on this computer')
+    expect(container.textContent).toContain('Not found')
+    expect(agentRow(container, 'Claude Code')?.textContent).toContain('Found')
+    expect(agentRow(container, 'Codex')?.textContent).toContain('Not found')
+    expect(buttonWithText(container, 'Open Agents in Settings')).toBeUndefined()
   })
 
-  it('links the Skills section to the Skills page', async () => {
-    seedStore(store, { marketplaceSection: 'skills' })
+  it('opens an agent page with its per-computer settings and returns with Back', async () => {
+    seedStore(store, { marketplaceSection: 'agents', settings: getDefaultSettings('/tmp') })
     const container = await renderPage()
 
-    await clickButtonWithText(container, 'Open Skills')
+    await act(async () => {
+      agentRow(container, 'Claude Code')?.click()
+    })
 
-    expect(store.getState().activeView).toBe('skills')
+    expect(container.textContent).toContain('On this computer')
+    expect(container.querySelector('[aria-label="Claude Code availability"]')).not.toBeNull()
+    expect(buttonWithText(container, 'Set default')).toBeDefined()
+
+    await clickButtonWithText(container, 'Back')
+
+    expect(agentRow(container, 'Codex')).toBeDefined()
   })
 })
+
+function agentRow(container: ParentNode, name: string): HTMLButtonElement | undefined {
+  return Array.from(container.querySelectorAll<HTMLButtonElement>('li button')).find((button) =>
+    button.textContent?.includes(name)
+  )
+}

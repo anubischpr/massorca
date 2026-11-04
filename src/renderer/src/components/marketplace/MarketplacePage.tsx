@@ -1,5 +1,7 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useAppStore } from '@/store'
+import type { TuiAgent } from '../../../../shared/tui-agent'
+import { MarketplaceAgentPage } from './MarketplaceAgentPage'
 import { MarketplaceAppPage } from './MarketplaceAppPage'
 import { MarketplaceCatalogList } from './MarketplaceCatalogList'
 import { MarketplaceDetail } from './MarketplaceDetail'
@@ -20,7 +22,13 @@ export default function MarketplacePage(): React.JSX.Element {
   const apps = useAppStore((s) => s.marketplaceApps)
   const refreshApps = useAppStore((s) => s.refreshMarketplaceApps)
   const preflight = useMarketplacePreflight({ refreshOnMount: true })
+  const [agentId, setAgentId] = useState<TuiAgent | null>(null)
   const selectedItem = MARKETPLACE_CATALOG.find((item) => item.id === selectedId)
+
+  // Why: an agent page belongs to the Agents list it was opened from; a section or app change leaves it.
+  useEffect(() => {
+    setAgentId(null)
+  }, [section, selectedId])
 
   useEffect(() => {
     void refreshApps()
@@ -40,11 +48,16 @@ export default function MarketplacePage(): React.JSX.Element {
       <MarketplaceHeader onClose={closeMarketplacePage} />
       <div className="scrollbar-sleek min-h-0 flex-1 overflow-y-auto">
         {selectedItem === undefined ? (
-          <MarketplaceCatalogList
-            section={section}
-            badgeStateFor={badgeStateFor}
-            onSelect={(id) => selectItem(id)}
-          />
+          agentId !== null ? (
+            <MarketplaceAgentPage agentId={agentId} onBack={() => setAgentId(null)} />
+          ) : (
+            <MarketplaceCatalogList
+              section={section}
+              badgeStateFor={badgeStateFor}
+              onSelect={(id) => selectItem(id)}
+              onSelectAgent={setAgentId}
+            />
+          )
         ) : selectedItem.id === 'git' ? (
           <MarketplaceDetail
             item={selectedItem}

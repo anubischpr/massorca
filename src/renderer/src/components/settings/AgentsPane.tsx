@@ -1,8 +1,7 @@
 import { useMemo } from 'react'
 import { Info } from 'lucide-react'
 import type { GlobalSettings } from '../../../../shared/global-settings-types'
-import type { TuiAgent } from '../../../../shared/tui-agent'
-import { getAgentCatalog, getAgentDisplayLabel } from '@/lib/agent-catalog'
+import { getAgentCatalog } from '@/lib/agent-catalog'
 import { usePiDisplayRuntime } from '@/lib/use-pi-runtime'
 import { useDetectedAgents, type AgentDetectionTarget } from '@/hooks/useDetectedAgents'
 import { useAppStore } from '@/store'
@@ -10,7 +9,7 @@ import { AgentAwakeSetting } from './AgentAwakeSetting'
 import { AgentCacheTimerSection } from './AgentCacheTimerSection'
 import { AgentRuntimeSetting } from './AgentRuntimeSetting'
 import { CodexTerminalServerIsolationSetting } from './CodexTerminalServerIsolationSetting'
-import { buildCodexSessionSourceHomeControl } from './codex-session-source-home-control'
+import { buildAgentCatalogRowProps } from './agent-settings-row-props'
 import {
   getAgentGeneratedTabTitlesDescription,
   getAgentGeneratedTabTitlesTitle
@@ -30,12 +29,6 @@ import {
   normalizeDisabledTuiAgents
 } from '../../../../shared/tui-agent-selection'
 import {
-  getTuiAgentDefaultArgs,
-  getTuiAgentDefaultEnv,
-  resolveTuiAgentLaunchArgs,
-  resolveTuiAgentLaunchEnv
-} from '../../../../shared/tui-agent-launch-defaults'
-import {
   applyAgentPermissionMode,
   resolveAgentPermissionModeSummary,
   type AgentPermissionMode
@@ -49,7 +42,7 @@ import {
   buildAgentAvailabilitySettingsUpdate,
   createAgentAvailabilityUpdateQueue
 } from './agent-availability-settings'
-import { AgentAvailabilityControl, type AgentCatalogRowProps } from './AgentCatalogRow'
+import { AgentAvailabilityControl } from './AgentCatalogRow'
 import { AgentDefaultSetting } from './AgentDefaultSetting'
 import { AgentDetectionCatalog } from './AgentDetectionCatalog'
 import { PiRuntimeSetting } from './PiRuntimeSetting'
@@ -69,8 +62,6 @@ type AgentsPaneProps = {
   wslDistros?: string[]
   wslCapabilitiesLoading?: boolean
 }
-
-const enqueueAgentAvailabilityUpdate = createAgentAvailabilityUpdateQueue()
 
 export function AgentPermissionsSetting({
   mode,
@@ -182,7 +173,6 @@ export function AgentsPane({
   const catalog = getAgentCatalog()
   const piRuntime = usePiDisplayRuntime()
   const defaultAgent = settings.defaultTuiAgent
-  const cmdOverrides = settings.agentCmdOverrides ?? {}
   const agentDefaultArgs = settings.agentDefaultArgs ?? {}
   const agentDefaultEnv = settings.agentDefaultEnv ?? {}
   const disabledAgents = normalizeDisabledTuiAgents(settings.disabledTuiAgents)
@@ -195,53 +185,8 @@ export function AgentsPane({
     (agent) => detectedIds !== null && !detectedIds.has(agent.id)
   )
 
-  const setAgentEnabled = (id: TuiAgent, enabled: boolean): void => {
-    void enqueueAgentAvailabilityUpdate({
-      getSettings: () => useAppStore.getState().settings,
-      fallbackSettings: settings,
-      updateSettings,
-      agentId: id,
-      enabled
-    })
-  }
-  const getRowProps = (
-    agent: (typeof catalog)[number],
-    isDetected: boolean
-  ): AgentCatalogRowProps => ({
-    agentId: agent.id,
-    label: getAgentDisplayLabel(agent.id, piRuntime),
-    homepageUrl: agent.homepageUrl,
-    defaultCmd: agent.cmd,
-    defaultArgs: getTuiAgentDefaultArgs(agent.id),
-    defaultEnv: getTuiAgentDefaultEnv(agent.id),
-    isDetected,
-    isEnabled: isTuiAgentEnabled(agent.id, disabledAgents),
-    isDefault: isDetected && defaultAgent === agent.id,
-    cmdOverride: isDetected ? cmdOverrides[agent.id] : undefined,
-    argsOverride: resolveTuiAgentLaunchArgs(agent.id, agentDefaultArgs),
-    envOverride: resolveTuiAgentLaunchEnv(agent.id, agentDefaultEnv),
-    onSetDefault: isDetected ? () => updateSettings({ defaultTuiAgent: agent.id }) : () => {},
-    onSetEnabled: (enabled) => setAgentEnabled(agent.id, enabled),
-    onSaveOverride: isDetected
-      ? (value) => {
-          const next = { ...cmdOverrides }
-          if (value) {
-            next[agent.id] = value
-          } else {
-            delete next[agent.id]
-          }
-          updateSettings({ agentCmdOverrides: next })
-        }
-      : () => {},
-    onSaveArgs: (value) =>
-      updateSettings({ agentDefaultArgs: { ...agentDefaultArgs, [agent.id]: value } }),
-    onSaveEnv: (value) =>
-      updateSettings({ agentDefaultEnv: { ...agentDefaultEnv, [agent.id]: value } }),
-    sessionSourceHome:
-      isDetected && agent.id === 'codex'
-        ? buildCodexSessionSourceHomeControl(settings, updateSettings)
-        : undefined
-  })
+  const getRowProps = (agent: (typeof catalog)[number], isDetected: boolean) =>
+    buildAgentCatalogRowProps(agent, isDetected, { settings, updateSettings, piRuntime })
 
   return (
     <div className="space-y-8">
