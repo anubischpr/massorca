@@ -1,35 +1,41 @@
 import { ChevronRight } from 'lucide-react'
-import { Button } from '@/components/ui/button'
 import { translate } from '@/i18n/i18n'
 import { useAppStore } from '@/store'
 import type { MarketplaceSection } from '@/store/slices/ui/ui-slice-contract-core'
 import { cn } from '@/lib/utils'
+import type { TuiAgent } from '../../../../shared/tui-agent'
 import { SKILLS_PAGE_COLUMN } from '../skills/skills-page-column'
-import { MarketplaceAgentMark } from './marketplace-agent-mark'
 import {
   MARKETPLACE_CATALOG,
-  marketplaceAgentLabel,
   type MarketplaceCatalogItem,
   type MarketplaceItemId
 } from './marketplace-catalog'
 import type { MarketplaceBadgeState } from './marketplace-status'
+import { MarketplaceAgentsSection } from './MarketplaceAgentsSection'
 import { MarketplaceItemIcon } from './MarketplaceItemIcon'
+import { MarketplaceSkillsSection } from './MarketplaceSkillsSection'
 import { MarketplaceStatusBadge } from './MarketplaceStatusBadge'
-import { useMarketplaceAgents } from './use-marketplace-agents'
 
-/** The main area for the sidebar's section: catalog rows, the agents list, or the Skills link. */
+/** The main area for the sidebar's section: catalog rows, the agents list, or the skills list. */
 export function MarketplaceCatalogList({
   section,
   badgeStateFor,
-  onSelect
+  onSelect,
+  onSelectAgent
 }: {
   section: MarketplaceSection
   badgeStateFor: (id: MarketplaceItemId) => MarketplaceBadgeState
   onSelect: (id: MarketplaceItemId) => void
+  onSelectAgent: (agent: TuiAgent) => void
 }): React.JSX.Element {
   return (
     <>
-      <SectionBody section={section} badgeStateFor={badgeStateFor} onSelect={onSelect} />
+      <SectionBody
+        section={section}
+        badgeStateFor={badgeStateFor}
+        onSelect={onSelect}
+        onSelectAgent={onSelectAgent}
+      />
       <p className={cn(SKILLS_PAGE_COLUMN, 'py-4 text-xs text-muted-foreground')}>
         {translate(
           'auto.components.marketplace.MarketplaceCatalogList.footer',
@@ -43,14 +49,16 @@ export function MarketplaceCatalogList({
 function SectionBody({
   section,
   badgeStateFor,
-  onSelect
+  onSelect,
+  onSelectAgent
 }: {
   section: MarketplaceSection
   badgeStateFor: (id: MarketplaceItemId) => MarketplaceBadgeState
   onSelect: (id: MarketplaceItemId) => void
+  onSelectAgent: (agent: TuiAgent) => void
 }): React.JSX.Element {
   if (section === 'agents') {
-    return <AgentsSection />
+    return <MarketplaceAgentsSection onSelect={onSelectAgent} />
   }
   if (section === 'skills') {
     return <SkillsSection />
@@ -105,77 +113,8 @@ function ItemList({
   )
 }
 
-function AgentsSection(): React.JSX.Element {
-  const agents = useMarketplaceAgents()
-  const openSettingsTarget = useAppStore((s) => s.openSettingsTarget)
-  const openSettingsPage = useAppStore((s) => s.openSettingsPage)
-  return (
-    <div className={cn(SKILLS_PAGE_COLUMN, 'flex flex-col gap-3 py-3')}>
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-sm font-medium">
-          {translate(
-            'auto.components.marketplace.MarketplaceCatalogList.agentsTitle',
-            'Agents on this computer'
-          )}
-        </p>
-        <Button
-          type="button"
-          variant="link"
-          size="sm"
-          onClick={() => {
-            openSettingsTarget({ pane: 'agents', repoId: null })
-            openSettingsPage()
-          }}
-        >
-          {translate(
-            'auto.components.marketplace.MarketplaceCatalogList.agentSettings',
-            'Open Agents in Settings'
-          )}
-        </Button>
-      </div>
-      {agents === null ? (
-        <p className="text-sm text-muted-foreground">
-          {translate(
-            'auto.components.marketplace.MarketplaceCatalogList.checking',
-            'Checking this computer…'
-          )}
-        </p>
-      ) : null}
-      {agents?.length === 0 ? (
-        <p className="text-sm text-muted-foreground">
-          {translate(
-            'auto.components.marketplace.MarketplaceCatalogList.noAgents',
-            'No agent is detected on this computer yet.'
-          )}
-        </p>
-      ) : null}
-      {agents && agents.length > 0 ? (
-        <ul className="flex flex-col border-t border-border">
-          {agents.map((agent) => (
-            <li key={agent} className="flex items-center gap-3 border-b border-border py-2.5">
-              <MarketplaceAgentMark agent={agent} size={16} />
-              <span className="text-sm">{marketplaceAgentLabel(agent)}</span>
-            </li>
-          ))}
-        </ul>
-      ) : null}
-    </div>
-  )
-}
-
+/** Leaving the Skills section returns to the catalog, not out of the Marketplace. */
 function SkillsSection(): React.JSX.Element {
-  const openSkillsPage = useAppStore((s) => s.openSkillsPage)
-  return (
-    <div className={cn(SKILLS_PAGE_COLUMN, 'flex flex-col items-start gap-2 py-3')}>
-      <p className="text-sm text-muted-foreground">
-        {translate(
-          'auto.components.marketplace.MarketplaceCatalogList.skillsHelp',
-          'Skills are installed and shared on the Skills page.'
-        )}
-      </p>
-      <Button type="button" variant="link" size="sm" onClick={openSkillsPage}>
-        {translate('auto.components.marketplace.MarketplaceCatalogList.openSkills', 'Open Skills')}
-      </Button>
-    </div>
-  )
+  const setSection = useAppStore((s) => s.setMarketplaceSection)
+  return <MarketplaceSkillsSection onClose={() => setSection('all')} />
 }
