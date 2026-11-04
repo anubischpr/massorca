@@ -15,7 +15,7 @@ import {
   selectSelectedFloatingHost
 } from './floating-workspace-host'
 import { useFloatingWorkspaceHostStore } from './floating-workspace-host-store'
-import { showHostSessionInFloating } from './floating-workspace-host-session'
+import { startTerminalOnHostWorkspace } from './floating-workspace-host-session'
 import { releaseLegacyPaneReference } from '../store/slices/tabs/pane-session-ref-new-session'
 
 type FloatingWorkspaceTerminalStore = Pick<AppState, 'activeGroupIdByWorktree' | 'createTab'>
@@ -41,17 +41,10 @@ export async function createFloatingWorkspaceTerminalTab(
     return null
   }
   if (target.kind === 'workspace') {
-    // Why: a paired host's terminal runs in that host's workspace; the floating pane only shows it.
-    // The group is that workspace's own, so the floating "+" split does not apply to it.
-    const tab = live.createTab(
-      target.worktreeId,
-      live.activeGroupIdByWorktree[target.worktreeId],
-      shellOverride,
-      { activate: false, viewMode: 'terminal' }
-    )
-    showHostSessionInFloating(target.worktreeId, tab.id)
-    useFloatingWorkspaceHostStore.getState().markUsed(target.environmentId)
-    return tab
+    // Why: a paired host's terminal runs in that host's workspace with its own default shell; the
+    // floating pane only shows it, so neither a local shell pick nor the floating split applies.
+    await startTerminalOnHostWorkspace(target.worktreeId, target.environmentId)
+    return null
   }
 
   const targetGroupId = groupId ?? store.activeGroupIdByWorktree[FLOATING_TERMINAL_WORKTREE_ID]

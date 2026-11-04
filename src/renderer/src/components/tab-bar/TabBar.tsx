@@ -28,7 +28,8 @@ function TabBarInner(props: TabBarProps): React.JSX.Element {
   const runtime = useTabBarRuntimeModel({
     worktreeId,
     groupId,
-    hostWorktreeId: props.createHost?.worktreeId
+    hostWorktreeId: props.createHost?.worktreeId ?? undefined,
+    hostEnvironmentId: props.createHost?.environmentId
   })
   const ownCreateMenu = useTabBarCreateMenuController({
     worktreeId,

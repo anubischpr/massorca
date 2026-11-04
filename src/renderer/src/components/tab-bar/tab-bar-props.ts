@@ -28,10 +28,15 @@ export type TabBarProps = {
   /** Adds "Open a session..." after Checklist; only the floating workspace offers it. */
   onOpenSessionPicker?: () => void
   /**
-   * The workspace whose host supplies the "+" menu's agents and shells and runs its agents; only
-   * the floating workspace sets it, while a paired host is selected.
+   * The paired host whose agents and shells the "+" menu lists and whose workspace runs its agents;
+   * only the floating workspace sets it, while a paired host is selected.
    */
-  createHost?: { worktreeId: string; launchAgent: (agent: TuiAgent, label: string) => void }
+  createHost?: {
+    environmentId: string
+    /** The host's workspace in focus or used last; null while the host has none. */
+    worktreeId: string | null
+    launchAgent: (agent: TuiAgent, label: string) => void
+  }
   onOpenEntry?: (args: TabCreateEntryArgs) => Promise<void>
   terminalOnly?: boolean
   showAgentLaunchItems?: boolean
