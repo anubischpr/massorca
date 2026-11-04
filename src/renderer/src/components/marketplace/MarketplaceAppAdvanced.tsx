@@ -3,6 +3,8 @@ import { Button } from '@/components/ui/button'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { translate } from '@/i18n/i18n'
 import type { MarketplaceAppContext } from './marketplace-app-context'
+import { MarketplaceEngramImport } from './MarketplaceEngramImport'
+import { MarketplaceEngramProgram } from './MarketplaceEngramProgram'
 import { MarketplaceInfoRow } from './MarketplaceInfoRow'
 
 /** Settings beyond the basics, open by default; each app shows only its own options. */
@@ -48,51 +50,55 @@ function EngramAdvanced({ ctx }: { ctx: MarketplaceAppContext }): React.JSX.Elem
   const stored = ctx.status.credential?.stored === true
   const notSet = translate('auto.components.marketplace.MarketplaceAppAdvanced.notSet', 'Not set')
   return (
-    <div className="flex flex-col gap-1">
-      <p className="text-sm font-medium">
-        {translate(
-          'auto.components.marketplace.MarketplaceAppAdvanced.engramServer',
-          'Your Engram server'
-        )}
-      </p>
-      <MarketplaceInfoRow
-        label={translate('auto.components.marketplace.MarketplaceAppAdvanced.address', 'Address')}
-      >
-        <span className="text-sm text-muted-foreground">{serverUrl ? serverUrl : notSet}</span>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={() => ctx.openDialog({ kind: 'engram-server' })}
+    <>
+      <div className="flex flex-col gap-1">
+        <p className="text-sm font-medium">
+          {translate(
+            'auto.components.marketplace.MarketplaceAppAdvanced.engramServer',
+            'Your Engram server'
+          )}
+        </p>
+        <MarketplaceInfoRow
+          label={translate('auto.components.marketplace.MarketplaceAppAdvanced.address', 'Address')}
         >
-          {serverUrl
-            ? translate('auto.components.marketplace.MarketplaceAppAdvanced.change', 'Change')
-            : translate('auto.components.marketplace.MarketplaceAppAdvanced.add', 'Add')}
-        </Button>
-      </MarketplaceInfoRow>
-      <MarketplaceInfoRow
-        label={translate('auto.components.marketplace.MarketplaceAppAdvanced.signIn', 'Sign-in')}
-      >
-        <span className="text-sm text-muted-foreground">
-          {stored
-            ? translate(
-                'auto.components.marketplace.MarketplaceAppAdvanced.inVault',
-                'In the vault. Never shown.'
-              )
-            : notSet}
-        </span>
-        {serverUrl ? (
+          <span className="text-sm text-muted-foreground">{serverUrl ? serverUrl : notSet}</span>
           <Button
             type="button"
             variant="outline"
             size="sm"
             onClick={() => ctx.openDialog({ kind: 'engram-server' })}
           >
-            {translate('auto.components.marketplace.MarketplaceAppAdvanced.replace', 'Replace')}
+            {serverUrl
+              ? translate('auto.components.marketplace.MarketplaceAppAdvanced.change', 'Change')
+              : translate('auto.components.marketplace.MarketplaceAppAdvanced.add', 'Add')}
           </Button>
-        ) : null}
-      </MarketplaceInfoRow>
-    </div>
+        </MarketplaceInfoRow>
+        <MarketplaceInfoRow
+          label={translate('auto.components.marketplace.MarketplaceAppAdvanced.signIn', 'Sign-in')}
+        >
+          <span className="text-sm text-muted-foreground">
+            {stored
+              ? translate(
+                  'auto.components.marketplace.MarketplaceAppAdvanced.inVault',
+                  'In the vault. Never shown.'
+                )
+              : notSet}
+          </span>
+          {serverUrl ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => ctx.openDialog({ kind: 'engram-server' })}
+            >
+              {translate('auto.components.marketplace.MarketplaceAppAdvanced.replace', 'Replace')}
+            </Button>
+          ) : null}
+        </MarketplaceInfoRow>
+      </div>
+      <MarketplaceEngramProgram />
+      <MarketplaceEngramImport />
+    </>
   )
 }
 
