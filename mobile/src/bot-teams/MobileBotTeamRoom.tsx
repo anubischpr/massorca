@@ -293,6 +293,7 @@ export function MobileBotTeamRoom({
             Ask {team.name} for something. Each request becomes one or more tasks.
           </Text>
         ) : null}
+        {placement.leading.map(card)}
         <MarkdownPlainTextContext.Provider value={renderMentions}>
           {messages.map((message) => {
             const from = teams.find((entry) => entry.id === message.fromTeamId)
@@ -303,6 +304,7 @@ export function MobileBotTeamRoom({
                 <MobileBotTeamAttachChips
                   files={message.attachments ?? []}
                   tag={from ? `From ${from.name}` : undefined}
+                  onOpen={(path) => onOpenWork({ name: 'file', teamId: team.id, path })}
                 />
                 {prototypeLinks(message.id)}
                 {placement.cardsByMessageId.get(message.id)?.map(card)}
