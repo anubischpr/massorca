@@ -1,9 +1,12 @@
+import { z } from 'zod'
 import {
   MARKETPLACE_APP_IDS,
   openMetadataProfileTokenEnv,
+  type MarketplaceAppAccessPolicy,
   type MarketplaceAppId,
   type MarketplaceConnectArgs
 } from '../../shared/marketplace-apps'
+import { accessPolicyInputSchema } from './marketplace-access'
 
 const MAX_URL_LENGTH = 2048
 const MAX_TOKEN_LENGTH = 8192
@@ -140,4 +143,16 @@ export function parseEngramServerArgs(
   }
   const token = parseToken(value.token)
   return token ? { url, token } : null
+}
+
+const accessArgsSchema = z.object({
+  id: z.enum(MARKETPLACE_APP_IDS),
+  policy: accessPolicyInputSchema
+})
+
+export function parseAccessPolicyArgs(
+  value: unknown
+): { id: MarketplaceAppId; policy: MarketplaceAppAccessPolicy } | null {
+  const parsed = accessArgsSchema.safeParse(value)
+  return parsed.success ? parsed.data : null
 }

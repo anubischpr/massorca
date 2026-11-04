@@ -11,6 +11,7 @@ export const marketplaceAppsApi = {
   removeOpenMetadataProfile: (args) =>
     ipcRenderer.invoke('marketplaceApps:removeOpenMetadataProfile', args),
   setEngramServer: (args) => ipcRenderer.invoke('marketplaceApps:setEngramServer', args),
+  setAccessPolicy: (args) => ipcRenderer.invoke('marketplaceApps:setAccessPolicy', args),
   // Write-only: a token goes to an SSH host's own vault once and is never returned.
   remoteVault: {
     status: (args) => ipcRenderer.invoke('marketplaceApps:remoteVaultStatus', args),

@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { translate } from '@/i18n/i18n'
 import type { MarketplaceAppContext } from './marketplace-app-context'
+import { MarketplaceAppAccess } from './MarketplaceAppAccess'
 import { MarketplaceEngramImport } from './MarketplaceEngramImport'
 import { MarketplaceEngramProgram } from './MarketplaceEngramProgram'
 import { MarketplaceInfoRow } from './MarketplaceInfoRow'
@@ -38,6 +39,7 @@ export function MarketplaceAppAdvanced({ ctx }: { ctx: MarketplaceAppContext }):
             {ctx.appId === 'engram' ? <EngramAdvanced ctx={ctx} /> : null}
             {ctx.appId === 'openmetadata' ? <OpenMetadataAdvanced ctx={ctx} /> : null}
             {ctx.appId === 'github' ? <GitHubAdvanced ctx={ctx} /> : null}
+            <MarketplaceAppAccess ctx={ctx} />
           </div>
         </CollapsibleContent>
       </Collapsible>

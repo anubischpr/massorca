@@ -7,12 +7,15 @@ import {
   ENGRAM_CLOUD_TOKEN_ENV,
   MARKETPLACE_APP_AGENTS,
   OPENMETADATA_TOKEN_ENV,
+  isMarketplaceAppAllowedForAgent,
   openMetadataProfileTokenEnv,
+  type MarketplaceAppAgent,
   type MarketplaceCredentialLocation,
   type MarketplaceCredentialStatus
 } from '../../shared/marketplace-apps'
 import { getSecretStore, hasSecretStore } from '../../shared/secret-store'
 import { credentialFileHasContent, writeCredentialFileAtomic } from '../integration-credential-file'
+import { everyoneAccessByApp, storedAccessSchema } from './marketplace-access'
 import { isSealedV2, openSecret, sealSecret, sealedUpdatedAt } from './marketplace-vault-crypto'
 import { createMasterKeyProvider, type KeychainSealer } from './marketplace-vault-master-key'
 
@@ -34,6 +37,8 @@ const stateSchema = z.object({
   engram: z.object({ connected: z.boolean(), serverUrl: z.string().nullable() }),
   // Why: Disconnect hides GitHub from MassOrca only; gh keeps its accounts.
   github: z.object({ hidden: z.boolean() }).default({ hidden: false }),
+  // Why: a state file from before access policies still parses, and reads as Everyone.
+  access: storedAccessSchema,
   written: z.object({ engram: writtenSchema, openmetadata: writtenSchema })
 })
 
@@ -46,9 +51,14 @@ export function emptyMarketplaceState(): MarketplaceState {
     openMetadata: { url: null, profiles: [] },
     engram: { connected: false, serverUrl: null },
     github: { hidden: false },
+    access: everyoneAccessByApp(),
     written: { engram: {}, openmetadata: {} }
   }
 }
+
+/** The apps whose tokens reach agents as env vars. */
+const ENV_APPS = ['engram', 'openmetadata'] as const
+type EnvApp = (typeof ENV_APPS)[number]
 
 export function defaultMarketplaceVaultDir(): string {
   return join(homedir(), '.orca', 'marketplace')
@@ -82,7 +92,7 @@ function desktopKeychain(): KeychainSealer | null {
  * key is wrapped by the OS keychain when there is one, otherwise it is a separate 0600 key file.
  */
 export class MarketplaceVault {
-  private envCache: Record<string, string> | null = null
+  private envCache: Record<EnvApp, Record<string, string>> | null = null
   private readonly keys: ReturnType<typeof createMasterKeyProvider>
   private readonly sealer: () => KeychainSealer | null
   private readonly hostLabel: string
@@ -241,32 +251,49 @@ export class MarketplaceVault {
     this.envCache = null
   }
 
-  /** Env vars for agents MassOrca launches; names and values only for what is stored. */
-  buildAgentEnv(): Record<string, string> {
+  /** Env vars per app, read once until the state or a token changes; never handed out as is. */
+  private readAppEnvs(): Record<EnvApp, Record<string, string>> {
     if (this.envCache) {
-      return { ...this.envCache }
+      return this.envCache
     }
-    const env: Record<string, string> = {}
     const state = this.readState()
-    const add = (name: string, slot: VaultSlot): void => {
+    const envs: Record<EnvApp, Record<string, string>> = { engram: {}, openmetadata: {} }
+    const add = (env: Record<string, string>, name: string, slot: VaultSlot): void => {
       const token = this.readToken(slot)
       if (token) {
         env[name] = token
       }
     }
-    add(OPENMETADATA_TOKEN_ENV, { kind: 'openmetadata' })
+    add(envs.openmetadata, OPENMETADATA_TOKEN_ENV, { kind: 'openmetadata' })
     for (const profile of state.openMetadata.profiles) {
-      add(openMetadataProfileTokenEnv(profile.name), {
+      add(envs.openmetadata, openMetadataProfileTokenEnv(profile.name), {
         kind: 'openmetadata-profile',
         name: profile.name
       })
     }
-    add(ENGRAM_CLOUD_TOKEN_ENV, { kind: 'engram-cloud' })
+    add(envs.engram, ENGRAM_CLOUD_TOKEN_ENV, { kind: 'engram-cloud' })
     if (state.engram.serverUrl) {
-      env[ENGRAM_CLOUD_SERVER_ENV] = state.engram.serverUrl
+      envs.engram[ENGRAM_CLOUD_SERVER_ENV] = state.engram.serverUrl
     }
-    this.envCache = env
-    return { ...env }
+    this.envCache = envs
+    return envs
+  }
+
+  /**
+   * Env vars for agents MassOrca launches. With an agent, an app whose policy keeps that agent out
+   * adds none of its vars; without one, every stored var is returned.
+   */
+  buildAgentEnv(agent?: MarketplaceAppAgent): Record<string, string> {
+    const envs = this.readAppEnvs()
+    const access = this.readState().access
+    const env: Record<string, string> = {}
+    for (const app of ENV_APPS) {
+      if (agent !== undefined && !isMarketplaceAppAllowedForAgent(access[app], agent)) {
+        continue
+      }
+      Object.assign(env, envs[app])
+    }
+    return env
   }
 }
 
