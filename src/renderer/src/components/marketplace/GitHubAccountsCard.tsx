@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button'
 import { translate } from '@/i18n/i18n'
 import type { GhAccountBindingInventory, GhAuthAccount } from '../../../../shared/github/auth-types'
 import { groupReposByGitHubAccount } from './github-account-repos'
+import { GitHubSignInDialog } from './GitHubSignInDialog'
 import { gitHubAccountKey, type GitHubAccounts } from './use-github-accounts'
 
 /** This computer's GitHub logins, the active one, and the projects each login serves. */
@@ -10,6 +11,16 @@ export function GitHubAccountsCard({ accounts }: { accounts: GitHubAccounts }): 
   const { inventory, pendingKey, switchError } = accounts
   return (
     <div className="flex flex-col gap-3">
+      <GitHubSignInDialog
+        open={accounts.signInOpen}
+        host="github.com"
+        onOpenChange={(open) => {
+          if (!open) {
+            accounts.closeSignIn()
+          }
+        }}
+        onSignedIn={() => void accounts.reload()}
+      />
       {inventory.kind === 'loading' ? (
         <p className="text-sm text-muted-foreground">
           {translate(
@@ -32,6 +43,7 @@ export function GitHubAccountsCard({ accounts }: { accounts: GitHubAccounts }): 
           repos={accounts.localRepos}
           pendingKey={pendingKey}
           onMakeActive={accounts.makeActive}
+          onSignIn={accounts.openSignIn}
         />
       ) : null}
       {switchError ? <p className="text-sm text-destructive">{switchError}</p> : null}
@@ -43,22 +55,29 @@ function AccountList({
   inventory,
   repos,
   pendingKey,
-  onMakeActive
+  onMakeActive,
+  onSignIn
 }: {
   inventory: GhAccountBindingInventory
   repos: GitHubAccounts['localRepos']
   pendingKey: string | null
   onMakeActive: (account: GhAuthAccount) => Promise<void>
+  onSignIn: () => void
 }): React.JSX.Element {
   const groups = groupReposByGitHubAccount(inventory.accounts, repos)
   if (inventory.accounts.length === 0) {
     return (
-      <p className="text-sm text-muted-foreground">
-        {translate(
-          'auto.components.marketplace.GitHubAccountsCard.none',
-          'No GitHub account is signed in on this computer.'
-        )}
-      </p>
+      <div className="flex flex-col items-start gap-2">
+        <p className="text-sm text-muted-foreground">
+          {translate(
+            'auto.components.marketplace.GitHubAccountsCard.none',
+            'No GitHub account is signed in on this computer.'
+          )}
+        </p>
+        <Button type="button" variant="outline" size="sm" onClick={onSignIn}>
+          {translate('auto.components.marketplace.GitHubAccountsCard.signIn', 'Sign in to GitHub')}
+        </Button>
+      </div>
     )
   }
   const canSwitch = inventory.capability !== 'unsupported'

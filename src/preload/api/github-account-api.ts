@@ -9,6 +9,20 @@ import type {
 } from '../../shared/github/gh-account-git-config'
 import type { RepoGhAccountInference } from '../../shared/github/gh-account-inference'
 
+/** Why: the sign-in dialog reads only these; the token never leaves gh's credential store. */
+export type GhSignInFailureReason = 'cancelled' | 'timeout' | 'unavailable' | 'failed'
+
+export type GhSignInState =
+  | { kind: 'code'; userCode: string; verificationUrl: string }
+  | { kind: 'done'; user: string | null }
+  | { kind: 'failed'; reason: GhSignInFailureReason }
+
+export type GhSignInEvent = { signInId: string; state: GhSignInState }
+
+export type GhSignInStartResult =
+  | { ok: true }
+  | { ok: false; reason: 'invalid_host' | 'unsupported' }
+
 export type GithubAccountApi = {
   listBindableAccounts: (args: {
     repoPath: string
@@ -43,4 +57,8 @@ export type GithubAccountApi = {
     wslDistro?: string
   }) => Promise<Record<string, string[]>>
   inferRepoAccount: (args: { repoPath: string; repoId?: string }) => Promise<RepoGhAccountInference>
+  /** Starts `gh auth login --web` on this computer; progress arrives on `onSignInEvent`. */
+  startSignIn: (args: { signInId: string; host: string }) => Promise<GhSignInStartResult>
+  cancelSignIn: (args: { signInId: string }) => Promise<void>
+  onSignInEvent: (callback: (event: GhSignInEvent) => void) => () => void
 }
