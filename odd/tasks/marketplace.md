@@ -66,4 +66,10 @@ Branch: claude/marketplace-pv84 (from custom/pv27-unified 2805b178a70). Commits 
   - The new RPC methods are capability-gated.
   - Risk: item 2 (security). It ships as its own slice.
 - P7 (rewritten by L8): per-host vault as above, write-only RPC, host-side injection, a location label on the page.
+- L9 (2026-11-04) pv84 decisions:
+  - D11. Capability gating is by method presence: an older host answering method-not-found shows "Update MassOrca on <host> first". Rejected: a new string in RUNTIME_CAPABILITIES (protocol-version.ts), out of the slice.
+  - D12. Who can use it: Claude chat sessions get only the env of apps Claude may use. Terminal panes inject for every agent, because the launching agent is unknown at spawn. Rejected: dropping injection from plain shells.
+  - D13. An app kept out of every agent shows as Not connected (its meaning is "usable by an agent here"). Rejected: a separate "connected but limited to nobody" state in pv84.
+  - D14. Bot enforcement uses `isMarketplaceAppAllowedForBot` and belongs to the Bot teams session.
+  - D15. The per-skill page, the phone boards, Engram cloud sync and remote agent-config wiring are out of pv84-86 (reported to the orchestrator).
 

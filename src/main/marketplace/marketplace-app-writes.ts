@@ -16,6 +16,8 @@ export type AppWritePlan = {
   /** The edits for one agent, given the entry names MassOrca wrote there earlier. */
   entries: (agent: MarketplaceAppAgent, owned: ReadonlySet<string>) => McpEntryEdit[]
   instructions: 'add' | 'remove' | 'keep'
+  /** Agents the access policy keeps out: MassOrca removes what it wrote there and adds nothing. */
+  keepOut?: (agent: MarketplaceAppAgent) => boolean
 }
 
 /**
@@ -34,7 +36,12 @@ export function runAppWrites(
     const before = written[agent] ?? { entries: [], instructions: false }
     const entries = new Set(before.entries)
     let instructions = before.instructions
-    const edits = plan.entries(agent, new Set(before.entries))
+    const keptOut = plan.keepOut?.(agent) === true
+    // Why: a kept-out agent loses only the names MassOrca recorded, never a user's or built-in entry.
+    const edits: McpEntryEdit[] = keptOut
+      ? [...before.entries].map((name): McpEntryEdit => ({ action: 'remove', name }))
+      : plan.entries(agent, new Set(before.entries))
+    const instructionsPlan = keptOut ? 'remove' : plan.instructions
     if (edits.length > 0) {
       const result = applyAgentMcpEdits(agent, paths, edits)
       if (!result.ok) {
@@ -54,16 +61,11 @@ export function runAppWrites(
       }
     }
     // Why: only a block MassOrca recorded writing is MassOrca's to remove.
-    if (plan.instructions === 'add' || (plan.instructions === 'remove' && before.instructions)) {
-      const result = applyAgentInstructionsBlock(
-        agent,
-        paths,
-        plan.app,
-        plan.instructions === 'add'
-      )
+    if (instructionsPlan === 'add' || (instructionsPlan === 'remove' && before.instructions)) {
+      const result = applyAgentInstructionsBlock(agent, paths, plan.app, instructionsPlan === 'add')
       if (!result.ok) {
         failure ??= { agent, reason: result.reason }
-      } else if (plan.instructions === 'remove') {
+      } else if (instructionsPlan === 'remove') {
         instructions = false
       } else {
         instructions =

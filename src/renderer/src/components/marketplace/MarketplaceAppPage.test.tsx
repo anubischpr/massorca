@@ -3,14 +3,21 @@
 import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { MarketplaceAppId, MarketplaceAppStatus } from '../../../../shared/marketplace-apps'
+import {
+  everyoneAccessPolicy,
+  type MarketplaceAppId,
+  type MarketplaceAppStatus
+} from '../../../../shared/marketplace-apps'
+import type { BotTeam } from '../../../../shared/rpc-contract/bot-team-params'
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true
 
 const mocks = vi.hoisted(() => {
   const apps: MarketplaceAppStatus[] = []
+  const teams: BotTeam[] = []
   return {
     apps,
+    teams,
     listApps: vi.fn(),
     connect: vi.fn(),
     disconnect: vi.fn(),
@@ -18,6 +25,7 @@ const mocks = vi.hoisted(() => {
     addOpenMetadataProfile: vi.fn(),
     removeOpenMetadataProfile: vi.fn(),
     setEngramServer: vi.fn(),
+    setAccessPolicy: vi.fn(),
     writeClipboardText: vi.fn(),
     openUrl: vi.fn(),
     listHostBindableAccounts: vi.fn()
@@ -47,6 +55,15 @@ vi.mock('@/lib/agent-catalog', () => ({
 }))
 vi.mock('@/lib/agent-icon-gentle-shell', () => ({ GentleShellIcon: () => null }))
 vi.mock('@/lib/pi-agent-display', () => ({ piRuntimeLabel: () => 'Gentle Shell' }))
+vi.mock('@/components/bot-teams/use-bot-teams', () => ({
+  useBotTeams: () => ({
+    teams: mocks.teams,
+    failed: false,
+    lastSeenAt: null,
+    reload: () => undefined,
+    applyChange: async () => true
+  })
+}))
 
 const { createTestStore, seedStore } = await import('../../store/slices/store-test-helpers')
 const store = createTestStore()
@@ -180,6 +197,8 @@ describe('MarketplaceAppPage', () => {
     mocks.addOpenMetadataProfile.mockResolvedValue({ ok: true, status: openmetadata })
     mocks.removeOpenMetadataProfile.mockResolvedValue({ ok: true, status: openmetadata })
     mocks.setEngramServer.mockResolvedValue({ ok: true, status: engram })
+    mocks.setAccessPolicy.mockResolvedValue({ ok: true, status: engram })
+    mocks.teams.splice(0)
     mocks.writeClipboardText.mockResolvedValue(undefined)
     mocks.openUrl.mockResolvedValue(undefined)
     mocks.listHostBindableAccounts.mockResolvedValue({
@@ -204,7 +223,8 @@ describe('MarketplaceAppPage', () => {
           setOpenMetadataToken: mocks.setOpenMetadataToken,
           addOpenMetadataProfile: mocks.addOpenMetadataProfile,
           removeOpenMetadataProfile: mocks.removeOpenMetadataProfile,
-          setEngramServer: mocks.setEngramServer
+          setEngramServer: mocks.setEngramServer,
+          setAccessPolicy: mocks.setAccessPolicy
         },
         ui: { writeClipboardText: mocks.writeClipboardText },
         shell: { openUrl: mocks.openUrl },
@@ -388,5 +408,151 @@ describe('MarketplaceAppPage', () => {
 
     expect(container.textContent).toContain('Available in the desktop app')
     expect(sectionIds(container)).toEqual([])
+  })
+
+  describe('Who can use it', () => {
+    const AGENTS_MODE = 'Workspaces agents: who can use it'
+    const BOTS_MODE = 'Bot teams: who can use it'
+    const EVERYONE = everyoneAccessPolicy()
+    const alphaTeam: BotTeam = {
+      id: 'team-alpha',
+      name: 'Alpha',
+      purpose: '',
+      character: 'square',
+      workspacesEnabled: false,
+      accessMode: 'default',
+      bots: [
+        {
+          id: 'bot-max',
+          name: 'Max',
+          job: 'Writes code',
+          agent: 'claude',
+          modelMode: 'auto',
+          model: null,
+          effort: null,
+          skills: []
+        },
+        {
+          id: 'bot-ana',
+          name: 'Ana',
+          job: 'Reviews code',
+          agent: 'codex',
+          modelMode: 'auto',
+          model: null,
+          effort: null,
+          skills: []
+        }
+      ]
+    }
+
+    function radioOf(scope: ParentNode, label: string, option: string): HTMLButtonElement {
+      const group = scope.querySelector(`[aria-label="${label}"]`)
+      const radio = [...(group?.querySelectorAll<HTMLButtonElement>('[role="radio"]') ?? [])].find(
+        (button) => button.textContent?.trim() === option
+      )
+      if (!radio) {
+        throw new Error(`Option missing: ${option}`)
+      }
+      return radio
+    }
+
+    function checkboxFor(scope: ParentNode, label: string): HTMLButtonElement {
+      const row = [...scope.querySelectorAll('label')].find(
+        (element) => element.textContent?.trim() === label
+      )
+      const checkbox = row?.querySelector<HTMLButtonElement>('button[role="checkbox"]')
+      if (!checkbox) {
+        throw new Error(`Checkbox missing: ${label}`)
+      }
+      return checkbox
+    }
+
+    it.each<MarketplaceAppId>(['engram', 'openmetadata', 'github'])(
+      'defaults agents and bots to Everyone on the %s page',
+      async (appId) => {
+        const container = await mount(appId)
+        expect(radioOf(container, AGENTS_MODE, 'Everyone').getAttribute('aria-checked')).toBe(
+          'true'
+        )
+        expect(radioOf(container, BOTS_MODE, 'Everyone').getAttribute('aria-checked')).toBe('true')
+        expect(mocks.setAccessPolicy).not.toHaveBeenCalled()
+      }
+    )
+
+    it('saves Only these for agents, with nobody picked yet', async () => {
+      const container = await mount('engram')
+      await act(async () => {
+        radioOf(container, AGENTS_MODE, 'Only these').click()
+      })
+      expect(mocks.setAccessPolicy).toHaveBeenCalledWith({
+        id: 'engram',
+        policy: { ...EVERYONE, agents: { mode: 'only', ids: [] } }
+      })
+    })
+
+    it('adds an agent to the picks of a limited app in one save', async () => {
+      seedApps([
+        { ...engram, access: { ...EVERYONE, agents: { mode: 'only', ids: [] } } },
+        openmetadata,
+        github
+      ])
+      const container = await mount('engram')
+      await act(async () => {
+        checkboxFor(container, 'Codex').click()
+      })
+      expect(mocks.setAccessPolicy).toHaveBeenCalledWith({
+        id: 'engram',
+        policy: { ...EVERYONE, agents: { mode: 'only', ids: ['codex'] } }
+      })
+    })
+
+    it('removes a picked bot from the chips and keeps the others', async () => {
+      mocks.teams.push(alphaTeam)
+      seedApps([
+        {
+          ...engram,
+          access: {
+            ...EVERYONE,
+            bots: { mode: 'only', botIds: ['bot-max', 'bot-ana'], teamIds: [] }
+          }
+        },
+        openmetadata,
+        github
+      ])
+      const container = await mount('engram')
+      await act(async () => {
+        container.querySelector<HTMLButtonElement>('button[aria-label="Remove Max"]')?.click()
+      })
+      expect(mocks.setAccessPolicy).toHaveBeenCalledWith({
+        id: 'engram',
+        policy: { ...EVERYONE, bots: { mode: 'only', botIds: ['bot-ana'], teamIds: [] } }
+      })
+    })
+
+    it('adds a whole team from the picker', async () => {
+      mocks.teams.push(alphaTeam)
+      seedApps([
+        { ...engram, access: { ...EVERYONE, bots: { mode: 'except', botIds: [], teamIds: [] } } },
+        openmetadata,
+        github
+      ])
+      await mount('engram')
+      await clickButton(document.body, 'Add a bot or team')
+      const wholeTeam = [...document.querySelectorAll('[cmdk-item]')].find((item) =>
+        item.textContent?.includes('Whole team')
+      )
+      await act(async () => {
+        wholeTeam?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+      })
+      expect(mocks.setAccessPolicy).toHaveBeenCalledWith({
+        id: 'engram',
+        policy: { ...EVERYONE, bots: { mode: 'except', botIds: [], teamIds: ['team-alpha'] } }
+      })
+    })
+
+    it('says that GitHub limits only change what MassOrca shows', async () => {
+      const container = await mount('github')
+      expect(container.textContent).toContain('For GitHub this only changes what MassOrca shows.')
+    })
   })
 })

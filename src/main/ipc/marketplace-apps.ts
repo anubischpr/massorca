@@ -29,6 +29,9 @@ export function registerMarketplaceAppsHandlers(
   ipcMain.handle('marketplaceApps:setEngramServer', (_event, args: unknown) =>
     service.setEngramServer(args)
   )
+  ipcMain.handle('marketplaceApps:setAccessPolicy', (_event, args: unknown) =>
+    service.setAccessPolicy(args)
+  )
   ipcMain.handle('marketplaceApps:remoteVaultStatus', (_event, args: unknown) =>
     remoteVault.status(args)
   )

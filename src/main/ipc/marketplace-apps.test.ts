@@ -77,6 +77,7 @@ describe('marketplaceApps IPC', () => {
         'remoteVaultSet',
         'remoteVaultStatus',
         'removeOpenMetadataProfile',
+        'setAccessPolicy',
         'setEngramServer',
         'setOpenMetadataToken'
       ].map((method) => `marketplaceApps:${method}`)
@@ -91,9 +92,26 @@ describe('marketplaceApps IPC', () => {
     ['setOpenMetadataToken', { token: '' }],
     ['addOpenMetadataProfile', { name: '../x', url: 'https://x.example', token: TOKEN }],
     ['removeOpenMetadataProfile', {}],
-    ['setEngramServer', { url: 5 }]
+    ['setEngramServer', { url: 5 }],
+    ['setAccessPolicy', undefined],
+    ['setAccessPolicy', { id: 'slack', policy: {} }],
+    ['setAccessPolicy', { id: 'engram', policy: { agents: { mode: 'only', ids: ['gemini'] } } }],
+    [
+      'setAccessPolicy',
+      { id: 'engram', policy: { agents: { mode: 'except', ids: ['codex', 'codex'] } } }
+    ]
   ])('answers invalid-input to %s with %j', async (method, args) => {
     expect(await invoke(method, args)).toEqual({ ok: false, reason: 'invalid-input' })
+  })
+
+  it('saves an access policy and returns it on the status, with no secret in it', async () => {
+    const policy = {
+      agents: { mode: 'except', ids: ['codex'] },
+      bots: { mode: 'only', botIds: ['bot-1'], teamIds: ['team-a'] }
+    }
+    const result = await invoke('setAccessPolicy', { id: 'github', policy })
+    expect(result).toMatchObject({ ok: true, status: { id: 'github', access: policy } })
+    expect(JSON.stringify(await invoke('listApps'))).not.toContain(TOKEN)
   })
 
   it('stores a token without ever returning or listing it', async () => {

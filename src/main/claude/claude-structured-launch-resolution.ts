@@ -337,7 +337,7 @@ export function createClaudeStructuredLaunchResolver(
             {
               ...base,
               // Why: connected Marketplace apps reach the session as env vars, not as tokens in config.
-              ...buildMarketplaceAgentEnv(),
+              ...buildMarketplaceAgentEnv('claude'),
               // The turn translator relies on Claude's authoritative idle frame when no result arrives.
               [CLAUDE_SESSION_STATE_EVENTS_ENV]: '1',
               [CLAUDE_TODO_TOOLS_ENV]: base[CLAUDE_TODO_TOOLS_ENV] ?? '1'

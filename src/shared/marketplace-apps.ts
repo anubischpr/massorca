@@ -15,6 +15,67 @@ export type MarketplaceAppAgentStatus = {
   agent: MarketplaceAppAgent
   level: MarketplaceIntegrationLevel
   entry: MarketplaceAgentEntryState
+  /** False when the app's access policy keeps this agent out; absent means allowed. */
+  allowed?: boolean
+}
+
+/** Who may use an app: everyone, only the picked ones, or everyone except the picked ones. */
+export const MARKETPLACE_ACCESS_MODES = ['everyone', 'only', 'except'] as const
+export type MarketplaceAccessMode = (typeof MARKETPLACE_ACCESS_MODES)[number]
+
+export type MarketplaceAgentAccess = { mode: MarketplaceAccessMode; ids: MarketplaceAppAgent[] }
+
+/** Bots are picked one by one or as whole teams; a team's pick covers every bot in it. */
+export type MarketplaceBotAccess = {
+  mode: MarketplaceAccessMode
+  botIds: string[]
+  teamIds: string[]
+}
+
+/** Kept per app on this computer; holds no secret. */
+export type MarketplaceAppAccessPolicy = {
+  agents: MarketplaceAgentAccess
+  bots: MarketplaceBotAccess
+}
+
+export function everyoneAccessPolicy(): MarketplaceAppAccessPolicy {
+  return {
+    agents: { mode: 'everyone', ids: [] },
+    bots: { mode: 'everyone', botIds: [], teamIds: [] }
+  }
+}
+
+function allowedByMode(mode: MarketplaceAccessMode, picked: boolean): boolean {
+  switch (mode) {
+    case 'everyone':
+      return true
+    case 'only':
+      return picked
+    case 'except':
+      return !picked
+  }
+}
+
+/** Whether an agent may use the app; `only` with nothing picked lets no agent use it. */
+export function isMarketplaceAppAllowedForAgent(
+  policy: MarketplaceAppAccessPolicy,
+  agent: MarketplaceAppAgent
+): boolean {
+  return allowedByMode(policy.agents.mode, policy.agents.ids.includes(agent))
+}
+
+/** Whether a bot may use the app; the Bot teams session enforces it. A team's pick covers its bots. */
+export function isMarketplaceAppAllowedForBot(
+  policy: MarketplaceAppAccessPolicy,
+  { botId, teamId }: { botId: string; teamId: string }
+): boolean {
+  const picked = policy.bots.botIds.includes(botId) || policy.bots.teamIds.includes(teamId)
+  return allowedByMode(policy.bots.mode, picked)
+}
+
+/** True when neither agents nor bots are limited, so the record says nothing a default would not. */
+export function isUnrestrictedAccessPolicy(policy: MarketplaceAppAccessPolicy): boolean {
+  return policy.agents.mode === 'everyone' && policy.bots.mode === 'everyone'
 }
 
 /** A profile that already exists on the OpenMetadata server; MassOrca never creates or edits it there. */
@@ -77,6 +138,8 @@ export type MarketplaceAppStatus = {
   serverUrl?: string | null
   profiles?: OpenMetadataProfile[]
   agents: MarketplaceAppAgentStatus[]
+  /** Who may use the app; absent on older hosts, where everyone may. */
+  access?: MarketplaceAppAccessPolicy
 }
 
 export type MarketplaceConnectArgs =
@@ -117,6 +180,11 @@ export type MarketplaceAppsApi = {
   setEngramServer: (args: {
     url: string | null
     token?: string
+  }) => Promise<MarketplaceActionResult>
+  /** Saves who may use the app; an app connected here follows the policy at once, agent by agent. */
+  setAccessPolicy: (args: {
+    id: MarketplaceAppId
+    policy: MarketplaceAppAccessPolicy
   }) => Promise<MarketplaceActionResult>
 }
 
