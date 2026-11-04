@@ -191,6 +191,7 @@ vi.mock('../marketplace', () => ({ registerMarketplaceHandlers: vi.fn() }))
 vi.mock('../marketplace-apps', () => ({ registerMarketplaceAppsHandlers: vi.fn() }))
 vi.mock('../marketplace-engram-ops', () => ({ registerMarketplaceEngramOpsHandlers: vi.fn() }))
 vi.mock('../marketplace-install', () => ({ registerMarketplaceInstallHandlers: vi.fn() }))
+vi.mock('../marketplace-custom', () => ({ registerMarketplaceCustomHandlers: vi.fn() }))
 vi.mock('../../marketplace/marketplace-apps-defaults', () => ({
   createDefaultMarketplaceAppsService: vi.fn()
 }))
