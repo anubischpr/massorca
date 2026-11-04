@@ -31,11 +31,18 @@ export async function detectEngramProgram(): Promise<{ found: boolean; version: 
   }
 }
 
+let defaultService: MarketplaceAppsService | null = null
+
+/**
+ * This host's one service. The desktop's own page and the paired-server methods share it, so their
+ * read-modify-write of the same agent files and state runs through a single queue.
+ */
 export function createDefaultMarketplaceAppsService(): MarketplaceAppsService {
-  return createMarketplaceAppsService({
+  defaultService ??= createMarketplaceAppsService({
     vault: getMarketplaceVault(),
     paths: defaultMarketplaceAgentPaths,
     engramProgram: detectEngramProgram,
     githubAuthenticated: async () => (await runPreflightCheck()).gh.authenticated
   })
+  return defaultService
 }

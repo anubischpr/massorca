@@ -20,6 +20,7 @@ import {
 } from '../marketplace/marketplace-apps-test-fixtures'
 import { createMarketplaceAppsService } from '../marketplace/marketplace-apps-service'
 import { MarketplaceVault } from '../marketplace/marketplace-vault'
+import { createRemoteAppsClient } from '../marketplace/marketplace-remote-apps-client'
 import {
   createRemoteVaultClient,
   type RemoteVaultMux
@@ -47,7 +48,8 @@ function registerWith(vault: MarketplaceVault): void {
       engramProgram: async () => ({ found: false, version: null }),
       githubAuthenticated: async () => false
     }),
-    createRemoteVaultClient(() => mux)
+    createRemoteVaultClient(() => mux),
+    createRemoteAppsClient(() => mux)
   )
 }
 
@@ -79,8 +81,20 @@ describe('marketplaceApps IPC', () => {
         'removeOpenMetadataProfile',
         'setAccessPolicy',
         'setEngramServer',
-        'setOpenMetadataToken'
-      ].map((method) => `marketplaceApps:${method}`)
+        'setOpenMetadataToken',
+        ...[
+          'listApps',
+          'connect',
+          'disconnect',
+          'setOpenMetadataToken',
+          'addOpenMetadataProfile',
+          'removeOpenMetadataProfile',
+          'setEngramServer',
+          'setAccessPolicy'
+        ].map((method) => `remote:${method}`)
+      ]
+        .map((method) => `marketplaceApps:${method}`)
+        .sort()
     )
   })
 
@@ -222,6 +236,106 @@ describe('marketplaceApps IPC to an SSH host vault', () => {
     ['remoteVaultSet', { connectionId: 'c1', slot: 'openmetadata', token: 'two words' }],
     ['remoteVaultClear', { connectionId: 'c1' }]
   ])('answers invalid-input to %s with %j', async (method, args) => {
+    connectMux(() => ({ ok: true, status }))
+    expect(await invoke(method, args)).toEqual({ ok: false, reason: 'invalid-input' })
+    expect(requests).toEqual([])
+  })
+})
+
+describe('marketplaceApps IPC to an SSH host apps', () => {
+  const status = {
+    id: 'openmetadata',
+    connected: true,
+    serverUrl: 'https://om.example.com/mcp',
+    credential: { stored: true, location: { hostLabel: 'build-box', store: 'key-file' } },
+    agents: [{ agent: 'claude', level: 'full', entry: 'set' }]
+  }
+
+  function connectMux(answer: () => unknown): void {
+    mux = {
+      isDisposed: () => false,
+      request: async (method, params) => {
+        requests.push({ method, params })
+        return answer()
+      }
+    }
+  }
+
+  it('sends the token once to the relay and rebuilds the answer without extra fields', async () => {
+    connectMux(() => ({ ok: true, status: { ...status, token: TOKEN }, echoedToken: TOKEN }))
+    const args = { id: 'openmetadata', url: 'https://om.example.com/mcp', token: TOKEN }
+    const result = await invoke('remote:connect', { connectionId: 'c1', args })
+    expect(result).toEqual({ ok: true, status })
+    expect(JSON.stringify(result)).not.toContain(TOKEN)
+    expect(requests).toEqual([{ method: 'marketplace.apps.connect', params: args }])
+  })
+
+  it('lists the host apps', async () => {
+    connectMux(() => ({ ok: true, apps: [status] }))
+    expect(await invoke('remote:listApps', { connectionId: 'c1' })).toEqual({
+      ok: true,
+      apps: [status]
+    })
+    expect(requests[0]?.method).toBe('marketplace.apps.list')
+  })
+
+  it('passes the host refusal through by reason alone', async () => {
+    connectMux(() => ({ ok: false, reason: 'unreadable-config', agent: 'codex' }))
+    expect(
+      await invoke('remote:disconnect', { connectionId: 'c1', args: { id: 'engram' } })
+    ).toEqual({
+      ok: false,
+      reason: 'unreadable-config',
+      agent: 'codex'
+    })
+  })
+
+  it('tells the person to update an older relay instead of failing', async () => {
+    mux = {
+      isDisposed: () => false,
+      request: async () => {
+        throw Object.assign(new Error('Method not found: marketplace.apps.list'), { code: -32601 })
+      }
+    }
+    expect(await invoke('remote:listApps', { connectionId: 'c1' })).toEqual({
+      ok: false,
+      reason: 'host-needs-update'
+    })
+    expect(await invoke('remote:connect', { connectionId: 'c1', args: { id: 'engram' } })).toEqual({
+      ok: false,
+      reason: 'host-needs-update'
+    })
+  })
+
+  it('does not repeat the token when the relay fails or the answer is malformed', async () => {
+    mux = {
+      isDisposed: () => false,
+      request: async () => {
+        throw new Error(`boom ${TOKEN}`)
+      }
+    }
+    const args = { id: 'openmetadata', url: 'https://om.example.com/mcp', token: TOKEN }
+    const failed = await invoke('remote:connect', { connectionId: 'c1', args })
+    expect(failed).toEqual({ ok: false, reason: 'failed' })
+    connectMux(() => ({ ok: true, status: 'nonsense' }))
+    expect(await invoke('remote:connect', { connectionId: 'c1', args })).toEqual({
+      ok: false,
+      reason: 'failed'
+    })
+  })
+
+  it('reports an SSH host that is not connected as unreachable', async () => {
+    expect(await invoke('remote:listApps', { connectionId: 'c1' })).toEqual({
+      ok: false,
+      reason: 'unreachable'
+    })
+  })
+
+  it.each([
+    ['remote:connect', { connectionId: 'c1' }],
+    ['remote:connect', { args: { id: 'engram' } }],
+    ['remote:disconnect', { connectionId: 'c1', args: 'engram' }]
+  ])('answers invalid-input to %s with %j without sending anything', async (method, args) => {
     connectMux(() => ({ ok: true, status }))
     expect(await invoke(method, args)).toEqual({ ok: false, reason: 'invalid-input' })
     expect(requests).toEqual([])

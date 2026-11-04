@@ -2,7 +2,6 @@ import { useCallback, useState } from 'react'
 import { ArrowLeft } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { translate } from '@/i18n/i18n'
-import { useAppStore } from '@/store'
 import type { MarketplaceAppsState } from '@/store/slices/ui/ui-slice-contract-core'
 import { cn } from '@/lib/utils'
 import { SKILLS_PAGE_COLUMN } from '../skills/skills-page-column'
@@ -13,12 +12,14 @@ import { MarketplaceAppConnection } from './MarketplaceAppConnection'
 import { MarketplaceAppDanger } from './MarketplaceAppDanger'
 import { MarketplaceAppDialogs } from './MarketplaceAppDialogs'
 import { MarketplaceAppHeader } from './MarketplaceAppHeader'
+import { MarketplaceAppHostPicker } from './MarketplaceAppHostPicker'
 import { MarketplaceAppInformation } from './MarketplaceAppInformation'
 import type { MarketplaceAppContext, MarketplaceAppDialog } from './marketplace-app-context'
 import { MARKETPLACE_APP_INFO } from './marketplace-app-info'
 import { appStatusFor } from './marketplace-status'
 import { useGitHubAccounts } from './use-github-accounts'
 import { useMarketplaceAppAction, type MarketplacePerform } from './use-marketplace-app-action'
+import { useMarketplaceAppHost } from './use-marketplace-app-host'
 import { useMarketplacePreflight } from './use-marketplace-preflight'
 
 /** The standard page for Engram, OpenMetadata and GitHub: header, banner, then the sections. */
@@ -29,9 +30,9 @@ export function MarketplaceAppPage({
   appId: MarketplaceAppId
   onBack: () => void
 }): React.JSX.Element {
-  const apps = useAppStore((s) => s.marketplaceApps)
-  const refreshApps = useAppStore((s) => s.refreshMarketplaceApps)
-  const runAction = useMarketplaceAppAction()
+  const host = useMarketplaceAppHost()
+  const { apps } = host
+  const runAction = useMarketplaceAppAction(host.scope)
   const preflight = useMarketplacePreflight({ refreshOnMount: false })
   const github = useGitHubAccounts(appId === 'github')
   const [dialog, setDialog] = useState<MarketplaceAppDialog | null>(null)
@@ -68,6 +69,7 @@ export function MarketplaceAppPage({
     appId,
     ready,
     status,
+    hostLabel: host.scope?.label ?? null,
     info: MARKETPLACE_APP_INFO[appId],
     preflight,
     github,
@@ -87,6 +89,7 @@ export function MarketplaceAppPage({
           {translate('auto.components.marketplace.MarketplaceAppPage.back', 'Back')}
         </Button>
       </div>
+      {appId === 'github' ? null : <MarketplaceAppHostPicker host={host} />}
       <MarketplaceAppHeader ctx={ctx} />
       <MarketplaceAppBanner appId={appId} />
       {pageError ? (
@@ -94,7 +97,7 @@ export function MarketplaceAppPage({
           {pageError}
         </p>
       ) : null}
-      <AppPageBody apps={apps} ctx={ctx} onRetry={() => void refreshApps()} />
+      <AppPageBody apps={apps} ctx={ctx} failure={host.failure} onRetry={host.retry} />
       <MarketplaceAppDialogs ctx={ctx} dialog={dialog} onClose={() => setDialog(null)} />
     </div>
   )
@@ -103,10 +106,12 @@ export function MarketplaceAppPage({
 function AppPageBody({
   apps,
   ctx,
+  failure,
   onRetry
 }: {
   apps: MarketplaceAppsState
   ctx: MarketplaceAppContext
+  failure: string | null
   onRetry: () => void
 }): React.JSX.Element {
   if (apps.status === 'unavailable') {
@@ -122,10 +127,16 @@ function AppPageBody({
   if (apps.status === 'loading') {
     return (
       <Notice>
-        {translate(
-          'auto.components.marketplace.MarketplaceAppPage.checking',
-          'Checking this computer…'
-        )}
+        {ctx.hostLabel
+          ? translate(
+              'auto.components.marketplace.MarketplaceAppPage.checkingHost',
+              'Checking {{host}}…',
+              { host: ctx.hostLabel }
+            )
+          : translate(
+              'auto.components.marketplace.MarketplaceAppPage.checking',
+              'Checking this computer…'
+            )}
       </Notice>
     )
   }
@@ -133,10 +144,11 @@ function AppPageBody({
     return (
       <div className="flex flex-col items-start gap-3">
         <Notice>
-          {translate(
-            'auto.components.marketplace.MarketplaceAppPage.failed',
-            'Could not check this computer.'
-          )}
+          {failure ??
+            translate(
+              'auto.components.marketplace.MarketplaceAppPage.failed',
+              'Could not check this computer.'
+            )}
         </Notice>
         <Button type="button" variant="outline" size="sm" onClick={onRetry}>
           {translate('auto.components.marketplace.MarketplaceAppPage.retry', 'Try again')}

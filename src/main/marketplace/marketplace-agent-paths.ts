@@ -1,10 +1,6 @@
 import { existsSync } from 'node:fs'
-import { homedir } from 'node:os'
-import { join } from 'node:path'
 import type { MarketplaceAppAgent } from '../../shared/marketplace-apps'
-import { ClaudeRuntimePathResolver } from '../claude-accounts/runtime-paths'
-import { getSystemCodexHomePath } from '../codex/codex-home-paths'
-import { gentleShellAgentDir } from './gentle-shell-agent-dir'
+import { createHomeMarketplaceAgentPaths } from './marketplace-home-agent-paths'
 
 /** Where each agent keeps the files the Marketplace edits; injectable so tests stay in a temp folder. */
 export type MarketplaceAgentPaths = {
@@ -15,43 +11,8 @@ export type MarketplaceAgentPaths = {
   presenceDir: (agent: MarketplaceAppAgent) => string | null
 }
 
-export const defaultMarketplaceAgentPaths: MarketplaceAgentPaths = {
-  mcpConfig: (agent) => {
-    switch (agent) {
-      case 'claude':
-        return new ClaudeRuntimePathResolver().getRuntimePaths().configPath
-      case 'codex':
-        return join(getSystemCodexHomePath(), 'config.toml')
-      case 'antigravity':
-        return join(homedir(), '.gemini', 'config', 'mcp_config.json')
-      case 'gentle-shell':
-        return join(gentleShellAgentDir(), 'mcp.json')
-    }
-  },
-  instructions: (agent) => {
-    switch (agent) {
-      case 'claude':
-        return join(new ClaudeRuntimePathResolver().getRuntimePaths().configDir, 'CLAUDE.md')
-      case 'codex':
-        return join(getSystemCodexHomePath(), 'AGENTS.md')
-      case 'antigravity':
-      case 'gentle-shell':
-        return null
-    }
-  },
-  presenceDir: (agent) => {
-    switch (agent) {
-      case 'claude':
-        return new ClaudeRuntimePathResolver().getRuntimePaths().configDir
-      case 'codex':
-        return getSystemCodexHomePath()
-      case 'antigravity':
-        return join(homedir(), '.gemini')
-      case 'gentle-shell':
-        return gentleShellAgentDir()
-    }
-  }
-}
+/** This computer's paths; an SSH host builds the same ones from its own home folder. */
+export const defaultMarketplaceAgentPaths: MarketplaceAgentPaths = createHomeMarketplaceAgentPaths()
 
 /** Why: MassOrca never creates the home of an agent that is not on this computer. */
 export function isAgentPresent(agent: MarketplaceAppAgent, paths: MarketplaceAgentPaths): boolean {

@@ -9,6 +9,7 @@ export const MOBILE_RPC_METHOD_ALLOWLIST = new Set([
   'accounts.selectCodexForTarget',
   'accounts.subscribe',
   'accounts.unsubscribe',
+  'marketplace.apps.list',
   'marketplace.vault.status',
   'marketplace.vault.set',
   'marketplace.vault.clear',

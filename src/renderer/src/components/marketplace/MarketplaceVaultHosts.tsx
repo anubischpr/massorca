@@ -1,7 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { translate } from '@/i18n/i18n'
-import { useAppStore } from '@/store'
 import type {
   MarketplaceRemoteCredentialSlot,
   MarketplaceVaultHostResult,
@@ -14,6 +13,7 @@ import {
   setVaultHostToken,
   type MarketplaceVaultHostTarget
 } from './marketplace-vault-host-client'
+import { marketplaceHostKey, useMarketplaceHostTargets } from './use-marketplace-host-targets'
 import {
   storedEncryptedOn,
   updatedAgo,
@@ -24,36 +24,6 @@ type HostView =
   | { kind: 'loading' }
   | { kind: 'ready'; status: MarketplaceVaultHostStatus }
   | { kind: 'failed'; message: string }
-
-/** Hosts that keep their own vault: the active paired server and every connected SSH host. */
-function useVaultHostTargets(): MarketplaceVaultHostTarget[] {
-  const environmentId = useAppStore((s) => s.settings?.activeRuntimeEnvironmentId ?? null)
-  const environments = useAppStore((s) => s.runtimeEnvironments)
-  const sshStates = useAppStore((s) => s.sshConnectionStates)
-  const sshLabels = useAppStore((s) => s.sshTargetLabels)
-  return useMemo(() => {
-    const targets: MarketplaceVaultHostTarget[] = []
-    const trimmed = environmentId?.trim()
-    if (trimmed) {
-      const name = environments.find((environment) => environment.id === trimmed)?.name
-      targets.push({ kind: 'runtime', environmentId: trimmed, label: name || trimmed })
-    }
-    for (const [connectionId, state] of sshStates) {
-      if (state.status === 'connected') {
-        targets.push({
-          kind: 'ssh',
-          connectionId,
-          label: sshLabels.get(connectionId) ?? connectionId
-        })
-      }
-    }
-    return targets
-  }, [environmentId, environments, sshStates, sshLabels])
-}
-
-function targetKey(target: MarketplaceVaultHostTarget): string {
-  return target.kind === 'ssh' ? `ssh:${target.connectionId}` : `runtime:${target.environmentId}`
-}
 
 function viewOf(result: MarketplaceVaultHostResult, label: string): HostView {
   return result.ok
@@ -188,7 +158,7 @@ function VaultTokenDialog({
       onClose={onClose}
     >
       <TextField
-        id={`marketplace-vault-token-${targetKey(target)}`}
+        id={`marketplace-vault-token-${marketplaceHostKey(target)}`}
         label={translate('auto.components.marketplace.MarketplaceVaultHosts.token', 'Token')}
         type="password"
         value={token}
@@ -204,7 +174,7 @@ export function MarketplaceVaultHosts({
 }: {
   slot: MarketplaceRemoteCredentialSlot
 }): React.JSX.Element | null {
-  const targets = useVaultHostTargets()
+  const targets = useMarketplaceHostTargets()
   if (targets.length === 0) {
     return null
   }
@@ -217,7 +187,7 @@ export function MarketplaceVaultHosts({
         )}
       </span>
       {targets.map((target) => (
-        <VaultHostRow key={targetKey(target)} target={target} slot={slot} />
+        <VaultHostRow key={marketplaceHostKey(target)} target={target} slot={slot} />
       ))}
     </div>
   )

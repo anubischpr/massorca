@@ -49,10 +49,18 @@ function EngramConnection({ ctx }: { ctx: MarketplaceAppContext }): React.JSX.El
   return (
     <div className="flex flex-col gap-3">
       <MarketplaceInfoRow
-        label={translate(
-          'auto.components.marketplace.MarketplaceAppConnection.engramOnComputer',
-          'Engram on this computer'
-        )}
+        label={
+          ctx.hostLabel
+            ? translate(
+                'auto.components.marketplace.MarketplaceAppConnection.engramOnHost',
+                'Engram on {{host}}',
+                { host: ctx.hostLabel }
+              )
+            : translate(
+                'auto.components.marketplace.MarketplaceAppConnection.engramOnComputer',
+                'Engram on this computer'
+              )
+        }
       >
         {program?.found && program.version ? (
           <span className="text-sm text-muted-foreground">{program.version}</span>
@@ -87,10 +95,16 @@ function EngramConnection({ ctx }: { ctx: MarketplaceAppContext }): React.JSX.El
       </MarketplaceInfoRow>
       {ctx.canConnect ? (
         <p className="text-xs text-muted-foreground">
-          {translate(
-            'auto.components.marketplace.MarketplaceAppConnection.engramConnectHint',
-            'Connect sets Engram up for every agent on this computer.'
-          )}
+          {ctx.hostLabel
+            ? translate(
+                'auto.components.marketplace.MarketplaceAppConnection.engramConnectHintHost',
+                'Connect sets Engram up for every agent on {{host}}.',
+                { host: ctx.hostLabel }
+              )
+            : translate(
+                'auto.components.marketplace.MarketplaceAppConnection.engramConnectHint',
+                'Connect sets Engram up for every agent on this computer.'
+              )}
         </p>
       ) : null}
       {ctx.status.credential?.stored ? (
@@ -105,7 +119,9 @@ function EngramConnection({ ctx }: { ctx: MarketplaceAppContext }): React.JSX.El
           </span>
         </MarketplaceInfoRow>
       ) : null}
-      {ctx.status.serverUrl ? <MarketplaceVaultHosts slot="engram-cloud" /> : null}
+      {ctx.status.serverUrl && !ctx.hostLabel ? (
+        <MarketplaceVaultHosts slot="engram-cloud" />
+      ) : null}
       <p className="text-xs text-muted-foreground">
         {translate(
           'auto.components.marketplace.MarketplaceAppConnection.engramHelp',
@@ -154,7 +170,7 @@ function OpenMetadataConnection({ ctx }: { ctx: MarketplaceAppContext }): React.
           </Button>
         ) : null}
       </MarketplaceInfoRow>
-      <MarketplaceVaultHosts slot="openmetadata" />
+      {ctx.hostLabel ? null : <MarketplaceVaultHosts slot="openmetadata" />}
       <ConnectAction ctx={ctx} />
       <p className="text-xs text-muted-foreground">
         {translate(

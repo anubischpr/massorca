@@ -158,13 +158,55 @@ export type MarketplaceActionResult =
         | 'unsupported-shape'
         | 'vault-unavailable'
         | 'failed'
+        /** Another host only: it predates the Marketplace methods, or cannot be reached. */
+        | 'host-needs-update'
+        | 'unreachable'
       /** Which agent's config caused the failure, when one did. */
       agent?: MarketplaceAppAgent
     }
 
+export type MarketplaceAppsListResult =
+  | { ok: true; apps: MarketplaceAppStatus[] }
+  | { ok: false; reason: 'host-needs-update' | 'unreachable' | 'failed' }
+
+/** The same operations on an SSH host's own agents; the arguments travel under `args`. */
+export type MarketplaceRemoteAppsApi = {
+  listApps: (call: { connectionId: string }) => Promise<MarketplaceAppsListResult>
+  connect: (call: {
+    connectionId: string
+    args: MarketplaceConnectArgs
+  }) => Promise<MarketplaceActionResult>
+  disconnect: (call: {
+    connectionId: string
+    args: { id: MarketplaceAppId }
+  }) => Promise<MarketplaceActionResult>
+  setOpenMetadataToken: (call: {
+    connectionId: string
+    args: { token: string }
+  }) => Promise<MarketplaceActionResult>
+  addOpenMetadataProfile: (call: {
+    connectionId: string
+    args: { name: string; url: string; token: string }
+  }) => Promise<MarketplaceActionResult>
+  removeOpenMetadataProfile: (call: {
+    connectionId: string
+    args: { name: string }
+  }) => Promise<MarketplaceActionResult>
+  setEngramServer: (call: {
+    connectionId: string
+    args: { url: string | null; token?: string }
+  }) => Promise<MarketplaceActionResult>
+  setAccessPolicy: (call: {
+    connectionId: string
+    args: { id: MarketplaceAppId; policy: MarketplaceAppAccessPolicy }
+  }) => Promise<MarketplaceActionResult>
+}
+
 export type MarketplaceAppsApi = {
   /** SSH hosts keep their own vault; absent where the preload predates it. */
   remoteVault?: MarketplaceRemoteVaultApi
+  /** Connecting apps on an SSH host's own agents; absent where the preload predates it. */
+  remote?: MarketplaceRemoteAppsApi
   /** Installed and connectable apps with their state on this computer; also feeds the @ menu. */
   listApps: () => Promise<MarketplaceAppStatus[]>
   connect: (args: MarketplaceConnectArgs) => Promise<MarketplaceActionResult>
