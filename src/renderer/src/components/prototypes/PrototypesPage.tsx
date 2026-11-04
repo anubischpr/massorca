@@ -237,7 +237,7 @@ export default function PrototypesPage(): React.JSX.Element {
 
   if (system !== undefined) {
     return (
-      <div className="flex min-h-0 min-w-0 flex-1">
+      <div className="flex min-h-0 min-w-0 flex-1 bg-chat-canvas">
         {sidebarOpen ? (
           <PrototypeListPanel
             groups={groups}
@@ -260,7 +260,7 @@ export default function PrototypesPage(): React.JSX.Element {
 
   if (selected === null || setState === undefined) {
     return (
-      <div className="flex min-h-0 min-w-0 flex-1">
+      <div className="flex min-h-0 min-w-0 flex-1 bg-chat-canvas">
         <PrototypeListPanel
           groups={groups}
           filter={filter}
@@ -366,7 +366,7 @@ export default function PrototypesPage(): React.JSX.Element {
     sidebarOpen
   })
   return (
-    <div className="flex min-h-0 min-w-0 flex-1">
+    <div className="flex min-h-0 min-w-0 flex-1 bg-chat-canvas">
       {panels.list ? (
         <PrototypeListPanel
           groups={groups}

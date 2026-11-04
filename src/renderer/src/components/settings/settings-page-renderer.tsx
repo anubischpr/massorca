@@ -63,7 +63,7 @@ export function renderSettingsLoading(
   return (
     <div
       ref={interactions.setSettingsRootNode}
-      className="settings-view-shell flex min-h-0 flex-1 overflow-hidden bg-background"
+      className="settings-view-shell flex min-h-0 flex-1 overflow-hidden bg-chat-canvas"
     >
       <div className="flex flex-1 items-center justify-center text-muted-foreground">
         {translate('auto.components.settings.Settings.c7ad095d96', 'Loading settings...')}
@@ -77,7 +77,7 @@ export function renderSettingsPage(context: SettingsRenderContext): React.JSX.El
   return (
     <div
       ref={interactions.setSettingsRootNode}
-      className="settings-view-shell flex min-h-0 flex-1 overflow-hidden bg-background"
+      className="settings-view-shell flex min-h-0 flex-1 overflow-hidden bg-chat-canvas"
     >
       <SettingsSidebar
         settings={model.settings}

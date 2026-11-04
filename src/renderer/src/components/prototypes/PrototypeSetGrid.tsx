@@ -22,7 +22,7 @@ export function PrototypeSetGrid({
   update: Update
 }): React.JSX.Element {
   return (
-    <div className="scrollbar-sleek flex flex-1 flex-col gap-4 overflow-y-auto bg-background p-6">
+    <div className="scrollbar-sleek flex flex-1 flex-col gap-4 overflow-y-auto bg-chat-canvas p-6">
       <div className="grid grid-cols-3 gap-5">
         {set.directions.map((direction) => (
           <div key={direction.letter} className="relative flex flex-col gap-2">

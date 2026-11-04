@@ -15,6 +15,10 @@ const { createTestStore, makeTabGroup, makeUnifiedTab, seedStore } =
   await import('../../store/slices/store-test-helpers')
 const store = createTestStore()
 vi.mock('../../store', () => ({ useAppStore: store }))
+vi.mock('../create-chat/CreateChatPage', () => ({
+  default: () => <div data-testid="create-chat-page" />
+}))
+vi.mock('../create-chat/create-chat-submit', () => ({ submitCreateChatDraft: vi.fn() }))
 
 const { MainSessionEmptyState } = await import('./MainSessionEmptyState')
 
@@ -47,11 +51,12 @@ afterEach(() => {
 })
 
 describe('MainSessionEmptyState', () => {
-  it('offers the sidebar Create entry when the workspace has no session', () => {
-    const button = [...mount().querySelectorAll('button')].find((b) => b.textContent === 'Create')
-    expect(button).toBeDefined()
-    act(() => button?.click())
-    expect(store.getState().activeView).toBe('create-chat')
+  it('shows the create-chat page on the chat canvas when the workspace has no session', () => {
+    const container = mount()
+    const page = container.querySelector('[data-testid="create-chat-page"]')
+    expect(page).not.toBeNull()
+    expect(page?.parentElement?.className).toContain('bg-chat-canvas')
+    expect(container.querySelector('button')).toBeNull()
   })
 
   it('offers it when only side panel tabs exist', () => {
@@ -70,7 +75,7 @@ describe('MainSessionEmptyState', () => {
         ]
       }
     })
-    expect(mount().querySelector('button')).not.toBeNull()
+    expect(mount().querySelector('[data-testid="create-chat-page"]')).not.toBeNull()
   })
 
   it('stays out of the way while a session is showing', () => {
@@ -91,6 +96,6 @@ describe('MainSessionEmptyState', () => {
         ]
       }
     })
-    expect(mount().querySelector('button')).toBeNull()
+    expect(mount().querySelector('[data-testid="create-chat-page"]')).toBeNull()
   })
 })
