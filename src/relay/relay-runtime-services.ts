@@ -17,6 +17,7 @@ import { PortScanHandler } from './port-scan-handler'
 import { AgentExecHandler } from './agent-exec-handler'
 import { WorkspaceSessionHandler } from './workspace-session-handler'
 import { AiVaultHandler } from './ai-vault-handler'
+import { MarketplaceVaultHandler } from './relay-marketplace-vault'
 import { createRelayAiVaultService } from './ai-vault-service-factory'
 import { registerRelayPluginHostCallHandlers } from './plugin-host-call-handler'
 import { SshPtyConsumerSessionAdapter } from './ssh-pty-consumer-session-adapter'
@@ -108,6 +109,7 @@ export class RelayRuntimeServices {
       portScanHandler,
       this.agentExecHandler,
       workspaceSessionHandler,
+      new MarketplaceVaultHandler(dispatcher),
       new AiVaultHandler(dispatcher, {
         hostPlatform,
         service: this.aiVaultService ?? undefined

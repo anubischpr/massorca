@@ -89,7 +89,7 @@ function removePlan(
 export type MarketplaceAppsService = {
   listApps: () => Promise<MarketplaceAppStatus[]>
 } & Record<
-  Exclude<keyof MarketplaceAppsApi, 'listApps'>,
+  Exclude<keyof MarketplaceAppsApi, 'listApps' | 'remoteVault'>,
   (args: unknown) => Promise<MarketplaceActionResult>
 >
 

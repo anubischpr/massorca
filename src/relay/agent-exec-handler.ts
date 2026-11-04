@@ -8,6 +8,7 @@ import { applyTerminalGitCredentialPromptGuard } from '../shared/terminal-git-cr
 import { mergeGitConfigEnvProtocol } from '../shared/git-credential-prompt-env'
 import { terminateRelaySubprocessTree } from './subprocess-tree-termination'
 import { RelayAgentProcessLifetime } from './relay-agent-process-lifetime'
+import { execEnvWithMarketplace } from './relay-marketplace-vault'
 import { resolveLoginShellEnvironment } from '../main/startup/login-shell-environment'
 
 const DEFAULT_TIMEOUT_MS = 60_000
@@ -153,10 +154,7 @@ export class AgentExecHandler {
     const requestedTimeout =
       typeof params.timeoutMs === 'number' ? params.timeoutMs : DEFAULT_TIMEOUT_MS
     const deadline = Date.now() + Math.max(1_000, Math.min(MAX_TIMEOUT_MS, requestedTimeout))
-    const extraEnv =
-      params.env && typeof params.env === 'object' && !Array.isArray(params.env)
-        ? (params.env as Record<string, string>)
-        : null
+    const extraEnv = execEnvWithMarketplace(params.env)
     let hostEnv = process.env
     if (params.shell === true) {
       const timeoutError = new Error('Profile resolution exceeded the request deadline')

@@ -70,20 +70,20 @@ export async function readAppStatuses(
   ])
   const engramAgents = agentStatuses('engram', state, paths)
   const openMetadataAgents = agentStatuses('openmetadata', state, paths)
-  const openMetadataStored = vault.hasToken({ kind: 'openmetadata' })
+  const openMetadata = vault.credentialStatus({ kind: 'openmetadata' })
   return [
     {
       id: 'engram',
       connected: program.found && usable(engramAgents),
       program,
-      credential: { stored: vault.hasToken({ kind: 'engram-cloud' }) },
+      credential: vault.credentialStatus({ kind: 'engram-cloud' }),
       serverUrl: state.engram.serverUrl,
       agents: engramAgents
     },
     {
       id: 'openmetadata',
-      connected: openMetadataStored && usable(openMetadataAgents),
-      credential: { stored: openMetadataStored },
+      connected: openMetadata.stored && usable(openMetadataAgents),
+      credential: openMetadata,
       serverUrl: state.openMetadata.url,
       profiles: state.openMetadata.profiles.map((profile) => ({
         name: profile.name,

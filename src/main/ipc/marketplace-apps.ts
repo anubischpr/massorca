@@ -1,11 +1,19 @@
 import { ipcMain } from 'electron'
 import type { MarketplaceAppsService } from '../marketplace/marketplace-apps-service'
+import {
+  createRemoteVaultClient,
+  type RemoteVaultClient
+} from '../marketplace/marketplace-remote-vault-client'
+import { getActiveMultiplexer } from '../ssh/ssh-target-registry'
 
 /**
  * `marketplaceApps:<method>`. The service parses every argument and answers `invalid-input` for a
  * bad one; a token only travels renderer to main, never back and never into a log.
  */
-export function registerMarketplaceAppsHandlers(service: MarketplaceAppsService): void {
+export function registerMarketplaceAppsHandlers(
+  service: MarketplaceAppsService,
+  remoteVault: RemoteVaultClient = createRemoteVaultClient(getActiveMultiplexer)
+): void {
   ipcMain.handle('marketplaceApps:listApps', () => service.listApps())
   ipcMain.handle('marketplaceApps:connect', (_event, args: unknown) => service.connect(args))
   ipcMain.handle('marketplaceApps:disconnect', (_event, args: unknown) => service.disconnect(args))
@@ -20,5 +28,12 @@ export function registerMarketplaceAppsHandlers(service: MarketplaceAppsService)
   )
   ipcMain.handle('marketplaceApps:setEngramServer', (_event, args: unknown) =>
     service.setEngramServer(args)
+  )
+  ipcMain.handle('marketplaceApps:remoteVaultStatus', (_event, args: unknown) =>
+    remoteVault.status(args)
+  )
+  ipcMain.handle('marketplaceApps:remoteVaultSet', (_event, args: unknown) => remoteVault.set(args))
+  ipcMain.handle('marketplaceApps:remoteVaultClear', (_event, args: unknown) =>
+    remoteVault.clear(args)
   )
 }

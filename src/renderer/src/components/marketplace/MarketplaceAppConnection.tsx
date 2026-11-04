@@ -5,9 +5,10 @@ import { translate } from '@/i18n/i18n'
 import { GitHubAccountsCard } from './GitHubAccountsCard'
 import { GITHUB_CLI_URL } from './marketplace-catalog'
 import type { MarketplaceAppContext } from './marketplace-app-context'
-import { copyMarketplaceText } from './marketplace-clipboard'
 import { MarketplaceAppSection } from './MarketplaceAppSection'
 import { MarketplaceInfoRow } from './MarketplaceInfoRow'
+import { credentialSummary } from './marketplace-vault-credential-text'
+import { MarketplaceVaultHosts } from './MarketplaceVaultHosts'
 
 // Why: the app has no sign-in flow of its own; the existing gh command is the way to add an account.
 const GH_LOGIN_COMMAND = 'gh auth login'
@@ -92,6 +93,19 @@ function EngramConnection({ ctx }: { ctx: MarketplaceAppContext }): React.JSX.El
           )}
         </p>
       ) : null}
+      {ctx.status.credential?.stored ? (
+        <MarketplaceInfoRow
+          label={translate(
+            'auto.components.marketplace.MarketplaceAppConnection.serverToken',
+            'Server token'
+          )}
+        >
+          <span className="text-sm text-muted-foreground">
+            {credentialSummary(ctx.status.credential) ?? ''}
+          </span>
+        </MarketplaceInfoRow>
+      ) : null}
+      {ctx.status.serverUrl ? <MarketplaceVaultHosts slot="engram-cloud" /> : null}
       <p className="text-xs text-muted-foreground">
         {translate(
           'auto.components.marketplace.MarketplaceAppConnection.engramHelp',
@@ -122,10 +136,11 @@ function OpenMetadataConnection({ ctx }: { ctx: MarketplaceAppContext }): React.
       >
         <span className="text-sm text-muted-foreground">
           {stored
-            ? translate(
+            ? (credentialSummary(ctx.status.credential ?? {}) ??
+              translate(
                 'auto.components.marketplace.MarketplaceAppConnection.tokenStored',
                 'Stored in the vault. Never shown.'
-              )
+              ))
             : notSet}
         </span>
         {stored ? (
@@ -139,6 +154,7 @@ function OpenMetadataConnection({ ctx }: { ctx: MarketplaceAppContext }): React.
           </Button>
         ) : null}
       </MarketplaceInfoRow>
+      <MarketplaceVaultHosts slot="openmetadata" />
       <ConnectAction ctx={ctx} />
       <p className="text-xs text-muted-foreground">
         {translate(
@@ -198,12 +214,7 @@ function GitHubConnection({ ctx }: { ctx: MarketplaceAppContext }): React.JSX.El
 function GitHubAddAccount({ ctx }: { ctx: MarketplaceAppContext }): React.JSX.Element {
   return (
     <div className="flex items-center gap-1">
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        onClick={() => void copyMarketplaceText(GH_LOGIN_COMMAND)}
-      >
+      <Button type="button" variant="outline" size="sm" onClick={() => ctx.github.openSignIn()}>
         <Plus />
         {translate(
           'auto.components.marketplace.MarketplaceAppConnection.addAccount',
