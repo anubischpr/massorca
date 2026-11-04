@@ -12,6 +12,7 @@ import {
   PrototypeRequestTargetParams,
   ReadPrototypeDesignSystemParams,
   ReadPrototypeFileParams,
+  RestorePrototypeVersionParams,
   WriteAttachmentParams,
   type ArchivePrototypeRequestResult,
   type CreatePrototypeRequestResult,
@@ -19,8 +20,10 @@ import {
   type ListPrototypeSetsResult,
   type ReadPrototypeDesignSystemResult,
   type ReadPrototypeFileResult,
+  type RestorePrototypeVersionResult,
   type WriteAttachmentResult
 } from '../../../../shared/rpc-contract/prototype-params'
+import { restorePrototypeVersion } from '../../../native-chat/prototype-version-restore'
 import {
   launchDirectoryOfChat,
   projectDirectoryOfChat
@@ -216,6 +219,28 @@ export const STRUCTURED_AGENT_SESSION_PROTOTYPE_METHODS = [
         requestId: params.requestId,
         fileName: params.fileName,
         launchDirectory: await launchDirectoryOfChat(record, host.deps.resolveWorkspacePath)
+      })
+    }
+  }),
+  defineMethod({
+    name: 'prototypes.restoreVersion',
+    permission: 'workspace',
+    params: RestorePrototypeVersionParams,
+    handler: async (params, ctx): Promise<RestorePrototypeVersionResult> => {
+      const host = await requireInstalledStructuredHost(ctx)
+      const owner = isOwnerCaller(ctx)
+      return restorePrototypeVersion({
+        stateDirectory: getProfileUserDataPath(),
+        sessionId: params.sessionId,
+        requestId: params.requestId,
+        letter: params.letter,
+        version: params.version,
+        canAct: (manifest) =>
+          owner ||
+          isRequestVisibleToGuest(
+            host.deps.store.getRecord(params.sessionId),
+            manifest.archived === true
+          )
       })
     }
   }),

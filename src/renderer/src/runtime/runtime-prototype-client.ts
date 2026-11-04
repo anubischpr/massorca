@@ -6,6 +6,7 @@ import {
   ListPrototypeSetsReplySchema,
   ReadPrototypeDesignSystemReplySchema,
   ReadPrototypeFileReplySchema,
+  RestorePrototypeVersionReplySchema,
   WriteAttachmentReplySchema,
   type ArchivePrototypeRequestResult,
   type CreatePrototypeRequestParams,
@@ -18,6 +19,8 @@ import {
   type ReadPrototypeDesignSystemResult,
   type ReadPrototypeFileParams,
   type ReadPrototypeFileResult,
+  type RestorePrototypeVersionParams,
+  type RestorePrototypeVersionResult,
   type WriteAttachmentParams,
   type WriteAttachmentResult
 } from '../../../shared/rpc-contract/prototype-params'
@@ -70,6 +73,19 @@ export function readPrototypeSetFileOnHost(
   params: ReadPrototypeFileParams
 ): Promise<ReadPrototypeFileResult> {
   return callPrototypeHost(target, 'prototypes.readFile', params, ReadPrototypeFileReplySchema)
+}
+
+/** Copies an earlier version of one direction into its next version, on the host that owns the chat. */
+export function restorePrototypeVersionOnHost(
+  target: RuntimeClientTarget,
+  params: RestorePrototypeVersionParams
+): Promise<RestorePrototypeVersionResult> {
+  return callPrototypeHost(
+    target,
+    'prototypes.restoreVersion',
+    params,
+    RestorePrototypeVersionReplySchema
+  )
 }
 
 /** The design system files of the chat's project, read on the host that owns the chat. */
