@@ -68,7 +68,7 @@ export default function CalendarPage({ initialNow }: { initialNow?: number }): R
   const gridProps = { anchor, now, locale, displays }
 
   return (
-    <div className="scrollbar-sleek flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto">
+    <div className="scrollbar-sleek flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto bg-chat-canvas">
       <div className="mx-auto flex w-full max-w-[1240px] flex-col gap-4 px-6 py-8">
         <CalendarHeader
           title={formatCalendarTitle(view, anchor, locale)}

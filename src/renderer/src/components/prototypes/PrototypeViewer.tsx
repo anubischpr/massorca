@@ -113,7 +113,7 @@ export function PrototypeViewer({
       {layout === 'set' && !single ? (
         <PrototypeSetGrid set={set} state={state} update={update} />
       ) : (
-        <div className="flex min-h-0 flex-1 bg-muted/30">
+        <div className="flex min-h-0 flex-1 bg-chat-canvas">
           {single ? null : <PrototypeDirectionStrip set={set} state={state} update={update} />}
           {merge?.phase === 'review' && nextLetter !== null ? (
             <PrototypeMergeReview
