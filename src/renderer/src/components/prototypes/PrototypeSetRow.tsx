@@ -20,17 +20,24 @@ import {
   prototypeUnarchiveLabel
 } from './prototype-labels'
 
-/** A set row of the Prototypes tree; its menu offers Archive when the host can archive. */
+/**
+ * A set row of the Prototypes tree; its menu offers Archive when the host can archive.
+ * The tree owns the menu's open state so only one row menu is open at a time.
+ */
 export function PrototypeSetRow({
   row,
   selected,
   onSelect,
-  onArchive
+  onArchive,
+  menuOpen,
+  onMenuOpenChange
 }: {
   row: PrototypeListRow
   selected: boolean
   onSelect: () => void
   onArchive?: () => void
+  menuOpen: boolean
+  onMenuOpenChange: (open: boolean) => void
 }): React.JSX.Element {
   if (onArchive === undefined) {
     return <RowButton row={row} selected={selected} onSelect={onSelect} />
@@ -38,7 +45,7 @@ export function PrototypeSetRow({
   return (
     <div className="group/row relative">
       <RowButton row={row} selected={selected} onSelect={onSelect} reserveAction />
-      <DropdownMenu>
+      <DropdownMenu open={menuOpen} onOpenChange={onMenuOpenChange}>
         <DropdownMenuTrigger asChild>
           <button
             type="button"
@@ -90,8 +97,8 @@ export function PrototypeArchivedRow({
   )
 }
 
-// One line in the sidebar's row height: the icon, the title, and its age. The tooltip names the agent and status.
-// `reserveAction`: the row's menu button sits at its right end, so the age keeps clear of it.
+// One line in the sidebar's row height: the icon, the title, and its number of prototypes. The tooltip names the agent and status.
+// `reserveAction`: the row's menu button sits at its right end, so the count keeps clear of it.
 function RowButton({
   row,
   selected,
@@ -132,7 +139,9 @@ function RowButton({
           {detail === '' ? null : <span className="block text-muted-foreground">{detail}</span>}
         </TooltipContent>
       </Tooltip>
-      <span className="shrink-0 text-[11px] text-muted-foreground">{row.age}</span>
+      <span className="shrink-0 text-[11px] text-muted-foreground">
+        {row.set.directions.length}
+      </span>
     </button>
   )
 }
