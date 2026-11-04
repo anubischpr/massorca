@@ -1,5 +1,5 @@
-/** A bot, team or project the room writes as `@Name`; the stored text stays plain, chips only render it. */
-export type BotTeamMentionName = { name: string; kind: 'bot' | 'team' | 'project' }
+/** A bot, team, project or app the room writes as `@Name`; the stored text stays plain, chips only render it. */
+export type BotTeamMentionName = { name: string; kind: 'bot' | 'team' | 'project' | 'app' }
 
 export type BotTeamMentionSegment =
   | { kind: 'text'; value: string }

@@ -16,7 +16,8 @@ const MENTIONS = [
   { name: 'Iris', kind: 'bot' as const, agent: 'claude' as const },
   { name: 'Marketing', kind: 'team' as const, character: 'square' as const },
   { name: 'Shop', kind: 'project' as const, logo: { type: 'emoji' as const, emoji: '🛒' } },
-  { name: 'Spring', kind: 'project' as const, logo: null }
+  { name: 'Spring', kind: 'project' as const, logo: null },
+  { name: 'Engram', kind: 'app' as const, id: 'engram' as const }
 ]
 
 const mounted: { container: HTMLDivElement; root: Root }[] = []
@@ -87,6 +88,13 @@ describe('the room message body', () => {
     chip?.setAttribute('tabindex', '0')
     await act(async () => chip?.focus())
     expect(document.body.querySelector('[role="tooltip"]')?.textContent).toBe('site/flyer.html')
+  })
+
+  it('draws an installed app mention as a chip with the app’s logo', () => {
+    const container = render('Busca en @Engram')
+    const chip = container.querySelector('[data-bot-team-mention="Engram"]')
+    expect(chip?.textContent).toBe('Engram')
+    expect(chip?.querySelector('svg.lucide-brain')).not.toBeNull()
   })
 
   it('does not render raw HTML from a message', () => {

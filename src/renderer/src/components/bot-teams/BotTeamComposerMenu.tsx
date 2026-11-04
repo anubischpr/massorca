@@ -11,6 +11,7 @@ import type {
   BotTeamComposerItem,
   BotTeamComposerMenu as Menu
 } from '../../../../shared/bot-team-composer-menu'
+import { MarketplaceAppMentionRow } from '../marketplace/MarketplaceAppMentionRow'
 import { BotAgentIcon } from './BotAgentIcon'
 import { BotTeamCharacterIcon } from './BotTeamCharacterIcon'
 
@@ -22,6 +23,8 @@ function itemKey(item: BotTeamComposerItem): string {
       return item.team.id
     case 'project':
       return `project:${item.project.id}`
+    case 'app':
+      return `app:${item.app.id}`
     default:
       return item.insert
   }
@@ -37,6 +40,8 @@ function groupHeading(kind: BotTeamComposerItem['kind']): string | null {
       return translate('components.botTeams.projects', 'Projects')
     case 'file':
       return translate('components.botTeams.mentionFiles', 'Files')
+    case 'app':
+      return translate('components.botTeams.mentionApps', 'Apps')
     case 'command':
       return null
   }
@@ -84,6 +89,9 @@ function ItemRow({ item }: { item: BotTeamComposerItem }): React.JSX.Element {
         <span className="min-w-0 flex-1 truncate">{item.path}</span>
       </>
     )
+  }
+  if (item.kind === 'app') {
+    return <MarketplaceAppMentionRow app={item.app} />
   }
   return (
     <span className="min-w-0 flex-1">
