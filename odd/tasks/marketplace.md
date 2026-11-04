@@ -72,4 +72,6 @@ Branch: claude/marketplace-pv84 (from custom/pv27-unified 2805b178a70). Commits 
   - D13. An app kept out of every agent shows as Not connected (its meaning is "usable by an agent here"). Rejected: a separate "connected but limited to nobody" state in pv84.
   - D14. Bot enforcement uses `isMarketplaceAppAllowedForBot` and belongs to the Bot teams session.
   - D15. The per-skill page, the phone boards, Engram cloud sync and remote agent-config wiring are out of pv84-86 (reported to the orchestrator).
+- L10 (2026-11-04, orchestrator decision): "Who can use it" ships for Workspaces agents only in pv84. The Bot teams session will not enforce per-bot access, because it needs a per-run config override for each agent type, and hiding only the @ entry would be a fake restriction. The bots row and its copy are removed from the UI. The policy shape (`bots`) and `isMarketplaceAppAllowedForBot` stay for later. This replaces D14.
+- L11 (2026-11-04, the user's words relayed by the orchestrator): "Conectar apps puede ir en la pv85, pero si lo termina antes que entre nomas en la pv84". Each remote agent's config is written on its own host, backed up first, with the same writers and tokens from that host's vault. Gentle Shell's rules still apply. It ships as its own slice.
 
