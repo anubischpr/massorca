@@ -20,14 +20,59 @@ export type MarketplaceAppAgentStatus = {
 /** A profile that already exists on the OpenMetadata server; MassOrca never creates or edits it there. */
 export type OpenMetadataProfile = { name: string; url: string; hasToken: boolean }
 
+/** Where a host keeps the key that seals its vault: the OS keychain, or a separate 0600 key file. */
+export type MarketplaceCredentialStore = 'keychain' | 'key-file'
+
+export type MarketplaceCredentialLocation = { hostLabel: string; store: MarketplaceCredentialStore }
+
+export type MarketplaceCredentialStatus = {
+  stored: boolean
+  /** Epoch milliseconds of the last set or replace; never the value. */
+  updatedAt?: number
+  location?: MarketplaceCredentialLocation
+}
+
+/** Credentials a client may set on another host's vault over RPC. */
+export const MARKETPLACE_REMOTE_CREDENTIAL_SLOTS = ['openmetadata', 'engram-cloud'] as const
+export type MarketplaceRemoteCredentialSlot = (typeof MARKETPLACE_REMOTE_CREDENTIAL_SLOTS)[number]
+
+/** One host's vault as a client may see it: set or not set, when it changed, never a value. */
+export type MarketplaceVaultHostStatus = {
+  hostLabel: string
+  store: MarketplaceCredentialStore
+  credentials: { slot: MarketplaceRemoteCredentialSlot; stored: boolean; updatedAt?: number }[]
+}
+
+export type MarketplaceVaultHostResult =
+  | { ok: true; status: MarketplaceVaultHostStatus }
+  | {
+      ok: false
+      /** host-needs-update: the host predates the vault methods, so the client says to update it first. */
+      reason: 'host-needs-update' | 'invalid-input' | 'vault-unavailable' | 'unreachable' | 'failed'
+    }
+
+/** Write-only management of the vault on an SSH host; a token travels once and is never returned. */
+export type MarketplaceRemoteVaultApi = {
+  status: (args: { connectionId: string }) => Promise<MarketplaceVaultHostResult>
+  set: (args: {
+    connectionId: string
+    slot: MarketplaceRemoteCredentialSlot
+    token: string
+  }) => Promise<MarketplaceVaultHostResult>
+  clear: (args: {
+    connectionId: string
+    slot: MarketplaceRemoteCredentialSlot
+  }) => Promise<MarketplaceVaultHostResult>
+}
+
 export type MarketplaceAppStatus = {
   id: MarketplaceAppId
   /** Connected means usable by agents on this computer. */
   connected: boolean
   /** Installed program, for tools such as Engram. */
   program?: { found: boolean; version: string | null }
-  /** Whether the app's credential is in the vault; never the value. */
-  credential?: { stored: boolean }
+  /** Whether the app's credential is in the vault, when it changed and where it lives; never the value. */
+  credential?: MarketplaceCredentialStatus
   /** OpenMetadata server address or the user's own Engram server. */
   serverUrl?: string | null
   profiles?: OpenMetadataProfile[]
@@ -55,6 +100,8 @@ export type MarketplaceActionResult =
     }
 
 export type MarketplaceAppsApi = {
+  /** SSH hosts keep their own vault; absent where the preload predates it. */
+  remoteVault?: MarketplaceRemoteVaultApi
   /** Installed and connectable apps with their state on this computer; also feeds the @ menu. */
   listApps: () => Promise<MarketplaceAppStatus[]>
   connect: (args: MarketplaceConnectArgs) => Promise<MarketplaceActionResult>

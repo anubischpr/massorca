@@ -10,5 +10,11 @@ export const marketplaceAppsApi = {
     ipcRenderer.invoke('marketplaceApps:addOpenMetadataProfile', args),
   removeOpenMetadataProfile: (args) =>
     ipcRenderer.invoke('marketplaceApps:removeOpenMetadataProfile', args),
-  setEngramServer: (args) => ipcRenderer.invoke('marketplaceApps:setEngramServer', args)
+  setEngramServer: (args) => ipcRenderer.invoke('marketplaceApps:setEngramServer', args),
+  // Write-only: a token goes to an SSH host's own vault once and is never returned.
+  remoteVault: {
+    status: (args) => ipcRenderer.invoke('marketplaceApps:remoteVaultStatus', args),
+    set: (args) => ipcRenderer.invoke('marketplaceApps:remoteVaultSet', args),
+    clear: (args) => ipcRenderer.invoke('marketplaceApps:remoteVaultClear', args)
+  }
 } satisfies PreloadApi['marketplaceApps']

@@ -28,6 +28,7 @@ import { relayLogLine } from './relay-diagnostic-log'
 import { restoreOrStripOverlayEnv } from '../shared/agent-overlay-env'
 import { registerManagedHookInstaller } from './managed-hook-installer'
 import { readSessionShellStartupEnvVar } from '../main/pty/shell-startup-env'
+import { buildRelayMarketplaceEnv } from './relay-marketplace-vault'
 
 export class RelayAgentHookRuntime {
   private readonly hookServer: RelayAgentHookServer
@@ -79,6 +80,8 @@ export class RelayAgentHookRuntime {
       void this.hookServer.checkAgentPresence(paneKey)
     })
     this.ptyHandler.addEnvAugmenter(() => this.hookServer.buildPtyEnv())
+    // Why: this host's own vault feeds the agents it launches, with no desktop connected.
+    this.ptyHandler.addEnvAugmenter(() => buildRelayMarketplaceEnv())
     this.ptyHandler.addEnvAugmenter((context) => this.buildPluginEnvironment(context))
     this.ptyHandler.setExitListener(({ paneKey, id }) => {
       if (paneKey) {

@@ -171,8 +171,12 @@ describe('Engram', () => {
 })
 
 describe('OpenMetadata', () => {
-  it('refuses to store anything when the vault cannot encrypt', async () => {
-    installFakeSecretStore(false)
+  it('refuses to store anything when the vault cannot get a master key', async () => {
+    // Why: a file where the key folder should be makes the key impossible to create.
+    writeFileSync(join(home, 'blocked'), 'x')
+    vault = new MarketplaceVault(join(home, '.orca', 'marketplace'), {
+      keyDir: join(home, 'blocked', 'keys')
+    })
     const before = snapshot(home)
     expect(await service().connect({ id: 'openmetadata', url: URL_, token: TOKEN })).toEqual({
       ok: false,
