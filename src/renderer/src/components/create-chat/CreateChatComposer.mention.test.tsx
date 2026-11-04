@@ -85,6 +85,17 @@ describe('CreateChatComposer @ files', () => {
     expect(mentionQueries.at(-1)).toEqual({ query: 'rou', worktreeId: 'wt-1' })
   })
 
+  it('shows a file row’s full path as its tooltip', async () => {
+    const container = mount('wt-1')
+    type(container, 'Fix @rou')
+    const row = container.querySelector<HTMLButtonElement>('[role="option"]')
+    expect(row?.getAttribute('data-slot')).toBe('tooltip-trigger')
+    await act(async () => row?.focus())
+    expect(document.body.querySelector('[role="tooltip"]')?.textContent).toBe(
+      'src/shared/routine.ts'
+    )
+  })
+
   it('inserts the picked path on Enter instead of creating the session', () => {
     const container = mount('wt-1')
     const box = type(container, 'Fix @rou')

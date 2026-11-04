@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils'
 import type { SkillSourceKind } from '../../../../shared/skills'
 import { FilenameFirstPath } from '@/components/file-path-cursor-tooltip'
 import { getFileTypeIcon } from '@/lib/file-type-icons'
+import { FilePathTooltip } from './FilePathTooltip'
 import type { ComposerAutocomplete, NativeChatPickerItem } from './native-chat-composer-state'
 import type { NativeChatMentionFiles } from './use-native-chat-mention-files'
 
@@ -271,15 +272,18 @@ export function PickerOptionButton({
   selected,
   activeItemRef,
   onChoose,
+  filePath,
   children
 }: {
   id: string
   selected: boolean
   activeItemRef: React.MutableRefObject<HTMLButtonElement | null>
   onChoose: () => void
+  /** A file row shows its full path on hover. */
+  filePath?: string
   children: React.ReactNode
 }): React.JSX.Element {
-  return (
+  const button = (
     <button
       id={id}
       ref={selected ? activeItemRef : null}
@@ -302,6 +306,7 @@ export function PickerOptionButton({
       {children}
     </button>
   )
+  return filePath ? <FilePathTooltip path={filePath}>{button}</FilePathTooltip> : button
 }
 
 function getPickerAnnotation(item: NativeChatPickerItem): string | null {
@@ -374,6 +379,7 @@ export const NativeChatMentionMenu = memo(function NativeChatMentionMenu({
             selected={index === selectedIndex}
             activeItemRef={activeItemRef}
             onChoose={() => onChoose(path)}
+            filePath={path}
           >
             <FileIcon className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" />
             <FilenameFirstPath path={path} />

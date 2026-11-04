@@ -80,6 +80,15 @@ describe('the room message body', () => {
     expect(container.textContent).toContain('Usa site/flyer.html.')
   })
 
+  it('shows a file chip’s full path as its tooltip', async () => {
+    const container = render('Usa @site/flyer.html')
+    const chip = container.querySelector<HTMLElement>('[data-bot-team-mention-file]')
+    expect(chip?.getAttribute('data-slot')).toBe('tooltip-trigger')
+    chip?.setAttribute('tabindex', '0')
+    await act(async () => chip?.focus())
+    expect(document.body.querySelector('[role="tooltip"]')?.textContent).toBe('site/flyer.html')
+  })
+
   it('does not render raw HTML from a message', () => {
     const container = render('<img src="x" onerror="window.__pwned = true">texto')
     expect(container.querySelector('img[onerror]')).toBeNull()

@@ -3,6 +3,7 @@ import type { ExtraProps } from 'react-markdown'
 import { RepoIconGlyph } from '@/components/repo/repo-icon'
 import type { CommentMarkdownExtension } from '@/components/sidebar/CommentMarkdown'
 import { getFileTypeIcon } from '@/lib/file-type-icons'
+import { FilePathTooltip } from '../native-chat/FilePathTooltip'
 import type { RepoIcon } from '../../../../shared/repo-icon'
 import type { BotTeam, BotTeamBot } from '../../../../shared/rpc-contract/bot-team-params'
 import { BotAgentIcon } from './BotAgentIcon'
@@ -87,12 +88,13 @@ function createMentionSpan(icons: ReadonlyMap<string, BotTeamMentionIcon>) {
     if (!icon) {
       return <span {...props}>{children}</span>
     }
-    return (
+    const chip = (
       <span {...props} className={BOT_TEAM_MENTION_CHIP_CLASS}>
         {/* The chip shows the name alone; the message text keeps its "@Name". */}
         <BotTeamMentionChipFace icon={icon}>{icon.name}</BotTeamMentionChipFace>
       </span>
     )
+    return icon.kind === 'file' ? <FilePathTooltip path={icon.name}>{chip}</FilePathTooltip> : chip
   }
 }
 

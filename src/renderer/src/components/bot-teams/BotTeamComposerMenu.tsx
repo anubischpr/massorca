@@ -135,6 +135,7 @@ export function BotTeamComposerMenu({
               selected={index === activeIndex}
               activeItemRef={activeItemRef}
               onChoose={() => onChoose(item)}
+              filePath={item.kind === 'file' ? item.path : undefined}
             >
               <ItemRow item={item} />
             </PickerOptionButton>
