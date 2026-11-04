@@ -29,6 +29,9 @@ import { useBotTeamReplying } from './BotTeamRoomReplying'
 import { BotTeamReassignButton } from './BotTeamReassignButton'
 import { BotTeamPendingChoice, type BotTeamPendingChoiceRequest } from './BotTeamPendingChoice'
 import { BotTeamRoomComposer } from './BotTeamRoomComposer'
+import { BotTeamRoomPrototypeCard } from './BotTeamRoomPrototypeCard'
+import { useBotTeamRoomPrototype } from './use-bot-team-room-prototype'
+import type { BotTeamPrototypeChoice } from '../../../../shared/bot-team-prototype-choice'
 import { useBotTeamRoomMentions } from './bot-team-mention-projects'
 import { BotTeamSentTrackers } from './BotTeamRoomTracker'
 import { BotTeamRoomMessage } from './BotTeamRoomMessage'
@@ -180,7 +183,8 @@ export function BotTeamRoom({
 
   const send = async (
     text: string,
-    attachments: BotTeamRoomAttachment[] = []
+    attachments: BotTeamRoomAttachment[] = [],
+    prototypeChoice?: BotTeamPrototypeChoice
   ): Promise<boolean> => {
     if (sending.current) {
       return false
@@ -196,7 +200,8 @@ export function BotTeamRoom({
         start: true,
         askProject: true,
         clientRequestId: replying.requestIdFor(text),
-        ...(attachments.length > 0 ? { attachments } : {})
+        ...(attachments.length > 0 ? { attachments } : {}),
+        ...(prototypeChoice ? { prototypeChoice } : {})
       })
       replying.settle(sent.replying?.botId ?? null)
       setNeedsOwner(
@@ -208,6 +213,7 @@ export function BotTeamRoom({
               choice: sent.choice,
               text,
               ...(sent.later ? { later: true } : {}),
+              ...(prototypeChoice ? { prototypeChoice } : {}),
               ...(attachments.length > 0 ? { attachments } : {})
             }
           : null
@@ -232,6 +238,8 @@ export function BotTeamRoom({
       setTyping(null)
     }
   }
+
+  const prototype = useBotTeamRoomPrototype({ bots: team.bots, post: send })
 
   const startTask = async (taskId: string): Promise<void> => {
     try {
@@ -395,12 +403,13 @@ export function BotTeamRoom({
           </div>
           <NativeChatJumpToLatest visible={scroll.showJump} onJump={scroll.jumpToEnd} />
         </div>
+        <BotTeamRoomPrototypeCard prototype={prototype} />
         <BotTeamRoomComposer
           team={team}
           otherTeams={otherTeams}
           projects={mentionProjects}
           offline={offline}
-          onSend={send}
+          onSend={prototype.send}
           onAttachFiles={onAttachFiles}
         />
       </div>

@@ -13,6 +13,17 @@ import {
 } from './bot-team-prompt-notes'
 import { worktreeOfWorkspace } from './bot-team-worktree-deliverables'
 import { botTeamFolderPath } from './bot-team-version-deps'
+import {
+  botTeamPrototypeChoiceIn,
+  withoutBotTeamPrototypeChoice,
+  type BotTeamPrototypeChoice
+} from '../../shared/bot-team-prototype-choice'
+import type { WorkerFirstPrompt } from '../runtime/rpc/methods/orchestration/worker/worker-start-readiness-settlement'
+
+/** The prototype prompt for a task's session, or null when the task is sent as written. */
+export type BotTeamPrototypeFirstPrompt = (
+  input: BotTeamPrototypeChoice & { childSessionId: string; taskSpec: string }
+) => Promise<WorkerFirstPrompt | null>
 
 export type BotTeamTaskStartDeps = {
   /** The team's folder workspace, created the first time a task starts. */
@@ -36,6 +47,8 @@ export type BotTeamTaskStartDeps = {
   }) => Promise<string>
   sendPrompt: (sessionId: string, text: string) => Promise<boolean>
   linkSession: (taskId: string, sessionId: string) => BotTeamTask
+  /** Makes the prototype request for a task started with the person's count; absent, the task is sent as written. */
+  prototypeFirstPrompt?: BotTeamPrototypeFirstPrompt
 }
 
 /** Whether the person wrote any brief; a project can have none, and then there is nothing to read. */
@@ -186,13 +199,32 @@ export async function startBotTeamTask(
     ...(piRuntime ? { piRuntime } : {}),
     ...(options ? { options } : {})
   })
+  const choice = botTeamPrototypeChoiceIn(extras.notes)
+  const promptExtras = {
+    workingDirectory,
+    ...extras,
+    notes: withoutBotTeamPrototypeChoice(extras.notes)
+  }
+  const prototype =
+    choice && deps.prototypeFirstPrompt
+      ? await deps.prototypeFirstPrompt({
+          ...choice,
+          childSessionId: sessionId,
+          taskSpec: task.prompt || task.title
+        })
+      : null
+  const text = prototype
+    ? `${botTeamTaskPrompt(team, bot, { title: task.title, prompt: prototype.body }, promptExtras)}
+
+${prototype.appendix}`
+    : botTeamTaskPrompt(team, bot, task, promptExtras)
   // Linked only once delivered: an undelivered request must keep the task in Todo, with Start.
-  if (
-    !(await deps.sendPrompt(
-      sessionId,
-      botTeamTaskPrompt(team, bot, task, { workingDirectory, ...extras })
-    ))
-  ) {
+  const delivered = await deps.sendPrompt(sessionId, text).catch(async (error: unknown) => {
+    await prototype?.discard().catch(() => undefined)
+    throw error
+  })
+  if (!delivered) {
+    await prototype?.discard().catch(() => undefined)
     throw new Error(`The request for task ${task.id} did not reach the bot.`)
   }
   return deps.linkSession(task.id, sessionId)

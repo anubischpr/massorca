@@ -167,6 +167,11 @@ export const BotTeamTaskCreate = z.object({
   ownerBotId: requiredString('Missing bot id')
 })
 
+const BotTeamPrototypeChoiceSchema = z.object({
+  count: z.number().int().min(1).max(4),
+  designSystem: z.enum(['use', 'propose', 'skip']).optional()
+})
+
 export const BotTeamMessagePost = z
   .object({
     teamId: requiredString('Missing team id'),
@@ -184,7 +189,9 @@ export const BotTeamMessagePost = z
       .max(BOT_TEAM_ROOM_ATTACHMENT_LIMIT)
       .optional(),
     /** The sender's IANA zone, so "mañana a las 10" is read on their clock. An older client sends none. */
-    timeZone: z.string().min(1).max(64).optional()
+    timeZone: z.string().min(1).max(64).optional(),
+    /** The prototype count the person chose on the card; an older host ignores it and sends the text as typed. */
+    prototypeChoice: BotTeamPrototypeChoiceSchema.optional()
   })
   .refine((value) => value.text.trim() !== '' || (value.attachments?.length ?? 0) > 0, {
     message: 'Missing message text',
@@ -208,7 +215,9 @@ export const BotTeamRequestAssign = z.object({
   /** Files the person attached to the request, kept when a choice card answers it. */
   attachments: z.array(BotTeamRoomAttachmentSchema).max(BOT_TEAM_ROOM_ATTACHMENT_LIMIT).optional(),
   /** The sender's IANA zone, so a day the request names is read on their clock. An older client sends none. */
-  timeZone: z.string().min(1).max(64).optional()
+  timeZone: z.string().min(1).max(64).optional(),
+  /** The prototype count the person chose before the room asked this question; an older host ignores it. */
+  prototypeChoice: BotTeamPrototypeChoiceSchema.optional()
 })
 
 /** Gives an idle task to a bot of any team; its team follows the bot. Nothing starts: Start does that. */

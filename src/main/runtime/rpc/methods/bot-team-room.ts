@@ -30,6 +30,7 @@ import { defineMethod, type RpcContext } from '../core'
 import { botTeamAssignMethods } from './bot-team-assign-methods'
 import { BOT_TEAM_MEMORY_METHODS } from './bot-team-memory-methods'
 import { BOT_TEAM_PROJECT_METHODS, roomProjectsFor } from './bot-team-project-methods'
+import { botTeamPrototypeFirstPrompt } from '../../../bot-teams/bot-team-task-prototype'
 import { postBotTeamRequestOnHost } from './bot-team-post-request'
 import { listBotTeamReplying, rememberBotTeamPost } from './bot-team-reply-in-flight'
 import { BOT_TEAM_VERSION_METHODS } from './bot-team-versions'
@@ -160,7 +161,8 @@ async function startUnclaimedTaskOnHost(ctx: RpcContext, taskId: string): Promis
           fence,
           text
         })) !== null,
-      linkSession: (id, sessionId) => db.setBotTeamTaskSession(id, sessionId)
+      linkSession: (id, sessionId) => db.setBotTeamTaskSession(id, sessionId),
+      prototypeFirstPrompt: botTeamPrototypeFirstPrompt(ctx.runtime)
     },
     {
       team,
