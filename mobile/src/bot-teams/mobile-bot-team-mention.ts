@@ -7,6 +7,7 @@ import {
   type BotTeamMentionName,
   type BotTeamMentionSegment
 } from '../../../src/shared/bot-team-mention-text'
+import type { MarketplaceAppMention } from '../../../src/shared/marketplace-app-mentions'
 import type { RepoIcon } from '../../../src/shared/repo-icon'
 import type { BotTeam, BotTeamCharacter } from '../../../src/shared/rpc-contract/bot-team-params'
 import type {
@@ -24,11 +25,12 @@ export type MobileBotTeamMentionTarget = BotTeamMentionName & {
   logo?: RepoIcon | null
 }
 
-/** The room team's bots, the other teams and the projects, the names a room message may mention. */
+/** The room team's bots, the other teams, the projects and the connected apps a room message may mention. */
 export function botTeamMentionTargets(
   team: BotTeam,
   teams: readonly BotTeam[],
-  projects: readonly BotTeamMentionProject[] = []
+  projects: readonly BotTeamMentionProject[] = [],
+  apps: readonly MarketplaceAppMention[] = []
 ): MobileBotTeamMentionTarget[] {
   return [
     ...team.bots.map((bot): MobileBotTeamMentionTarget => ({
@@ -51,6 +53,12 @@ export function botTeamMentionTargets(
       agent: null,
       character: null,
       logo: project.logo
+    })),
+    ...apps.map((app): MobileBotTeamMentionTarget => ({
+      name: app.name,
+      kind: 'app',
+      agent: null,
+      character: null
     }))
   ]
 }

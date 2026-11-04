@@ -755,6 +755,7 @@ export const RPC_PARAMS_BY_METHOD = {
   'botTeams.addBot': BotTeamAddBot,
   'botTeams.archiveProject': BotTeamProjectArchive,
   'botTeams.assignRequest': BotTeamRequestAssign,
+  'botTeams.connectedApps': null,
   'botTeams.create': BotTeamCreate,
   'botTeams.createProject': BotTeamProjectCreate,
   'botTeams.createRoutine': BotTeamRoutineCreate,

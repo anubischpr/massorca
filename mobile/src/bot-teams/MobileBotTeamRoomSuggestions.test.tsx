@@ -51,6 +51,7 @@ vi.mock('lucide-react-native', () => ({
   FileText: 'FileText',
   FileType: 'FileType',
   FileVideo: 'FileVideo',
+  Plug: 'Plug',
   Smartphone: 'Smartphone'
 }))
 vi.mock('./MobileBotAgentIcon', () => ({ MobileBotAgentIcon: 'AgentIcon' }))
@@ -93,6 +94,7 @@ const PROJECTS = [
   { id: 'p1', name: 'Launch', logo: LOGO },
   { id: 'p2', name: 'Launchpad', logo: null }
 ]
+const APPS = [{ id: 'engram' as const, name: 'Engram' }]
 
 /** What the composer does on a tap: the trigger span takes the suggestion's insert, then a space. */
 function tapSuggestion(text: string, label: string): { text: string; cursor: number } {
@@ -104,7 +106,8 @@ function tapSuggestion(text: string, label: string): { text: string; cursor: num
       team: ROOM,
       otherTeams: [WAREHOUSE],
       projects: PROJECTS,
-      files: ['flyer.md']
+      files: ['flyer.md'],
+      apps: APPS
     }) ?? []
   ).find((item) => item.kind === 'custom' && item.label === label)
   if (!trigger || suggestion?.kind !== 'custom') {
@@ -122,7 +125,8 @@ function menuFor(text: string, files: readonly string[] = []): ComposerSuggestio
       team: ROOM,
       otherTeams: [WAREHOUSE],
       projects: PROJECTS,
-      files
+      files,
+      apps: APPS
     }) ?? []
   )
 }
@@ -214,6 +218,21 @@ describe('the phone @ menu lists projects and files', () => {
   })
 })
 
+describe('the phone @ menu lists connected apps', () => {
+  it('shows a connected app last, with the app icon', () => {
+    const rows = menuFor('@')
+    const row = rowNamed(rows, 'Engram')
+
+    expect(row).toMatchObject({ kind: 'custom', insert: '@Engram', key: 'app:engram' })
+    expect(rows.at(-1)).toBe(row)
+    expect(drawnType(iconOf(row))).toBe('Plug')
+  })
+
+  it('inserts an app as its mention text, so the host adds its prompt lines', () => {
+    expect(tapSuggestion('usa @Eng', 'Engram').text).toBe('usa @Engram ')
+  })
+})
+
 describe('the phone @ menu headings', () => {
   it('heads each kind once when the list mixes them, in the desktop order', () => {
     let renderer!: ReactTestRenderer
@@ -229,7 +248,7 @@ describe('the phone @ menu headings', () => {
       .findAll((node) => node.type === 'Text' && node.props.accessibilityRole === 'header')
       .map((node) => node.props.children)
 
-    expect(headings).toEqual(['Bots', 'Teams', 'Projects', 'Files'])
+    expect(headings).toEqual(['Bots', 'Teams', 'Projects', 'Files', 'Apps'])
   })
 
   it('draws no heading when every row is one kind', () => {

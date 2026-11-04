@@ -40,6 +40,15 @@ describe('botTeamMentionTargets', () => {
       { name: 'Warehouse', kind: 'team', agent: null, character: 'square' }
     ])
   })
+
+  it('lists the connected apps last, as apps', () => {
+    const room = team('team', 'Marketing', 'circle')
+
+    expect(botTeamMentionTargets(room, [room], [], [{ id: 'engram', name: 'Engram' }])).toEqual([
+      { name: 'Iris', kind: 'bot', agent: 'claude', character: null },
+      { name: 'Engram', kind: 'app', agent: null, character: null }
+    ])
+  })
 })
 
 const IRIS: MobileBotTeamMentionTarget = {

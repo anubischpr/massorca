@@ -120,11 +120,11 @@ export function MobileBotTeamRoom({
 
   const sending = useRef(false)
   const attachments = useMobileBotTeamRoomAttachments({ client, workspaceId, enabled: !offline })
-  const renderMentions = useBotTeamMentionRenderer(team, teams, mentionProjects)
 
   // The phone has no Sessions panel to open, so the room's two commands stay on the desktop.
   const files = workspaceId === null ? NO_FILES : nativeChatFilePaths
-  const roomSuggestions = useBotTeamComposerSuggestions(team, teams, mentionProjects, files)
+  const menu = useBotTeamComposerSuggestions(client, team, teams, mentionProjects, files, offline)
+  const renderMentions = useBotTeamMentionRenderer(team, teams, mentionProjects, menu.apps)
 
   const send = async (typed: string): Promise<boolean> => {
     if (sending.current) {
@@ -357,11 +357,12 @@ export function MobileBotTeamRoom({
         team={team}
         teams={teams}
         projects={mentionProjects}
+        apps={menu.apps}
         value={text}
         onChangeText={setText}
         onSend={send}
         disabled={offline}
-        customSuggestions={roomSuggestions}
+        customSuggestions={menu.suggest}
         onNeedFiles={workspaceId === null ? undefined : loadNativeChatFiles}
         onMicPress={() => void (dictation.isRecording ? dictation.stop() : dictation.start())}
         micActive={dictation.isRecording}

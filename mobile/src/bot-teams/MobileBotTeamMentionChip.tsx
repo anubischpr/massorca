@@ -1,5 +1,6 @@
 import { Fragment, useCallback, useMemo, type ReactNode } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
+import { Plug } from 'lucide-react-native'
 import { splitBotTeamMentionText } from '../../../src/shared/bot-team-mention-text'
 import { MobileFileTypeIcon } from '../components/MobileFileTypeIcon'
 import { MobileRepoIcon } from '../components/MobileRepoIcon'
@@ -8,6 +9,7 @@ import { MobileBotAgentIcon } from './MobileBotAgentIcon'
 import { MobileBotTeamCharacterIcon } from './MobileBotTeamCharacterIcon'
 import type { BotTeam } from '../../../src/shared/rpc-contract/bot-team-params'
 import type { BotTeamMentionProject } from '../../../src/shared/bot-team-composer-menu'
+import type { MarketplaceAppMention } from '../../../src/shared/marketplace-app-mentions'
 import { botTeamMentionTargets, type MobileBotTeamMentionTarget } from './mobile-bot-team-mention'
 
 /** The icon a bot, team or project chip shows; null when it has none (a project without a logo). */
@@ -20,6 +22,9 @@ export function targetIcon(target: MobileBotTeamMentionTarget): ReactNode {
   }
   if (target.kind === 'project' && target.logo) {
     return <MobileRepoIcon repoIcon={target.logo} size={12} />
+  }
+  if (target.kind === 'app') {
+    return <Plug size={12} color={colors.textSecondary} />
   }
   return null
 }
@@ -59,15 +64,16 @@ export function botTeamMentionNodes(
   })
 }
 
-/** The room's mention renderer for its messages, over the bots, other teams and projects it can name. */
+/** The room's mention renderer for its messages, over the bots, other teams, projects and apps it can name. */
 export function useBotTeamMentionRenderer(
   team: BotTeam,
   teams: readonly BotTeam[],
-  projects: readonly BotTeamMentionProject[]
+  projects: readonly BotTeamMentionProject[],
+  apps: readonly MarketplaceAppMention[] = []
 ) {
   const targets = useMemo(
-    () => botTeamMentionTargets(team, teams, projects),
-    [team, teams, projects]
+    () => botTeamMentionTargets(team, teams, projects, apps),
+    [team, teams, projects, apps]
   )
   return useCallback(
     (text: string, keyPrefix: string) => botTeamMentionNodes(text, keyPrefix, targets),

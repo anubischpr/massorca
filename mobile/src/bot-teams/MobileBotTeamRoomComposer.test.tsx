@@ -11,7 +11,7 @@ vi.mock('react-native', () => ({
   Text: 'Text',
   View: 'View'
 }))
-vi.mock('lucide-react-native', () => ({ X: 'X' }))
+vi.mock('lucide-react-native', () => ({ Plug: 'Plug', X: 'X' }))
 vi.mock('../session/MobileNativeChatComposer', () => ({ MobileNativeChatComposer: 'Composer' }))
 vi.mock('./MobileBotAgentIcon', () => ({ MobileBotAgentIcon: 'AgentIcon' }))
 vi.mock('./MobileBotTeamCharacterIcon', () => ({ MobileBotTeamCharacterIcon: 'CharacterIcon' }))
@@ -92,6 +92,27 @@ describe('MobileBotTeamRoomComposer', () => {
     expect(composer.props.sendSurfaceId).toBe('room')
     expect(composer.props.placeholder).toBe('Message the team')
     expect(composer.props.layout).toBe('single-line')
+  })
+
+  it('draws a pill with the app icon for a picked connected app', () => {
+    let renderer!: ReactTestRenderer
+    act(() => {
+      renderer = create(
+        createElement(MobileBotTeamRoomComposer, {
+          team: ROOM,
+          teams: [ROOM],
+          projects: [],
+          apps: [{ id: 'engram', name: 'Engram' }],
+          value: 'usa @Engram ',
+          onChangeText: vi.fn(),
+          onSend: vi.fn(async () => true),
+          customSuggestions: vi.fn(() => null)
+        })
+      )
+    })
+
+    expect(pillsLabelled(renderer, 'Remove Engram')).toHaveLength(1)
+    expect(renderer.root.findAllByType('Plug')).toHaveLength(1)
   })
 
   it('takes a pill out of the draft with its mention and the space after it', () => {

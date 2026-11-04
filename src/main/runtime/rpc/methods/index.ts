@@ -1,5 +1,6 @@
 import { STATUS_METHODS } from './status'
 import { BOT_TEAM_METHODS } from './bot-teams'
+import { BOT_TEAM_CONNECTED_APPS_METHODS } from './bot-team-connected-apps'
 import { BOT_TEAM_PROJECT_FILES_METHODS } from './bot-team-project-files'
 import { BOT_TEAM_ROOM_METHODS } from './bot-team-room'
 import { BOT_TEAM_ROUTINE_METHODS } from './bot-team-routine-methods'
@@ -77,6 +78,7 @@ export const ALL_RPC_METHODS = [
   ...AGENT_HOOK_METHODS,
   ...AI_VAULT_METHODS,
   ...BOT_TEAM_METHODS,
+  ...BOT_TEAM_CONNECTED_APPS_METHODS,
   ...BOT_TEAM_PROJECT_FILES_METHODS,
   ...BOT_TEAM_ROOM_METHODS,
   ...BOT_TEAM_ROUTINE_METHODS,
