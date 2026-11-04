@@ -18218,18 +18218,9 @@
       "fieldWidth": "width",
       "fillHex": "Fill hex",
       "fillLabel": "Fill",
-      "filter": {
-        "all": "All",
-        "claude": "Claude",
-        "codex": "Codex",
-        "gentleShell": "Gentle Shell",
-        "stitch": "Stitch"
-      },
-      "filterGroup": "Filter by agent",
       "fontSizeLabel": "Font size",
       "frameError": "Couldn't open this prototype",
       "frameTitle": "Prototype",
-      "heading": "Prototypes",
       "heightLabel": "Height",
       "heightValue": "Height value",
       "hintAnnotate": "click any element to add a note",
@@ -18420,6 +18411,10 @@
         "bold": "Bold",
         "italic": "Italic",
         "underline": "Underline"
+      },
+      "tree": {
+        "expand": "Expand prototypes",
+        "collapse": "Collapse prototypes"
       }
     },
     "createChat": {

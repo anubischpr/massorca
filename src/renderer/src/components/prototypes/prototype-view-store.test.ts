@@ -4,7 +4,6 @@ import { usePrototypeViewStore } from './prototype-view-store'
 
 beforeEach(() => {
   usePrototypeViewStore.setState({
-    filter: 'all',
     selectedRequestId: null,
     states: {},
     sidePanelHidden: false,
@@ -89,14 +88,11 @@ describe('usePrototypeViewStore invariants', () => {
     expect(usePrototypeViewStore.getState().states).toEqual({})
   })
 
-  it('sets the filter and the selected request as given', () => {
+  it('sets the selected request as given, and no agent filter exists', () => {
     const store = usePrototypeViewStore.getState()
-    store.setFilter('codex')
     store.selectRequest('r2')
-    expect(usePrototypeViewStore.getState()).toMatchObject({
-      filter: 'codex',
-      selectedRequestId: 'r2'
-    })
+    expect(usePrototypeViewStore.getState()).toMatchObject({ selectedRequestId: 'r2' })
+    expect('filter' in usePrototypeViewStore.getState()).toBe(false)
   })
 })
 

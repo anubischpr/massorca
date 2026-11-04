@@ -17988,18 +17988,9 @@
       "fieldWidth": "ancho",
       "fillHex": "Relleno en hex",
       "fillLabel": "Relleno",
-      "filter": {
-        "all": "Todos",
-        "claude": "Claude",
-        "codex": "Codex",
-        "gentleShell": "Gentle Shell",
-        "stitch": "Stitch"
-      },
-      "filterGroup": "Filtrar por agente",
       "fontSizeLabel": "Tamaño de fuente",
       "frameError": "No se pudo abrir el prototipo",
       "frameTitle": "Prototipo",
-      "heading": "Prototipos",
       "heightLabel": "Alto",
       "heightUnit": "Unidad de alto",
       "heightValue": "Valor del alto",
@@ -18092,7 +18083,11 @@
       "viewportPhone": "Vista teléfono",
       "widthLabel": "Ancho",
       "widthUnit": "Unidad de ancho",
-      "widthValue": "Valor del ancho"
+      "widthValue": "Valor del ancho",
+      "tree": {
+        "expand": "Expandir prototipos",
+        "collapse": "Contraer prototipos"
+      }
     },
     "createChat": {
       "errorWorktreeGone": "Este worktree ya no está disponible. Elige otro.",

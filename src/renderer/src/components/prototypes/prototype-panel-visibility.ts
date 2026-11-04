@@ -1,13 +1,14 @@
-/** A merge under way hides the draft, and the list only if hidden for it; preferences stay untouched. */
+/**
+ * The draft panel hides during a merge, whatever the preference. The list tree (in the left sidebar) hides
+ * during a merge only when the user hid it for that merge; the sidebar itself is the app's own toggle.
+ */
 export function prototypePanelsShown(input: {
   sidePanelHidden: boolean
   listPanelHidden: boolean
   mergeUnderWay: boolean
-  /** The app's left-sidebar toggle, the same one Workspaces uses. */
-  sidebarOpen: boolean
 }): { list: boolean; draft: boolean } {
   return {
-    list: input.sidebarOpen && !(input.listPanelHidden && input.mergeUnderWay),
+    list: !(input.listPanelHidden && input.mergeUnderWay),
     draft: !(input.sidePanelHidden || input.mergeUnderWay)
   }
 }

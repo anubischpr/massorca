@@ -1,5 +1,4 @@
 import { create } from 'zustand'
-import type { PrototypeFilter } from '../../../../shared/prototype-list-model'
 import { adoptMergedDirection } from '../../../../shared/prototype-merge-state'
 import {
   createSetState,
@@ -16,7 +15,6 @@ export type PrototypeFocusedSetSessions = { sessionId: string; originSessionId: 
 
 // In memory only: a restart starts over. A later ensure keeps a set's draft; an update never creates a state.
 type PrototypeViewStore = {
-  filter: PrototypeFilter
   selectedRequestId: string | null
   /** The project whose design system is selected instead of a set; null when none is. */
   selectedProjectKey: string | null
@@ -24,12 +22,11 @@ type PrototypeViewStore = {
   designSystemViews: Readonly<Record<string, DesignSystemViewState>>
   /** The side panel is hidden; hiding it changes no set state, so every draft stays. */
   sidePanelHidden: boolean
-  /** The list is hidden during a merge; the page clears it once no merge is under way. */
+  /** The list tree in the left sidebar is hidden during a merge; the page clears it once no merge is under way. */
   listPanelHidden: boolean
   /** The chats behind the set in view, published while the page is shown; null otherwise. */
   focusedSetSessions: PrototypeFocusedSetSessions | null
   setFocusedSetSessions: (sessions: PrototypeFocusedSetSessions | null) => void
-  setFilter: (filter: PrototypeFilter) => void
   setSidePanelHidden: (hidden: boolean) => void
   setListPanelHidden: (hidden: boolean) => void
   selectRequest: (requestId: string | null) => void
@@ -46,7 +43,6 @@ type PrototypeViewStore = {
 }
 
 export const usePrototypeViewStore = create<PrototypeViewStore>()((set) => ({
-  filter: 'all',
   selectedRequestId: null,
   selectedProjectKey: null,
   states: {},
@@ -62,7 +58,6 @@ export const usePrototypeViewStore = create<PrototypeViewStore>()((set) => ({
         ? current
         : { focusedSetSessions }
     }),
-  setFilter: (filter) => set({ filter }),
   setSidePanelHidden: (sidePanelHidden) => set({ sidePanelHidden }),
   setListPanelHidden: (listPanelHidden) => set({ listPanelHidden }),
   selectRequest: (selectedRequestId) => set({ selectedRequestId, selectedProjectKey: null }),
