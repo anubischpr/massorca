@@ -2,7 +2,6 @@ import { useMemo, useRef, useState } from 'react'
 import { Alert, Pressable, Text, View } from 'react-native'
 import { ChevronDown, ChevronLeft, Ellipsis } from 'lucide-react-native'
 import { useMobileDictation } from '../hooks/use-mobile-dictation'
-import { MobileNativeChatComposer } from '../session/MobileNativeChatComposer'
 import { useMobileNativeChatFileSearch } from '../session/use-mobile-native-chat-file-search'
 import { colors } from '../theme/mobile-theme'
 import type { RpcClient } from '../transport/rpc-client'
@@ -37,13 +36,13 @@ import { useMobileBotTeamTaskStatus } from './use-mobile-bot-team-task-status'
 import { RoomWho } from './MobileBotTeamRoomWho'
 import { MobileBotTeamSentTrackers } from './MobileBotTeamRoomTracker'
 import { MobileBotTeamAttachChips } from './MobileBotTeamAttachChips'
+import { MobileBotTeamRoomComposer } from './MobileBotTeamRoomComposer'
 import { useBotTeamMentionRenderer } from './MobileBotTeamMentionChip'
 import { useBotTeamMentionProjects } from './use-mobile-bot-team-mention-projects'
 import { useMobileBotTeamRoomAttachments } from './mobile-bot-team-attach-room'
 import { MarkdownPlainTextContext } from '../components/MobileMarkdownPlainText'
 import { useBotTeamRoomPrototypeLinks } from './MobileBotTeamRoomPrototypeLinks'
 
-const NO_GENERATION = () => 0
 const NOT_WORKING = () => false
 const NO_FILES: readonly string[] = []
 
@@ -352,20 +351,18 @@ export function MobileBotTeamRoom({
         ) : null}
       </MobileBotTeamRoomScroll>
       <MobileBotTeamAttachChips inset files={attachments.files} onRemove={attachments.removeFile} />
-      <MobileNativeChatComposer
+      <MobileBotTeamRoomComposer
+        team={team}
+        teams={teams}
+        projects={mentionProjects}
         value={text}
         onChangeText={setText}
         onSend={send}
-        sendSurfaceId={team.id}
-        getSendCompletionGeneration={NO_GENERATION}
-        getComposerEditGeneration={NO_GENERATION}
         disabled={offline}
-        placeholder="Message the team"
         customSuggestions={roomSuggestions}
         onNeedFiles={workspaceId === null ? undefined : loadNativeChatFiles}
         onMicPress={() => void (dictation.isRecording ? dictation.stop() : dictation.start())}
         micActive={dictation.isRecording}
-        layout="single-line"
         isAttaching={attachments.attaching}
         onAttachFile={attachments.attachFile}
         sendWithoutText={attachments.postable.length > 0}

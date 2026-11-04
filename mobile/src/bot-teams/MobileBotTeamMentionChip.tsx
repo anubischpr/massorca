@@ -11,7 +11,7 @@ import type { BotTeamMentionProject } from '../../../src/shared/bot-team-compose
 import { botTeamMentionTargets, type MobileBotTeamMentionTarget } from './mobile-bot-team-mention'
 
 /** The icon a bot, team or project chip shows; null when it has none (a project without a logo). */
-function targetIcon(target: MobileBotTeamMentionTarget): ReactNode {
+export function targetIcon(target: MobileBotTeamMentionTarget): ReactNode {
   if (target.kind === 'bot' && target.agent !== null) {
     return <MobileBotAgentIcon agentId={target.agent} size={12} />
   }
