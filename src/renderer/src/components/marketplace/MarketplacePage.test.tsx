@@ -296,12 +296,25 @@ describe('MarketplacePage', () => {
     expect(statusOf(container, 'OpenMetadata')).toBe('Connect')
   })
 
-  it('lists every known agent, found ones first, with Found or Install', async () => {
+  it('lists only the four board agents, in board order, with Found or Install', async () => {
     const container = await renderPage()
 
-    expect(namesIn(sectionBody(container, 'Agents'))).toEqual(['Claude Code', 'Codex'])
+    expect(namesIn(sectionBody(container, 'Agents'))).toEqual([
+      'Claude Code',
+      'Codex',
+      'Antigravity',
+      'Gentle Shell'
+    ])
     expect(statusOf(container, 'Claude Code')).toBe('Found')
     expect(statusOf(container, 'Codex')).toBe('Install')
+  })
+
+  it('does not count a stock Pi install as Gentle Shell', async () => {
+    mocks.detected = ['pi']
+    const container = await renderPage()
+
+    expect(statusOf(container, 'Gentle Shell')).toBe('Install')
+    expect(container.textContent).not.toContain('Pi')
   })
 
   it('lists the skills found on this computer, each as Installed', async () => {

@@ -298,13 +298,13 @@ describe('the item statuses', () => {
 })
 
 describe('agents, skills and custom items', () => {
-  it('lists the agents found on this computer first, each with Found or Install', () => {
+  it('lists the agents in the order given, each with Found or Install', () => {
     const agents = sectionNamed(buildCatalogSections(inputs()), 'Agents').rows
-    expect(agents.map((row) => row.name)).toEqual(['Codex', 'Claude Code'])
-    expect(agents[0]?.status).toEqual({ kind: 'found', label: 'Found' })
-    expect(agents[0]?.owned).toBe(true)
-    expect(agents[1]?.status).toEqual({ kind: 'action', label: 'Install' })
-    expect(agents[1]?.target).toEqual({ kind: 'agent', agent: 'claude' })
+    expect(agents.map((row) => row.name)).toEqual(['Claude Code', 'Codex'])
+    expect(agents[1]?.status).toEqual({ kind: 'found', label: 'Found' })
+    expect(agents[1]?.owned).toBe(true)
+    expect(agents[0]?.status).toEqual({ kind: 'action', label: 'Install' })
+    expect(agents[0]?.target).toEqual({ kind: 'agent', agent: 'claude' })
   })
 
   it('shows a placeholder instead of agent rows while detection runs', () => {

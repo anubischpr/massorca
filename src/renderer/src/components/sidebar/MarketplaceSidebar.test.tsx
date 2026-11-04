@@ -173,7 +173,7 @@ describe('the Marketplace sidebar', () => {
     expect(container.textContent).toContain('Your apps')
   })
 
-  it('lists at most six apps under Your apps, while the count shows them all', async () => {
+  it('lists only the board agents under Your apps, never other found agents', async () => {
     mocks.detected = ['claude', 'codex', 'gemini', 'opencode', 'cursor', 'copilot']
     const container = await mount()
     const labels = rowLabels(container)
@@ -182,10 +182,9 @@ describe('the Marketplace sidebar', () => {
       'GitHub CLI',
       'Engram',
       'Claude Code',
-      'Codex',
-      'Gemini'
+      'Codex'
     ])
-    expect(rowByLabel(container, 'All of them').textContent).toContain('9')
+    expect(rowByLabel(container, 'All of them').textContent).toContain('5')
   })
 
   it('a section click picks that section and returns to the catalog', async () => {

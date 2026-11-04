@@ -1,6 +1,7 @@
 import { Book, Bot, Check, Wrench } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { AgentIcon } from '@/lib/agent-catalog'
+import { GentleShellIcon } from '@/lib/agent-icon-gentle-shell'
 import { cn } from '@/lib/utils'
 import { MarketplaceItemIcon } from './MarketplaceItemIcon'
 import type { CatalogRow, CatalogRowIcon } from './MarketplaceCatalogRows'
@@ -69,7 +70,12 @@ function TileGlyph({ icon }: { icon: CatalogRowIcon }): React.JSX.Element {
     case 'item':
       return <MarketplaceItemIcon id={icon.id} className="size-5 text-foreground" />
     case 'agent':
-      return <AgentIcon agent={icon.agent} size={22} />
+      // Why: in the Marketplace the Pi entry is always Gentle Shell, which keeps its rose.
+      return icon.agent === 'pi' ? (
+        <GentleShellIcon size={22} />
+      ) : (
+        <AgentIcon agent={icon.agent} size={22} />
+      )
     case 'skill':
       return <Book className="size-5" aria-hidden />
     case 'custom':

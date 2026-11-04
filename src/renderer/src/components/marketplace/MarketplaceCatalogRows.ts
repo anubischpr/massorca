@@ -223,9 +223,7 @@ function agentRows(inputs: CatalogBuildInputs): CatalogRow[] {
     return []
   }
   const detected = new Set<TuiAgent>(inputs.detectedAgents.items)
-  // Why: agents found on this computer lead the section, the rest follow in catalog order.
-  const rows = inputs.agentEntries.map((entry) => agentRow(entry, detected.has(entry.id)))
-  return [...rows.filter((row) => row.owned), ...rows.filter((row) => !row.owned)]
+  return inputs.agentEntries.map((entry) => agentRow(entry, detected.has(entry.id)))
 }
 
 function agentRow(entry: { id: TuiAgent; label: string }, found: boolean): CatalogRow {

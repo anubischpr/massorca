@@ -2,6 +2,7 @@ import { Book, Bot, Check, LayoutGrid, Plug, Wrench, type LucideIcon } from 'luc
 import { useTranslation } from 'react-i18next'
 import { translate } from '@/i18n/i18n'
 import { AgentIcon } from '@/lib/agent-catalog'
+import { GentleShellIcon } from '@/lib/agent-icon-gentle-shell'
 import { useAppStore } from '@/store'
 import type { MarketplaceSection } from '@/store/slices/ui/ui-slice-contract-core'
 import { useMarketplaceCatalog } from '../marketplace/MarketplaceCatalogData'
@@ -142,7 +143,11 @@ function SidebarRowIcon({ icon }: { icon: CatalogRowIcon }): React.JSX.Element {
     case 'item':
       return <MarketplaceItemIcon id={icon.id} className={ROW_ICON_CLASS} />
     case 'agent':
-      return <AgentIcon agent={icon.agent} size={16} />
+      return icon.agent === 'pi' ? (
+        <GentleShellIcon size={16} />
+      ) : (
+        <AgentIcon agent={icon.agent} size={16} />
+      )
     case 'skill':
       return <Book className={ROW_ICON_CLASS} aria-hidden />
     case 'custom':
