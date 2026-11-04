@@ -34,7 +34,8 @@ const mocks = vi.hoisted(() => ({
   showSessionInFloatingWorkspace: vi.fn(),
   awaitNewSessionTab: vi.fn(),
   chooseHost: vi.fn(),
-  markHostUsed: vi.fn()
+  markHostUsed: vi.fn(),
+  openCreateChatPage: vi.fn()
 }))
 
 vi.mock('react', async () => {
@@ -241,6 +242,7 @@ beforeEach(() => {
     },
     createTab: mocks.createTab,
     activateTab: mocks.activateTab,
+    openCreateChatPage: mocks.openCreateChatPage,
     setActiveTabForWorktree: mocks.setActiveTabForWorktree,
     setTabBarOrder: mocks.setTabBarOrder,
     queueTabStartupCommand: mocks.queueTabStartupCommand,
@@ -360,7 +362,7 @@ describe('FloatingTerminalWindowControls host selection', () => {
     expect(hasHostSelect(renderHeader())).toBe(true)
   })
 
-  it('launches the agent in the selected host workspace and shows it in the floating pane', () => {
+  it('opens the Workspaces create flow on a paired host so the session lands in its workspace list', () => {
     pairServer({
       chosen: VPS,
       focusedWorkspace: REMOTE_WORKSPACE,
@@ -369,20 +371,10 @@ describe('FloatingTerminalWindowControls host selection', () => {
 
     clickLaunch()
 
-    expect(mocks.launchAgentInNewTab).toHaveBeenCalledExactlyOnceWith({
-      requestId: expect.any(String),
-      agent: 'claude',
-      worktreeId: REMOTE_WORKSPACE,
-      launchSource: 'shortcut',
-      activate: false
-    })
-    expect(mocks.showSessionInFloatingWorkspace).toHaveBeenCalledWith(
-      { worktreeId: REMOTE_WORKSPACE, tabId: NEW_AGENT_TAB_ID },
-      expect.anything(),
-      {}
-    )
+    expect(mocks.openCreateChatPage).toHaveBeenCalledOnce()
+    expect(mocks.launchAgentInNewTab).not.toHaveBeenCalled()
+    expect(mocks.showSessionInFloatingWorkspace).not.toHaveBeenCalled()
     expect(mocks.createTab).not.toHaveBeenCalled()
-    expect(mocks.activateTab).not.toHaveBeenCalled()
   })
 
   it('keeps the agent on the floating workspace when This computer is selected', () => {
