@@ -24,6 +24,7 @@ vi.mock('lucide-react-native', () => ({
   FileText: 'FileText',
   Folder: 'Folder',
   FolderPlus: 'FolderPlus',
+  Calendar: 'Calendar',
   LayoutGrid: 'LayoutGrid',
   MessageSquare: 'MessageSquare',
   SlidersHorizontal: 'SlidersHorizontal',
@@ -180,6 +181,7 @@ async function render(
         onOpenBots,
         onOpenTask,
         onOpenWork: vi.fn(),
+        onOpenRoutines: vi.fn(),
         onAddBot: vi.fn(),
         onNewTeam: vi.fn(),
         ...extra
@@ -393,7 +395,7 @@ describe('MobileBotTeamRoom', () => {
     const onOpenWork = vi.fn()
     const renderer = await render(client, vi.fn(), vi.fn(), vi.fn(), { onOpenWork })
     await press(renderer, 'Room menu')
-    await press(renderer, 'Team board')
+    await press(renderer, 'Tasks')
     expect(onOpenWork).toHaveBeenLastCalledWith({ name: 'board', teamId: 'team' })
     await press(renderer, 'Room menu')
     await press(renderer, 'Launch')
@@ -406,6 +408,15 @@ describe('MobileBotTeamRoom', () => {
     await press(renderer, 'Room menu')
     await press(renderer, 'New project')
     expect(onOpenWork).toHaveBeenLastCalledWith({ name: 'newProject', teamId: 'team' })
+  })
+
+  it('opens the team routines from the room menu', async () => {
+    const onOpenRoutines = vi.fn()
+    const client = hostAnswering({ tasks: [], messages: [], projects: [], workspaceId: null })
+    const renderer = await render(client, vi.fn(), vi.fn(), vi.fn(), { onOpenRoutines })
+    await press(renderer, 'Room menu')
+    await press(renderer, 'Routines')
+    expect(onOpenRoutines).toHaveBeenCalledTimes(1)
   })
 
   it('offers the team files after the bots while an @ mention is typed', async () => {

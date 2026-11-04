@@ -14,11 +14,15 @@ const MobileBotTeamWebhook = lazy(() =>
 )
 
 /** The screens under a team's Routines: the list, a new routine, one routine's runs, a web address. */
-export type BotTeamRoutineScreen =
+export type BotTeamRoutineScreen = (
   | { name: 'routines'; teamId: string }
   | { name: 'routineNew'; teamId: string }
   | { name: 'routineRuns'; teamId: string; routineId: string }
   | { name: 'webhook'; teamId: string; webhookId?: string }
+) & {
+  /** 'room' when opened from the room menu: the list then goes back to the room, not the bots. */
+  origin?: 'room'
+}
 
 const ROUTINE_SCREEN_NAMES: readonly string[] = ['routines', 'routineNew', 'routineRuns', 'webhook']
 
@@ -50,6 +54,7 @@ export function MobileBotTeamRoutinesRow({
 /** Every screen a team's Routines can lead to, or back out to. */
 export type BotTeamRoutineExit =
   | BotTeamRoutineScreen
+  | { name: 'team'; teamId: string }
   | { name: 'teamBots'; teamId: string }
   | { name: 'settings' }
 
@@ -72,7 +77,12 @@ export function MobileBotTeamRoutineScreens({
   if (!team) {
     return null
   }
-  const toRoutines = () => onScreen({ name: 'routines', teamId: team.id })
+  const origin = screen.origin ? { origin: screen.origin } : {}
+  const toRoutines = () => onScreen({ name: 'routines', teamId: team.id, ...origin })
+  const leaveRoutines: BotTeamRoutineExit =
+    screen.origin === 'room'
+      ? { name: 'team', teamId: team.id }
+      : { name: 'teamBots', teamId: team.id }
   if (screen.name === 'routineNew') {
     return (
       <MobileBotTeamRoutineNew
@@ -115,11 +125,18 @@ export function MobileBotTeamRoutineScreens({
       client={client}
       team={team}
       offline={offline}
-      onBack={() => onScreen({ name: 'teamBots', teamId: team.id })}
-      onOpenRoutine={(routineId) => onScreen({ name: 'routineRuns', teamId: team.id, routineId })}
-      onNewRoutine={() => onScreen({ name: 'routineNew', teamId: team.id })}
+      onBack={() => onScreen(leaveRoutines)}
+      onOpenRoutine={(routineId) =>
+        onScreen({ name: 'routineRuns', teamId: team.id, routineId, ...origin })
+      }
+      onNewRoutine={() => onScreen({ name: 'routineNew', teamId: team.id, ...origin })}
       onOpenWebhook={(webhookId) =>
-        onScreen({ name: 'webhook', teamId: team.id, ...(webhookId ? { webhookId } : {}) })
+        onScreen({
+          name: 'webhook',
+          teamId: team.id,
+          ...(webhookId ? { webhookId } : {}),
+          ...origin
+        })
       }
     />
   )

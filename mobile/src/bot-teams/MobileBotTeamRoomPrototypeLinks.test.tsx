@@ -25,6 +25,7 @@ vi.mock('lucide-react-native', () => ({
   FileText: 'FileText',
   Folder: 'Folder',
   FolderPlus: 'FolderPlus',
+  Calendar: 'Calendar',
   LayoutGrid: 'LayoutGrid',
   MessageSquare: 'MessageSquare',
   SlidersHorizontal: 'SlidersHorizontal',

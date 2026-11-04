@@ -67,6 +67,7 @@ export function MobileBotTeamRoom({
   onOpenBots,
   onOpenTask,
   onOpenWork,
+  onOpenRoutines,
   onAddBot,
   onNewTeam
 }: {
@@ -83,6 +84,8 @@ export function MobileBotTeamRoom({
   onOpenTask: (workspaceId: string, task: BotTeamTask) => void
   /** Opens one of the room menu's work screens: the team board, a project, or a new project. */
   onOpenWork: (screen: BotTeamWorkScreen) => void
+  /** The room menu's Routines: the team's routines, going back to this room. */
+  onOpenRoutines: () => void
   /** The choice card's "Create a new bot" and "Create a new team" open the existing forms. */
   onAddBot: () => void
   onNewTeam: () => void
@@ -395,6 +398,10 @@ export function MobileBotTeamRoom({
         onOpenBoard={() => {
           setSheet(null)
           onOpenWork({ name: 'board', teamId: team.id })
+        }}
+        onOpenRoutines={() => {
+          setSheet(null)
+          onOpenRoutines()
         }}
         onOpenProject={(projectId) => {
           setSheet(null)
