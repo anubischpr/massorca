@@ -1,5 +1,4 @@
-import { Archive, LayoutTemplate, MoreHorizontal } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { Archive, ArchiveRestore, LayoutTemplate, MoreHorizontal, Trash2 } from 'lucide-react'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -20,26 +19,35 @@ import {
   prototypeUnarchiveLabel
 } from './prototype-labels'
 
+/** The row menu's actions; a row with none shows no menu. */
+export type PrototypeSetRowActions = {
+  onArchive?: () => void
+  onUnarchive?: () => void
+  /** Asks before deleting; offered only for a set the host lists as deletable. */
+  onDelete?: () => void
+}
+
 /**
- * A set row of the Prototypes tree; its menu offers Archive when the host can archive.
+ * A set row of the Prototypes tree, active or archived, with its actions behind one "⋯" menu.
  * The tree owns the menu's open state so only one row menu is open at a time.
  */
 export function PrototypeSetRow({
   row,
   selected,
   onSelect,
-  onArchive,
+  actions,
   menuOpen,
   onMenuOpenChange
 }: {
   row: PrototypeListRow
   selected: boolean
   onSelect: () => void
-  onArchive?: () => void
+  actions: PrototypeSetRowActions
   menuOpen: boolean
   onMenuOpenChange: (open: boolean) => void
 }): React.JSX.Element {
-  if (onArchive === undefined) {
+  const { onArchive, onUnarchive, onDelete } = actions
+  if (onArchive === undefined && onUnarchive === undefined && onDelete === undefined) {
     return <RowButton row={row} selected={selected} onSelect={onSelect} />
   }
   return (
@@ -56,43 +64,26 @@ export function PrototypeSetRow({
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          <DropdownMenuItem onSelect={onArchive}>
-            <Archive />
-            {prototypeArchiveLabel()}
-          </DropdownMenuItem>
+          {onArchive === undefined ? null : (
+            <DropdownMenuItem onSelect={onArchive}>
+              <Archive />
+              {prototypeArchiveLabel()}
+            </DropdownMenuItem>
+          )}
+          {onUnarchive === undefined ? null : (
+            <DropdownMenuItem onSelect={onUnarchive}>
+              <ArchiveRestore />
+              {prototypeUnarchiveLabel()}
+            </DropdownMenuItem>
+          )}
+          {onDelete === undefined ? null : (
+            <DropdownMenuItem variant="destructive" onSelect={onDelete}>
+              <Trash2 />
+              {prototypeDeleteLabel()}
+            </DropdownMenuItem>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
-    </div>
-  )
-}
-
-/** A set row of the Archived group: opens like any row, with Unarchive and, when the host permits, Delete. */
-export function PrototypeArchivedRow({
-  row,
-  selected,
-  onSelect,
-  onUnarchive,
-  onDelete
-}: {
-  row: PrototypeListRow
-  selected: boolean
-  onSelect: () => void
-  onUnarchive: () => void
-  onDelete?: () => void
-}): React.JSX.Element {
-  return (
-    <div className="flex flex-col">
-      <RowButton row={row} selected={selected} onSelect={onSelect} />
-      <div className="flex gap-1 px-2 pb-1.5">
-        <Button type="button" variant="ghost" size="xs" onClick={onUnarchive}>
-          {prototypeUnarchiveLabel()}
-        </Button>
-        {onDelete === undefined ? null : (
-          <Button type="button" variant="destructive" size="xs" onClick={onDelete}>
-            {prototypeDeleteLabel()}
-          </Button>
-        )}
-      </div>
     </div>
   )
 }

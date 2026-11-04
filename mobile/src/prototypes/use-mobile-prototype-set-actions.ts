@@ -15,8 +15,8 @@ import type { RpcClient } from '../transport/rpc-client'
 type SetTarget = { sessionId: string; requestId: string }
 
 /**
- * The row actions of the Prototypes list: Archive on a set, Unarchive and Delete on an archived one, behind
- * the row's sheet. Delete asks first, and the list is read again after every action.
+ * The row actions of the Prototypes list: Archive on a set, Unarchive on an archived one, and Delete on any
+ * set the host lists as deletable, behind the row's sheet. Delete asks first, and the list is read again after every action.
  */
 export function useMobilePrototypeSetActions(
   client: RpcClient | null,
@@ -50,22 +50,9 @@ export function useMobilePrototypeSetActions(
     reload()
   }
   const actionsOf = (row: PrototypeListRow, host: RpcClient): ActionSheetAction[] => {
-    if (row.set.archived !== true) {
-      return [
-        {
-          label: 'Archive',
-          icon: Archive,
-          onPress: () => void run((target) => archiveMobilePrototypeRequest(host, target), row)
-        }
-      ]
-    }
-    return [
-      {
-        label: 'Unarchive',
-        icon: ArchiveRestore,
-        onPress: () => void run((target) => unarchiveMobilePrototypeRequest(host, target), row)
-      },
-      ...(row.set.deletable === true
+    // Why any set: once its chat is gone, a set is deleted without archiving it first.
+    const deleteAction: ActionSheetAction[] =
+      row.set.deletable === true
         ? [
             {
               label: 'Delete',
@@ -75,7 +62,24 @@ export function useMobilePrototypeSetActions(
               onPress: () => confirmDelete(row, host)
             }
           ]
-        : [])
+        : []
+    if (row.set.archived !== true) {
+      return [
+        {
+          label: 'Archive',
+          icon: Archive,
+          onPress: () => void run((target) => archiveMobilePrototypeRequest(host, target), row)
+        },
+        ...deleteAction
+      ]
+    }
+    return [
+      {
+        label: 'Unarchive',
+        icon: ArchiveRestore,
+        onPress: () => void run((target) => unarchiveMobilePrototypeRequest(host, target), row)
+      },
+      ...deleteAction
     ]
   }
   const confirmDelete = (row: PrototypeListRow, host: RpcClient): void => {

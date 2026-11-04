@@ -9,7 +9,8 @@ export function NativeChatPrototypeCountCard({
   ask,
   onChoose
 }: {
-  ask: NativeChatPrototypeAsk
+  /** Only what the card shows, so a surface without a chat draft (the Bot teams room) can render it. */
+  ask: Pick<NativeChatPrototypeAsk, 'agentName' | 'defaultCount' | 'keyword' | 'settingAsks'>
   onChoose: (choice: NativeChatPrototypeChoice) => void
 }): React.JSX.Element {
   const title = translate('components.prototypes.ask.title', 'How many prototypes?')

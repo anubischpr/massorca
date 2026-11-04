@@ -11,7 +11,7 @@ import {
 } from '@/components/ui/dialog'
 import type { PrototypeListRow } from '../../../../shared/prototype-list-model'
 import type { PrototypeListedSet } from '../../../../shared/rpc-contract/prototype-params'
-import { PrototypeArchivedRow } from './PrototypeSetRow'
+import { PrototypeSetRow } from './PrototypeSetRow'
 import {
   prototypeArchivedHeading,
   prototypeDeleteCancelLabel,
@@ -28,21 +28,46 @@ export type PrototypeArchiveControls = {
   supports: (set: PrototypeListedSet) => boolean
   onArchive: (set: PrototypeListedSet) => void
   onUnarchive: (set: PrototypeListedSet) => void
-  onDelete: (set: PrototypeListedSet) => void
+  /** Opens the delete confirmation for a row. */
+  onRequestDelete: (row: PrototypeListRow) => void
+}
+
+/** The tree's one open row menu: the request id whose "⋯" menu is open, or null. */
+export type PrototypeRowMenuState = {
+  openMenuRequestId: string | null
+  onOpenMenuChange: (requestId: string | null) => void
+}
+
+/** Open-state handler of one row's menu, so opening it closes any other row's menu. */
+export function rowMenuProps(
+  menu: PrototypeRowMenuState,
+  requestId: string
+): { menuOpen: boolean; onMenuOpenChange: (open: boolean) => void } {
+  return {
+    menuOpen: menu.openMenuRequestId === requestId,
+    onMenuOpenChange: (open) => {
+      if (open) {
+        menu.onOpenMenuChange(requestId)
+      } else if (menu.openMenuRequestId === requestId) {
+        menu.onOpenMenuChange(null)
+      }
+    }
+  }
 }
 
 /** The end of the Prototypes tree: archived sets under a heading with their count, collapsed until it is opened. */
 export function PrototypeArchivedGroup({
   controls,
+  menu,
   selectedRequestId,
   onSelect
 }: {
   controls: PrototypeArchiveControls
+  menu: PrototypeRowMenuState
   selectedRequestId: string | null
   onSelect: (requestId: string) => void
 }): React.JSX.Element | null {
   const [expanded, setExpanded] = useState(false)
-  const [deleting, setDeleting] = useState<PrototypeListRow | null>(null)
   if (controls.rows.length === 0) {
     return null
   }
@@ -61,48 +86,60 @@ export function PrototypeArchivedGroup({
       </button>
       {expanded
         ? controls.rows.map((row) => (
-            <PrototypeArchivedRow
+            <PrototypeSetRow
               key={row.set.requestId}
               row={row}
               selected={row.set.requestId === selectedRequestId}
               onSelect={() => onSelect(row.set.requestId)}
-              onUnarchive={() => controls.onUnarchive(row.set)}
-              {...(row.set.deletable === true && controls.supports(row.set)
-                ? { onDelete: () => setDeleting(row) }
-                : {})}
+              {...rowMenuProps(menu, row.set.requestId)}
+              actions={{
+                onUnarchive: () => controls.onUnarchive(row.set),
+                ...(row.set.deletable === true && controls.supports(row.set)
+                  ? { onDelete: () => controls.onRequestDelete(row) }
+                  : {})
+              }}
             />
           ))
         : null}
-      <Dialog
-        open={deleting !== null}
-        onOpenChange={(open) => (open ? undefined : setDeleting(null))}
-      >
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>{prototypeDeleteDialogTitle()}</DialogTitle>
-            <DialogDescription>
-              {prototypeDeleteDialogBody(deleting?.title ?? '')}
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setDeleting(null)}>
-              {prototypeDeleteCancelLabel()}
-            </Button>
-            <Button
-              type="button"
-              variant="destructive"
-              onClick={() => {
-                if (deleting !== null) {
-                  controls.onDelete(deleting.set)
-                }
-                setDeleting(null)
-              }}
-            >
-              {prototypeDeleteLabel()}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
+  )
+}
+
+/** Asks before deleting one set; the set's files are removed from the host only on Delete. */
+export function PrototypeDeleteDialog({
+  deleting,
+  onCancel,
+  onDelete
+}: {
+  deleting: PrototypeListRow | null
+  onCancel: () => void
+  onDelete: (set: PrototypeListedSet) => void
+}): React.JSX.Element {
+  return (
+    <Dialog open={deleting !== null} onOpenChange={(open) => (open ? undefined : onCancel())}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>{prototypeDeleteDialogTitle()}</DialogTitle>
+          <DialogDescription>{prototypeDeleteDialogBody(deleting?.title ?? '')}</DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={onCancel}>
+            {prototypeDeleteCancelLabel()}
+          </Button>
+          <Button
+            type="button"
+            variant="destructive"
+            onClick={() => {
+              if (deleting !== null) {
+                onDelete(deleting.set)
+              }
+              onCancel()
+            }}
+          >
+            {prototypeDeleteLabel()}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }

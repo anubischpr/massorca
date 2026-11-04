@@ -287,10 +287,11 @@ describe('PrototypeSidebarTree Archived group', () => {
       onOpenRequest
     })
     await user.click(screen.getByRole('button', { name: /Archived/u }))
-    await user.click(screen.getByRole('button', { name: /Old pricing/u }))
+    await user.click(screen.getByRole('button', { name: /^Old pricing/u }))
     expect(onOpenRequest).toHaveBeenCalledWith('r2')
 
-    await user.click(screen.getByRole('button', { name: 'Unarchive' }))
+    await user.click(screen.getByRole('button', { name: 'Actions for Old pricing' }))
+    await user.click(await screen.findByRole('menuitem', { name: 'Unarchive' }))
     await waitFor(() =>
       expect(actions.run).toHaveBeenCalledWith(
         'unarchive',
@@ -298,6 +299,54 @@ describe('PrototypeSidebarTree Archived group', () => {
       )
     )
     expect(reload).toHaveBeenCalled()
+  })
+
+  it('keeps Unarchive and Delete in the row menu, not under the row', async () => {
+    const user = userEvent.setup()
+    renderTree({
+      sets: [set('r2', NEXUS, { archived: true, deletable: true, chatTitle: 'Gone chat' })]
+    })
+    await user.click(screen.getByRole('button', { name: /Archived/u }))
+    expect(screen.queryByRole('button', { name: 'Unarchive' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Delete' })).toBeNull()
+
+    await user.click(screen.getByRole('button', { name: 'Actions for Gone chat' }))
+    expect(screen.getAllByRole('menuitem').map((item) => item.textContent)).toEqual([
+      'Unarchive',
+      'Delete'
+    ])
+  })
+
+  it('shows the prototype count on an archived row too', async () => {
+    const user = userEvent.setup()
+    renderTree({ sets: [set('r2', NEXUS, { archived: true, chatTitle: 'Old pricing' })] })
+    await user.click(screen.getByRole('button', { name: /Archived/u }))
+    const row = screen.getByRole('button', { name: /^Old pricing/u })
+    expect(within(row).getByText('1')).toBeInTheDocument()
+  })
+
+  it('deletes a set whose chat is gone straight from its row, without archiving it first', async () => {
+    const user = userEvent.setup()
+    actions.run.mockResolvedValue('done')
+    renderTree({
+      sets: [
+        set('r1', NEXUS, { deletable: true, chatTitle: 'Orphan' }),
+        set('r3', NEXUS, { chatTitle: 'Live chat' })
+      ]
+    })
+    await user.click(screen.getByRole('button', { name: 'Actions for Orphan' }))
+    expect(screen.getAllByRole('menuitem').map((item) => item.textContent)).toEqual([
+      'Archive',
+      'Delete'
+    ])
+    await user.click(screen.getByRole('menuitem', { name: 'Delete' }))
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete' }))
+    await waitFor(() =>
+      expect(actions.run).toHaveBeenCalledWith('delete', expect.objectContaining({ requestId: 'r1' }))
+    )
+
+    await user.click(screen.getByRole('button', { name: 'Actions for Live chat' }))
+    expect(screen.getAllByRole('menuitem').map((item) => item.textContent)).toEqual(['Archive'])
   })
 
   it('offers Delete only for a set the host lists as deletable, and asks before deleting', async () => {
@@ -310,10 +359,12 @@ describe('PrototypeSidebarTree Archived group', () => {
       ]
     })
     await user.click(screen.getByRole('button', { name: /Archived/u }))
-    const deletes = screen.getAllByRole('button', { name: 'Delete' })
-    expect(deletes).toHaveLength(1)
+    await user.click(screen.getByRole('button', { name: 'Actions for Live chat' }))
+    expect(screen.queryByRole('menuitem', { name: 'Delete' })).toBeNull()
+    await user.keyboard('{Escape}')
 
-    await user.click(deletes[0])
+    await user.click(screen.getByRole('button', { name: 'Actions for Gone chat' }))
+    await user.click(await screen.findByRole('menuitem', { name: 'Delete' }))
     const dialog = screen.getByRole('dialog')
     expect(dialog).toHaveTextContent('Delete this prototype set?')
     expect(dialog).toHaveTextContent('Gone chat')
@@ -322,7 +373,8 @@ describe('PrototypeSidebarTree Archived group', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Cancel' }))
     expect(screen.queryByRole('dialog')).toBeNull()
 
-    await user.click(screen.getAllByRole('button', { name: 'Delete' })[0])
+    await user.click(screen.getByRole('button', { name: 'Actions for Gone chat' }))
+    await user.click(await screen.findByRole('menuitem', { name: 'Delete' }))
     await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete' }))
     await waitFor(() =>
       expect(actions.run).toHaveBeenCalledWith(

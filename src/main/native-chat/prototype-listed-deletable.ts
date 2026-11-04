@@ -1,4 +1,4 @@
-// Which archived sets of a listing the host would delete, asked once per chat.
+// Which sets of a listing the host would delete, asked once per chat.
 
 import type { PrototypeListedSet } from '../../shared/rpc-contract/prototype-params'
 
@@ -17,12 +17,12 @@ export function deletableChecker(
   }
 }
 
-// Only archived sets carry it: they are the ones a client offers Delete on, so the others cost no check.
+// Every set may carry it: a set whose chat is gone can be deleted without archiving it first.
 export async function withDeletable(
   set: PrototypeListedSet,
   deletableOf: (sessionId: string) => Promise<boolean>
 ): Promise<PrototypeListedSet> {
-  return set.archived === true && (await deletableOf(set.sessionId))
+  return (await deletableOf(set.sessionId))
     ? { ...set, deletable: true }
     : set
 }

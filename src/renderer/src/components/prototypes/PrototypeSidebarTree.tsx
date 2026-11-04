@@ -12,12 +12,21 @@ import {
   buildPrototypeListGroups,
   type PrototypeListGroup
 } from '../../../../shared/prototype-list-groups'
-import { buildPrototypeListRows } from '../../../../shared/prototype-list-model'
+import {
+  buildPrototypeListRows,
+  type PrototypeListRow
+} from '../../../../shared/prototype-list-model'
 import type {
   PrototypeListedDesignSystem,
   PrototypeListedSet
 } from '../../../../shared/rpc-contract/prototype-params'
-import { PrototypeArchivedGroup, type PrototypeArchiveControls } from './PrototypeArchivedGroup'
+import {
+  PrototypeArchivedGroup,
+  PrototypeDeleteDialog,
+  rowMenuProps,
+  type PrototypeArchiveControls,
+  type PrototypeRowMenuState
+} from './PrototypeArchivedGroup'
 import { PrototypeSetRow } from './PrototypeSetRow'
 import { prototypeTargetForSession } from './prototype-host-targets'
 import {
@@ -104,6 +113,25 @@ export function PrototypeSidebarTree({
   const [outdatedHosts, setOutdatedHosts] = useState<ReadonlySet<string>>(() => new Set())
   // The set whose row menu is open; one at a time, since the sidebar can swallow the outside click.
   const [openMenuRequestId, setOpenMenuRequestId] = useState<string | null>(null)
+  const menu: PrototypeRowMenuState = {
+    openMenuRequestId,
+    onOpenMenuChange: setOpenMenuRequestId
+  }
+  const [deleting, setDeleting] = useState<PrototypeListRow | null>(null)
+  // Why: a set that leaves the list (archived or deleted) while open hands the view to its neighbor.
+  const leaveSelection = (set: PrototypeListedSet): void => {
+    if (set.requestId !== selectedRequestId) {
+      return
+    }
+    onSelectRequest(
+      set.archived === true
+        ? null
+        : requestToOpenAfterArchiving(
+            groups.flatMap((group) => group.rows),
+            set.requestId
+          )
+    )
+  }
 
   const runSetAction = async (
     action: PrototypeSetAction,
@@ -121,19 +149,15 @@ export function PrototypeSidebarTree({
     supports: (set) =>
       !outdatedHosts.has(prototypeHostKey(prototypeTargetForSession(set.sessionId))),
     onArchive: (set) => {
-      if (set.requestId === selectedRequestId) {
-        // Why: the open set leaves the main list, so the view moves to its neighbor instead of keeping a hidden one.
-        onSelectRequest(
-          requestToOpenAfterArchiving(
-            groups.flatMap((group) => group.rows),
-            set.requestId
-          )
-        )
-      }
+      leaveSelection(set)
       void runSetAction('archive', set)
     },
     onUnarchive: (set) => void runSetAction('unarchive', set),
-    onDelete: (set) => void runSetAction('delete', set)
+    onRequestDelete: setDeleting
+  }
+  const deleteSet = (set: PrototypeListedSet): void => {
+    leaveSelection(set)
+    void runSetAction('delete', set)
   }
 
   return (
@@ -153,14 +177,19 @@ export function PrototypeSidebarTree({
           onOpenRequest={onOpenRequest}
           onOpenSystem={onOpenSystem}
           archive={archive}
-          openMenuRequestId={openMenuRequestId}
-          onOpenMenuChange={setOpenMenuRequestId}
+          menu={menu}
         />
       ))}
       <PrototypeArchivedGroup
         controls={archive}
+        menu={menu}
         selectedRequestId={selectedRequestId}
         onSelect={onOpenRequest}
+      />
+      <PrototypeDeleteDialog
+        deleting={deleting}
+        onCancel={() => setDeleting(null)}
+        onDelete={deleteSet}
       />
     </div>
   )
@@ -176,8 +205,7 @@ function TreeGroup({
   onOpenRequest,
   onOpenSystem,
   archive,
-  openMenuRequestId,
-  onOpenMenuChange
+  menu
 }: {
   group: PrototypeListGroup
   selectedRequestId: string | null
@@ -187,8 +215,7 @@ function TreeGroup({
   onOpenRequest: (requestId: string) => void
   onOpenSystem: (projectKey: string) => void
   archive: PrototypeArchiveControls
-  openMenuRequestId: string | null
-  onOpenMenuChange: (requestId: string | null) => void
+  menu: PrototypeRowMenuState
 }): React.JSX.Element {
   const { projectKey, projectName, system, rows } = group
   const expanded =
@@ -224,17 +251,18 @@ function TreeGroup({
               row={row}
               selected={row.set.requestId === selectedRequestId}
               onSelect={() => onOpenRequest(row.set.requestId)}
-              menuOpen={openMenuRequestId === row.set.requestId}
-              onMenuOpenChange={(open) => {
-                if (open) {
-                  onOpenMenuChange(row.set.requestId)
-                } else if (openMenuRequestId === row.set.requestId) {
-                  onOpenMenuChange(null)
-                }
-              }}
-              {...(archive.supports(row.set)
-                ? { onArchive: () => archive.onArchive(row.set) }
-                : {})}
+              {...rowMenuProps(menu, row.set.requestId)}
+              actions={
+                archive.supports(row.set)
+                  ? {
+                      onArchive: () => archive.onArchive(row.set),
+                      // Why: once its chat is gone, a set is deleted without archiving it first.
+                      ...(row.set.deletable === true
+                        ? { onDelete: () => archive.onRequestDelete(row) }
+                        : {})
+                    }
+                  : {}
+              }
             />
           ))
         : null}

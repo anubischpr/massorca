@@ -270,6 +270,14 @@ describe('MobilePrototypeListScreen archived sets', () => {
     expect(hoisted.reload).toHaveBeenCalled()
   })
 
+  it('offers Delete next to Archive on a set whose chat is gone, without archiving it first', () => {
+    const tree = mountSets([
+      listedSet({ requestId: 'req-orphan', chatTitle: 'Orphan', deletable: true })
+    ])
+    pressByLabel(tree, 'Actions for Orphan')
+    expect(sheet(tree).actions.map((action) => action.label)).toEqual(['Archive', 'Delete'])
+  })
+
   it('offers Unarchive on an archived set, and Delete only when the host lists it as deletable', async () => {
     const tree = mountSets([
       ARCHIVED,
