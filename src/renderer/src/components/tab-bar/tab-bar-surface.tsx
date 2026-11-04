@@ -288,6 +288,7 @@ export function renderTabBarSurface({
           ) : null}
           {!terminalOnly && props.onNewChecklistTab ? (
             <TabBarChecklistMenuItem
+              onNewSession={props.onNewSession}
               onNewChecklistTab={props.onNewChecklistTab}
               onOpenSessionPicker={props.onOpenSessionPicker}
             />

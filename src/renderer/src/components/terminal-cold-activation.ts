@@ -1,4 +1,7 @@
-import { selectReferencedSessions } from '../store/slices/tabs/pane-session-ref'
+import {
+  selectFloatingReferenceOwnerWorktreeIds,
+  selectReferencedSessions
+} from '../store/slices/tabs/pane-session-ref'
 import { useAppStore } from '../store'
 import {
   canAdmitTerminalTabsForStartup,
@@ -177,6 +180,13 @@ export function applyTerminalColdActivation(controller: TerminalParkingFoundatio
     }
   } else {
     lastActivationWorktreeIdRef.current = null
+  }
+  // Why: the floating panel sits over any workspace, so the owner's layers mount even when it is not the active one.
+  for (const ownerWorktreeId of selectFloatingReferenceOwnerWorktreeIds({
+    groupsByWorktree,
+    unifiedTabsByWorktree: useAppStore.getState().unifiedTabsByWorktree
+  })) {
+    mountedWorktreeIdsRef.current.add(ownerWorktreeId)
   }
   pruneClosedBackgroundMountTabs(
     backgroundMountTabIdsByWorktreeRef.current,

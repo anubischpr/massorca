@@ -71,6 +71,7 @@ const TerminalPaneOverlayLayer = memo(function TerminalPaneOverlayLayer({
   const referenced = useAppStore(selectReferencedSessions)
   const layoutWorktreeId = useAppStore(selectLayoutWorktreeId)
   const activeGroupIdByWorktree = useAppStore((state) => state.activeGroupIdByWorktree)
+  const isFloatingPanelOpen = useAppStore((state) => state.floatingWorkspacePanelOpen)
   const consumeSuppressedPtyExit = useAppStore((state) => state.consumeSuppressedPtyExit)
 
   useNativeChatToggleShortcut(worktreeId, isWorktreeActive && ownsNativeChatToggleShortcut)
@@ -151,7 +152,8 @@ const TerminalPaneOverlayLayer = memo(function TerminalPaneOverlayLayer({
               referenced,
               assignment.unifiedTabId,
               layoutWorktreeId,
-              activeGroupIdByWorktree
+              activeGroupIdByWorktree,
+              isFloatingPanelOpen
             )
           : null
         const isVisible = shown
