@@ -3,7 +3,11 @@ import {
   designSystemContentOf,
   type DesignSystemContent
 } from '../../../src/shared/prototype-design-system-content'
-import { readMobilePrototypeDesignSystem } from '../session/mobile-prototype-host-rpc'
+import {
+  readMobilePrototypeDesignSystem,
+  readMobilePrototypeDesignSystemVersion,
+  type MobilePrototypeDesignSystem
+} from '../session/mobile-prototype-host-rpc'
 import type { RpcClient } from '../transport/rpc-client'
 
 export type MobileDesignSystemContentState =
@@ -13,12 +17,13 @@ export type MobileDesignSystemContentState =
 
 /**
  * The files of a design system, read from the host through one of its project's chats. A new `reloadKey`
- * (the system's version, count and status) reads them again.
+ * (the system's version, count and status) reads them again. A `version` reads that earlier version instead.
  */
 export function useMobilePrototypeDesignSystemContent(
   client: RpcClient | null,
   sessionId: string | undefined,
-  reloadKey: string
+  reloadKey: string,
+  version: number | null = null
 ): MobileDesignSystemContentState {
   const [state, setState] = useState<MobileDesignSystemContentState>({ status: 'loading' })
   useEffect(() => {
@@ -26,7 +31,11 @@ export function useMobilePrototypeDesignSystemContent(
       return
     }
     let active = true
-    void readMobilePrototypeDesignSystem(client, { sessionId }).then((result) => {
+    const read: Promise<MobilePrototypeDesignSystem> =
+      version === null
+        ? readMobilePrototypeDesignSystem(client, { sessionId })
+        : readMobilePrototypeDesignSystemVersion(client, { sessionId, version })
+    void read.then((result) => {
       if (active) {
         // A failed read keeps the files already shown: losing contact is not an empty system.
         setState((previous) =>
@@ -41,6 +50,6 @@ export function useMobilePrototypeDesignSystemContent(
     return () => {
       active = false
     }
-  }, [client, sessionId, reloadKey])
+  }, [client, sessionId, reloadKey, version])
   return sessionId === undefined ? { status: 'error' } : state
 }

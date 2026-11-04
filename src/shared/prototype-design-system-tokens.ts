@@ -37,7 +37,9 @@ export type DesignSystemStatus = z.infer<typeof statusSchema>
 const historyEntrySchema = z.object({
   version: z.int().min(1),
   status: statusSchema.optional().catch(undefined),
-  at: z.string().max(40).optional().catch(undefined)
+  at: z.string().max(40).optional().catch(undefined),
+  /** The version this one was copied from by a restore; absent for an agent's own version. */
+  restoredFrom: z.int().min(1).optional().catch(undefined)
 })
 
 const sourceSchema = z.object({
@@ -107,7 +109,7 @@ export function parseDesignTokenTree(raw: unknown): ParsedDesignTokens | null {
   return { tokens, meta: parseMeta(raw['$extensions']) }
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
+export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 

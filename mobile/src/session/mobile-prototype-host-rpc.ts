@@ -15,6 +15,7 @@ import {
   type PrototypeReadFileError,
   type PrototypeRequestTargetParams,
   type ReadPrototypeDesignSystemParams,
+  type ReadDesignSystemVersionParams,
   type ReadPrototypeFileParams,
   type RestorePrototypeVersionParams,
   type WriteAttachmentParams
@@ -38,7 +39,7 @@ export function hostListsDesignSystems(client: HostClient): boolean {
 }
 
 /** The one call these reads make, so a test can stand in for the client without a cast. */
-type HostClient = Pick<RpcClient, 'sendRequest'>
+export type HostClient = Pick<RpcClient, 'sendRequest'>
 
 export type MobilePrototypeRequest =
   | {
@@ -167,11 +168,27 @@ export async function readMobilePrototypeFile(
 }
 
 /** The design system files of the chat's project, read on the host that owns the chat. */
-export async function readMobilePrototypeDesignSystem(
+export function readMobilePrototypeDesignSystem(
   client: HostClient,
   params: ReadPrototypeDesignSystemParams
 ): Promise<MobilePrototypeDesignSystem> {
-  const response = await sendHostRequest(client, 'prototypes.readDesignSystem', params)
+  return readDesignSystemAt(client, 'prototypes.readDesignSystem', params)
+}
+
+/** One earlier version of a design system, read with the same shape as the current system. */
+export function readMobilePrototypeDesignSystemVersion(
+  client: HostClient,
+  params: ReadDesignSystemVersionParams
+): Promise<MobilePrototypeDesignSystem> {
+  return readDesignSystemAt(client, 'prototypes.readDesignSystemVersion', params)
+}
+
+async function readDesignSystemAt(
+  client: HostClient,
+  method: 'prototypes.readDesignSystem' | 'prototypes.readDesignSystemVersion',
+  params: ReadPrototypeDesignSystemParams | ReadDesignSystemVersionParams
+): Promise<MobilePrototypeDesignSystem> {
+  const response = await sendHostRequest(client, method, params)
   if (response === null) {
     return { kind: 'unreachable' }
   }
@@ -317,7 +334,7 @@ async function sendSetAction(
 }
 
 /** `null` when no reply came back at all. */
-async function sendHostRequest(
+export async function sendHostRequest(
   client: HostClient,
   method: string,
   params: unknown
@@ -333,7 +350,7 @@ async function sendHostRequest(
 }
 
 /** An older host answers a method it lacks with `forbidden`; a host without structured chats says so. */
-function isUnsupportedHost(response: Extract<RpcResponse, { ok: false }>): boolean {
+export function isUnsupportedHost(response: Extract<RpcResponse, { ok: false }>): boolean {
   return (
     isMobileMethodUnavailableError(response.error.code, response.error.message) ||
     response.error.code === 'structured_agent_session_unsupported'

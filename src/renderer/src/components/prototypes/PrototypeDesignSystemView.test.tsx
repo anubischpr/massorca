@@ -19,6 +19,9 @@ vi.mock('@/i18n/i18n', () => ({
   getIntlLocale: () => 'en-GB'
 }))
 
+// The draft's image attach, idle: these tests send no images.
+const NO_IMAGES = { pick: () => undefined, disabled: false, notice: null, remove: () => undefined }
+
 const TOKENS = JSON.stringify({
   color: { primary: { $value: '#2563eb' }, border: { $value: '#e5e5e5' } },
   type: {
@@ -95,6 +98,7 @@ function renderView(
       }
       rebuildSets={[]}
       runSend={runSend}
+      images={NO_IMAGES}
     />
   )
   return { update, runSend }

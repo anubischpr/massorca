@@ -7,14 +7,17 @@ import { buildDesignSystemUpdateMessage } from '../../../src/shared/prototype-de
 import { designSystemRebuildSetsOf } from '../../../src/shared/prototype-design-system-rebuild'
 import type { DesignSystemChat } from '../../../src/shared/prototype-design-system-view'
 import {
+  sendableDraftImages,
   sendAccepted,
   sendBegun,
   sendRefused,
   type DesignSystemSendKind,
   type DesignSystemViewState
 } from '../../../src/shared/prototype-design-system-view-state'
+import type { StructuredAgentSessionAttachment } from '../../../src/shared/structured-agent-session-send-mutation'
 import type { RpcClient } from '../transport/rpc-client'
 import { sendMobilePrototypeText } from './mobile-prototype-chat-text-send'
+import { sendToStructuredSessionOnHost } from './mobile-prototype-host-chat-send'
 import type { MobileDesignSystemPanelProps } from './mobile-prototype-design-system-props'
 
 type DraftBase = Pick<MobileDesignSystemPanelProps, 'content' | 'state'>
@@ -27,9 +30,21 @@ export function mobileDesignSystemDraftCount({ content, state }: DraftBase): num
   )
 }
 
-/** Whether Send would carry nothing: no change and no text. */
+/** Whether Send would carry nothing: no change, no text and no image. */
 export function mobileDesignSystemNothingToSend(panel: DraftBase): boolean {
-  return mobileDesignSystemDraftCount(panel) === 0 && panel.state.freeText.trim() === ''
+  return (
+    mobileDesignSystemDraftCount(panel) === 0 &&
+    panel.state.freeText.trim() === '' &&
+    panel.state.images.length === 0
+  )
+}
+
+/** The draft's ready images as the chat takes them; the host reads only the path. */
+function draftAttachmentsOf(state: DesignSystemViewState): StructuredAgentSessionAttachment[] {
+  return sendableDraftImages(state).map((image) => ({
+    ...image,
+    previewUri: image.path
+  }))
 }
 
 /** The text the draft sends: its groups, the rebuild line when the option is on, and the free text. */
@@ -62,7 +77,7 @@ export type MobileDesignSystemSendFlow = {
 
 /**
  * Sends one message to the target chat. A chat that takes it clears the draft; a refusal, or a send that throws,
- * keeps the draft and shows the failure line. True only when the chat took it.
+ * keeps the draft and shows the failure line. Only the draft carries its images. True only when the chat took it.
  */
 export async function sendMobileDesignSystemText(
   flow: MobileDesignSystemSendFlow,
@@ -70,11 +85,20 @@ export async function sendMobileDesignSystemText(
   text: string
 ): Promise<boolean> {
   const { client, target, getState, update } = flow
-  if (target === undefined || getState()?.sending === true) {
+  const current = getState()
+  if (target === undefined || current?.sending === true) {
     return false
   }
+  const attachments = kind === 'draft' && current ? draftAttachmentsOf(current) : []
   update(sendBegun)
-  const accepted = await sendMobilePrototypeText(client, target, text).catch(() => false)
+  // Why: the chat on screen sends text only, so a message that carries images goes through the host.
+  const send =
+    attachments.length === 0
+      ? sendMobilePrototypeText(client, target, text)
+      : client === null
+        ? Promise.resolve(false)
+        : sendToStructuredSessionOnHost(client, target.sessionId, text, attachments)
+  const accepted = await send.catch(() => false)
   update((latest) => (accepted ? sendAccepted(latest, kind) : sendRefused(latest, kind)))
   return accepted
 }

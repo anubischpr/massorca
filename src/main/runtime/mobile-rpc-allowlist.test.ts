@@ -52,7 +52,11 @@ const MOBILE_DYNAMIC_RPC_METHODS = [
   'prototypes.archive',
   'prototypes.unarchive',
   'prototypes.delete',
-  'prototypes.writeAttachment'
+  'prototypes.writeAttachment',
+  // Why: mobile-prototype-host-rpc passes these design system version methods to sendHostRequest.
+  'prototypes.listDesignSystemVersions',
+  'prototypes.readDesignSystemVersion',
+  'prototypes.restoreDesignSystemVersion'
 ]
 
 const MOBILE_STREAMING_CLEANUP_RPC_METHODS = [

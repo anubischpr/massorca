@@ -64,7 +64,8 @@ async function writeScreenshot(
 
 async function sendToChat(
   chat: Pick<DesignSystemChat, 'sessionId' | 'worktreeId'>,
-  text: string
+  text: string,
+  images: readonly { path: string; connectionId?: string }[] = []
 ): Promise<boolean> {
   const worktreeId =
     chat.worktreeId ??
@@ -72,7 +73,12 @@ async function sendToChat(
   const result = await sendMessageToAgent({
     worktreeId: worktreeId ?? '',
     target: { kind: 'structured-session', sessionId: chat.sessionId },
-    prompt: text
+    prompt: text,
+    attachments: images.map(({ path, connectionId }) => ({
+      path,
+      previewUri: path,
+      ...(connectionId ? { connectionId } : {})
+    }))
   })
   return result.status === 'sent'
 }
@@ -131,7 +137,10 @@ export default function PrototypesPage(): React.JSX.Element {
     setFocusedSetSessions(
       focusedSessionId === undefined
         ? null
-        : { sessionId: focusedSessionId, originSessionId: focusedOriginSessionId ?? null }
+        : {
+            sessionId: focusedSessionId,
+            originSessionId: focusedOriginSessionId ?? null
+          }
     )
   }, [focusedSessionId, focusedOriginSessionId, setFocusedSetSessions])
   // Why: off this page nothing is in focus, so the floating checklist goes back to the chat.
@@ -173,7 +182,12 @@ export default function PrototypesPage(): React.JSX.Element {
   if (system !== undefined) {
     return (
       <div className="flex min-h-0 min-w-0 flex-1 bg-chat-canvas">
-        <PrototypeDesignSystemScreen system={system} sets={activeSets} sendText={sendToChat} />
+        <PrototypeDesignSystemScreen
+          system={system}
+          sets={activeSets}
+          sendText={sendToChat}
+          onRestored={reload}
+        />
       </div>
     )
   }
@@ -235,7 +249,10 @@ export default function PrototypesPage(): React.JSX.Element {
     const sent = await chatTookMerge(() => sendToChat(selected, message.sentText))
     update((latest) =>
       sent
-        ? mergeSent(latest, { letter: nextLetter, visibleMessage: message.visibleText })
+        ? mergeSent(latest, {
+            letter: nextLetter,
+            visibleMessage: message.visibleText
+          })
         : mergeRefused(latest)
     )
   }
@@ -254,7 +271,12 @@ export default function PrototypesPage(): React.JSX.Element {
         frameOrigin:
           frame === undefined
             ? null
-            : { x: frame.left, y: frame.top, width: frame.width, height: frame.height },
+            : {
+                x: frame.left,
+                y: frame.top,
+                width: frame.width,
+                height: frame.height
+              },
         scale: frame === undefined ? 1 : frame.width / PROTOTYPE_FRAMES[current.viewport].width
       },
       {
@@ -269,7 +291,11 @@ export default function PrototypesPage(): React.JSX.Element {
     )
   }
 
-  const panels = prototypePanelsShown({ sidePanelHidden, listPanelHidden, mergeUnderWay })
+  const panels = prototypePanelsShown({
+    sidePanelHidden,
+    listPanelHidden,
+    mergeUnderWay
+  })
   return (
     <div className="flex min-h-0 min-w-0 flex-1 bg-chat-canvas">
       <section className="flex min-h-0 min-w-0 flex-1 flex-col">

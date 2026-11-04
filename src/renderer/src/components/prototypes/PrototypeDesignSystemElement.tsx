@@ -27,6 +27,7 @@ import {
   TokenChipRow
 } from './PrototypeDesignSystemRows'
 import type { DesignSystemPanelProps } from './prototype-design-system-props'
+import { PrototypeDesignSystemAttachButton } from './PrototypeDesignSystemImages'
 
 /**
  * The aside of one picked element: its breadcrumb back up the component, the properties its kind offers
@@ -37,7 +38,8 @@ export function PrototypeDesignSystemElement({
   pick,
   content,
   state,
-  update
+  update,
+  images
 }: DesignSystemPanelProps & {
   section: ComponentSection
   pick: DesignElementPick
@@ -265,12 +267,19 @@ export function PrototypeDesignSystemElement({
           )}
         </span>
       ) : null}
-      <label
-        htmlFor="design-system-element-note"
-        className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase"
-      >
-        {translate('components.prototypes.designSystem.noteLabel', 'Note — anything Edit can’t do')}
-      </label>
+      <div className="flex items-center justify-between">
+        <label
+          htmlFor="design-system-element-note"
+          className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase"
+        >
+          {translate(
+            'components.prototypes.designSystem.noteLabel',
+            'Note — anything Edit can’t do'
+          )}
+        </label>
+        {/* Why: a note's images join the one draft, listed under its "Anything else". */}
+        <PrototypeDesignSystemAttachButton controls={images} />
+      </div>
       <textarea
         id="design-system-element-note"
         rows={2}

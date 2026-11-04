@@ -370,6 +370,99 @@ describe('prototypes design system', () => {
     expect(await ask()).toEqual({ ok: false, error: 'not_found' })
   })
 
+  it('readDesignSystem keeps a snapshot of the version it reads, which readDesignSystemVersion opens later', async () => {
+    await mkdir(join(launchDirectory, '.git'))
+    await writeSystem(launchDirectory, { 'tokens.json': TOKENS, 'components.html': '<p>four</p>' })
+    await call('prototypes.readDesignSystem', { sessionId: SESSION }, STRUCTURED_CLIENT)
+    await writeSystem(launchDirectory, {
+      'tokens.json': TOKENS.replace('"version":4', '"version":5'),
+      'components.html': '<p>five</p>'
+    })
+    expect(
+      replyResult(
+        await call(
+          'prototypes.readDesignSystemVersion',
+          { sessionId: SESSION, version: 4 },
+          STRUCTURED_CLIENT
+        )
+      )
+    ).toMatchObject({ ok: true, tokensJson: TOKENS, componentsHtml: '<p>four</p>' })
+  })
+
+  it('listDesignSystemVersions lists the current version first, saved', async () => {
+    await mkdir(join(launchDirectory, '.git'))
+    await writeSystem(launchDirectory, { 'tokens.json': TOKENS })
+    expect(
+      replyResult(
+        await call('prototypes.listDesignSystemVersions', { sessionId: SESSION }, STRUCTURED_CLIENT)
+      )
+    ).toEqual({ ok: true, versions: [{ version: 4, saved: true, current: true }] })
+  })
+
+  it('listDesignSystemVersions and readDesignSystemVersion answer not_found for a chat that is not local', async () => {
+    const base = agentSessionRecordFixture()
+    record = { ...base, sessionId: SESSION, location: { ...base.location, wslDistro: 'Ubuntu' } }
+    expect(
+      replyResult(
+        await call('prototypes.listDesignSystemVersions', { sessionId: SESSION }, STRUCTURED_CLIENT)
+      )
+    ).toEqual({ ok: false, error: 'not_found' })
+    expect(
+      replyResult(
+        await call(
+          'prototypes.readDesignSystemVersion',
+          { sessionId: SESSION, version: 1 },
+          STRUCTURED_CLIENT
+        )
+      )
+    ).toEqual({ ok: false, error: 'not_found' })
+  })
+
+  it('restoreDesignSystemVersion copies an earlier version into the next one on this host', async () => {
+    await mkdir(join(launchDirectory, '.git'))
+    await writeSystem(launchDirectory, { 'tokens.json': TOKENS, 'components.html': '<p>four</p>' })
+    await call('prototypes.listDesignSystemVersions', { sessionId: SESSION }, STRUCTURED_CLIENT)
+    await writeSystem(launchDirectory, {
+      'tokens.json': TOKENS.replace('"version":4', '"version":5'),
+      'components.html': '<p>five</p>'
+    })
+    expect(
+      replyResult(
+        await call(
+          'prototypes.restoreDesignSystemVersion',
+          { sessionId: SESSION, version: 4 },
+          STRUCTURED_CLIENT
+        )
+      )
+    ).toEqual({ ok: true, version: 6 })
+    expect(
+      await readFile(join(launchDirectory, 'design', 'system', 'components.html'), 'utf8')
+    ).toBe('<p>four</p>')
+  })
+
+  it('restoreDesignSystemVersion answers not_found and writes nothing for a chat whose record is not local', async () => {
+    await mkdir(join(launchDirectory, '.git'))
+    await writeSystem(launchDirectory, { 'tokens.json': TOKENS, 'components.html': '<p>four</p>' })
+    await call('prototypes.listDesignSystemVersions', { sessionId: SESSION }, STRUCTURED_CLIENT)
+    await writeSystem(launchDirectory, {
+      'tokens.json': TOKENS.replace('"version":4', '"version":5')
+    })
+    const base = agentSessionRecordFixture()
+    record = { ...base, sessionId: SESSION, location: { ...base.location, wslDistro: 'Ubuntu' } }
+    expect(
+      replyResult(
+        await call(
+          'prototypes.restoreDesignSystemVersion',
+          { sessionId: SESSION, version: 4 },
+          STRUCTURED_CLIENT
+        )
+      )
+    ).toEqual({ ok: false, error: 'not_found' })
+    expect(
+      await readFile(join(launchDirectory, 'design', 'system', 'tokens.json'), 'utf8')
+    ).toContain('"version":5')
+  })
+
   it('readDesignSystem refuses a parameter the schema does not name', async () => {
     const reply = await call(
       'prototypes.readDesignSystem',
@@ -573,7 +666,11 @@ describe('a worktree chat whose record pins no launch directory', () => {
   it('reads the design system of its workspace, so the request card is not skipped', async () => {
     await mkdir(join(launchDirectory, '.git'))
     await mkdir(join(launchDirectory, 'design', 'system'), { recursive: true })
-    const reply = await call('prototypes.readDesignSystem', { sessionId: SESSION }, STRUCTURED_CLIENT)
+    const reply = await call(
+      'prototypes.readDesignSystem',
+      { sessionId: SESSION },
+      STRUCTURED_CLIENT
+    )
     expect(JSON.stringify(reply)).not.toContain('not_found')
   })
 

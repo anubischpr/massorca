@@ -4,13 +4,10 @@
 // host resolves every folder from its own state directory and the chat's record; a client names a
 // session, a request id or a file name, never a path.
 
-import type { AgentSessionRecord } from '../../../../shared/agent-session-record'
-import { LOCAL_EXECUTION_HOST_ID } from '../../../../shared/execution-host'
 import {
   CreatePrototypeRequestParams,
   ListPrototypeSetsParams,
   PrototypeRequestTargetParams,
-  ReadPrototypeDesignSystemParams,
   ReadPrototypeFileParams,
   RestorePrototypeVersionParams,
   WriteAttachmentParams,
@@ -18,7 +15,6 @@ import {
   type CreatePrototypeRequestResult,
   type DeletePrototypeRequestResult,
   type ListPrototypeSetsResult,
-  type ReadPrototypeDesignSystemResult,
   type ReadPrototypeFileResult,
   type RestorePrototypeVersionResult,
   type WriteAttachmentResult
@@ -28,7 +24,6 @@ import {
   launchDirectoryOfChat,
   projectDirectoryOfChat
 } from '../../../native-chat/chat-launch-directory'
-import { readDesignSystemOfLaunchDirectory } from '../../../native-chat/prototype-design-system-files'
 import { isLocalChatWorkingDirectoryGone } from '../../../native-chat/prototype-request-deletability'
 import {
   deletePrototypeRequest,
@@ -42,37 +37,15 @@ import {
 } from '../../../native-chat/prototype-requests'
 import { getProfileUserDataPath } from '../../../orca-profiles/profile-storage-paths'
 import { defineMethod, type RpcContext } from '../core'
+import {
+  isLocalStructuredChat,
+  isOwnerCaller,
+  isRequestVisibleToGuest,
+  logPrototypeRefusal,
+  type InstalledHost
+} from './prototype-chat-access'
+import { DESIGN_SYSTEM_PROTOTYPE_METHODS } from './prototype-design-system-methods'
 import { requireInstalledStructuredHost } from './structured-agent-session-gate'
-
-/** Structured chats run on their owning runtime's own filesystem; any other location has no folder here. */
-function isLocalStructuredChat(record: Pick<AgentSessionRecord, 'location'>): boolean {
-  return record.location.executionHostId === LOCAL_EXECUTION_HOST_ID && !record.location.wslDistro
-}
-
-/**
- * Whether a caller other than this desktop and its CLI may see a request: one of a local chat the host keeps, or
- * one whose chat record is gone but that was archived, so the phone's Archived group can reach it to delete it.
- * Why archived only: a gone chat's sets stay out of the phone's normal list and of anything it never listed; an
- * archive is a choice made on a client that could list the set, and it grants no read of the set's files.
- */
-function isRequestVisibleToGuest(
-  record: Pick<AgentSessionRecord, 'location'> | null | undefined,
-  archived: boolean
-): boolean {
-  return record ? isLocalStructuredChat(record) : archived
-}
-
-/** This desktop and its CLI, the owner, see every folder on the host; any other caller, one naming no identity included, is a guest. */
-function isOwnerCaller(ctx: RpcContext): boolean {
-  return ctx.caller?.kind === 'desktop' || ctx.caller?.kind === 'local-cli'
-}
-
-/** One line for a refusal the client reads as "no prototype capture", so a silent send is traceable. */
-function logPrototypeRefusal(method: string, sessionId: string, reason: string): void {
-  console.warn(`[prototypes] ${method} refused for chat ${sessionId}: ${reason}`)
-}
-
-type InstalledHost = Awaited<ReturnType<typeof requireInstalledStructuredHost>>
 
 /** The host decides: a request is deletable when its chat record is gone, or its local chat's directory is. */
 async function isRequestDeletable(host: InstalledHost, sessionId: string): Promise<boolean> {
@@ -245,33 +218,6 @@ export const STRUCTURED_AGENT_SESSION_PROTOTYPE_METHODS = [
     }
   }),
   defineMethod({
-    name: 'prototypes.readDesignSystem',
-    permission: 'workspace',
-    params: ReadPrototypeDesignSystemParams,
-    handler: async (params, ctx): Promise<ReadPrototypeDesignSystemResult> => {
-      const host = await requireInstalledStructuredHost(ctx)
-      const record = host.deps.store.getRecord(params.sessionId)
-      // Why the record: a client names a chat, and the host derives the project root from its launch directory.
-      const launchDirectory =
-        record && isLocalStructuredChat(record)
-          ? await projectDirectoryOfChat(
-              record,
-              host.deps.resolveWorkspacePath,
-              async (workspaceId) => ctx.runtime.resolveWorkspaceRepositoryPath(workspaceId)
-            )
-          : undefined
-      if (launchDirectory === undefined) {
-        logPrototypeRefusal(
-          'prototypes.readDesignSystem',
-          params.sessionId,
-          'chat is not local or has no launch directory'
-        )
-        return { ok: false, error: 'not_found' }
-      }
-      return readDesignSystemOfLaunchDirectory(launchDirectory)
-    }
-  }),
-  defineMethod({
     name: 'prototypes.writeAttachment',
     permission: 'workspace',
     params: WriteAttachmentParams,
@@ -290,5 +236,6 @@ export const STRUCTURED_AGENT_SESSION_PROTOTYPE_METHODS = [
         pngBase64: params.pngBase64
       })
     }
-  })
+  }),
+  ...DESIGN_SYSTEM_PROTOTYPE_METHODS
 ]

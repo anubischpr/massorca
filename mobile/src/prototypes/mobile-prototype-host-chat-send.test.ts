@@ -140,4 +140,18 @@ describe('sendToStructuredSessionOnHost', () => {
     const { client } = host({ history: ok(historyPage(7)), send: lost })
     expect(await sendToStructuredSessionOnHost(client, 'session-1', 'x')).toBe(false)
   })
+
+  it('sends the attached images as image blocks after the text', async () => {
+    const { client, sendRequest } = host({ history: ok(historyPage(7)), send: accepted })
+    const attachments = [{ path: '/h/a.png', previewUri: '/h/a.png' }]
+    expect(await sendToStructuredSessionOnHost(client, 'session-1', 'Look', attachments)).toBe(true)
+    expect(sendRequest.mock.calls[1]?.[1]).toMatchObject({
+      body: {
+        blocks: [
+          { type: 'text', text: 'Look' },
+          { type: 'image-ref', path: '/h/a.png' }
+        ]
+      }
+    })
+  })
 })

@@ -11,6 +11,11 @@ import { prototypeTitle } from '../../../../shared/prototype-list-model'
 import { prototypeAgentLabel } from './prototype-labels'
 import { keyedEntries } from './prototype-entry-keys'
 import type { DesignSystemPanelProps } from './prototype-design-system-props'
+import { draftImagesPending } from '../../../../shared/prototype-design-system-view-state'
+import {
+  PrototypeDesignSystemAttachButton,
+  PrototypeDesignSystemImageList
+} from './PrototypeDesignSystemImages'
 
 /**
  * The draft of the aside: the items the edits made, the rebuild option when sets are built on this version,
@@ -23,7 +28,8 @@ export function PrototypeDesignSystemDraft({
   update,
   target,
   rebuildSets,
-  runSend
+  runSend,
+  images
 }: DesignSystemPanelProps): React.JSX.Element {
   const base = { tokens: content.tokens, components: content.components }
   const groups = designSystemDraftGroups(base, state.draft)
@@ -32,7 +38,7 @@ export function PrototypeDesignSystemDraft({
   const next = system.version + 1
   const titles = rebuildSets.map((set) => prototypeTitle(set)).join(', ')
   const rebuilding = state.rebuild && rebuildSets.length > 0
-  const nothingToSend = count === 0 && state.freeText.trim() === ''
+  const nothingToSend = count === 0 && state.freeText.trim() === '' && state.images.length === 0
   const send = (): void => {
     const rebuild = rebuilding ? designSystemRebuildSetsOf(rebuildSets) : []
     const message = buildDesignSystemUpdateMessage({
@@ -51,7 +57,9 @@ export function PrototypeDesignSystemDraft({
           {translate('components.prototypes.draftTitle', 'Draft for {{agent}}', { agent })}
         </span>
         <span className="text-xs text-muted-foreground">
-          {translate('components.prototypes.draftCount', '{{count}} items', { count })}
+          {translate('components.prototypes.draftCount', '{{count}} items', {
+            count
+          })}
         </span>
       </div>
       {groups.map((group) => (
@@ -90,12 +98,15 @@ export function PrototypeDesignSystemDraft({
           </span>
         </label>
       )}
-      <label
-        htmlFor="design-system-anything-else"
-        className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase"
-      >
-        {translate('components.prototypes.anythingElse', 'Anything else')}
-      </label>
+      <div className="flex items-center justify-between">
+        <label
+          htmlFor="design-system-anything-else"
+          className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase"
+        >
+          {translate('components.prototypes.anythingElse', 'Anything else')}
+        </label>
+        <PrototypeDesignSystemAttachButton controls={images} />
+      </div>
       <textarea
         id="design-system-anything-else"
         rows={3}
@@ -110,12 +121,17 @@ export function PrototypeDesignSystemDraft({
         }}
         className="resize-y rounded-lg border border-border bg-input p-2 text-[13px] text-foreground"
       />
+      <PrototypeDesignSystemImageList images={state.images} controls={images} />
       <Button
         className="mt-auto"
-        disabled={state.sending || target === undefined || nothingToSend}
+        disabled={
+          state.sending || target === undefined || nothingToSend || draftImagesPending(state)
+        }
         onClick={send}
       >
-        {translate('components.prototypes.sendButton', 'Send to {{agent}}', { agent })}
+        {translate('components.prototypes.sendButton', 'Send to {{agent}}', {
+          agent
+        })}
       </Button>
       {state.failed === 'draft' ? (
         <span role="alert" className="text-[11px] text-destructive">

@@ -54,7 +54,11 @@ export function earlierVersionHeader(
 }
 
 function timeLabelOf(mtime: number): string {
-  const date = new Date(mtime)
+  return shortDateTimeLabelOf(new Date(mtime))
+}
+
+/** A moment on this phone's clock as "Oct 28, 21:05"; empty when the moment is not a date. */
+export function shortDateTimeLabelOf(date: Date): string {
   if (!Number.isFinite(date.getTime())) {
     return ''
   }

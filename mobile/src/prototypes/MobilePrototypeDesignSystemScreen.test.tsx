@@ -7,6 +7,7 @@ import type {
   PrototypeListedDesignSystem,
   PrototypeListedSet
 } from '../../../src/shared/rpc-contract/prototype-params'
+import { ImageLibraryPermissionError } from '../platform/media-picker-contract'
 import { MobilePrototypeDesignSystemScreen } from './MobilePrototypeDesignSystemScreen'
 import {
   NEXUS_PROJECT_KEY,
@@ -22,6 +23,7 @@ import {
 vi.mock('react-native', () => ({
   Pressable: 'Pressable',
   ScrollView: 'ScrollView',
+  ActivityIndicator: 'ActivityIndicator',
   StyleSheet: { create: (styles: unknown) => styles, hairlineWidth: 1 },
   Text: 'Text',
   TextInput: 'TextInput',
@@ -36,8 +38,35 @@ vi.mock('react-native-svg', () => ({
   Path: 'Path',
   Rect: 'Rect'
 }))
-vi.mock('lucide-react-native', () => ({ ChevronLeft: 'ChevronLeft', Check: 'Check' }))
-vi.mock('../transport/host-client-hooks', () => ({ useHostClient: () => ({ client: null }) }))
+vi.mock('lucide-react-native', () => ({
+  ChevronLeft: 'ChevronLeft',
+  Check: 'Check',
+  ImagePlus: 'ImagePlus'
+}))
+vi.mock('../transport/host-client-hooks', () => ({
+  useHostClient: () => ({ client: hooks.client })
+}))
+// The photo library and the host save are the attach flow's; the screen test scripts both.
+const images = vi.hoisted(() => ({
+  /** What the photo library yields for the next attach; empty is a cancelled picker. */
+  pick: (): AsyncIterable<{ base64: string }> => ({
+    [Symbol.asyncIterator]: () => ({
+      next: () => Promise.resolve({ done: true, value: undefined })
+    })
+  })
+}))
+vi.mock('../platform/media-picker', () => ({
+  useMediaPicker: () => ({
+    pickImage: () => Promise.resolve(null),
+    pickImages: () => images.pick()
+  })
+}))
+vi.mock('../session/mobile-clipboard-image', () => ({
+  saveMobileClipboardImageAsTempFile: () => Promise.resolve('/host/tmp/photo.png')
+}))
+vi.mock('../session/mobile-worktree-connection-id', () => ({
+  readMobileWorktreeConnectionId: () => Promise.resolve(null)
+}))
 // The drawer's own animation is not under test: it shows its sheet's content while it has one.
 vi.mock('../components/keyed-bottom-drawer', () => ({
   KeyedBottomDrawer: ({
@@ -54,6 +83,11 @@ const chat = vi.hoisted(() => ({
 }))
 vi.mock('./mobile-prototype-chat-text-send', () => ({ sendMobilePrototypeText: chat.send }))
 
+const hostSend = vi.hoisted(() => ({ send: vi.fn<(...args: unknown[]) => Promise<boolean>>() }))
+vi.mock('./mobile-prototype-host-chat-send', () => ({
+  sendToStructuredSessionOnHost: hostSend.send
+}))
+
 const hooks = vi.hoisted(
   (): {
     sets: PrototypeListedSet[]
@@ -61,7 +95,9 @@ const hooks = vi.hoisted(
     content: DesignSystemContent | null
     /** The system's files cannot be read: the hook reports an error instead of content. */
     unreadable: boolean
-  } => ({ sets: [], systems: [], content: null, unreadable: false })
+    /** The host client; set for the attach tests, which upload through it. */
+    client: object | null
+  } => ({ sets: [], systems: [], content: null, unreadable: false, client: null })
 )
 vi.mock('./use-mobile-prototype-sets', () => ({
   useMobilePrototypeSets: () => ({
@@ -151,12 +187,16 @@ function mount(): ReactTestRenderer {
 }
 
 beforeEach(() => {
+  hooks.client = null
+  images.pick = () => emptyImages()
   hooks.content = nexusContent()
   hooks.sets = [nexusSet()]
   hooks.systems = [NEXUS_SYSTEM]
   hooks.unreadable = false
   chat.send.mockReset()
   chat.send.mockResolvedValue(true)
+  hostSend.send.mockReset()
+  hostSend.send.mockResolvedValue(true)
   useMobilePrototypeViewStore.setState({ designSystemViews: {} })
 })
 
@@ -495,6 +535,107 @@ describe('the draft sheet', () => {
     press(tree, 'Review & send')
     await pressAndSettle(tree, 'Send to Claude')
     expect(chat.send.mock.calls[0]?.[1].sessionId).toBe('session-pending')
+  })
+})
+
+/** An image source that yields nothing, as a cancelled picker does. */
+function emptyImages(): AsyncIterable<{ base64: string }> {
+  return {
+    [Symbol.asyncIterator]: () => ({
+      next: () => Promise.resolve({ done: true, value: undefined })
+    })
+  }
+}
+
+async function* oneImage(): AsyncGenerator<{ base64: string }> {
+  yield { base64: 'aGk=' }
+}
+
+const flush = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0))
+
+/** Presses Attach image and lets the attach run until it waits or finishes. */
+async function attachImage(tree: ReactTestRenderer): Promise<void> {
+  await act(async () => {
+    pressable(tree, 'Attach image').props.onPress()
+    await flush()
+  })
+}
+
+describe('the attach image control', () => {
+  it('attaches an image from Anything else and sends it with the draft', async () => {
+    hooks.client = {}
+    images.pick = oneImage
+    const tree = mount()
+    draftTwoChanges(tree)
+    press(tree, 'Review & send')
+    await attachImage(tree)
+    expect(allText(tree)).toContain('Image 1')
+    await pressAndSettle(tree, 'Send to Codex')
+    expect(hostSend.send).toHaveBeenCalledTimes(1)
+    expect(hostSend.send.mock.calls[0]?.[3]).toEqual([
+      { path: '/host/tmp/photo.png', previewUri: '/host/tmp/photo.png' }
+    ])
+    expect(allText(tree)).not.toContain('Image 1')
+  })
+
+  it('attaches an image from a note into the same draft', async () => {
+    hooks.client = {}
+    images.pick = oneImage
+    const tree = mount()
+    press(tree, 'Button')
+    press(tree, 'Note')
+    await attachImage(tree)
+    expect(useMobilePrototypeViewStore.getState().designSystemViews[KEY]?.images).toEqual([
+      expect.objectContaining({ path: '/host/tmp/photo.png' })
+    ])
+    press(tree, 'Review & send')
+    expect(allText(tree)).toContain('Image 1')
+  })
+
+  it('keeps Send waiting while a picked image is still uploading', async () => {
+    hooks.client = {}
+    let release: () => void = () => undefined
+    const gate = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    images.pick = async function* twoImages() {
+      yield { base64: 'aGk=' }
+      await gate
+      yield { base64: 'aGk=' }
+    }
+    const tree = mount()
+    draftTwoChanges(tree)
+    press(tree, 'Review & send')
+    await attachImage(tree)
+    expect(pressable(tree, 'Send to Codex').props.disabled).toBe(true)
+    await act(async () => {
+      release()
+      await flush()
+    })
+    expect(pressable(tree, 'Send to Codex').props.disabled).toBe(false)
+  })
+
+  it('leaves the draft as it was when the picker is cancelled', async () => {
+    hooks.client = {}
+    const tree = mount()
+    draftTwoChanges(tree)
+    press(tree, 'Review & send')
+    await attachImage(tree)
+    expect(allText(tree)).not.toContain('Image 1')
+    expect(pressable(tree, 'Send to Codex').props.disabled).toBe(false)
+  })
+
+  it('shows why an attach failed and keeps the draft', async () => {
+    hooks.client = {}
+    images.pick = () => {
+      throw new ImageLibraryPermissionError()
+    }
+    const tree = mount()
+    draftTwoChanges(tree)
+    press(tree, 'Review & send')
+    await attachImage(tree)
+    expect(allText(tree)).toContain('Photo permission denied')
+    expect(draftItems()).toHaveLength(2)
   })
 })
 

@@ -2,6 +2,10 @@ import { describe, expect, it, vi } from 'vitest'
 import type { RpcClient } from '../transport/rpc-client'
 import type { RpcResponse } from '../transport/types'
 import {
+  listMobilePrototypeDesignSystemVersions,
+  restoreMobilePrototypeDesignSystemVersion
+} from '../prototypes/mobile-prototype-design-system-version-rpc'
+import {
   archiveMobilePrototypeRequest,
   createMobilePrototypeRequest,
   deleteMobilePrototypeRequest,
@@ -10,6 +14,7 @@ import {
   hostMayRestorePrototypeVersions,
   listMobilePrototypeSets,
   readMobilePrototypeDesignSystem,
+  readMobilePrototypeDesignSystemVersion,
   readMobilePrototypeFile,
   restoreMobilePrototypeVersion,
   unarchiveMobilePrototypeRequest,
@@ -422,5 +427,107 @@ describe('restoreMobilePrototypeVersion', () => {
     })
     expect(hostMayRestorePrototypeVersions(older)).toBe(false)
     expect(hostMayRestorePrototypeVersions(current)).toBe(true)
+  })
+})
+
+describe('design system versions on the host', () => {
+  function recordingClient(reply: RpcResponse | Error) {
+    return {
+      sendRequest: vi.fn((_method: string, _params: unknown, _options: unknown) =>
+        reply instanceof Error ? Promise.reject(reply) : Promise.resolve(reply)
+      )
+    }
+  }
+
+  it('lists the versions of a chat newest first, as the host answers them', async () => {
+    const versions = [
+      { version: 4, at: '2026-11-04T14:05:00.000Z', saved: true, current: true },
+      { version: 3, saved: false, current: false }
+    ]
+    const client = recordingClient(ok({ ok: true, versions }))
+    expect(await listMobilePrototypeDesignSystemVersions(client, { sessionId: SESSION })).toEqual({
+      kind: 'ready',
+      versions
+    })
+    expect(client.sendRequest).toHaveBeenCalledWith(
+      'prototypes.listDesignSystemVersions',
+      { sessionId: SESSION },
+      expect.anything()
+    )
+  })
+
+  it('lists a chat the host does not know as refused, an older host as unsupported', async () => {
+    expect(
+      await listMobilePrototypeDesignSystemVersions(
+        clientAnswering(ok({ ok: false, error: 'not_found' })),
+        { sessionId: SESSION }
+      )
+    ).toEqual({ kind: 'refused' })
+    expect(
+      await listMobilePrototypeDesignSystemVersions(clientAnswering(failed('method_not_found')), {
+        sessionId: SESSION
+      })
+    ).toEqual({ kind: 'unsupported-host' })
+    expect(
+      await listMobilePrototypeDesignSystemVersions(clientAnswering(new Error('offline')), {
+        sessionId: SESSION
+      })
+    ).toEqual({ kind: 'unreachable' })
+  })
+
+  it('reads one earlier version with the same shape as the current system', async () => {
+    const files = {
+      projectKey: 'abc123',
+      projectName: 'nexuscare',
+      fileNames: [],
+      tokensJson: '{}'
+    }
+    const client = recordingClient(ok({ ok: true, ...files }))
+    expect(
+      await readMobilePrototypeDesignSystemVersion(client, { sessionId: SESSION, version: 3 })
+    ).toEqual({ kind: 'ready', ...files })
+    expect(client.sendRequest).toHaveBeenCalledWith(
+      'prototypes.readDesignSystemVersion',
+      { sessionId: SESSION, version: 3 },
+      expect.anything()
+    )
+    expect(
+      await readMobilePrototypeDesignSystemVersion(
+        clientAnswering(ok({ ok: false, error: 'not_found' })),
+        { sessionId: SESSION, version: 3 }
+      )
+    ).toEqual({ kind: 'refused' })
+  })
+
+  it('restores one earlier version into the new current one and reports each refusal', async () => {
+    const client = recordingClient(ok({ ok: true, version: 5 }))
+    expect(
+      await restoreMobilePrototypeDesignSystemVersion(client, { sessionId: SESSION, version: 3 })
+    ).toEqual({ kind: 'restored', version: 5 })
+    expect(client.sendRequest).toHaveBeenCalledWith(
+      'prototypes.restoreDesignSystemVersion',
+      { sessionId: SESSION, version: 3 },
+      expect.anything()
+    )
+    for (const error of ['not_found', 'current', 'unwritable']) {
+      expect(
+        await restoreMobilePrototypeDesignSystemVersion(clientAnswering(ok({ ok: false, error })), {
+          sessionId: SESSION,
+          version: 3
+        })
+      ).toEqual({ kind: 'refused', error })
+    }
+    expect(
+      await restoreMobilePrototypeDesignSystemVersion(clientAnswering(failed('method_not_found')), {
+        sessionId: SESSION,
+        version: 3
+      })
+    ).toEqual({ kind: 'unsupported-host' })
+    expect(
+      await restoreMobilePrototypeDesignSystemVersion(clientAnswering(new Error('offline')), {
+        sessionId: SESSION,
+        version: 3
+      })
+    ).toEqual({ kind: 'unreachable' })
   })
 })

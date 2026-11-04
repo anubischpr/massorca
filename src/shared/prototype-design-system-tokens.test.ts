@@ -85,6 +85,22 @@ describe('parseDesignTokens', () => {
     })
   })
 
+  it('keeps the version a history entry was restored from', () => {
+    const parsed = parseDesignTokens(
+      JSON.stringify({
+        $extensions: {
+          massorca: {
+            version: 3,
+            history: [{ version: 3, status: 'detected', at: '2026-11-04', restoredFrom: 1 }]
+          }
+        }
+      })
+    )
+    expect(parsed?.meta.history).toEqual([
+      { version: 3, status: 'detected', at: '2026-11-04', restoredFrom: 1 }
+    ])
+  })
+
   it('keeps the tokens when the metadata is missing', () => {
     const parsed = parseDesignTokens(JSON.stringify({ color: { primary: { $value: '#fff' } } }))
     expect(parsed?.tokens).toHaveLength(1)

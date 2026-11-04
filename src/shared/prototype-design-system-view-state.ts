@@ -43,6 +43,16 @@ export type DesignSystemSelection =
   | { kind: 'token'; id: string }
   | { kind: 'component'; name: string; element?: DesignElementPick }
 
+/** An image attached to the draft; pending while it uploads, so Send waits for it. */
+export type DesignSystemDraftImage = {
+  id: string
+  name: string
+  /** Where the agent reads it; absent while pending. */
+  path?: string
+  /** The SSH connection a remote image lives on; kept by the client, never sent. */
+  connectionId?: string
+}
+
 /** The sends of the view: the draft, a re-detect, and a palette approval. */
 export type DesignSystemSendKind = 'draft' | 'redetect' | 'palette'
 
@@ -54,6 +64,8 @@ export type DesignSystemViewState = {
   /** Whether the draft also rebuilds the sets built on the current version. */
   rebuild: boolean
   freeText: string
+  /** Images the draft carries to the agent, attached from "Anything else" or a note. */
+  images: readonly DesignSystemDraftImage[]
   addOpen: boolean
   /** The kind chip the add panel has picked; a typed description wins over it. */
   addChoice: string
@@ -75,6 +87,7 @@ export function emptyDesignSystemViewState(): DesignSystemViewState {
     draft: emptyDesignSystemDraft(),
     rebuild: true,
     freeText: '',
+    images: [],
     addOpen: false,
     addChoice: DESIGN_SYSTEM_ADD_CHOICES[0],
     addText: '',
@@ -121,8 +134,61 @@ export function sendAccepted(
 ): DesignSystemViewState {
   const settled = { ...state, sending: false, failed: null }
   return kind === 'draft'
-    ? { ...settled, draft: emptyDesignSystemDraft(), freeText: '', rebuild: true }
+    ? {
+        ...settled,
+        draft: emptyDesignSystemDraft(),
+        freeText: '',
+        images: [],
+        rebuild: true
+      }
     : settled
+}
+
+/** Adds an image to the draft, pending until its path is known. */
+export function beginDraftImage(
+  state: DesignSystemViewState,
+  image: DesignSystemDraftImage
+): DesignSystemViewState {
+  return { ...state, images: [...state.images, image] }
+}
+
+/** Gives a pending image its path; an image the user removed meanwhile stays removed. */
+export function resolveDraftImage(
+  state: DesignSystemViewState,
+  id: string,
+  path: string,
+  connectionId?: string | null
+): DesignSystemViewState {
+  return {
+    ...state,
+    images: state.images.map((image) =>
+      image.id === id ? { ...image, path, ...(connectionId ? { connectionId } : {}) } : image
+    )
+  }
+}
+
+export function removeDraftImage(state: DesignSystemViewState, id: string): DesignSystemViewState {
+  return { ...state, images: state.images.filter((image) => image.id !== id) }
+}
+
+/** The draft's images ready to send; none while one still uploads. */
+export function sendableDraftImages(
+  state: DesignSystemViewState
+): { path: string; connectionId?: string }[] {
+  return state.images.flatMap((image) =>
+    image.path === undefined
+      ? []
+      : [
+          {
+            path: image.path,
+            ...(image.connectionId ? { connectionId: image.connectionId } : {})
+          }
+        ]
+  )
+}
+
+export function draftImagesPending(state: DesignSystemViewState): boolean {
+  return state.images.some((image) => image.path === undefined)
 }
 
 /** A refused send keeps the draft and the text exactly as they were. */
