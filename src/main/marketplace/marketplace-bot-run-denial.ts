@@ -9,11 +9,10 @@ import {
   type MarketplaceAppId,
   type MarketplaceAppStatus
 } from '../../shared/marketplace-apps'
+import { BOT_RUN_BOT_ID_OPTION, BOT_RUN_TEAM_ID_OPTION } from '../../shared/bot-run-session-options'
 import { getMarketplaceVault } from './marketplace-vault'
 
-/** Session option keys that mark a session as one bot's run; they survive restarts with the record. */
-export const BOT_RUN_BOT_ID_OPTION = 'botTeamBotId'
-export const BOT_RUN_TEAM_ID_OPTION = 'botTeamId'
+export { BOT_RUN_BOT_ID_OPTION, BOT_RUN_TEAM_ID_OPTION }
 
 export type BotRunDenialResolver = typeof resolveBotRunDenial
 
@@ -44,14 +43,20 @@ const DENY_EVERY_APP: BotRunDenial = {
   envPrefixes: [`${OPENMETADATA_TOKEN_ENV}_`]
 }
 
-async function listConnectedApps(): Promise<MarketplaceAppStatus[]> {
-  // Why: access policies live in the vault, so a host that never connected an app denies nothing.
-  if (getMarketplaceVault().isEmpty()) {
-    return []
-  }
-  // Why: the defaults module pulls in process detection a plain launch resolver should not load.
-  const { createDefaultMarketplaceAppsService } = await import('./marketplace-apps-defaults')
-  return createDefaultMarketplaceAppsService().listApps()
+/**
+ * Every app with its stored policy, counted as connected: token injection reads the vault without
+ * checking whether an app is connected, so the denial must not depend on it either.
+ */
+async function listAppsByStoredPolicy(): Promise<MarketplaceAppStatus[]> {
+  const state = getMarketplaceVault().readStateForDenial()
+  const profiles = state.openMetadata.profiles.map((profile) => ({ ...profile, hasToken: true }))
+  return MARKETPLACE_APP_IDS.map((id) => ({
+    id,
+    connected: true,
+    agents: [],
+    access: state.access[id],
+    ...(id === 'openmetadata' ? { profiles } : {})
+  }))
 }
 
 /**
@@ -60,7 +65,7 @@ async function listConnectedApps(): Promise<MarketplaceAppStatus[]> {
  */
 export async function resolveBotRunDenial(
   options: Readonly<Record<string, string>> | undefined,
-  listApps: () => Promise<MarketplaceAppStatus[]> = listConnectedApps
+  listApps: () => Promise<MarketplaceAppStatus[]> = listAppsByStoredPolicy
 ): Promise<BotRunDenial | null> {
   const bot = botRunOfOptions(options)
   if (!bot) {
@@ -85,7 +90,7 @@ export async function resolveBotRunDenial(
 /** The ids of the connected apps a bot is kept out of, for prompts; an unreadable list denies every app. */
 export async function deniedMarketplaceAppIdsForBot(
   bot: { botId: string; teamId: string },
-  listApps: () => Promise<MarketplaceAppStatus[]> = listConnectedApps
+  listApps: () => Promise<MarketplaceAppStatus[]> = listAppsByStoredPolicy
 ): Promise<MarketplaceAppId[]> {
   try {
     return marketplaceAppsDeniedForBot(await listApps(), bot).map((app) => app.id)
@@ -140,15 +145,19 @@ export async function botRunChildEnv(
     : { env }
 }
 
-/** The env var names a spawn must delete from the env it inherits, prefixes expanded against it. */
+/**
+ * The env var names a spawn must delete from the env it inherits, names and prefixes expanded
+ * against it ignoring case, since a spawn deletes exact keys and Windows names are case-blind.
+ */
 export function botRunEnvKeysToDelete(
   denial: BotRunDenial,
   inherited: Record<string, string | undefined> = process.env
 ): string[] {
-  const prefixed = Object.keys(inherited).filter((key) =>
-    denial.envPrefixes.some((prefix) => key.startsWith(prefix))
+  const kept = new Set(
+    Object.keys(deleteEnvKeys({ ...inherited }, denial.envNames, denial.envPrefixes))
   )
-  return [...new Set([...denial.envNames, ...prefixed])]
+  const inheritedDenied = Object.keys(inherited).filter((key) => !kept.has(key))
+  return [...new Set([...denial.envNames, ...inheritedDenied])]
 }
 
 /** Claude deny rules that remove every tool of each denied MCP server from the model's tool list. */

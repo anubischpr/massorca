@@ -107,6 +107,15 @@ describe('denied env and tools', () => {
     ).toEqual(['A', 'TOK_ONE'])
   })
 
+  it('lists inherited names in another case, since a spawn deletes exact keys', () => {
+    expect(
+      botRunEnvKeysToDelete(
+        { mcpServers: [], envNames: ['ENGRAM_CLOUD_TOKEN'], envPrefixes: ['TOK_'] },
+        { engram_cloud_token: '1', tok_two: '2', OTHER: '3' }
+      )
+    ).toEqual(['ENGRAM_CLOUD_TOKEN', 'engram_cloud_token', 'tok_two'])
+  })
+
   it('turns denied servers into Claude deny rules for all their tools', async () => {
     const denial = await resolveBotRunDenial(botRunOptions(BOT), listApps)
     expect(claudeBotRunDisallowedTools(denial)).toEqual([
