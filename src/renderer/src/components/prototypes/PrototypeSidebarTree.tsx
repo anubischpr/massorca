@@ -102,6 +102,8 @@ export function PrototypeSidebarTree({
   )
   // Hosts that answered an archive action with method_not_found: their sets are not offered the actions.
   const [outdatedHosts, setOutdatedHosts] = useState<ReadonlySet<string>>(() => new Set())
+  // The set whose row menu is open; one at a time, since the sidebar can swallow the outside click.
+  const [openMenuRequestId, setOpenMenuRequestId] = useState<string | null>(null)
 
   const runSetAction = async (
     action: PrototypeSetAction,
@@ -151,6 +153,8 @@ export function PrototypeSidebarTree({
           onOpenRequest={onOpenRequest}
           onOpenSystem={onOpenSystem}
           archive={archive}
+          openMenuRequestId={openMenuRequestId}
+          onOpenMenuChange={setOpenMenuRequestId}
         />
       ))}
       <PrototypeArchivedGroup
@@ -171,7 +175,9 @@ function TreeGroup({
   onToggleCollapsed,
   onOpenRequest,
   onOpenSystem,
-  archive
+  archive,
+  openMenuRequestId,
+  onOpenMenuChange
 }: {
   group: PrototypeListGroup
   selectedRequestId: string | null
@@ -181,6 +187,8 @@ function TreeGroup({
   onOpenRequest: (requestId: string) => void
   onOpenSystem: (projectKey: string) => void
   archive: PrototypeArchiveControls
+  openMenuRequestId: string | null
+  onOpenMenuChange: (requestId: string | null) => void
 }): React.JSX.Element {
   const { projectKey, projectName, system, rows } = group
   const expanded =
@@ -216,6 +224,14 @@ function TreeGroup({
               row={row}
               selected={row.set.requestId === selectedRequestId}
               onSelect={() => onOpenRequest(row.set.requestId)}
+              menuOpen={openMenuRequestId === row.set.requestId}
+              onMenuOpenChange={(open) => {
+                if (open) {
+                  onOpenMenuChange(row.set.requestId)
+                } else if (openMenuRequestId === row.set.requestId) {
+                  onOpenMenuChange(null)
+                }
+              }}
               {...(archive.supports(row.set)
                 ? { onArchive: () => archive.onArchive(row.set) }
                 : {})}

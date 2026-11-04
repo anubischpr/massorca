@@ -211,6 +211,27 @@ describe('PrototypeSidebarTree groups', () => {
     expect(onToggleCollapsed).toHaveBeenCalledWith('prototypes-project:nexus')
   })
 
+  it('shows the number of prototypes on each page instead of its age', () => {
+    const versions = (letter: string): PrototypeListedSet['directions'][number] => ({
+      letter,
+      versions: [
+        { version: 1, fileName: `prototypes/r1/${letter}.html`, mtime: Date.now() - 86_400_000 }
+      ]
+    })
+    renderTree({
+      sets: [
+        set('r1', NEXUS, {
+          chatTitle: 'Checkout',
+          count: 3,
+          directions: [versions('A'), versions('B'), versions('C')]
+        })
+      ]
+    })
+    const row = screen.getByRole('button', { name: /^Checkout/ })
+    expect(within(row).getByText('3')).toBeInTheDocument()
+    expect(within(row).queryByText('1d')).toBeNull()
+  })
+
   it('keeps a long title on one line and names the full title in its tooltip', async () => {
     const title = 'A long prototype title that would wrap onto a second line in the sidebar'
     renderTree({ sets: [set('r1', NEXUS, { title })] })
@@ -341,6 +362,29 @@ describe('PrototypeSidebarTree Archived group', () => {
     await user.click(screen.getByRole('button', { name: 'Actions for Checkout' }))
     await user.click(await screen.findByRole('menuitem', { name: 'Archive' }))
     expect(onSelectRequest).toHaveBeenCalledWith('r2')
+  })
+
+  it('keeps one row menu open: opening another row menu closes the previous one', () => {
+    renderTree({
+      sets: [
+        set('r1', NEXUS, { chatTitle: 'Checkout' }),
+        set('r2', NEXUS, { chatTitle: 'Pricing' })
+      ]
+    })
+    fireEvent.keyDown(screen.getByRole('button', { name: 'Actions for Checkout' }), {
+      key: 'Enter'
+    })
+    expect(screen.getAllByRole('menu')).toHaveLength(1)
+    fireEvent.keyDown(screen.getByRole('button', { name: 'Actions for Pricing', hidden: true }), {
+      key: 'Enter'
+    })
+    expect(screen.getAllByRole('menu')).toHaveLength(1)
+    expect(
+      screen.getByRole('button', { name: 'Actions for Pricing', hidden: true })
+    ).toHaveAttribute('data-state', 'open')
+    expect(
+      screen.getByRole('button', { name: 'Actions for Checkout', hidden: true })
+    ).toHaveAttribute('data-state', 'closed')
   })
 
   it('drops the row actions of a host that predates archiving', async () => {
