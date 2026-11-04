@@ -22,6 +22,12 @@ export default function MobilePrototypeSetRoute() {
           params: { hostId, request: requestId }
         })
       }
+      onOpenVersion={(version) =>
+        router.push({
+          pathname: '/h/[hostId]/prototypes/viewer',
+          params: { hostId, request: requestId, version: String(version) }
+        })
+      }
     />
   )
 }

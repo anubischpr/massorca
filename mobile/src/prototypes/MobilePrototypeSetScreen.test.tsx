@@ -45,16 +45,31 @@ vi.mock('./mobile-prototype-merge-flow', () => ({
   sendMobilePrototypeMerge: merge.send
 }))
 vi.mock('./use-mobile-prototype-merge-plan', () => ({ useMobilePrototypeMergePlan: vi.fn() }))
-// The drawer's own animation is not under test: it shows its sheet's content while it has one.
-vi.mock('../components/keyed-bottom-drawer', () => ({
-  KeyedBottomDrawer: ({
-    sheet,
-    children
-  }: {
-    sheet: string | null
-    children: (sheet: string) => unknown
-  }) => (sheet === null ? null : children(sheet))
-}))
+// The drawer's own animation is not under test: it shows its sheet's content while it has one, and
+// reports a sheet that has closed through onAfterClose, as the real drawer does once it unmounts.
+vi.mock('../components/keyed-bottom-drawer', async () => {
+  const { useEffect, useRef } = await import('react')
+  return {
+    KeyedBottomDrawer: ({
+      sheet,
+      children,
+      onAfterClose
+    }: {
+      sheet: string | null
+      children: (sheet: string) => unknown
+      onAfterClose?: (closed: string) => void
+    }) => {
+      const presented = useRef<string | null>(null)
+      useEffect(() => {
+        if (sheet === null && presented.current !== null) {
+          onAfterClose?.(presented.current)
+        }
+        presented.current = sheet
+      }, [sheet, onAfterClose])
+      return sheet === null ? null : children(sheet)
+    }
+  }
+})
 
 const SET = listedSet({ requestId: 'req-1' })
 const listing: { set: PrototypeListedSet } = { set: SET }
@@ -112,7 +127,8 @@ function mainOnB(): PrototypeSetState {
 
 function mount(
   onOpenDirection: () => void = vi.fn(),
-  initial: PrototypeSetState = mainOnB()
+  initial: PrototypeSetState = mainOnB(),
+  onOpenVersion: (version: number) => void = vi.fn()
 ): ReactTestRenderer {
   useMobilePrototypeViewStore.setState({ states: { [KEY]: initial } })
   let renderer: ReactTestRenderer | undefined
@@ -122,7 +138,8 @@ function mount(
         hostId: 'host-1',
         requestId: 'req-1',
         onBack: vi.fn(),
-        onOpenDirection
+        onOpenDirection,
+        onOpenVersion
       })
     )
   })
@@ -414,5 +431,48 @@ describe('the set screen names the parent chat of a delegated set', () => {
     const tree = mount()
     expect(texts(tree.root, 'Text')).toContain('Codex · 3 directions')
     expect(tree.root.findAll((node) => node.props.accessibilityRole === 'link')).toHaveLength(0)
+  })
+})
+
+describe('the Versions of a direction', () => {
+  /** The Versions action in a direction's ⋯ menu, once the menu is open. */
+  function versionsAction(root: ReactTestInstance): ReactTestInstance {
+    const [found] = root.findAll((node) => isHost(node, 'Pressable') && textOf(node) === 'Versions')
+    if (found === undefined) {
+      throw new Error('no Versions action in the menu')
+    }
+    return found
+  }
+
+  it('is one action in the ⋯ menu of its direction card', () => {
+    const tree = mount()
+    expect(texts(tree.root, 'Text')).not.toContain('Versions')
+    act(() => byLabel(tree.root, 'More for direction B').props.onPress())
+    expect(versionsAction(tree.root)).toBeDefined()
+  })
+
+  it('lists its versions newest first, and an earlier one opens that version of the direction', () => {
+    const onOpenVersion = vi.fn()
+    const tree = mount(vi.fn(), createMobileSetState(['A', 'B', 'C']), onOpenVersion)
+    act(() => byLabel(tree.root, 'More for direction B').props.onPress())
+    act(() => versionsAction(tree.root).props.onPress())
+
+    expect(texts(tree.root, 'Text')).toContain('Versions of B')
+    const rowLabels = tree.root
+      .findAll(
+        (node) =>
+          isHost(node, 'Pressable') &&
+          typeof node.props.accessibilityLabel === 'string' &&
+          /^(Current · )?v\d+,/.test(node.props.accessibilityLabel)
+      )
+      .map((node) => node.props.accessibilityLabel)
+    expect(rowLabels).toEqual([
+      expect.stringMatching(/^Current · v2,/),
+      expect.stringMatching(/^v1,/)
+    ])
+
+    act(() => byLabel(tree.root, rowLabels[1]).props.onPress())
+    expect(onOpenVersion).toHaveBeenCalledWith(1)
+    expect(useMobilePrototypeViewStore.getState().states[KEY]?.view).toBe('B')
   })
 })
