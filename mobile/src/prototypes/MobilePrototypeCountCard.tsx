@@ -10,7 +10,8 @@ export function MobilePrototypeCountCard({
   onChoose,
   onOpenSettings
 }: {
-  ask: MobilePrototypeAsk
+  /** Only what the card shows, so a surface without a chat draft (the Bot teams room) can render it. */
+  ask: Pick<MobilePrototypeAsk, 'agentName' | 'defaultCount' | 'keyword'>
   onChoose: (choice: NativeChatPrototypeChoice) => void
   onOpenSettings: () => void
 }) {
