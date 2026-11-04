@@ -412,39 +412,7 @@ describe('MarketplaceAppPage', () => {
 
   describe('Who can use it', () => {
     const AGENTS_MODE = 'Workspaces agents: who can use it'
-    const BOTS_MODE = 'Bot teams: who can use it'
     const EVERYONE = everyoneAccessPolicy()
-    const alphaTeam: BotTeam = {
-      id: 'team-alpha',
-      name: 'Alpha',
-      purpose: '',
-      character: 'square',
-      workspacesEnabled: false,
-      accessMode: 'default',
-      bots: [
-        {
-          id: 'bot-max',
-          name: 'Max',
-          job: 'Writes code',
-          agent: 'claude',
-          modelMode: 'auto',
-          model: null,
-          effort: null,
-          skills: []
-        },
-        {
-          id: 'bot-ana',
-          name: 'Ana',
-          job: 'Reviews code',
-          agent: 'codex',
-          modelMode: 'auto',
-          model: null,
-          effort: null,
-          skills: []
-        }
-      ]
-    }
-
     function radioOf(scope: ParentNode, label: string, option: string): HTMLButtonElement {
       const group = scope.querySelector(`[aria-label="${label}"]`)
       const radio = [...(group?.querySelectorAll<HTMLButtonElement>('[role="radio"]') ?? [])].find(
@@ -468,13 +436,13 @@ describe('MarketplaceAppPage', () => {
     }
 
     it.each<MarketplaceAppId>(['engram', 'openmetadata', 'github'])(
-      'defaults agents and bots to Everyone on the %s page',
+      'defaults Workspaces agents to Everyone and shows no Bot teams row on the %s page',
       async (appId) => {
         const container = await mount(appId)
         expect(radioOf(container, AGENTS_MODE, 'Everyone').getAttribute('aria-checked')).toBe(
           'true'
         )
-        expect(radioOf(container, BOTS_MODE, 'Everyone').getAttribute('aria-checked')).toBe('true')
+        expect(container.querySelector('[aria-label="Bot teams: who can use it"]')).toBeNull()
         expect(mocks.setAccessPolicy).not.toHaveBeenCalled()
       }
     )
@@ -503,50 +471,6 @@ describe('MarketplaceAppPage', () => {
       expect(mocks.setAccessPolicy).toHaveBeenCalledWith({
         id: 'engram',
         policy: { ...EVERYONE, agents: { mode: 'only', ids: ['codex'] } }
-      })
-    })
-
-    it('removes a picked bot from the chips and keeps the others', async () => {
-      mocks.teams.push(alphaTeam)
-      seedApps([
-        {
-          ...engram,
-          access: {
-            ...EVERYONE,
-            bots: { mode: 'only', botIds: ['bot-max', 'bot-ana'], teamIds: [] }
-          }
-        },
-        openmetadata,
-        github
-      ])
-      const container = await mount('engram')
-      await act(async () => {
-        container.querySelector<HTMLButtonElement>('button[aria-label="Remove Max"]')?.click()
-      })
-      expect(mocks.setAccessPolicy).toHaveBeenCalledWith({
-        id: 'engram',
-        policy: { ...EVERYONE, bots: { mode: 'only', botIds: ['bot-ana'], teamIds: [] } }
-      })
-    })
-
-    it('adds a whole team from the picker', async () => {
-      mocks.teams.push(alphaTeam)
-      seedApps([
-        { ...engram, access: { ...EVERYONE, bots: { mode: 'except', botIds: [], teamIds: [] } } },
-        openmetadata,
-        github
-      ])
-      await mount('engram')
-      await clickButton(document.body, 'Add a bot or team')
-      const wholeTeam = [...document.querySelectorAll('[cmdk-item]')].find((item) =>
-        item.textContent?.includes('Whole team')
-      )
-      await act(async () => {
-        wholeTeam?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
-      })
-      expect(mocks.setAccessPolicy).toHaveBeenCalledWith({
-        id: 'engram',
-        policy: { ...EVERYONE, bots: { mode: 'except', botIds: [], teamIds: ['team-alpha'] } }
       })
     })
 

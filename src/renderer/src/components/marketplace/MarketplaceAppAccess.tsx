@@ -10,10 +10,9 @@ import {
 } from '../../../../shared/marketplace-apps'
 import type { MarketplaceAppContext } from './marketplace-app-context'
 import { MarketplaceAppAccessAgents } from './MarketplaceAppAccessAgents'
-import { MarketplaceAppAccessBots } from './MarketplaceAppAccessBots'
-import { withAgentMode, withBotMode } from './MarketplaceAppAccessEdit'
+import { withAgentMode } from './MarketplaceAppAccessEdit'
 
-/** Who may use the app: everyone by default; a limit here narrows agents and bots. */
+/** Who may use the app: every Workspaces agent by default; bots keep the stored policy for later. */
 export function MarketplaceAppAccess({ ctx }: { ctx: MarketplaceAppContext }): React.JSX.Element {
   const policy = ctx.status.access ?? everyoneAccessPolicy()
   const [saving, setSaving] = useState(false)
@@ -34,7 +33,7 @@ export function MarketplaceAppAccess({ ctx }: { ctx: MarketplaceAppContext }): R
         <CardDescription>
           {translate(
             'auto.components.marketplace.MarketplaceAppAccess.intro',
-            'By default every agent and bot can use {{app}}. Limit it here only if you need to.',
+            'By default every Workspaces agent can use {{app}}. Limit it here only if you need to.',
             { app: ctx.info.name }
           )}
         </CardDescription>
@@ -82,35 +81,6 @@ export function MarketplaceAppAccess({ ctx }: { ctx: MarketplaceAppContext }): R
                 )}
               </p>
             ) : null}
-          </div>
-          <div className="flex flex-col gap-2">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <p className="text-sm font-medium">
-                {translate('auto.components.marketplace.MarketplaceAppAccess.bots', 'Bot teams')}
-              </p>
-              <AccessModeToggle
-                label={translate(
-                  'auto.components.marketplace.MarketplaceAppAccess.botsMode',
-                  'Bot teams: who can use it'
-                )}
-                mode={policy.bots.mode}
-                disabled={saving}
-                onChange={(mode) => save({ ...policy, bots: withBotMode(policy.bots, mode) })}
-              />
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {translate(
-                'auto.components.marketplace.MarketplaceAppAccess.botsHelp',
-                'Pick Only these or All except to choose bots or whole teams.'
-              )}
-            </p>
-            {policy.bots.mode === 'everyone' ? null : (
-              <MarketplaceAppAccessBots
-                bots={policy.bots}
-                disabled={saving}
-                onChange={(bots) => save({ ...policy, bots })}
-              />
-            )}
           </div>
         </div>
       </CardContent>
