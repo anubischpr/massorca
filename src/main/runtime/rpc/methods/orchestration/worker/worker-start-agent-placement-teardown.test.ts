@@ -72,7 +72,7 @@ describe('a worker launch that throws after its session exists', () => {
       ensureStructuredAgentSessionHost: async () => {},
       forgetStructuredSessionMail: vi.fn()
     }
-    const db = { recordWorkerStage: vi.fn() }
+    const db = { recordWorkerStage: vi.fn(), db: { prepare: () => ({ get: () => undefined }) } }
 
     await expect(
       placeWorkerAgent({

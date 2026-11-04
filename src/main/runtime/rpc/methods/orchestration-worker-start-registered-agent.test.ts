@@ -66,6 +66,7 @@ describe('a Grok worker and the structured-chat setting', () => {
         worktreeId: 'wt-1',
         agent: 'cursor',
         dispatchId: 'd-1',
+        db: {} as never,
         effects: []
       })
     ).rejects.toThrow(/cursor has no structured session on this host/)

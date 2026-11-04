@@ -111,7 +111,9 @@ function fakes() {
       task: { id: 't1', spec: 'do the thing' }
     }),
     recordWorkerStage: () => {},
-    prepareStartingWorkerAuthority: () => {}
+    prepareStartingWorkerAuthority: () => {},
+    // The bot hand-over lookup: this dispatch descends from no bot.
+    db: { prepare: () => ({ get: () => undefined }) }
   } as unknown as OrchestrationDb
   return { runtime, db, retireStructuredAgentSessionTabFromSnapshot }
 }

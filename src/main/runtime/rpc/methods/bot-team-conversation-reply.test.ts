@@ -7,6 +7,7 @@ const askBot = vi.hoisted(() =>
   vi.fn(
     async (_args: {
       agent: { id: string } | null
+      botRun?: { botId: string; teamId: string }
       prompt: string
       research?: boolean
     }): Promise<string | null> => 'Hola'
@@ -148,6 +149,12 @@ describe('startBotTeamConversationReply', () => {
     const { team, ctx } = setup('claude')
     await startBotTeamConversationReply(ctx, { team, text: 'Hola', subjectBotIds: [] })?.done
     expect(askBot.mock.calls[0][0].research).toBeFalsy()
+  })
+
+  it('asks the answering bot’s agent as that bot, so its denied apps stay out of the turn', async () => {
+    const { team, ctx } = setup('claude')
+    await startBotTeamConversationReply(ctx, { team, text: 'Hola', subjectBotIds: [] })?.done
+    expect(askBot.mock.calls[0][0].botRun).toEqual({ botId: team.bots[0].id, teamId: team.id })
   })
 
   it('adds no line for an app the answering bot is kept out of', async () => {
