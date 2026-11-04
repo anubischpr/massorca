@@ -12,7 +12,8 @@ import type {
 } from '../../../src/shared/rpc-contract/bot-team-room-params'
 import { spacing } from '../theme/mobile-theme'
 import type { RpcClient } from '../transport/rpc-client'
-import { MobileBotTeamBrief } from './MobileBotTeamBrief'
+import { MobileBotTeamProjectBrief } from './MobileBotTeamProjectBrief'
+import { MobileBotTeamCharacterIcon } from './MobileBotTeamCharacterIcon'
 import { MobileBotTeamConnectCode } from './MobileBotTeamConnectCode'
 import { MobileBotTeamWorkspaceLink } from './MobileBotTeamProjectWorkspace'
 import { MobileBotTeamTaskCard } from './MobileBotTeamTaskCard'
@@ -20,13 +21,17 @@ import { MobileBotTeamWorkBar } from './MobileBotTeamWorkBar'
 import { botTeamStyles as styles } from './mobile-bot-team-styles'
 import { useMobileBotTeamTaskStatus } from './use-mobile-bot-team-task-status'
 
+const NO_TEAMS: readonly BotTeam[] = []
+const NO_TASKS: readonly BotTeamTask[] = []
+
 /** A project's board, with its Brief one tap away: the cards of its tasks by column. */
 export function MobileBotTeamProject({
   client,
   team,
-  teams,
+  teams = NO_TEAMS,
   project,
   tasks,
+  projectTasks = NO_TASKS,
   tab,
   offline,
   workspaceId,
@@ -37,9 +42,11 @@ export function MobileBotTeamProject({
 }: {
   client: RpcClient
   team: BotTeam
-  teams: readonly BotTeam[]
+  teams?: readonly BotTeam[]
   project: BotTeamProject
   tasks: readonly BotTeamTask[]
+  /** Tasks other teams filed in this project; only a host that shares projects sends them. */
+  projectTasks?: readonly BotTeamTask[]
   tab: 'board' | 'brief'
   offline: boolean
   workspaceId: string | null
@@ -51,9 +58,17 @@ export function MobileBotTeamProject({
 }) {
   const [column, setColumn] = useState<BotTeamBoardColumn>('In Progress')
   const statusOf = useMobileBotTeamTaskStatus(client)
-  const columnOf = (task: BotTeamTask) => botTeamBoardColumn(statusOf(task))
-  const projectTasks = tasks.filter((task) => task.projectId === project.id)
-  const shown = projectTasks.filter((task) => columnOf(task) === column)
+  // An unknown status is placed by the task's stored last status, never as in progress.
+  const columnOf = (task: BotTeamTask) => {
+    const status = statusOf(task)
+    return botTeamBoardColumn(status === 'Unknown' ? (task.lastStatus ?? 'Unknown') : status)
+  }
+  const inProject = [...tasks, ...projectTasks].filter((task) => task.projectId === project.id)
+  const shown = inProject.filter((task) => columnOf(task) === column)
+  // The owner team's Workspaces setting and workspace link apply to the project.
+  const ownerTeam = teams.find((entry) => entry.id === project.teamId) ?? team
+  const linkedHere = project.teamId !== team.id
+  const shared = (project.linkedTeamIds?.length ?? 0) > 0 || linkedHere
 
   return (
     <View style={styles.grow}>
@@ -80,10 +95,17 @@ export function MobileBotTeamProject({
         </Pressable>
       </View>
       {tab === 'brief' ? (
-        <MobileBotTeamBrief project={project} />
+        <MobileBotTeamProjectBrief project={project} />
       ) : (
         <ScrollView contentContainerStyle={styles.form}>
-          {team.workspacesEnabled ? (
+          {linkedHere ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+              <Text style={styles.rowMeta}>Owner</Text>
+              <MobileBotTeamCharacterIcon character={ownerTeam.character} size={14} />
+              <Text style={styles.rowTitle}>{ownerTeam.name}</Text>
+            </View>
+          ) : null}
+          {ownerTeam.workspacesEnabled ? (
             <MobileBotTeamConnectCode
               client={client}
               project={project}
@@ -91,10 +113,10 @@ export function MobileBotTeamProject({
               onChanged={onChanged}
             />
           ) : null}
-          {team.workspacesEnabled && project.codeSource === 'repo' ? (
+          {ownerTeam.workspacesEnabled && project.codeSource === 'repo' ? (
             <MobileBotTeamWorkspaceLink
               client={client}
-              teamId={team.id}
+              teamId={ownerTeam.id}
               project={project}
               offline={offline}
               onChanged={onChanged}
@@ -109,7 +131,7 @@ export function MobileBotTeamProject({
                 style={[styles.chip, column === name && styles.rowSelected]}
               >
                 <Text style={styles.rowTitle}>
-                  {`${name} ${projectTasks.filter((task) => columnOf(task) === name).length}`}
+                  {`${name} ${inProject.filter((task) => columnOf(task) === name).length}`}
                 </Text>
               </Pressable>
             ))}
@@ -117,22 +139,32 @@ export function MobileBotTeamProject({
           {shown.length === 0 ? (
             <Text style={styles.message}>Nothing in this column yet.</Text>
           ) : null}
-          {shown.map((task) => (
-            <MobileBotTeamTaskCard
-              key={task.id}
-              client={client}
-              task={task}
-              team={team}
-              teams={teams}
-              offline={offline}
-              onReassigned={onChanged}
-              onOpen={() => {
-                if (workspaceId) {
-                  onOpenTask(workspaceId, task)
-                }
-              }}
-            />
-          ))}
+          {shown.map((task) => {
+            const taskTeam = teams.find((entry) => entry.id === task.teamId) ?? team
+            return (
+              <View key={task.id}>
+                <MobileBotTeamTaskCard
+                  client={client}
+                  task={task}
+                  team={taskTeam}
+                  teams={teams}
+                  offline={offline}
+                  onReassigned={onChanged}
+                  onOpen={() => {
+                    if (workspaceId) {
+                      onOpenTask(workspaceId, task)
+                    }
+                  }}
+                />
+                {shared ? (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+                    <MobileBotTeamCharacterIcon character={taskTeam.character} size={14} />
+                    <Text style={styles.rowMeta}>{taskTeam.name}</Text>
+                  </View>
+                ) : null}
+              </View>
+            )
+          })}
         </ScrollView>
       )}
     </View>

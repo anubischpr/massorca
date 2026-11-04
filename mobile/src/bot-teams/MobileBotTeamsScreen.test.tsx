@@ -22,6 +22,7 @@ vi.mock('react-native', () => ({
   View: 'View'
 }))
 vi.mock('react-native-safe-area-context', () => ({ SafeAreaView: 'SafeAreaView' }))
+vi.mock('../components/MobileRepoIcon', () => ({ MobileRepoIcon: 'MobileRepoIcon' }))
 vi.mock('lucide-react-native', () => ({
   ChevronDown: 'ChevronDown',
   ChevronLeft: 'ChevronLeft',
@@ -40,6 +41,10 @@ vi.mock('lucide-react-native', () => ({
 vi.mock('../transport/host-client-hooks', () => ({ useHostClient: () => ({ client }) }))
 vi.mock('../components/MobileAgentIcon', () => ({ MobileAgentIcon: () => null }))
 vi.mock('./MobileBotTeamRoom', () => ({ MobileBotTeamRoom: () => null }))
+// Why: expo-router does not load under vitest; the room's Prototypes links are covered on their own.
+vi.mock('../prototypes/use-open-mobile-prototype-set', () => ({
+  useOpenMobilePrototypeSet: () => () => {}
+}))
 vi.mock('./MobileBotTeamCharacterIcon', () => ({ MobileBotTeamCharacterIcon: () => null }))
 vi.mock('./mobile-bot-character-preference', () => ({
   setBotCharacterAnimations: () => {},

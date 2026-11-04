@@ -1,9 +1,10 @@
-import type { KeyboardEvent, ReactNode } from 'react'
+import { useRef, type KeyboardEvent, type ReactNode, type RefObject } from 'react'
 import { ArrowUp, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { translate } from '@/i18n/i18n'
 import { ImeTextarea } from '@/lib/ime-text-field'
 import { CreateChatChipMenuGroup } from './CreateChatChipMenu'
+import { useCreateChatMention } from './use-create-chat-mention'
 
 /** Wording that differs when another page, such as the Tasks home's Bot Team mode, reuses the box. */
 export type CreateChatComposerCopy = {
@@ -32,6 +33,14 @@ type CreateChatComposerProps = {
   rightChips: ReactNode
   /** Defaults to the session wording. */
   copy?: CreateChatComposerCopy
+  /** The worktree whose files `@` lists, as the workspace chat does; null or absent offers none. */
+  mentionWorktreeId?: string | null
+  /** A field that replaces the textarea, with its own `@` menu (the Tasks home's Bot Team mode). */
+  editorField?: {
+    render: (className: string) => ReactNode
+    menu: ReactNode
+    containerRef: RefObject<HTMLDivElement | null>
+  }
 }
 
 /** The first-message box: the place row above it, the text, footer chips, send, any launch error and the hint. */
@@ -46,7 +55,9 @@ export function CreateChatComposer({
   footerChips,
   notice,
   rightChips,
-  copy
+  copy,
+  mentionWorktreeId,
+  editorField
 }: CreateChatComposerProps): React.JSX.Element {
   const placeholder =
     copy?.placeholder ??
@@ -54,7 +65,25 @@ export function CreateChatComposer({
       'components.createChat.composerPlaceholder',
       'Describe the task to start the session…'
     )
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null)
+  const mention = useCreateChatMention({
+    worktreeId: editorField ? null : (mentionWorktreeId ?? null),
+    draft,
+    setDraft: onDraftChange,
+    // ImeTextarea drops composition keys before they reach the handler.
+    isComposing: () => false,
+    send: () => {
+      if (canSubmit) {
+        onSubmit()
+      }
+    },
+    textareaRef
+  })
   const handleKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>): void => {
+    if (mention.menu) {
+      mention.onKeyDown(event)
+      return
+    }
     // Why: Shift+Enter keeps the newline; IME composition is filtered by ImeTextarea before this runs.
     if (event.key !== 'Enter' || event.shiftKey) {
       return
@@ -79,16 +108,32 @@ export function CreateChatComposer({
             {placeChips}
           </fieldset>
         </div>
-        <div className="relative rounded-xl border border-border bg-card shadow-xs transition-[box-shadow] focus-within:ring-1 focus-within:ring-ring/50">
-          <ImeTextarea
-            rows={3}
-            value={draft}
-            placeholder={placeholder}
-            aria-label={placeholder}
-            onChange={(event) => onDraftChange(event.target.value)}
-            onKeyDown={handleKeyDown}
-            className="block max-h-60 min-h-20 w-full resize-none rounded-xl bg-transparent px-4 pt-3 pb-1 text-sm outline-none placeholder:text-muted-foreground/60"
-          />
+        <div
+          ref={editorField?.containerRef}
+          className="relative rounded-xl border border-border bg-card shadow-xs transition-[box-shadow] focus-within:ring-1 focus-within:ring-ring/50"
+        >
+          {editorField ? editorField.menu : mention.menu}
+          {editorField ? (
+            editorField.render(
+              'scrollbar-sleek block max-h-60 min-h-20 w-full overflow-y-auto rounded-xl px-4 pt-3 pb-1 text-sm'
+            )
+          ) : (
+            <ImeTextarea
+              ref={textareaRef}
+              rows={3}
+              value={draft}
+              placeholder={placeholder}
+              aria-label={placeholder}
+              {...mention.ariaProps}
+              onChange={(event) => {
+                onDraftChange(event.target.value)
+                mention.onCaret(event.target.selectionStart ?? event.target.value.length)
+              }}
+              onSelect={(event) => mention.onCaret(event.currentTarget.selectionStart ?? 0)}
+              onKeyDown={handleKeyDown}
+              className="block max-h-60 min-h-20 w-full resize-none rounded-xl bg-transparent px-4 pt-3 pb-1 text-sm outline-none placeholder:text-muted-foreground/60"
+            />
+          )}
           <div className="flex items-center justify-between gap-2 px-2 pb-2">
             <div className="flex min-w-0 flex-wrap items-center gap-1">
               <fieldset disabled={pending} className="contents">

@@ -12,7 +12,8 @@ export function NativeChatSessionSection({
   summary,
   compact,
   children,
-  openRequest
+  openRequest,
+  onOpenChange
 }: {
   title: string
   /** Headline value beside the title, such as a count or progress. */
@@ -23,8 +24,14 @@ export function NativeChatSessionSection({
   children: React.ReactNode
   /** Expands the section when the chat asks its surface to open. */
   openRequest?: { sessionId: string; surface: NativeChatOpenSurface }
+  /** Reports each change of the open state, whether the person or an open request made it. */
+  onOpenChange?: (open: boolean) => void
 }): React.JSX.Element {
-  const [open, setOpen] = useState(false)
+  const [open, setOpenState] = useState(false)
+  const setOpen = (next: boolean): void => {
+    setOpenState(next)
+    onOpenChange?.(next)
+  }
   useNativeChatOpenSurfaceRequests(
     openRequest?.sessionId ?? null,
     openRequest?.surface ?? 'context',

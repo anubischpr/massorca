@@ -46,7 +46,8 @@ export function useVisibleSidebarWorktrees(args: {
     hideWorkspacesFromOtherDevices,
     alwaysShowDefaultBranchWorkspace,
     visibleWorkspaceHostIds,
-    workspaceHostScope
+    workspaceHostScope,
+    showBotTeamWorkspaces
   } = filterState
   const worktreesByRepo = useAppStore((s) => s.worktreesByRepo)
   const agentStatusEpoch = useAppStore((s) => (!showSleepingWorkspaces ? s.agentStatusEpoch : 0))
@@ -112,12 +113,14 @@ export function useVisibleSidebarWorktrees(args: {
       forcedVisibleWorktreeIds: args.agentSendTargetWorktreeId
         ? [args.agentSendTargetWorktreeId]
         : undefined,
-      botTeamWorkspaceIds
+      botTeamWorkspaceIds,
+      showBotTeamWorkspaces
     })
   }, [
     args.agentSendTargetWorktreeId,
     agentStatusEpoch,
     botTeamWorkspaceIds,
+    showBotTeamWorkspaces,
     agentStatusNow,
     filterRepoIds,
     showSleepingWorkspaces,

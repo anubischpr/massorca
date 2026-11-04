@@ -2,7 +2,8 @@ import {
   BotTeamRoutineCreate,
   BotTeamRoutineList,
   BotTeamRoutineSelector,
-  BotTeamRoutineSetPaused
+  BotTeamRoutineSetPaused,
+  BotTeamRoutineUpdate
 } from '../../../../shared/rpc-contract/bot-team-routine-params'
 import {
   createBotTeamRoutine,
@@ -10,6 +11,10 @@ import {
   listBotTeamRoutines,
   setBotTeamRoutinePaused
 } from '../../orchestration/db/bot-teams/bot-team-routine-store'
+import {
+  deleteBotTeamRoutine,
+  updateBotTeamRoutine
+} from '../../orchestration/db/bot-teams/bot-team-routine-edit'
 import { defineMethod } from '../core'
 
 export const botTeamListRoutinesMethod = defineMethod({
@@ -28,6 +33,25 @@ export const botTeamCreateRoutineMethod = defineMethod({
   handler: (params, { runtime }) => ({
     routine: createBotTeamRoutine(runtime.getOrchestrationDb(), params, Date.now())
   })
+})
+
+export const botTeamUpdateRoutineMethod = defineMethod({
+  name: 'botTeams.updateRoutine',
+  permission: 'workspace',
+  params: BotTeamRoutineUpdate,
+  handler: (params, { runtime }) => ({
+    routine: updateBotTeamRoutine(runtime.getOrchestrationDb(), params, Date.now())
+  })
+})
+
+export const botTeamDeleteRoutineMethod = defineMethod({
+  name: 'botTeams.deleteRoutine',
+  permission: 'workspace',
+  params: BotTeamRoutineSelector,
+  handler: ({ routineId }, { runtime }) => {
+    deleteBotTeamRoutine(runtime.getOrchestrationDb(), routineId)
+    return { deleted: true }
+  }
 })
 
 export const botTeamSetRoutinePausedMethod = defineMethod({
@@ -52,6 +76,8 @@ export const botTeamListRoutineRunsMethod = defineMethod({
 export const BOT_TEAM_ROUTINE_METHODS = [
   botTeamListRoutinesMethod,
   botTeamCreateRoutineMethod,
+  botTeamUpdateRoutineMethod,
+  botTeamDeleteRoutineMethod,
   botTeamSetRoutinePausedMethod,
   botTeamListRoutineRunsMethod
 ]

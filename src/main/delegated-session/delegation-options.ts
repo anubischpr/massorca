@@ -26,6 +26,7 @@ import {
   delegationPlacementFor,
   type DelegationWorkspaceKind
 } from './delegation-router'
+import type { DelegationTaskText } from './delegation-read-only-task'
 
 /** An agent this host can run a child on, stored with the request so an answer needs no re-detection. */
 export type DelegationStoredAgent = {
@@ -34,8 +35,7 @@ export type DelegationStoredAgent = {
   piRuntime?: PiRuntimeSelection
 }
 
-export type DelegationRoutingInput = {
-  summary: string
+export type DelegationRoutingInput = DelegationTaskText & {
   writes: boolean
   workspaceKind: DelegationWorkspaceKind
   parentAgent: string | null
@@ -82,6 +82,8 @@ export function routeDelegationRequest(input: DelegationRoutingInput): Delegatio
   )
   const route = decideDelegation({
     summary: input.summary,
+    title: input.title,
+    prompt: input.prompt,
     writesCode: input.writes,
     workspaceKind: input.workspaceKind,
     parentAgent: input.parentAgent,
@@ -155,6 +157,8 @@ export type DelegationCardContent = {
 export function buildDelegationCardContent(input: {
   requestId: string
   title: string
+  summary: string
+  prompt: string
   route: DelegationRouteResult
   agents: readonly DelegationStoredAgent[]
   writes: boolean
@@ -167,7 +171,7 @@ export function buildDelegationCardContent(input: {
   const decision: DelegationDecision | null =
     input.route.status === 'routed' ? input.route.decision : null
   const cardAgents = cardAgentsFor(input.route, input.agents)
-  const placement = delegationPlacementFor(input.writes, input.workspaceKind)
+  const placement = delegationPlacementFor({ ...input, writesCode: input.writes })
   const options: AgentJournalPromptOption[] = []
   if (decision) {
     const picked = cardAgents.find((entry) => entry.agent === decision.agent)

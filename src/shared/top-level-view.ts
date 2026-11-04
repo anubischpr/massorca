@@ -14,7 +14,9 @@ const TOP_LEVEL_VIEW_LOOKUP: Record<TopLevelView, true> = {
   mobile: true,
   'create-chat': true,
   prototypes: true,
-  'bot-teams': true
+  'bot-teams': true,
+  calendar: true,
+  marketplace: true
 }
 
 export function isTopLevelView(value: unknown): value is TopLevelView {

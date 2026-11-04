@@ -37,6 +37,22 @@ export function createWebUiApi(): NonNullable<Partial<PreloadApi>['ui']> {
     explorerRoots.prepare(environmentId, hostUpdates)
     return { environmentId, hostUpdates }
   }
+  /** An older host rejects a view it predates (Calendar); the startup view then stays local and the rest still lands. */
+  const sendHostUpdates = async (
+    hostUpdates: ReturnType<typeof prepareHostUpdates>['hostUpdates']
+  ): Promise<typeof hostUpdates> => {
+    try {
+      await callRuntimeResult('ui.set', hostUpdates, 15_000)
+      return hostUpdates
+    } catch (error) {
+      if (hostUpdates.activeView === undefined) {
+        throw error
+      }
+      const { activeView: _unsupportedView, ...withoutView } = hostUpdates
+      await callRuntimeResult('ui.set', withoutView, 15_000)
+      return withoutView
+    }
+  }
   let zoomLevel = readLocalWebUIState().uiZoomLevel
   return {
     /** Hydrates from the active host after replaying pending roots, falling back to local state on failure or host changes. */
@@ -80,8 +96,7 @@ export function createWebUiApi(): NonNullable<Partial<PreloadApi>['ui']> {
       // otherwise persist this browser's runtime:web-* keys over the desktop profile's order.
       const { environmentId, hostUpdates } = prepareHostUpdates(updates)
       try {
-        await callRuntimeResult('ui.set', hostUpdates, 15_000)
-        explorerRoots.acknowledge(environmentId, hostUpdates)
+        explorerRoots.acknowledge(environmentId, await sendHostUpdates(hostUpdates))
       } catch {
         // Why: unpaired/offline web clients still need local UI persistence.
       }
@@ -92,8 +107,7 @@ export function createWebUiApi(): NonNullable<Partial<PreloadApi>['ui']> {
       writeJson(UI_STORAGE_KEY, next)
       zoomLevel = next.uiZoomLevel
       const { environmentId, hostUpdates } = prepareHostUpdates(updates)
-      await callRuntimeResult('ui.set', hostUpdates, 15_000)
-      explorerRoots.acknowledge(environmentId, hostUpdates)
+      explorerRoots.acknowledge(environmentId, await sendHostUpdates(hostUpdates))
       if (
         updates.explorerDisplayRootByWorktree !== undefined &&
         hostUpdates.explorerDisplayRootByWorktree === undefined

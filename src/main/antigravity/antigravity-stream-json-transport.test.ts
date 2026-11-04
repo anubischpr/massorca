@@ -208,6 +208,52 @@ describe('Antigravity stream-json transport', () => {
     ])
   })
 
+  it('ignores a resumed conversation settling its interrupted turn before the prompt echo', async () => {
+    // Shapes captured from agy resuming a conversation whose process died mid-turn.
+    const rig = fixture()
+    const turn = rig.transport.submitPrompt('send-1', 'continue')
+    emitJson(rig.stdout, init())
+    await nextTurn()
+    emitJson(rig.stdout, {
+      event: 'step_update',
+      step_update: {
+        conversation_id: 'conversation-1',
+        step_index: 35,
+        state: 'ERROR',
+        step_type: 'tool',
+        tool_info: { name: 'run_command', error: 'interrupted' }
+      }
+    })
+    emitJson(rig.stdout, {
+      event: 'step_update',
+      step_update: {
+        conversation_id: 'conversation-1',
+        step_index: 36,
+        state: 'DONE',
+        step_type: 'system_message',
+        duration_seconds: 0.13
+      }
+    })
+    emitJson(rig.stdout, step('conversation-1', 37, 'user_input'))
+    emitJson(rig.stdout, step('conversation-1', 38, 'agent_response', 'DONE', 'hello'))
+    emitJson(rig.stdout, result('conversation-1', 2, 'hello'))
+    await expect(turn).resolves.toMatchObject({ status: 'SUCCESS', response: 'hello' })
+    expect(rig.errors).toEqual([])
+    expect(
+      rig.events.flatMap((event) => (event.type === 'step_update' ? [event.step.step_index] : []))
+    ).toEqual([37, 38])
+  })
+
+  it('still fails a turn that reports SUCCESS without ever echoing the prompt', async () => {
+    const rig = fixture()
+    const turn = rig.transport.submitPrompt('send-1', 'hello')
+    emitJson(rig.stdout, init())
+    await nextTurn()
+    emitJson(rig.stdout, step('conversation-1', 1, 'agent_response', 'DONE', 'hello'))
+    emitJson(rig.stdout, result('conversation-1', 1, 'hello'))
+    await expect(turn).rejects.toThrow('Antigravity reported SUCCESS without a user_input echo')
+  })
+
   it('serializes concurrent prompts until the preceding terminal result', async () => {
     const rig = fixture()
     const first = rig.transport.submitPrompt('send-1', 'first')

@@ -20,6 +20,7 @@ vi.mock('@/runtime/runtime-bot-team-client', () => ({
   setBotTeamProjectWorkspace
 }))
 vi.mock('@/i18n/i18n', () => ({
+  i18n: { language: 'en' },
   translate: (_key: string, fallback: string, options?: Record<string, unknown>) =>
     fallback.replace(/\{\{(\w+)\}\}/g, (_match, name: string) => String(options?.[name]))
 }))
@@ -29,11 +30,11 @@ const { ProjectWorkspaceLink, WorkspacesAdvancedOptions } =
   await import('./BotTeamProjectWorkspace')
 
 const NEXUS: BotTeamLinkableWorkspace = {
-  key: 'worktree:repo-1::/work/nexus',
+  key: 'repo:repo-1',
   name: 'NexusCare',
   kind: 'git'
 }
-const NOTES: BotTeamLinkableWorkspace = { key: 'folder:fw-1', name: 'Notes', kind: 'folder' }
+const NOTES: BotTeamLinkableWorkspace = { key: 'group:group-1', name: 'Notes', kind: 'folder' }
 
 function project(overrides: Partial<BotTeamProject> = {}): BotTeamProject {
   return {
@@ -147,11 +148,47 @@ describe('WorkspacesAdvancedOptions', () => {
     expect(onChange).toHaveBeenCalledWith(null)
   })
 
+  it('shows each project with its icon, and the default folder icon when it has none', async () => {
+    const container = await mount(
+      <WorkspacesAdvancedOptions
+        listing={[
+          { ...NEXUS, icon: { type: 'emoji', emoji: '🩺' } },
+          {
+            key: 'repo:repo-2',
+            name: 'Shop',
+            kind: 'git',
+            icon: { type: 'image', src: 'https://github.com/shop.png?size=64', source: 'github' }
+          },
+          NOTES
+        ]}
+        value={null}
+        onChange={() => {}}
+      />
+    )
+    await act(async () => buttonWith(container, 'Advanced options').click())
+    await act(async () => {
+      container
+        .querySelector<HTMLElement>('[aria-label="Workspaces project"]')
+        ?.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, pointerType: 'mouse' }))
+    })
+    const row = (name: string): Element | undefined =>
+      [...document.querySelectorAll('[role="option"]')].find((entry) =>
+        entry.textContent?.trim().endsWith(name)
+      )
+
+    expect(row('NexusCare')?.textContent).toContain('🩺')
+    expect(row('Shop')?.querySelector('img')?.getAttribute('src')).toBe(
+      'https://github.com/shop.png?size=64'
+    )
+    expect(row('Notes')?.querySelector('svg')).not.toBeNull()
+    expect(row('Notes')?.querySelector('img')).toBeNull()
+  })
+
   it('keeps a linked workspace the host no longer lists, under its stored name', async () => {
     const container = await mount(
       <WorkspacesAdvancedOptions
         listing={[NEXUS]}
-        value={{ key: 'folder:gone', name: 'Old notes' }}
+        value={{ key: 'repo:gone', name: 'Old notes' }}
         onChange={() => {}}
       />
     )

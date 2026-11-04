@@ -10,6 +10,9 @@ export type ReferencedSession = {
   ownerWorktreeId: string
   layoutWorktreeId: string
   groupId: string
+  /** Only for a session tab of a layout: that tab, and whether it is its group's active tab. */
+  sessionTabId?: string
+  isSessionTabActive?: boolean
 }
 
 /** The live session tab a reference names, or null once it, or its workspace, is gone. */
@@ -27,7 +30,10 @@ let cachedGroups: AppState['groupsByWorktree'] | null = null
 let cachedTabs: AppState['unifiedTabsByWorktree'] | null = null
 let cachedResult: ReadonlyMap<string, ReferencedSession> = new Map()
 
-/** Every session some pane shows by reference, keyed by its tab id. One selector that consumers read. */
+/**
+ * Every session some pane or floating session tab shows by reference, keyed by its tab id. One
+ * selector that consumers read. Pane references come first, so a session has one anchor.
+ */
 export function selectReferencedSessions(state: RefState): ReadonlyMap<string, ReferencedSession> {
   if (cachedGroups === state.groupsByWorktree && cachedTabs === state.unifiedTabsByWorktree) {
     return cachedResult
@@ -52,10 +58,48 @@ export function selectReferencedSessions(state: RefState): ReadonlyMap<string, R
       })
     }
   }
+  for (const [layoutWorktreeId, tabs] of Object.entries(state.unifiedTabsByWorktree)) {
+    for (const tab of tabs) {
+      if (tab.contentType !== 'session-ref' || !tab.sessionRef) {
+        continue
+      }
+      const ref = tab.sessionRef
+      if (!resolveSessionRefTab(state, ref) || referenced.has(ref.tabId)) {
+        continue
+      }
+      const group = (state.groupsByWorktree[layoutWorktreeId] ?? []).find(
+        (candidate) => candidate.id === tab.groupId
+      )
+      referenced.set(ref.tabId, {
+        tabId: ref.tabId,
+        ownerWorktreeId: ref.worktreeId,
+        layoutWorktreeId,
+        groupId: tab.groupId,
+        sessionTabId: tab.id,
+        isSessionTabActive: group?.activeTabId === tab.id
+      })
+    }
+  }
   cachedGroups = state.groupsByWorktree
   cachedTabs = state.unifiedTabsByWorktree
   cachedResult = referenced
   return referenced
+}
+
+/** Floating session tabs whose session or workspace is gone: they show nothing, so they close. */
+export function selectDeadSessionRefTabIds(state: RefState): string[] {
+  const dead: string[] = []
+  for (const tabs of Object.values(state.unifiedTabsByWorktree)) {
+    for (const tab of tabs) {
+      if (
+        tab.contentType === 'session-ref' &&
+        (!tab.sessionRef || !resolveSessionRefTab(state, tab.sessionRef))
+      ) {
+        dead.push(tab.id)
+      }
+    }
+  }
+  return dead
 }
 
 /**
@@ -133,7 +177,8 @@ export type ReferencedPlacement = {
 /**
  * Where an overlay places a session that a pane shows by reference. It is visible only while the
  * layout that shows it is on screen, which is what keeps one live copy: its own workspace's
- * layout, when on screen, shows the picker in its place instead.
+ * layout, when on screen, shows the picker in its place instead. A floating session tab shows its
+ * session only while it is its group's active tab; the other tabs keep it running and unseen.
  */
 export function referencedPlacement(
   referenced: ReadonlyMap<string, ReferencedSession>,
@@ -145,7 +190,8 @@ export function referencedPlacement(
   if (!shown) {
     return null
   }
-  const isVisible = shown.layoutWorktreeId === layoutWorktreeId
+  const isVisible =
+    shown.layoutWorktreeId === layoutWorktreeId && shown.isSessionTabActive !== false
   return {
     groupId: shown.groupId,
     isVisible,

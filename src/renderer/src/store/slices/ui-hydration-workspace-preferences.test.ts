@@ -646,6 +646,16 @@ describe('createUISlice hydratePersistedUI', () => {
     expect(store.getState().hideCliCreatedWorkspaces).toBe(false)
   })
 
+  it('restores Show bot teams and treats an absent value (an older peer) as off', () => {
+    const store = createUIStore()
+    store.getState().hydratePersistedUI(makePersistedUI({}))
+    expect(store.getState().showBotTeamWorkspaces).toBe(false)
+
+    const shown = createUIStore()
+    shown.getState().hydratePersistedUI(makePersistedUI({ showBotTeamWorkspaces: true }))
+    expect(shown.getState().showBotTeamWorkspaces).toBe(true)
+  })
+
   it('restores a hidden agents search field', () => {
     const store = createUIStore()
 

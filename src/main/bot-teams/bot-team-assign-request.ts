@@ -1,11 +1,17 @@
 import { chooseBotTeamOwner, findNamedProject } from '../../shared/bot-team-owner-selection'
 import type { BotTeamRequestChoice } from '../../shared/bot-team-request-choice'
+import { botTeamClockNote } from '../../shared/bot-team-person-clock'
 import { botTeamRequestTiming } from '../../shared/bot-team-request-later'
+import {
+  botTeamRoomAttachmentsNote,
+  type BotTeamRoomAttachment
+} from '../../shared/bot-team-room-attachments'
 import { botTeamTaskTitle } from '../../shared/bot-team-request-route'
 import type { BotTeamTask } from '../../shared/rpc-contract/bot-team-room-params'
 import type { OrchestrationDb } from '../runtime/orchestration/db/orchestration-db'
 import { botTeamCompositeNotes } from './bot-team-composite'
 import { botTeamFiledReply } from './bot-team-filed-reply'
+import { returnUnstartedBotTeamTask } from './bot-team-return'
 
 /** Tasks that have started, per bot: what "least busy" counts. */
 export function activeTasksByBot(db: OrchestrationDb, teamId: string): Record<string, number> {
@@ -34,6 +40,12 @@ export type BotTeamRequestFiling = {
   askProject: boolean
   /** The answer to the project question: a project of this team, or null for none. Absent until asked. */
   projectId?: string | null
+  /** Files from the team folder the person attached to the request. */
+  attachments?: BotTeamRoomAttachment[]
+  /** The room message that asked, kept with a task sent to another team so its card sits under it. */
+  originMessageId?: string
+  /** The sender's zone: the task's start notes keep the clock the request was asked on. */
+  timeZone?: string | null
 }
 
 export type BotTeamFiling = {
@@ -57,6 +69,22 @@ export async function startFiled(
   } catch (error) {
     return { task, startError: error instanceof Error ? error.message : String(error) }
   }
+}
+
+/** The task's start notes: the person's clock, a composite task's parts, then the files attached. */
+function taskStartNotes(
+  bots: Parameters<typeof botTeamCompositeNotes>[0],
+  alsoNeeds: readonly string[],
+  attachments: readonly BotTeamRoomAttachment[],
+  clock: string | null
+): string | null {
+  const notes = [
+    clock,
+    botTeamCompositeNotes(bots, alsoNeeds),
+    botTeamRoomAttachmentsNote(attachments)
+  ]
+  const present = notes.filter((note): note is string => note !== null)
+  return present.length > 0 ? present.join('\n\n') : null
 }
 
 /**
@@ -87,7 +115,7 @@ export async function fileBotTeamRequest(
     throw new Error(`${receiving.name} has no bots yet.`)
   }
   const alsoNeeds = input.alsoNeeds ?? []
-  const projects = db.listBotTeamProjects(receiving.id)
+  const projects = db.listBotTeamProjects(receiving.id, { includeLinked: true })
   const named = findNamedProject(input.text, projects)
   // Asked only of this team: a request sent to another team takes that team's own reading.
   if (
@@ -116,8 +144,21 @@ export async function fileBotTeamRequest(
   if (projectId !== null) {
     db.setBotTeamTaskProject(created.id, projectId)
   }
+  // The asking team's room tracks a task another team holds for it.
+  if (receiving.id !== input.teamId) {
+    db.setBotTeamTaskOrigin(created.id, input.teamId, input.originMessageId ?? null)
+  }
   // Saved with the task, so the owner reads it whether the task starts now or from Todo later.
-  db.setBotTeamTaskStartNotes(created.id, botTeamCompositeNotes(receiving.bots, alsoNeeds))
+  // The clock is the one the request was asked on, so "mañana" stays the day it meant.
+  db.setBotTeamTaskStartNotes(
+    created.id,
+    taskStartNotes(
+      receiving.bots,
+      alsoNeeds,
+      input.attachments ?? [],
+      botTeamClockNote(Date.now(), input.timeZone)
+    )
+  )
   // Read again: the project was set after the task was created.
   const task = db.getBotTeamTask(created.id)
   const timing = botTeamRequestTiming(input.text)
@@ -134,8 +175,13 @@ export async function fileBotTeamRequest(
       later,
       when: timing.when,
       projectName: projects.find((project) => project.id === projectId)?.name ?? null,
-      startError: filed.startError
+      startError: filed.startError,
+      text: input.text
     })
   })
+  // A task another team asked for that cannot start must not leave the asking room waiting.
+  if (filed.startError !== null && receiving.id !== input.teamId) {
+    returnUnstartedBotTeamTask(db, created.id, filed.startError)
+  }
   return { task: filed.task, startError: filed.startError }
 }

@@ -45,7 +45,12 @@ export function getGroupVisibleTabOrder(
         ? { type: 'browser', id: tab.entityId, tabId: tab.id }
         : null
     }
-    if (tab.contentType === 'simulator') {
+    // Why: a checklist or session tab is self-backed like a simulator tab, so it shares that slot of the strip.
+    if (
+      tab.contentType === 'simulator' ||
+      tab.contentType === 'checklist' ||
+      tab.contentType === 'session-ref'
+    ) {
       return simulatorTabIds.has(tab.id) ? { type: 'simulator', id: tab.id, tabId: tab.id } : null
     }
     if (tab.contentType === 'agent-session') {
@@ -184,7 +189,12 @@ export function getActiveTabNavOrder(
   const simulatorIds =
     ids.simulatorIds ??
     (state.unifiedTabsByWorktree[worktreeId] ?? [])
-      .filter((tab) => tab.contentType === 'simulator')
+      .filter(
+        (tab) =>
+          tab.contentType === 'simulator' ||
+          tab.contentType === 'checklist' ||
+          tab.contentType === 'session-ref'
+      )
       .map((tab) => tab.id)
   const agentSessionIds =
     ids.agentSessionIds ??

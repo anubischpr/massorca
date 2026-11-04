@@ -53,7 +53,9 @@ describe('bot team project store', () => {
       codeSource: null,
       brief: { requirements: [], constraints: [], decisions: [] },
       briefUpdatedAt: null,
-      workspace: null
+      workspace: null,
+      archivedAt: null,
+      linkedTeamIds: []
     })
     expect(db.listBotTeamProjects(team.id)).toEqual([project])
   })
@@ -188,6 +190,43 @@ describe('bot team project store', () => {
         brief: { requirements: [], constraints: [], decisions: [] }
       })
     ).toThrow('was not found')
+  })
+
+  it('keeps the Brief as Markdown beside the lists, and a list-only save from an older client keeps it', () => {
+    db = openDb()
+    const { team } = seed(db)
+    const project = db.createBotTeamProject({
+      teamId: team.id,
+      name: 'Summer',
+      goal: '',
+      codeSource: null
+    })
+    const markdown = '## Requirements\n- Flyer for the offers\n\nIris lays out the flyer.'
+
+    const withMarkdown = db.setBotTeamProjectBrief(project.id, {
+      goal: 'Sell the offers',
+      brief: { requirements: ['Flyer for the offers'], constraints: [], decisions: [], markdown }
+    })
+    expect(withMarkdown.brief).toEqual({
+      requirements: ['Flyer for the offers'],
+      constraints: [],
+      decisions: [],
+      markdown
+    })
+    expect(db.listBotTeamProjects(team.id)[0]?.brief.markdown).toBe(markdown)
+
+    // Why: an older client has no Markdown to send; the stored Markdown is what bots read, so it stays.
+    const listsOnly = db.setBotTeamProjectBrief(project.id, {
+      goal: 'Sell the offers',
+      brief: { requirements: ['Offer email'], constraints: [], decisions: [] }
+    })
+    expect(listsOnly.brief).toEqual({
+      requirements: ['Offer email'],
+      constraints: [],
+      decisions: [],
+      markdown
+    })
+    expect(db.listBotTeamProjects(team.id)[0]?.brief.markdown).toBe(markdown)
   })
 
   it('reads an unreadable stored brief as empty instead of failing the list', () => {

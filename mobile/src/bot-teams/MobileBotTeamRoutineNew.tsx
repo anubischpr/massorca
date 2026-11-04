@@ -3,24 +3,33 @@ import { Alert, Pressable, ScrollView, Text, TextInput, View } from 'react-nativ
 import {
   BOT_TEAM_ROUTINE_FREQUENCIES,
   BOT_TEAM_ROUTINE_MAX_MONTH_DAY,
+  hostWallTime,
+  onceRoutineRunAt,
   type BotTeamRoutineFrequency
 } from '../../../src/shared/bot-team-routine-schedule'
+import { localTimeZone } from '../../../src/shared/bot-team-routine-zone'
 import type { BotTeam } from '../../../src/shared/rpc-contract/bot-team-params'
+import type { BotTeamRoutine } from '../../../src/shared/rpc-contract/bot-team-routine-params'
 import { colors } from '../theme/mobile-theme'
 import type { RpcClient } from '../transport/rpc-client'
 import { MobileBotAgentIcon } from './MobileBotAgentIcon'
 import { MOBILE_ROUTINE_WEEKDAYS, mobileRoutineWeekdayName } from './MobileBotTeamRoutineLabels'
-import { createMobileBotTeamRoutine } from './MobileBotTeamRoutineRpc'
+import { createMobileBotTeamRoutine, updateMobileBotTeamRoutine } from './MobileBotTeamRoutineRpc'
+import { MobileBotTeamRoutineTimePicker } from './MobileBotTeamRoutineTimePicker'
 import { MobileBotTeamWorkBar } from './MobileBotTeamWorkBar'
 import { botTeamStyles as styles } from './mobile-bot-team-styles'
 
 const FREQUENCY_LABELS: Record<BotTeamRoutineFrequency, string> = {
   daily: 'Every day',
   weekly: 'Every week',
-  monthly: 'Every month'
+  monthly: 'Every month',
+  once: 'Once'
 }
 const MONTH_DAYS = Array.from({ length: BOT_TEAM_ROUTINE_MAX_MONTH_DAY }, (_, index) => index + 1)
 const TIME = /^([01]\d|2[0-3]):[0-5]\d$/
+
+/** Tomorrow on this phone's clock, where the date field starts. */
+const tomorrowDate = (): string => hostWallTime(Date.now() + 86_400_000).date
 
 function Choice({
   label,
@@ -43,10 +52,11 @@ function Choice({
   )
 }
 
-/** New routine (M38): what it does, when, and which bot does it. */
+/** New routine (M38), or Edit routine filled in (board 57): what it does, when, and which bot does it. */
 export function MobileBotTeamRoutineNew({
   client,
   team,
+  routine,
   offline,
   onBack,
   onCreated,
@@ -54,34 +64,46 @@ export function MobileBotTeamRoutineNew({
 }: {
   client: RpcClient
   team: BotTeam
+  /** The routine Edit opens; absent for a new one. */
+  routine?: BotTeamRoutine
   offline: boolean
   onBack: () => void
   onCreated: () => void
   /** Opens the Bot teams settings, where the team's access is set. */
   onChangeAccess: () => void
 }) {
-  const [name, setName] = useState('')
-  const [prompt, setPrompt] = useState('')
-  const [frequency, setFrequency] = useState<BotTeamRoutineFrequency>('weekly')
-  const [time, setTime] = useState('09:00')
-  const [weekday, setWeekday] = useState(1)
-  const [monthDay, setMonthDay] = useState(1)
-  const [botId, setBotId] = useState(team.bots[0]?.id ?? '')
+  const kept = routine?.schedule
+  const [name, setName] = useState(routine?.name ?? '')
+  const [prompt, setPrompt] = useState(routine?.prompt ?? '')
+  const [frequency, setFrequency] = useState<BotTeamRoutineFrequency>(kept?.frequency ?? 'weekly')
+  const [time, setTime] = useState(kept?.time ?? '09:00')
+  const [weekday, setWeekday] = useState(kept?.weekday ?? 1)
+  const [monthDay, setMonthDay] = useState(kept?.monthDay ?? 1)
+  // A day already past, as an archived Once routine has, starts over from tomorrow.
+  const [date, setDate] = useState(() =>
+    kept?.date && kept.date > hostWallTime(Date.now()).date ? kept.date : tomorrowDate()
+  )
+  const [botId, setBotId] = useState(routine?.botId ?? team.bots[0]?.id ?? '')
   const bot = team.bots.find((entry) => entry.id === botId)
-  const ready = name.trim() !== '' && prompt.trim() !== '' && TIME.test(time) && bot !== undefined
+  // Null when this device cannot name its zone: the routine then runs on the host's clock.
+  const zone = localTimeZone()
+  const schedule = {
+    frequency,
+    time,
+    weekday: frequency === 'weekly' ? weekday : null,
+    monthDay: frequency === 'monthly' ? monthDay : null,
+    date: frequency === 'once' ? date.trim() : null,
+    timeZone: zone
+  }
+  // The host refuses a one-time routine on a date that is not a real day, so Create waits for one.
+  const dateOk = frequency !== 'once' || onceRoutineRunAt(schedule) !== null
+  const ready =
+    name.trim() !== '' && prompt.trim() !== '' && TIME.test(time) && bot !== undefined && dateOk
   const create = async () => {
-    const made = await createMobileBotTeamRoutine(client, {
-      teamId: team.id,
-      botId,
-      name: name.trim(),
-      prompt: prompt.trim(),
-      schedule: {
-        frequency,
-        time,
-        weekday: frequency === 'weekly' ? weekday : null,
-        monthDay: frequency === 'monthly' ? monthDay : null
-      }
-    })
+    const fields = { botId, name: name.trim(), prompt: prompt.trim(), schedule }
+    const made = routine
+      ? await updateMobileBotTeamRoutine(client, { routineId: routine.id, ...fields })
+      : await createMobileBotTeamRoutine(client, { teamId: team.id, ...fields })
     if (made === null) {
       Alert.alert('That did not save', 'Check the connection to this host and try again.')
       return
@@ -90,7 +112,7 @@ export function MobileBotTeamRoutineNew({
   }
   return (
     <View style={styles.grow}>
-      <MobileBotTeamWorkBar title="New routine" onBack={onBack} />
+      <MobileBotTeamWorkBar title={routine ? 'Edit routine' : 'New routine'} onBack={onBack} />
       <ScrollView contentContainerStyle={styles.form} keyboardShouldPersistTaps="handled">
         <Text style={styles.label}>Name</Text>
         <TextInput
@@ -122,6 +144,21 @@ export function MobileBotTeamRoutineNew({
             />
           ))}
         </View>
+        {frequency === 'once' ? (
+          <>
+            <Text style={styles.label}>Date</Text>
+            <TextInput
+              accessibilityLabel="Date"
+              value={date}
+              onChangeText={setDate}
+              placeholder="YYYY-MM-DD"
+              placeholderTextColor={colors.textMuted}
+              keyboardType="numbers-and-punctuation"
+              style={[styles.input, dateOk ? null : { borderColor: colors.statusRed }]}
+            />
+            {dateOk ? null : <Text style={styles.rowMeta}>Enter a date as YYYY-MM-DD.</Text>}
+          </>
+        ) : null}
         {frequency === 'weekly' ? (
           <View style={styles.chips}>
             {MOBILE_ROUTINE_WEEKDAYS.map((day) => (
@@ -147,17 +184,11 @@ export function MobileBotTeamRoutineNew({
           </View>
         ) : null}
         <Text style={styles.label}>Time</Text>
-        <TextInput
-          accessibilityLabel="Time"
-          value={time}
-          onChangeText={setTime}
-          placeholder="09:00"
-          placeholderTextColor={colors.textMuted}
-          keyboardType="numbers-and-punctuation"
-          style={styles.input}
-        />
+        <MobileBotTeamRoutineTimePicker value={time} onChange={setTime} />
         <Text style={styles.rowMeta}>
-          {`Runs at this time, on the clock of the host ${team.name} uses. Use 24-hour time, like 09:00.`}
+          {zone
+            ? `Runs at this time in ${zone}, your time zone, wherever the host is.`
+            : `Runs at this time, on the clock of the host ${team.name} uses. Use 24-hour time, like 09:00.`}
         </Text>
         <Text style={styles.label}>Bot</Text>
         <View style={styles.chips}>
@@ -196,7 +227,7 @@ export function MobileBotTeamRoutineNew({
           onPress={() => void create()}
           style={[styles.primary, (!ready || offline) && styles.primaryDisabled]}
         >
-          <Text style={styles.primaryText}>Create routine</Text>
+          <Text style={styles.primaryText}>{routine ? 'Save' : 'Create routine'}</Text>
         </Pressable>
         <Pressable accessibilityRole="button" onPress={onBack} style={styles.secondary}>
           <Text style={styles.rowTitle}>Cancel</Text>

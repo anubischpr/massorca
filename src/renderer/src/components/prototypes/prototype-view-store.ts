@@ -11,6 +11,9 @@ import {
   type DesignSystemViewState
 } from '../../../../shared/prototype-design-system-view-state'
 
+/** Why: the floating checklist follows the chat that generated the set in view. */
+export type PrototypeFocusedSetSessions = { sessionId: string; originSessionId: string | null }
+
 // In memory only: a restart starts over. A later ensure keeps a set's draft; an update never creates a state.
 type PrototypeViewStore = {
   filter: PrototypeFilter
@@ -23,6 +26,9 @@ type PrototypeViewStore = {
   sidePanelHidden: boolean
   /** The list is hidden during a merge; the page clears it once no merge is under way. */
   listPanelHidden: boolean
+  /** The chats behind the set in view, published while the page is shown; null otherwise. */
+  focusedSetSessions: PrototypeFocusedSetSessions | null
+  setFocusedSetSessions: (sessions: PrototypeFocusedSetSessions | null) => void
   setFilter: (filter: PrototypeFilter) => void
   setSidePanelHidden: (hidden: boolean) => void
   setListPanelHidden: (hidden: boolean) => void
@@ -47,6 +53,15 @@ export const usePrototypeViewStore = create<PrototypeViewStore>()((set) => ({
   designSystemViews: {},
   sidePanelHidden: false,
   listPanelHidden: false,
+  focusedSetSessions: null,
+  setFocusedSetSessions: (focusedSetSessions) =>
+    set((current) => {
+      const previous = current.focusedSetSessions
+      return previous?.sessionId === focusedSetSessions?.sessionId &&
+        previous?.originSessionId === focusedSetSessions?.originSessionId
+        ? current
+        : { focusedSetSessions }
+    }),
   setFilter: (filter) => set({ filter }),
   setSidePanelHidden: (sidePanelHidden) => set({ sidePanelHidden }),
   setListPanelHidden: (listPanelHidden) => set({ listPanelHidden }),

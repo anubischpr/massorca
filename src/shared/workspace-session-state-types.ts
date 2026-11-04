@@ -1,7 +1,13 @@
 import type { ExecutionHostId } from './execution-host'
 import type { SleepingAgentSessionRecord } from './agent-session-resume'
 import type { WorkspaceKey } from './folder-workspace-types'
-import type { Tab, TabGroup, TabGroupLayoutNode, WorkspaceVisibleTabType } from './tab-types'
+import type {
+  PaneSessionFocus,
+  Tab,
+  TabGroup,
+  TabGroupLayoutNode,
+  WorkspaceVisibleTabType
+} from './tab-types'
 import type { TerminalLayoutSnapshot, TerminalTab } from './terminal-tab-types'
 import type { BrowserHistoryEntry, BrowserPage, BrowserWorkspace } from './browser-workspace-types'
 import type { WorkspaceDocHistoryEntry } from './workspace-doc-history'
@@ -111,6 +117,8 @@ export type WorkspaceSessionState = {
   tabGroupLayouts?: Record<string, TabGroupLayoutNode>
   /** Per-worktree focused group at shutdown. */
   activeGroupIdByWorktree?: Record<string, string>
+  /** The pane that had the focus at shutdown when it showed another workspace's session. */
+  paneFocus?: PaneSessionFocus
   /** SSH target IDs that were connected at shutdown. Used on startup to
    *  auto-reconnect before attempting remote PTY reattach. */
   activeConnectionIdsAtShutdown?: string[]

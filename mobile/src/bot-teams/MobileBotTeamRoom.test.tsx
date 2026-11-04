@@ -4,6 +4,7 @@ import { act, create, type ReactTestRenderer } from 'react-test-renderer'
 import { describe, expect, it, vi } from 'vitest'
 import { MobileBotAgentIcon } from './MobileBotAgentIcon'
 import { MobileBotTeamRoom } from './MobileBotTeamRoom'
+import { MobileBotTeamTaskCard } from './MobileBotTeamTaskCard'
 
 vi.mock('react-native', () => ({
   Alert: { alert: vi.fn() },
@@ -23,10 +24,18 @@ vi.mock('lucide-react-native', () => ({
   FileText: 'FileText',
   Folder: 'Folder',
   FolderPlus: 'FolderPlus',
+  Calendar: 'Calendar',
   LayoutGrid: 'LayoutGrid',
-  MessageSquare: 'MessageSquare'
+  MessageSquare: 'MessageSquare',
+  SlidersHorizontal: 'SlidersHorizontal',
+  Pencil: 'Pencil',
+  Link2: 'Link2',
+  Archive: 'Archive',
+  ArchiveRestore: 'ArchiveRestore',
+  Trash2: 'Trash2'
 }))
 vi.mock('../components/MobileAgentIcon', () => ({ MobileAgentIcon: () => null }))
+vi.mock('../components/MobileRepoIcon', () => ({ MobileRepoIcon: () => null }))
 vi.mock('./MobileBotTeamCharacterIcon', () => ({ MobileBotTeamCharacterIcon: () => null }))
 vi.mock('react-native-reanimated', () => ({
   default: { View: 'AnimatedView' },
@@ -47,7 +56,12 @@ vi.mock('../hooks/use-mobile-dictation', () => ({
   useMobileDictation: () => ({ isRecording: false, start: vi.fn(), stop: vi.fn() })
 }))
 vi.mock('../session/MobileNativeChatComposer', () => ({ MobileNativeChatComposer: 'Composer' }))
+// Why: the room's capability probe also calls sendRequest; these tests count the posts they make.
+vi.mock('../transport/runtime-capability-probe', () => ({
+  startRuntimeCapabilityProbe: () => () => {}
+}))
 vi.mock('../session/MobileNativeChatMessage', () => ({ MobileNativeChatMessage: 'ChatMessage' }))
+vi.mock('./MobileBotTeamRoomQuestion', () => ({ MobileBotTeamRoomQuestions: () => null }))
 vi.mock('../session/mobile-structured-session-status-feed', () => ({
   mobileStructuredSessionStatusFeed: () => ({
     subscribe: () => () => {},
@@ -167,6 +181,7 @@ async function render(
         onOpenBots,
         onOpenTask,
         onOpenWork: vi.fn(),
+        onOpenRoutines: vi.fn(),
         onAddBot: vi.fn(),
         onNewTeam: vi.fn(),
         ...extra
@@ -186,6 +201,21 @@ const press = async (renderer: ReactTestRenderer, label: string) => {
   await act(async () => target.props.onPress())
 }
 
+// A room answer: its team, started, asking the project, with the sender's zone for its days.
+const assigned = (text: string, fields: object = {}) =>
+  [
+    'botTeams.assignRequest',
+    {
+      teamId: 'team',
+      text,
+      start: true,
+      askProject: true,
+      ...fields,
+      timeZone: expect.any(String)
+    },
+    expect.anything()
+  ] as const
+
 describe('MobileBotTeamRoom', () => {
   it('sends through the chat composer and starts the bot', async () => {
     const client = hostAnswering({ tasks: [], messages: [], workspaceId: null })
@@ -199,7 +229,14 @@ describe('MobileBotTeamRoom', () => {
 
     expect(client.sendRequest).toHaveBeenCalledWith(
       'botTeams.postMessage',
-      { teamId: 'team', text: 'Hi', start: true },
+      {
+        teamId: 'team',
+        text: 'Hi',
+        start: true,
+        askProject: true,
+        clientRequestId: expect.any(String),
+        timeZone: expect.any(String)
+      },
       expect.anything()
     )
   })
@@ -230,6 +267,68 @@ describe('MobileBotTeamRoom', () => {
     })
     expect(composer().props.value).toBe('Hi')
     expect(renderer.root.findAll((node) => node.children.includes('All is typing'))).toHaveLength(0)
+  })
+
+  it('keeps the typing line while the host reports the reply in flight, polling faster, then clears it', async () => {
+    vi.useFakeTimers()
+    try {
+      let replying: { botId: string; since: number }[] = [{ botId: 'bot', since: 1 }]
+      const sendRequest = vi.fn(async (method: string) =>
+        method === 'botTeams.listRoom'
+          ? { ok: true, result: { tasks: [], messages: [], workspaceId: null, replying } }
+          : { ok: true, result: { task: null, startError: null, replying: { botId: 'bot' } } }
+      )
+      const renderer = await render({ sendRequest })
+      const typing = () =>
+        renderer.root.findAll((node) => node.children.includes('Iris is typing')).length
+      await act(async () => {
+        await renderer.root.findByType('Composer' as never).props.onSend('Qué es Jev AI?')
+      })
+      expect(typing()).toBeGreaterThan(0)
+      expect(
+        renderer.root.findAll((n) => n.children.includes('Who should take this?'))
+      ).toHaveLength(0)
+      const reads = () => sendRequest.mock.calls.filter(([m]) => m === 'botTeams.listRoom').length
+      const before = reads()
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(3_100)
+      })
+      expect(reads()).toBeGreaterThanOrEqual(before + 2)
+      expect(typing()).toBeGreaterThan(0)
+      replying = []
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1_600)
+      })
+      expect(typing()).toBe(0)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('sends one id per send and reuses it when the same send is retried', async () => {
+    let posts = 0
+    const sendRequest = vi.fn(async (method: string) => {
+      if (method === 'botTeams.listRoom') {
+        return { ok: true, result: { tasks: [], messages: [], workspaceId: null } }
+      }
+      if (posts++ === 0) {
+        return { ok: false, error: { code: 'unavailable', message: 'gone' } }
+      }
+      return { ok: true, result: { task: null, startError: null, answered: true } }
+    })
+    const renderer = await render({ sendRequest })
+    const send = (text: string) =>
+      act(async () => {
+        await renderer.root.findByType('Composer' as never).props.onSend(text)
+      })
+    await send('Hola equipo')
+    await send('Hola equipo')
+    await send('Hola equipo')
+    const ids = sendRequest.mock.calls
+      .filter(([m]) => m === 'botTeams.postMessage')
+      .map(([, params]) => (params as { clientRequestId: string }).clientRequestId)
+    expect(ids[1]).toBe(ids[0])
+    expect(ids[2]).not.toBe(ids[0])
   })
 
   it('reaches the bots from the room menu and goes back', async () => {
@@ -311,7 +410,7 @@ describe('MobileBotTeamRoom', () => {
     const onOpenWork = vi.fn()
     const renderer = await render(client, vi.fn(), vi.fn(), vi.fn(), { onOpenWork })
     await press(renderer, 'Room menu')
-    await press(renderer, 'Team board')
+    await press(renderer, 'Tasks')
     expect(onOpenWork).toHaveBeenLastCalledWith({ name: 'board', teamId: 'team' })
     await press(renderer, 'Room menu')
     await press(renderer, 'Launch')
@@ -324,6 +423,15 @@ describe('MobileBotTeamRoom', () => {
     await press(renderer, 'Room menu')
     await press(renderer, 'New project')
     expect(onOpenWork).toHaveBeenLastCalledWith({ name: 'newProject', teamId: 'team' })
+  })
+
+  it('opens the team routines from the room menu', async () => {
+    const onOpenRoutines = vi.fn()
+    const client = hostAnswering({ tasks: [], messages: [], projects: [], workspaceId: null })
+    const renderer = await render(client, vi.fn(), vi.fn(), vi.fn(), { onOpenRoutines })
+    await press(renderer, 'Room menu')
+    await press(renderer, 'Routines')
+    expect(onOpenRoutines).toHaveBeenCalledTimes(1)
   })
 
   it('offers the team files after the bots while an @ mention is typed', async () => {
@@ -347,9 +455,7 @@ describe('MobileBotTeamRoom', () => {
       { tasks: [], messages: [], projects: [], workspaceId: 'folder:1' },
       ['flyer.md']
     )
-    const renderer = await render(client, vi.fn(), vi.fn(), vi.fn(), {
-      teams: [TEAM, OTHER_TEAM]
-    })
+    const renderer = await render(client, vi.fn(), vi.fn(), vi.fn(), { teams: [TEAM, OTHER_TEAM] })
     await act(async () => {
       renderer.root.findByType('Composer' as never).props.onNeedFiles('')
       await new Promise((resolve) => setTimeout(resolve, 200))
@@ -362,10 +468,10 @@ describe('MobileBotTeamRoom', () => {
       'Warehouse',
       'flyer.md'
     ])
-    expect(suggestions[1].insert).toBe('@Warehouse ')
+    expect(suggestions[1].insert).toBe('@Warehouse')
     expect(
       renderer.root.findByType('Composer' as never).props.customSuggestions('@war', 4)
-    ).toEqual([expect.objectContaining({ label: 'Warehouse', insert: '@Warehouse ' })])
+    ).toEqual([expect.objectContaining({ label: 'Warehouse', insert: '@Warehouse' })])
   })
 
   it('reaches the team memory from the room menu', async () => {
@@ -414,6 +520,98 @@ describe('MobileBotTeamRoom', () => {
     expect(JSON.stringify(renderer.toJSON())).not.toContain('Who should take this?')
   })
 
+  it('keeps a card made from a request with other words after that request, before a later message', async () => {
+    const client = hostAnswering({
+      tasks: [
+        {
+          ...TASK,
+          id: 'task9',
+          title: 'Quarterly deck',
+          prompt: 'Build the slides',
+          createdAt: 200
+        }
+      ],
+      messages: [
+        { id: 'a', teamId: 'team', authorBotId: null, text: 'Make the report', createdAt: 100 },
+        { id: 'b', teamId: 'team', authorBotId: null, text: 'Thanks, that is all', createdAt: 300 }
+      ],
+      projects: [],
+      workspaceId: null
+    })
+    const renderer = await render(client)
+    const order = renderer.root
+      .findAll((node) => node.type === 'ChatMessage' || node.type === MobileBotTeamTaskCard)
+      .map((node) =>
+        node.type === MobileBotTeamTaskCard
+          ? node.props.task.title
+          : node.props.message.blocks[0].text
+      )
+    expect(order).toEqual(['Make the report', 'Quarterly deck', 'Thanks, that is all'])
+  })
+
+  it('asks which project a request is for, and files it in the one the person picks', async () => {
+    const client = {
+      sendRequest: vi.fn(async (method: string) => {
+        if (method === 'botTeams.listRoom') {
+          return {
+            ok: true,
+            result: { tasks: [], messages: [], projects: [PROJECT], workspaceId: null }
+          }
+        }
+        if (method === 'botTeams.postMessage') {
+          return {
+            ok: true,
+            result: { task: null, startError: null, choice: { kind: 'project', botId: 'bot' } }
+          }
+        }
+        return { ok: true, result: { task: TASK, startError: null } }
+      })
+    }
+    const renderer = await render(client)
+    await act(async () => {
+      await renderer.root.findByType('Composer' as never).props.onSend('Hi')
+    })
+    expect(JSON.stringify(renderer.toJSON())).toContain('Which project is this for?')
+
+    await press(renderer, 'Launch')
+    await press(renderer, 'Continue')
+    await settle()
+    expect(client.sendRequest).toHaveBeenCalledWith(
+      ...assigned('Hi', { botId: 'bot', projectId: 'project' })
+    )
+    expect(JSON.stringify(renderer.toJSON())).not.toContain('Which project is this for?')
+  })
+
+  it('asks the project question once a bot is chosen for a team that has projects', async () => {
+    const client = {
+      sendRequest: vi.fn(async (method: string) => {
+        if (method === 'botTeams.listRoom') {
+          return {
+            ok: true,
+            result: { tasks: [], messages: [], projects: [PROJECT], workspaceId: null }
+          }
+        }
+        if (method === 'botTeams.postMessage') {
+          return { ok: true, result: { task: null, startError: null, choice: { kind: 'new-bot' } } }
+        }
+        if (method === 'botTeams.assignRequest') {
+          return {
+            ok: true,
+            result: { task: null, startError: null, choice: { kind: 'project', botId: 'bot' } }
+          }
+        }
+        return { ok: false, error: { code: 'internal', message: 'nope' } }
+      })
+    }
+    const renderer = await render(client)
+    await act(async () => {
+      await renderer.root.findByType('Composer' as never).props.onSend('Hi')
+    })
+    await press(renderer, 'Send to Iris')
+    await settle()
+    expect(JSON.stringify(renderer.toJSON())).toContain('Which project is this for?')
+  })
+
   it('counts the open work and the tasks on the room menu', async () => {
     const client = hostAnswering({ tasks: [TASK], messages: [], projects: [], workspaceId: null })
     const renderer = await render(client)
@@ -429,9 +627,7 @@ describe('MobileBotTeamRoom', () => {
       { tasks: [], messages: [], projects: [], workspaceId: null },
       { task: null, choice: { kind: 'other-team', teamId: 'team_2' } }
     )
-    const renderer = await render(client, vi.fn(), vi.fn(), vi.fn(), {
-      teams: [TEAM, OTHER_TEAM]
-    })
+    const renderer = await render(client, vi.fn(), vi.fn(), vi.fn(), { teams: [TEAM, OTHER_TEAM] })
     await act(async () => {
       await renderer.root.findByType('Composer' as never).props.onSend('Inventory?')
     })
@@ -444,9 +640,7 @@ describe('MobileBotTeamRoom', () => {
     await press(renderer, 'Send to Warehouse')
     await settle()
     expect(client.sendRequest).toHaveBeenCalledWith(
-      'botTeams.assignRequest',
-      { teamId: 'team', text: 'Inventory?', start: true, toTeamId: 'team_2' },
-      expect.anything()
+      ...assigned('Inventory?', { toTeamId: 'team_2' })
     )
     expect(JSON.stringify(renderer.toJSON())).not.toContain('Choose where this task goes')
   })
@@ -456,19 +650,13 @@ describe('MobileBotTeamRoom', () => {
       { tasks: [], messages: [], projects: [], workspaceId: null },
       { task: null, choice: { kind: 'other-team', teamId: 'team_2' } }
     )
-    const renderer = await render(client, vi.fn(), vi.fn(), vi.fn(), {
-      teams: [TEAM, OTHER_TEAM]
-    })
+    const renderer = await render(client, vi.fn(), vi.fn(), vi.fn(), { teams: [TEAM, OTHER_TEAM] })
     await act(async () => {
       await renderer.root.findByType('Composer' as never).props.onSend('Hi')
     })
     await press(renderer, 'Keep in Marketing')
     await settle()
-    expect(client.sendRequest).toHaveBeenCalledWith(
-      'botTeams.assignRequest',
-      { teamId: 'team', text: 'Hi', start: true },
-      expect.anything()
-    )
+    expect(client.sendRequest).toHaveBeenCalledWith(...assigned('Hi'))
   })
 
   it('offers the bots of the team, and opens the add-bot form from the choice', async () => {
@@ -488,11 +676,7 @@ describe('MobileBotTeamRoom', () => {
     expect(onAddBot).toHaveBeenCalled()
     await press(renderer, 'Send to Iris')
     await settle()
-    expect(client.sendRequest).toHaveBeenCalledWith(
-      'botTeams.assignRequest',
-      { teamId: 'team', text: 'Hi', start: true, botId: 'bot' },
-      expect.anything()
-    )
+    expect(client.sendRequest).toHaveBeenCalledWith(...assigned('Hi', { botId: 'bot' }))
   })
 
   it('offers a new team or an existing one for a request that fits no team', async () => {
@@ -515,19 +699,13 @@ describe('MobileBotTeamRoom', () => {
     expect(onNewTeam).toHaveBeenCalled()
     await press(renderer, 'Send to Warehouse')
     await settle()
-    expect(client.sendRequest).toHaveBeenCalledWith(
-      'botTeams.assignRequest',
-      { teamId: 'team', text: 'Taxes', start: true, toTeamId: 'team_2' },
-      expect.anything()
-    )
+    expect(client.sendRequest).toHaveBeenCalledWith(...assigned('Taxes', { toTeamId: 'team_2' }))
   })
 
   it('says the request did not send when the host refuses it', async () => {
     vi.mocked(Alert.alert).mockClear()
     const client = hostRefusingFilings({ choice: { kind: 'new-team' } })
-    const renderer = await render(client, vi.fn(), vi.fn(), vi.fn(), {
-      teams: [TEAM, OTHER_TEAM]
-    })
+    const renderer = await render(client, vi.fn(), vi.fn(), vi.fn(), { teams: [TEAM, OTHER_TEAM] })
     await act(async () => {
       await renderer.root.findByType('Composer' as never).props.onSend('Taxes')
     })
@@ -556,9 +734,7 @@ describe('MobileBotTeamRoom', () => {
         return { ok: false, error: { code: 'method_not_found', message: 'nope' } }
       })
     }
-    const renderer = await render(client, vi.fn(), vi.fn(), vi.fn(), {
-      teams: [TEAM, OTHER_TEAM]
-    })
+    const renderer = await render(client, vi.fn(), vi.fn(), vi.fn(), { teams: [TEAM, OTHER_TEAM] })
     await act(async () => {
       await renderer.root.findByType('Composer' as never).props.onSend('Taxes')
     })
@@ -579,9 +755,7 @@ describe('MobileBotTeamRoom', () => {
           : { ok: false, error: { code: 'method_not_found', message: 'nope' } }
       )
     }
-    const renderer = await render(client, vi.fn(), vi.fn(), vi.fn(), {
-      teams: [TEAM, OTHER_TEAM]
-    })
+    const renderer = await render(client, vi.fn(), vi.fn(), vi.fn(), { teams: [TEAM, OTHER_TEAM] })
     await press(renderer, 'Reassign')
     await press(renderer, 'Give to Max')
     await settle()
@@ -598,9 +772,7 @@ describe('MobileBotTeamRoom', () => {
       projects: [],
       workspaceId: null
     })
-    const renderer = await render(client, vi.fn(), vi.fn(), vi.fn(), {
-      teams: [TEAM, OTHER_TEAM]
-    })
+    const renderer = await render(client, vi.fn(), vi.fn(), vi.fn(), { teams: [TEAM, OTHER_TEAM] })
     await press(renderer, 'Reassign')
     const sheet = JSON.stringify(renderer.toJSON())
     expect(sheet).toContain('Who should own Flyer?')
@@ -613,7 +785,7 @@ describe('MobileBotTeamRoom', () => {
     await settle()
     expect(client.sendRequest).toHaveBeenCalledWith(
       'botTeams.reassignTask',
-      { taskId: 'task', botId: 'max', start: true },
+      { taskId: 'task', botId: 'max' },
       expect.anything()
     )
     expect(
@@ -629,9 +801,7 @@ describe('MobileBotTeamRoom', () => {
       projects: [],
       workspaceId: null
     })
-    const renderer = await render(client, vi.fn(), vi.fn(), vi.fn(), {
-      teams: [TEAM, OTHER_TEAM]
-    })
+    const renderer = await render(client, vi.fn(), vi.fn(), vi.fn(), { teams: [TEAM, OTHER_TEAM] })
     await press(renderer, 'Reassign')
     await press(renderer, 'Cancel')
     expect(JSON.stringify(renderer.toJSON())).not.toContain('Who should own')
@@ -650,9 +820,7 @@ describe('MobileBotTeamRoom', () => {
       projects: [],
       workspaceId: 'folder:1'
     })
-    const renderer = await render(client, vi.fn(), vi.fn(), vi.fn(), {
-      teams: [TEAM, OTHER_TEAM]
-    })
+    const renderer = await render(client, vi.fn(), vi.fn(), vi.fn(), { teams: [TEAM, OTHER_TEAM] })
     expect(JSON.stringify(renderer.toJSON())).not.toContain('Reassign')
   })
 
@@ -665,9 +833,7 @@ describe('MobileBotTeamRoom', () => {
           : { ok: false, error: { code: 'internal', message: 'nope' } }
       )
     }
-    const renderer = await render(client, vi.fn(), vi.fn(), vi.fn(), {
-      teams: [TEAM, OTHER_TEAM]
-    })
+    const renderer = await render(client, vi.fn(), vi.fn(), vi.fn(), { teams: [TEAM, OTHER_TEAM] })
     await press(renderer, 'Reassign')
     await press(renderer, 'Give to Max')
     await settle()

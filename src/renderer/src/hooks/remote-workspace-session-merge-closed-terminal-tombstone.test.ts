@@ -67,11 +67,9 @@ describe('a closed-last-terminal row that a direct-SSH snapshot says nothing abo
     expect(useAppStore.getState().tabsByWorktree[worktree.id]).toEqual([])
   })
 
-  it('still re-seeds when the user explicitly opens the workspace', () => {
-    // The mirror risk of preserving the row rather than dropping it: the tombstone must suppress
-    // seeding on startup hydration ONLY. An explicit activation opts into reseedEmptiedWorkspace,
-    // and a preserved row that swallowed it would trade a duplicate terminal for a dead workspace.
-    // Passes before the merge fix too — it is the guard on it, not evidence of it.
+  it('activates the workspace on an explicit open without adding a shell', () => {
+    // The preserved row must not block an explicit activation. Passes before the merge fix too: it
+    // is the guard on the merge, not evidence of it.
     const worktree = makeWorktree()
     seedEmptyActivatableWorktree(worktree)
     seedClosedLastTerminal(worktree.id)
@@ -80,6 +78,6 @@ describe('a closed-last-terminal row that a direct-SSH snapshot says nothing abo
     const result = activateAndRevealWorktree(worktree.id, { notifyHostRuntime: false })
 
     expect(result).not.toBe(false)
-    expect(useAppStore.getState().tabsByWorktree[worktree.id]).toHaveLength(1)
+    expect(useAppStore.getState().tabsByWorktree[worktree.id]).toEqual([])
   })
 })

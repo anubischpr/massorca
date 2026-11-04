@@ -1,7 +1,7 @@
 import { useRef, useCallback } from 'react'
 import { Keyboard, Platform, type View } from 'react-native'
 import { useClipboardReader, useClipboardWriter } from '../platform/clipboard'
-import { newTabRepoListRead, type MobileRuntimeRepoSummary } from './mobile-session-read-operations'
+import { readMobileWorktreeConnectionId } from './mobile-worktree-connection-id'
 import {
   triggerSelection,
   triggerSuccess,
@@ -17,7 +17,6 @@ import type { createTerminalLiveAccessoryInput } from '../terminal/terminal-live
 import { clearTerminalLiveInputFocusTimer } from '../terminal/terminal-live-input'
 import { stripTerminalSelectionGutter } from '../../../src/shared/terminal-selection-gutter'
 import { useTerminalCopyTrimsGutter } from '../terminal/terminal-copy-gutter-preference'
-import { getRepoIdFromMobileWorktreeId } from './mobile-session-route-helpers'
 import type { MobileSessionTerminalInputModel } from './use-mobile-session-terminal-input'
 
 export function useMobileSessionAccessorySelection(scope: MobileSessionTerminalInputModel) {
@@ -192,11 +191,7 @@ export function useMobileSessionAccessorySelection(scope: MobileSessionTerminalI
     if (!client || isFloatingWorkspaceRoute) {
       return null
     }
-    const repoId = getRepoIdFromMobileWorktreeId(worktreeId)
-    const repoResponse = await newTabRepoListRead.request(client)
-    // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: Preserve the established response shape at this boundary.
-    const repos = (newTabRepoListRead.interpret(repoResponse) as MobileRuntimeRepoSummary[]) ?? []
-    return repos.find((repo) => repo.id === repoId)?.connectionId?.trim() || null
+    return readMobileWorktreeConnectionId(client, worktreeId)
   }, [client, isFloatingWorkspaceRoute, worktreeId])
 
   const refreshCanPaste = useCallback(() => {

@@ -51,6 +51,7 @@ export function buildVisibleWorktreeOptionsFromState(
     defaultHostId: getSettingsFocusedExecutionHostId(state.settings),
     worktreeLineageById: state.worktreeLineageById,
     preserveLineageParentOrder: state.sortBy === 'manual',
-    botTeamWorkspaceIds: getBotTeamWorkspaceIds()
+    botTeamWorkspaceIds: getBotTeamWorkspaceIds(),
+    showBotTeamWorkspaces: state.showBotTeamWorkspaces
   }
 }

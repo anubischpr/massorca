@@ -56,6 +56,8 @@ export type UISlicePreferences = {
   hideDetachedHeadWorkspaces: boolean
   setHideDetachedHeadWorkspaces: (v: boolean) => void
   hideWorkspacesFromOtherDevices: boolean
+  showBotTeamWorkspaces: boolean
+  setShowBotTeamWorkspaces: (v: boolean) => void
   setHideWorkspacesFromOtherDevices: (v: boolean) => void
   alwaysShowDefaultBranchWorkspace: boolean
   setAlwaysShowDefaultBranchWorkspace: (v: boolean) => void
@@ -87,6 +89,9 @@ export type UISlicePreferences = {
   setAgentsReadFilter: (v: ThreadReadFilter) => void
   agentsGroupBy: ActivityGroupBy
   setAgentsGroupBy: (v: ActivityGroupBy) => void
+  /** Calendar: runs that already happened stay visible, greyed, instead of hidden. */
+  calendarShowDoneRuns: boolean
+  setCalendarShowDoneRuns: (v: boolean) => void
   collapsedGroups: Set<string>
   toggleCollapsedGroup: (key: string) => void
   worktreeCardProperties: WorktreeCardProperty[]

@@ -1,11 +1,13 @@
 import { memo } from 'react'
 import { GitBranch } from 'lucide-react-native'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
+import type { BotTeamSessionTeamsResult } from '../../../src/shared/rpc-contract/bot-team-session-team-params'
 import type { RuntimeWorktreeAgentRow } from '../../../src/shared/runtime-types'
 import { withoutNativeChatVisualDirectiveLines } from '../../../src/shared/native-chat-visual-directive'
 import { colors, spacing } from '../theme/mobile-theme'
 import { agentDisplayLabel } from '../worktree/agent-row-display'
 import type { SessionStatusGlyph } from '../worktree/session-status-glyph'
+import { MobileBotTeamSessionCharacter } from '../bot-teams/MobileBotTeamSessionCharacter'
 import { MobileAgentIcon } from './MobileAgentIcon'
 import { SessionStatusMark } from './SessionStatusMark'
 import { mobilePiRuntimeFromMarker } from './mobile-pi-runtime'
@@ -21,6 +23,8 @@ type Props = {
   glyph: SessionStatusGlyph | null
   /** The branch this session runs on, when it runs in another worktree than the one it is listed in. */
   runsOnBranch?: string | null
+  /** The bot team that started this session, shown after its name; absent for any other session. */
+  botTeam?: BotTeamSessionTeamsResult['sessionTeams'][string]
   onPress?: (agent: RuntimeWorktreeAgentRow) => void
   onLongPress?: (agent: RuntimeWorktreeAgentRow) => void
 }
@@ -32,6 +36,7 @@ function WorktreeAgentRowComponent({
   now,
   glyph,
   runsOnBranch,
+  botTeam,
   onPress,
   onLongPress
 }: Props) {
@@ -77,9 +82,12 @@ function WorktreeAgentRowComponent({
           <GitBranch size={12} color={colors.textMuted} />
         </View>
       ) : null}
-      <Text style={[styles.label, emphasis]} numberOfLines={1}>
-        {label}
-      </Text>
+      <View style={styles.labelRow}>
+        <Text style={[styles.label, emphasis]} numberOfLines={1}>
+          {label}
+        </Text>
+        <MobileBotTeamSessionCharacter sessionTeam={botTeam} />
+      </View>
       <SessionStatusMark glyph={glyph} />
     </Pressable>
   )
@@ -112,8 +120,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center'
   },
-  label: {
+  // Why: the name and the team mark share one line; the name truncates so the mark stays after it.
+  labelRow: {
     flex: 1,
+    minWidth: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs
+  },
+  label: {
+    flexShrink: 1,
     minWidth: 0,
     fontSize: 13,
     color: colors.textSecondary

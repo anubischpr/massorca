@@ -162,6 +162,15 @@ User QA verbatim: "La sesión hija sigue mostrando su propio worktree"; "3. No f
 - Delegation card names its request (38e539f65e3). The real payload of the pending card is titled probe. The render on the VPS client is not yet seen.
 - Delete timing on a local throwaway worktree: dialog closed 2295 ms, row gone 3800 ms, store 4636 ms. The VPS client was not measured: creating a worktree there needs write authorization.
 
+### pv76 to pv79 QA (2026-11-03)
+
+- Delete with Descendants now takes the worktrees of delegated child sessions (6323413e09e). It sees them only while their session rows exist on the client.
+- A folded parent session could not be unfolded: the one-line row lacked `agent-disclosure-row`, so the stylesheet kept the folded chevron at opacity 0 forever. Fixed with a test that fails without it.
+
+### Overnight decisions 2026-11-03
+
+- A folded parent's "+N" moves into the chevron's own slot. At rest it shows "+N"; on hover or focus the chevron replaces it, as in the dashboard rows. Clicking the count unfolds the parent, since it is the chevron's hit target. Taken by the parent session while the user slept; the user can revert it.
+
 ## Next step
 
 T5 is partial. Decisions for the user first: the unnest question (Progress, change 1), the hidden-row action gaps (menu approval), the six T2 product gaps, the T4 and T4 follow-up gaps, and whether the switch check should use a dispatch-backed link. Then the agent runs the rest of T5: mobile rows on a device, the unread amber glyph, and a dispatch-backed child in the app. Owner: the user decides; then the agent runs T5.

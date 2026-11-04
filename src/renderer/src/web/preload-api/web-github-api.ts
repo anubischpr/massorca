@@ -155,6 +155,12 @@ export function createGitHubApi(): WebGitHubApi {
         GITHUB_WEB_RPC_METHODS.listHostBindableAccounts,
         args
       ),
+    // Why: switching gh's active login is a host action the web client cannot reach.
+    switchActiveAccount: () => Promise.resolve({ ok: false, reason: 'unsupported' }),
+    // Why: gh sign-in runs `gh auth login` on the host, which the web client cannot reach.
+    startSignIn: () => Promise.resolve({ ok: false, reason: 'unsupported' }),
+    cancelSignIn: () => Promise.resolve(),
+    onSignInEvent: () => noopUnsubscribe,
     listAccountOrgs: (args) =>
       route<WebGitHubResult<'listAccountOrgs'>>(GITHUB_WEB_RPC_METHODS.listAccountOrgs, args),
     inferRepoAccount: (args) =>

@@ -7,6 +7,7 @@ import type { ExecutionHostId } from '../../../shared/execution-host'
 import type { PendingSidebarWorktreeReveal } from '@/store/slices/ui'
 import type { WorktreeStartupPayload } from '@/lib/worktree-startup-payload'
 import type { IssueCommandLaunch } from '@/lib/worktree-setup-issue-command-queue'
+import type { InitialTerminalOptions } from '@/lib/worktree-activation-store-contract'
 
 export type WorktreeActivationSurfaceSelection = {
   /** The create picker's selection; null means Blank Terminal. */
@@ -52,4 +53,19 @@ export function activationSeedsUserDefaultSurface(
     selection.agent === undefined &&
     selection.providesInitialSurface !== true
   )
+}
+
+export type ActivationSeedChoices = Pick<
+  InitialTerminalOptions,
+  'seedUserDefaultSurface' | 'blankTerminalRequested'
+>
+
+/** What an empty workspace may still be given: the user's default surface, or the Blank Terminal they picked. */
+export function activationSeedChoices(
+  selection?: WorktreeActivationSurfaceSelection
+): ActivationSeedChoices {
+  return {
+    ...(activationSeedsUserDefaultSurface(selection) ? { seedUserDefaultSurface: true } : {}),
+    ...(selection?.agent === null ? { blankTerminalRequested: true } : {})
+  }
 }

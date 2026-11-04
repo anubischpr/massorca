@@ -14,13 +14,14 @@ vi.mock('react-native', () => ({
   TextInput: 'TextInput',
   View: 'View'
 }))
+vi.mock('../components/MobileRepoIcon', () => ({ MobileRepoIcon: 'MobileRepoIcon' }))
 vi.mock('lucide-react-native', () => ({
   ChevronDown: 'ChevronDown',
   ChevronLeft: 'ChevronLeft',
   ChevronRight: 'ChevronRight'
 }))
 
-const NEXUS = { key: 'worktree:repo-1::/work/nexus', name: 'NexusCare', kind: 'git' }
+const NEXUS = { key: 'repo:repo-1', name: 'NexusCare', kind: 'git' }
 const PROJECT = {
   id: 'project_1',
   teamId: 'team_1',
@@ -122,6 +123,26 @@ describe('MobileBotTeamWorkspaceLink', () => {
     await act(async () => pressableWithText(renderer, 'Advanced options').props.onPress())
     expect(hasText(renderer, 'None')).toBe(true)
     expect(hasText(renderer, 'NexusCare')).toBe(true)
+  })
+
+  it('shows each project with the icon the host sent, and the default when it sent none', async () => {
+    const icon = { type: 'emoji', emoji: '🩺' }
+    const { client } = hostAnswering({
+      'botTeams.listLinkableWorkspaces': {
+        ok: true,
+        result: {
+          workspaces: [
+            { ...NEXUS, icon },
+            { key: 'repo:repo-2', name: 'Plain', kind: 'git' }
+          ]
+        }
+      }
+    })
+    const { renderer } = await renderLink(client)
+    await act(async () => pressableWithText(renderer, 'Advanced options').props.onPress())
+
+    const icons = renderer.root.findAllByType('MobileRepoIcon' as never)
+    expect(icons.map((node) => node.props.repoIcon)).toEqual([icon, undefined])
   })
 
   it('links the project to the workspace chosen, and says so once saved', async () => {

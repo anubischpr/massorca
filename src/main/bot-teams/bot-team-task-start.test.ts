@@ -36,7 +36,7 @@ const TASK: BotTeamTask = {
 function deps(overrides: Partial<BotTeamTaskStartDeps> = {}): BotTeamTaskStartDeps {
   return {
     ensureTeamWorkspace: vi.fn(async () => 'folder:1'),
-    workspaceExists: vi.fn(async () => true),
+    prepareLinkedWorkspace: vi.fn(async () => 'repo-1::/work/nexus-task'),
     createSession: vi.fn(async () => 'session-1'),
     sendPrompt: vi.fn(async () => true),
     linkSession: vi.fn((_taskId, sessionId) => ({ ...TASK, sessionId })),
@@ -215,42 +215,34 @@ describe('startBotTeamTask', () => {
     expect(d.createSession).not.toHaveBeenCalled()
   })
 
-  it('runs a task of a project linked to a git worktree in that worktree, not the team folder', async () => {
+  it('runs a task of a project linked to a repo in the workspace prepared for that task, not the team folder', async () => {
     const d = deps()
     await startBotTeamTask(d, {
       team: TEAM,
       task: { ...TASK, projectId: 'project' },
-      project: { ...PROJECT, workspace: { key: 'worktree:repo-1::/work/nexus', name: 'NexusCare' } }
+      project: { ...PROJECT, workspace: { key: 'repo:repo-1', name: 'NexusCare' } }
     })
 
     expect(d.ensureTeamWorkspace).not.toHaveBeenCalled()
-    expect(d.workspaceExists).toHaveBeenCalledWith('worktree:repo-1::/work/nexus')
-    expect(d.createSession).toHaveBeenCalledWith(
-      expect.objectContaining({ workspaceId: 'repo-1::/work/nexus' })
-    )
-  })
-
-  it('runs a task of a project linked to a folder workspace in that folder workspace', async () => {
-    const d = deps()
-    await startBotTeamTask(d, {
-      team: TEAM,
-      task: { ...TASK, projectId: 'project' },
-      project: { ...PROJECT, workspace: { key: 'folder:fw-1', name: 'Notes' } }
+    expect(d.prepareLinkedWorkspace).toHaveBeenCalledWith({
+      projectId: 'project',
+      workspaceKey: 'repo:repo-1',
+      taskTitle: 'Flyer',
+      taskPrompt: expect.any(String)
     })
-
     expect(d.createSession).toHaveBeenCalledWith(
-      expect.objectContaining({ workspaceId: 'folder:fw-1' })
+      expect.objectContaining({ workspaceId: 'repo-1::/work/nexus-task' })
     )
   })
 
   it('keeps the task in Todo, with the reason, when the linked workspace is gone', async () => {
-    const d = deps({ workspaceExists: vi.fn(async () => false) })
+    const d = deps({ prepareLinkedWorkspace: vi.fn(async () => null) })
 
     await expect(
       startBotTeamTask(d, {
         team: TEAM,
         task: { ...TASK, projectId: 'project' },
-        project: { ...PROJECT, workspace: { key: 'folder:fw-1', name: 'Notes' } }
+        project: { ...PROJECT, workspace: { key: 'repo:repo-1', name: 'NexusCare' } }
       })
     ).rejects.toThrow(
       'The Workspaces project linked to Summer campaign is gone. Link another one or clear the link.'
@@ -267,9 +259,121 @@ describe('startBotTeamTask', () => {
       project: { ...PROJECT, workspace: null }
     })
 
-    expect(d.workspaceExists).not.toHaveBeenCalled()
+    expect(d.prepareLinkedWorkspace).not.toHaveBeenCalled()
     expect(d.createSession).toHaveBeenCalledWith(
       expect.objectContaining({ workspaceId: 'folder:1' })
     )
+  })
+})
+
+describe('the task prompt and the room', () => {
+  it('says the task is already on the board and asks for one finish line only', async () => {
+    const { botTeamTaskPrompt } = await import('./bot-team-task-start')
+    const bot = {
+      id: 'b',
+      name: 'José',
+      job: 'Front',
+      agent: 'claude' as const,
+      modelMode: 'auto' as const,
+      model: null,
+      effort: null,
+      skills: []
+    }
+    const team = {
+      id: 't',
+      name: 'Dev',
+      purpose: '',
+      character: 'circle' as const,
+      workspacesEnabled: false,
+      accessMode: 'default' as const,
+      bots: [bot]
+    }
+    const prompt = botTeamTaskPrompt(team, bot, { title: 'Colors', prompt: 'Show a colors card' })
+    expect(prompt).toContain('This task is already on the board')
+    expect(prompt).toContain('when you finish')
+    expect(prompt).not.toContain('when you take this on')
+  })
+
+  it('gives the bots the Brief Markdown when the project has one, and the lists otherwise', async () => {
+    const { botTeamTaskPrompt } = await import('./bot-team-task-start')
+    const bot = {
+      id: 'b',
+      name: 'Iris',
+      job: 'Designs flyers',
+      agent: 'claude' as const,
+      modelMode: 'auto' as const,
+      model: null,
+      effort: null,
+      skills: []
+    }
+    const team = {
+      id: 't',
+      name: 'Marketing',
+      purpose: '',
+      character: 'circle' as const,
+      workspacesEnabled: false,
+      accessMode: 'default' as const,
+      bots: [bot]
+    }
+    const project = {
+      id: 'p',
+      teamId: 't',
+      name: 'Summer campaign',
+      goal: 'Sell the offers',
+      codeSource: null,
+      briefUpdatedAt: null,
+      brief: {
+        requirements: ['Old list item'],
+        constraints: [],
+        decisions: [],
+        markdown:
+          '## Requirements\n- Flyer for the offers\n\n## Decisions\n1. Iris lays out the flyer'
+      }
+    }
+    const task = { title: 'Colors', prompt: 'Show a colors card' }
+
+    const withMarkdown = botTeamTaskPrompt(team, bot, task, { project })
+    expect(withMarkdown).toContain('This task is part of the project "Summer campaign"')
+    expect(withMarkdown).toContain('Goal: Sell the offers')
+    expect(withMarkdown).toContain('## Requirements\n- Flyer for the offers')
+    expect(withMarkdown).toContain('1. Iris lays out the flyer')
+    expect(withMarkdown).not.toContain('Old list item')
+
+    const withoutMarkdown = botTeamTaskPrompt(team, bot, task, {
+      project: { ...project, brief: { ...project.brief, markdown: undefined } }
+    })
+    expect(withoutMarkdown).toContain('Requirements:\n- Old list item')
+    expect(withoutMarkdown).not.toContain('## Requirements')
+  })
+
+  it("asks the bot to write its finish line in the language of the task's request, in Spanish and English", async () => {
+    const { botTeamTaskPrompt } = await import('./bot-team-task-start')
+    const bot = {
+      id: 'b',
+      name: 'José',
+      job: 'Front',
+      agent: 'claude' as const,
+      modelMode: 'auto' as const,
+      model: null,
+      effort: null,
+      skills: []
+    }
+    const team = {
+      id: 't',
+      name: 'Dev',
+      purpose: '',
+      character: 'circle' as const,
+      workspacesEnabled: false,
+      accessMode: 'default' as const,
+      bots: [bot]
+    }
+    const spanish = botTeamTaskPrompt(team, bot, {
+      title: 'Colores',
+      prompt: 'Muestra una tarjeta de colores'
+    })
+    const english = botTeamTaskPrompt(team, bot, { title: 'Colors', prompt: 'Show a colors card' })
+    for (const prompt of [spanish, english]) {
+      expect(prompt).toContain("in the same language as the task's request")
+    }
   })
 })

@@ -69,6 +69,7 @@ export function useBotTeamHost(): string {
   return resolveBotTeamHost({
     chosen,
     activeEnvironmentId,
-    environmentIds: environments.map((environment) => environment.id)
+    // A store not yet hydrated (or a partial test store) has no environments list.
+    environmentIds: (environments ?? []).map((environment) => environment.id)
   })
 }

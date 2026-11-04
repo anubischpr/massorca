@@ -53,7 +53,7 @@ afterEach(() => {
   useAppStore.setState(initialAppStoreState, true)
 })
 
-/** Electron exposes the PTY inventory, so an empty workspace is seeded by the gated reseed. */
+/** Electron exposes the PTY inventory, so an empty workspace is handled by the gated reseed. */
 function useElectronActivationGate(): ReturnType<typeof vi.spyOn> {
   vi.stubGlobal('window', { api: { runtime: { call: vi.fn() }, pty: { listSessions: vi.fn() } } })
   return vi.spyOn(activationGate, 'gateWorktreeAgentActivation').mockResolvedValue('empty')
@@ -118,8 +118,8 @@ describe('empty workspace seeding with a default agent chat', () => {
     expect(createTab).not.toHaveBeenCalled()
   })
 
-  // A host's "no" to the chat seeds the shell this workspace would have had, not the agent's TUI.
-  it('seeds the plain shell when the host declines the default chat', () => {
+  // A host's "no" to the chat falls back to what this workspace has without it: no plain shell.
+  it('creates no plain shell when the host declines the default chat', () => {
     defaultChat.open.mockImplementation((_worktreeId: string, seedShell: () => boolean) => {
       seedShell()
       return { primaryTabId: null }
@@ -132,16 +132,10 @@ describe('empty workspace seeding with a default agent chat', () => {
     })
 
     expect(defaultChat.open).toHaveBeenCalledOnce()
-    expect(createTab).toHaveBeenCalledOnce()
-    expect(createTab).toHaveBeenCalledWith(
-      'wt-1',
-      undefined,
-      undefined,
-      expect.not.objectContaining({ launchAgent: expect.anything() })
-    )
+    expect(createTab).not.toHaveBeenCalled()
   })
 
-  it('falls back to a shell when no chat can open', () => {
+  it('creates no shell when no chat can open', () => {
     defaultChat.open.mockReturnValue(null)
     const createTab = vi.fn(() => ({ id: 'shell-tab' }))
     const store = createMockStore({ createTab })
@@ -156,12 +150,13 @@ describe('empty workspace seeding with a default agent chat', () => {
       { seedUserDefaultSurface: true }
     )
 
-    expect(primaryTabId).toBe('shell-tab')
-    expect(createTab).toHaveBeenCalledTimes(1)
+    expect(primaryTabId).toBeNull()
+    expect(createTab).not.toHaveBeenCalled()
   })
 
-  it('keeps the shell for seeds that did not ask for the default surface', () => {
-    const store = createMockStore({ createTab: vi.fn(() => ({ id: 'shell-tab' })) })
+  it('opens no default chat for seeds that did not ask for it', () => {
+    const createTab = vi.fn(() => ({ id: 'shell-tab' }))
+    const store = createMockStore({ createTab })
 
     ensureWorktreeHasInitialTerminal(store, 'wt-1')
     ensureWorktreeHasInitialTerminal(store, 'wt-2', undefined, undefined, undefined, undefined, {
@@ -170,6 +165,7 @@ describe('empty workspace seeding with a default agent chat', () => {
     })
 
     expect(defaultChat.open).not.toHaveBeenCalled()
+    expect(createTab).not.toHaveBeenCalled()
   })
 
   it('a user open of an empty workspace asks for the default surface', () => {
@@ -198,21 +194,28 @@ describe('empty workspace seeding with a default agent chat', () => {
 
   // Why: CLI/phone creates, fallbacks after a failed agent launch, and the move after a delete
   // activate with no intent; none of them may start an agent nobody picked.
-  it.each([
-    ['no navigation intent', {}],
-    ['a Blank Terminal pick', { ...USER_OPEN, agent: null }]
-  ])('keeps the shell for %s', (_label, selection) => {
+  it('creates no shell for an activation with no navigation intent', () => {
     const worktree = makeWorktree()
     seedEmptyActivatableWorktree(worktree)
 
-    activateAndRevealWorktree(worktree.id, { ...selection, notifyHostRuntime: false })
+    activateAndRevealWorktree(worktree.id, { notifyHostRuntime: false })
+
+    expect(defaultChat.open).not.toHaveBeenCalled()
+    expect(tabCount(worktree.id)).toBe(0)
+  })
+
+  it('keeps the shell for a Blank Terminal pick', () => {
+    const worktree = makeWorktree()
+    seedEmptyActivatableWorktree(worktree)
+
+    activateAndRevealWorktree(worktree.id, { ...USER_OPEN, agent: null, notifyHostRuntime: false })
 
     expect(defaultChat.open).not.toHaveBeenCalled()
     expect(tabCount(worktree.id)).toBe(1)
   })
 })
 
-describe('the gated reseed that seeds an empty workspace in Electron', () => {
+describe('the gated reseed of an empty workspace in Electron', () => {
   it('opens the default agent chat for a user open', async () => {
     defaultChat.open.mockReturnValue({ primaryTabId: null })
     const worktree = makeWorktree()
@@ -230,7 +233,7 @@ describe('the gated reseed that seeds an empty workspace in Electron', () => {
     expect(tabCount(worktree.id)).toBe(0)
   })
 
-  it('seeds a shell for an activation without a user open', async () => {
+  it('creates no shell for an activation without a user open', async () => {
     const worktree = makeWorktree()
     seedEmptyActivatableWorktree(worktree)
     const gate = useElectronActivationGate()
@@ -239,7 +242,7 @@ describe('the gated reseed that seeds an empty workspace in Electron', () => {
     await gate.mock.results[0]?.value
 
     expect(defaultChat.open).not.toHaveBeenCalled()
-    expect(tabCount(worktree.id)).toBe(1)
+    expect(tabCount(worktree.id)).toBe(0)
   })
 
   it('opens the default agent chat for a user-opened folder workspace', async () => {
@@ -320,7 +323,7 @@ describe('the gated reseed that seeds an empty workspace in Electron', () => {
     expect(defaultChat.open).toHaveBeenCalledTimes(1)
   })
 
-  it('seeds a shell when a plain activation follows the user open during the wait', async () => {
+  it('creates no shell when a plain activation follows the user open during the wait', async () => {
     defaultChat.awaitsDetection.mockReturnValue(true)
     let finishDetection!: () => void
     defaultChat.loadDetection.mockReturnValue(
@@ -341,7 +344,7 @@ describe('the gated reseed that seeds an empty workspace in Electron', () => {
     await flushPromises()
 
     expect(defaultChat.open).not.toHaveBeenCalled()
-    expect(tabCount(worktree.id)).toBe(1)
+    expect(tabCount(worktree.id)).toBe(0)
   })
 
   it('re-checks the active workspace after the wait', async () => {
@@ -367,7 +370,7 @@ describe('the gated reseed that seeds an empty workspace in Electron', () => {
     expect(tabCount(worktree.id)).toBe(0)
   })
 
-  it('seeds the shell when detection fails', async () => {
+  it('creates no shell when detection fails', async () => {
     defaultChat.open.mockReturnValue(null)
     defaultChat.awaitsDetection.mockReturnValue(true)
     defaultChat.loadDetection.mockRejectedValue(new Error('ssh probe failed'))
@@ -380,6 +383,6 @@ describe('the gated reseed that seeds an empty workspace in Electron', () => {
     await flushPromises()
 
     expect(isEmptyWorkspaceDefaultSurfacePending(worktree.id)).toBe(false)
-    expect(tabCount(worktree.id)).toBe(1)
+    expect(tabCount(worktree.id)).toBe(0)
   })
 })

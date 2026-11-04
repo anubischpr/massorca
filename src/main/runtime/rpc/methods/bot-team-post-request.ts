@@ -1,15 +1,28 @@
-import { withoutBotTeamMention } from '../../../../shared/bot-team-request-route'
+import {
+  parseBotTeamClassifyCode,
+  parseBotTeamClassifyResearch
+} from '../../../../shared/bot-team-request-classify'
 import type { BotTeamRequestChoice } from '../../../../shared/bot-team-request-choice'
+import { botTeamFilesOnlyText } from '../../../../shared/bot-team-room-attachments-line'
+import {
+  botTeamRoomTextWithAttachments,
+  type BotTeamRoomAttachment
+} from '../../../../shared/bot-team-room-attachments'
 import type {
   BotTeamMessage,
   BotTeamTask
 } from '../../../../shared/rpc-contract/bot-team-room-params'
+import { botTeamTaskTitle, withoutBotTeamMention } from '../../../../shared/bot-team-request-route'
 import { activeTasksByBot, fileBotTeamRequest } from '../../../bot-teams/bot-team-assign-request'
+import { botTeamScheduledReply } from '../../../bot-teams/bot-team-filed-reply'
 import { replyToBotTeamGreeting } from '../../../bot-teams/bot-team-greeting-reply'
 import { decideBotTeamRequest } from '../../../bot-teams/bot-team-request-flow'
 import { askDefaultAgentForBotTeamRequest } from '../../../bot-teams/bot-team-request-query'
+import { isKnownTimeZone } from '../../../../shared/bot-team-routine-zone'
+import { createBotTeamRoutine } from '../../orchestration/db/bot-teams/bot-team-routine-store'
+import type { OrchestrationDb } from '../../orchestration/db/orchestration-db'
 import type { RpcContext } from '../core'
-import { replyToBotTeamConversation } from './bot-team-conversation-reply'
+import { startBotTeamConversationReply } from './bot-team-conversation-reply'
 
 /** Every field after `startError` is optional, so a client from before it still reads the reply. */
 export type BotTeamPostResult = {
@@ -23,10 +36,24 @@ export type BotTeamPostResult = {
   composite?: string[]
   /** A bot answered a plain conversation in the room; nothing was filed. */
   answered?: true
+  /** A bot is answering a plain conversation in the background; its line reaches the room when ready. */
+  replying?: { botId: string }
   /** The request went to another team, because the person named it with @. */
   sentTo?: { teamId: string; teamName: string }
   /** The person asked for the work later: it waits in Todo and nothing starts. */
   later?: true
+  /** The person named a day: a one-time routine starts the task then, on the host's clock. */
+  scheduled?: { routineId: string; date: string; time: string }
+}
+
+/** The person's last few lines in the room: what the language of a line with no words is read from. */
+function earlierPersonText(db: OrchestrationDb, teamId: string): string {
+  return db
+    .listBotTeamMessages(teamId)
+    .filter((message) => message.authorBotId === null)
+    .slice(-5)
+    .map((message) => message.text)
+    .join(' ')
 }
 
 /** Files the person's line, then lets the one host query decide who takes it. */
@@ -34,14 +61,28 @@ export async function postBotTeamRequestOnHost(
   ctx: RpcContext,
   {
     teamId,
-    text,
+    text: typed,
     start,
-    askProject = false
-  }: { teamId: string; text: string; start: boolean; askProject?: boolean },
+    askProject = false,
+    attachments = [],
+    timeZone
+  }: {
+    teamId: string
+    text: string
+    start: boolean
+    askProject?: boolean
+    attachments?: BotTeamRoomAttachment[]
+    timeZone?: string
+  },
   startTask: (taskId: string) => Promise<BotTeamTask>
 ): Promise<BotTeamPostResult> {
   const db = ctx.runtime.getOrchestrationDb()
-  const message = db.postBotTeamMessage({ teamId, text, authorBotId: null })
+  // Files with no words are filed as a request that names them, in the language the person wrote before.
+  const text =
+    typed.trim() === '' && attachments.length > 0
+      ? botTeamFilesOnlyText(attachments, earlierPersonText(db, teamId))
+      : typed
+  const message = db.postBotTeamMessage({ teamId, text, authorBotId: null, attachments })
   // A greeting gets the team's one line and stops here: no query, task or usage.
   if (replyToBotTeamGreeting(db, { teamId, text })) {
     return { message, task: null, startError: null, greeted: true }
@@ -51,17 +92,22 @@ export async function postBotTeamRequestOnHost(
   if (!team) {
     return { message, task: null, startError: null }
   }
+  // The classify reply also says whether a conversation needs outside knowledge or the project code.
+  let classifyReply: string | null = null
   const decision = await decideBotTeamRequest({
     text,
     team,
     otherTeams: teams.filter((entry) => entry.id !== teamId),
     activeTasksByBot: activeTasksByBot(db, teamId),
-    classify: (prompt) =>
-      askDefaultAgentForBotTeamRequest({
+    timeZone: timeZone ?? null,
+    classify: async (prompt) => {
+      classifyReply = await askDefaultAgentForBotTeamRequest({
         prompt,
         settings: ctx.runtime.getClientSettings(),
         getAgentEnvResolvers: () => ctx.runtime.getCommitMessageAgentEnvironmentResolvers()
       })
+      return classifyReply
+    }
   })
   const later = 'later' in decision && decision.later === true
   const laterFlag = later ? { later: true as const } : {}
@@ -76,7 +122,10 @@ export async function postBotTeamRequestOnHost(
         text: withoutBotTeamMention(text, sentTo.teamName),
         start,
         later,
-        askProject: false
+        askProject: false,
+        attachments,
+        originMessageId: message.id,
+        timeZone: timeZone ?? null
       },
       startTask
     )
@@ -86,26 +135,56 @@ export async function postBotTeamRequestOnHost(
     return { message, task: null, startError: null, choice: decision.choice, ...laterFlag }
   }
   if (decision.type === 'conversation') {
-    const reply = await replyToBotTeamConversation(ctx, {
+    // The reply can take a minute, so it runs on: the room shows the bot typing until it lands.
+    const started = startBotTeamConversationReply(ctx, {
       team,
-      text,
-      subjectBotIds: decision.subjectBotIds
+      text: botTeamRoomTextWithAttachments(text, attachments),
+      subjectBotIds: decision.subjectBotIds,
+      research: classifyReply !== null && parseBotTeamClassifyResearch(classifyReply),
+      code: classifyReply !== null && parseBotTeamClassifyCode(classifyReply),
+      timeZone: timeZone ?? null
     })
-    if (reply) {
-      return { message, task: null, startError: null, answered: true }
+    if (!started) {
+      return { message, task: null, startError: null }
     }
-    // No bot could answer, so the person picks who takes it: the room always shows an outcome.
-    const [suggested] = decision.subjectBotIds
+    started.done.catch(() => {})
+    return { message, task: null, startError: null, replying: { botId: started.botId } }
+  }
+  if (decision.type === 'ask') {
+    return { message, task: null, startError: null }
+  }
+  if (decision.scheduledFor) {
+    const { date, time } = decision.scheduledFor
+    const routine = createBotTeamRoutine(
+      db,
+      {
+        teamId,
+        botId: decision.bot.id,
+        name: botTeamTaskTitle(text, team.bots),
+        prompt: botTeamRoomTextWithAttachments(text, attachments),
+        schedule: {
+          frequency: 'once',
+          time,
+          weekday: null,
+          monthDay: null,
+          date,
+          timeZone: timeZone && isKnownTimeZone(timeZone) ? timeZone : null
+        }
+      },
+      Date.now()
+    )
+    db.postBotTeamMessage({
+      teamId,
+      authorBotId: decision.bot.id,
+      text: botTeamScheduledReply({ date, time, text })
+    })
     return {
       message,
       task: null,
       startError: null,
-      choice: { kind: 'new-bot', ...(suggested ? { suggestedBotId: suggested } : {}) },
-      ...laterFlag
+      later: true,
+      scheduled: { routineId: routine.id, date, time }
     }
-  }
-  if (decision.type === 'ask') {
-    return { message, task: null, startError: null }
   }
   const filed = await fileBotTeamRequest(
     db,
@@ -116,7 +195,9 @@ export async function postBotTeamRequestOnHost(
       alsoNeeds: decision.alsoNeeds,
       start,
       later,
-      askProject
+      askProject,
+      attachments,
+      timeZone: timeZone ?? null
     },
     startTask
   )

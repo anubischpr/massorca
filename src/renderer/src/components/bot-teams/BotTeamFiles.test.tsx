@@ -14,6 +14,7 @@ const listBotTeamVersions = vi.hoisted(() => vi.fn())
 const listBotTeamFileVersions = vi.hoisted(() => vi.fn())
 const readBotTeamVersionFile = vi.hoisted(() => vi.fn())
 const toastError = vi.hoisted(() => vi.fn())
+const readBotTeamFilePreview = vi.hoisted(() => vi.fn())
 
 vi.mock('@/runtime/runtime-bot-team-client', () => ({
   listBotTeamFiles,
@@ -22,6 +23,12 @@ vi.mock('@/runtime/runtime-bot-team-client', () => ({
   listBotTeamFileVersions,
   readBotTeamVersionFile,
   restoreBotTeamFileVersion: vi.fn()
+}))
+vi.mock('./bot-team-file-preview-read', () => ({ readBotTeamFilePreview }))
+vi.mock('@/runtime/runtime-bot-team-client-project-files', () => ({
+  listBotTeamProjectFiles: vi.fn(async () => 'unavailable'),
+  readBotTeamProjectFile: vi.fn(),
+  readBotTeamProjectFilePreview: vi.fn()
 }))
 vi.mock('@/i18n/i18n', () => ({
   translate: (_key: string, fallback: string, values?: Record<string, string>) =>
@@ -52,12 +59,12 @@ const LIST = {
 
 const mounted: { container: HTMLDivElement; root: Root }[] = []
 
-async function mount(): Promise<HTMLDivElement> {
+async function mount(openPath?: string): Promise<HTMLDivElement> {
   const container = document.createElement('div')
   document.body.appendChild(container)
   const root = createRoot(container)
   mounted.push({ container, root })
-  await act(async () => root.render(<BotTeamFiles team={TEAM} />))
+  await act(async () => root.render(<BotTeamFiles team={TEAM} openPath={openPath} />))
   return container
 }
 
@@ -100,6 +107,12 @@ describe('the team files', () => {
     for (const path of ['flyer.html', 'brand/notes.md', 'logo.png']) {
       expect(container.textContent).toContain(path)
     }
+  })
+
+  it('opens the file a room chip names once the list arrives', async () => {
+    readBotTeamFile.mockResolvedValue({ kind: 'text', text: 'Notes' })
+    await mount('brand/notes.md')
+    expect(readBotTeamFile).toHaveBeenCalledWith('t1', 'brand/notes.md')
   })
 
   const NOTE = 'One bot or person edits a file at a time. Every change is saved as a version.'
@@ -152,7 +165,8 @@ describe('the team files', () => {
     await act(async () => fileButton(container, 'flyer.html').click())
     expect(listBotTeamFileVersions).toHaveBeenCalledWith('t1', 'flyer.html')
     expect(container.textContent).toContain('Versions')
-    expect(container.textContent).toContain('<p>Summer</p>')
+    // HTML is shown as the page it makes, in its frame, not as its source.
+    expect(container.querySelector('iframe')).not.toBeNull()
   })
 
   it('opens a file read-only, and goes back to the list', async () => {
@@ -162,7 +176,7 @@ describe('the team files', () => {
     await act(async () => fileButton(container, 'flyer.html').click())
 
     expect(readBotTeamFile).toHaveBeenCalledWith('t1', 'flyer.html')
-    expect(container.textContent).toContain('<p>Summer</p>')
+    expect(container.querySelector('iframe')).not.toBeNull()
     expect(container.querySelector('textarea, input')).toBeNull()
 
     await act(async () =>
@@ -171,9 +185,21 @@ describe('the team files', () => {
     expect(container.textContent).toContain('brand/notes.md')
   })
 
-  it('does not open a file it cannot show as text', async () => {
+  it('opens a picture as its preview, not as a refused text read', async () => {
+    readBotTeamFilePreview.mockResolvedValue({
+      content: 'AAAA',
+      isBinary: true,
+      isImage: true,
+      mimeType: 'image/png'
+    })
     const container = await mount()
-    expect(fileButton(container, 'logo.png').disabled).toBe(true)
+    expect(fileButton(container, 'logo.png').disabled).toBe(false)
+
+    await act(async () => fileButton(container, 'logo.png').click())
+
+    expect(readBotTeamFilePreview).toHaveBeenCalledWith('t1', 'logo.png')
+    expect(readBotTeamFile).not.toHaveBeenCalledWith('t1', 'logo.png')
+    expect(container.querySelector('img')?.getAttribute('src')).toBe('data:image/png;base64,AAAA')
   })
 
   it('says so when the team has no files yet', async () => {

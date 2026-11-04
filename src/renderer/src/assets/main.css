@@ -910,49 +910,46 @@ html.native-shell .app-layout {
   height: 100%;
 }
 
-/* Tab-group split resize handle — wide hit area, visible center line. */
+/* Tab-group split resize handle — a 1px border line; ::after widens the hit area over both panes. */
 .tab-group-split-resize-handle {
   flex-shrink: 0;
   position: relative;
-  background: transparent;
+  background: var(--border);
+  transition: background 100ms ease;
 }
 
 .tab-group-split-resize-handle.is-vertical {
-  width: 6px;
+  width: 1px;
   cursor: col-resize;
 }
 
 .tab-group-split-resize-handle.is-horizontal {
-  height: 6px;
+  height: 1px;
   cursor: row-resize;
 }
 
 .tab-group-split-resize-handle::after {
   content: '';
   position: absolute;
-  border-radius: 1px;
-  background: var(--tab-group-split-divider);
-  transition: background 100ms ease;
+  z-index: 10;
 }
 
 .tab-group-split-resize-handle.is-vertical::after {
   top: 0;
   bottom: 0;
-  left: 50%;
-  width: 3px;
-  transform: translateX(-50%);
+  left: -3px;
+  right: -3px;
 }
 
 .tab-group-split-resize-handle.is-horizontal::after {
   left: 0;
   right: 0;
-  top: 50%;
-  height: 3px;
-  transform: translateY(-50%);
+  top: -3px;
+  bottom: -3px;
 }
 
-.tab-group-split-resize-handle:hover::after,
-.tab-group-split-resize-handle.is-dragging::after {
+.tab-group-split-resize-handle:hover,
+.tab-group-split-resize-handle.is-dragging {
   background: var(--tab-group-split-divider-strong);
 }
 

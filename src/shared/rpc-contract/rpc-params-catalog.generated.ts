@@ -47,6 +47,7 @@ import {
   AttachmentUploadIdParams,
   AttachmentUploadStartParams
 } from './agent-session-attachment-params'
+import { ChecklistReadParams, ChecklistSetItemParams } from './agent-session-checklist-params'
 import { CreateAgentSessionParams, EnsureAgentSessionParams } from './agent-session-params'
 import { ReadPlanDocumentParams } from './agent-session-plan-document-params'
 import { ReadRecordedFileParams } from './agent-session-recorded-file-params'
@@ -74,6 +75,8 @@ import {
   BotTeamAgentRemember,
   BotTeamAgentTaskCreate
 } from './bot-team-agent-params'
+import { BotTeamEngramList } from './bot-team-engram-params'
+import { BotTeamProjectFilesSelector } from './bot-team-files-project-params'
 import { BotTeamMemoryDelete, BotTeamMemoryList } from './bot-team-memory-params'
 import {
   BotTeamAddBot,
@@ -85,11 +88,15 @@ import {
 } from './bot-team-params'
 import {
   BotTeamMessagePost,
+  BotTeamProjectArchive,
   BotTeamProjectCreate,
+  BotTeamProjectDelete,
   BotTeamProjectSetBrief,
   BotTeamProjectSetCodeSource,
   BotTeamProjectSetWorkspace,
+  BotTeamProjectUpdate,
   BotTeamRequestAssign,
+  BotTeamRoomListSelector,
   BotTeamRoomSelector,
   BotTeamTaskCreate,
   BotTeamTaskReassign,
@@ -100,8 +107,10 @@ import {
   BotTeamRoutineCreate,
   BotTeamRoutineList,
   BotTeamRoutineSelector,
-  BotTeamRoutineSetPaused
+  BotTeamRoutineSetPaused,
+  BotTeamRoutineUpdate
 } from './bot-team-routine-params'
+import { BotTeamScheduledRunsQuery } from './bot-team-scheduled-run-params'
 import {
   BotTeamFileVersionsSelector,
   BotTeamVersionFileSelector,
@@ -422,6 +431,7 @@ import {
   ManagedServerSelector,
   ManagedServerUpdate
 } from './managed-server-params'
+import { MarketplaceVaultClear, MarketplaceVaultSet } from './marketplace-vault-params'
 import { NativeChatSession, NativeChatUnsubscribe } from './native-chat-params'
 import {
   NotificationGetMissedSinceParams,
@@ -430,6 +440,7 @@ import {
   NotificationsSubscribeParams
 } from './notifications-params'
 import { OrcadMigrationCatalogParams } from './orcad-migration-params'
+import { AskUserParams } from './orchestration-ask-user-params'
 import { ChildBringBackParams } from './orchestration-child-bring-back-params'
 import { DelegateRequestParams } from './orchestration-delegate-request-params'
 import {
@@ -718,6 +729,8 @@ export const RPC_PARAMS_BY_METHOD = {
   'agentSessionAttachment.uploadAppend': AttachmentUploadAppendParams,
   'agentSessionAttachment.uploadCommit': AttachmentUploadIdParams,
   'agentSessionAttachment.uploadStart': AttachmentUploadStartParams,
+  'agentSessionChecklist.read': ChecklistReadParams,
+  'agentSessionChecklist.setItem': ChecklistSetItemParams,
   'agentTeams.prepareLaunch': AgentTeamsPrepareLaunch,
   'agentTeams.tmuxCompat': AgentTeamsTmuxCompat,
   'aiVault.listSessions': AiVaultListSessionsParams,
@@ -741,6 +754,7 @@ export const RPC_PARAMS_BY_METHOD = {
   'automation.show': AutomationId,
   'automation.update': AutomationUpdate,
   'botTeams.addBot': BotTeamAddBot,
+  'botTeams.archiveProject': BotTeamProjectArchive,
   'botTeams.assignRequest': BotTeamRequestAssign,
   'botTeams.create': BotTeamCreate,
   'botTeams.createProject': BotTeamProjectCreate,
@@ -749,19 +763,25 @@ export const RPC_PARAMS_BY_METHOD = {
   'botTeams.createWebhook': BotTeamWebhookCreate,
   'botTeams.delete': BotTeamSelector,
   'botTeams.deleteMemory': BotTeamMemoryDelete,
+  'botTeams.deleteProject': BotTeamProjectDelete,
+  'botTeams.deleteRoutine': BotTeamRoutineSelector,
   'botTeams.fileVersions': BotTeamFileVersionsSelector,
   'botTeams.list': null,
+  'botTeams.listEngramMemory': BotTeamEngramList,
   'botTeams.listLinkableWorkspaces': BotTeamRoomSelector,
   'botTeams.listMemory': BotTeamMemoryList,
-  'botTeams.listRoom': BotTeamRoomSelector,
+  'botTeams.listRoom': BotTeamRoomListSelector,
   'botTeams.listRoutineRuns': BotTeamRoutineSelector,
   'botTeams.listRoutines': BotTeamRoutineList,
+  'botTeams.listScheduledRuns': BotTeamScheduledRunsQuery,
   'botTeams.listWebhooks': BotTeamWebhookList,
   'botTeams.postMessage': BotTeamMessagePost,
+  'botTeams.projectFiles': BotTeamProjectFilesSelector,
   'botTeams.reassignTask': BotTeamTaskReassign,
   'botTeams.removeBot': BotTeamRemoveBot,
   'botTeams.replaceWebhookSecret': BotTeamWebhookSelector,
   'botTeams.restoreFileVersion': BotTeamVersionFileSelector,
+  'botTeams.sessionTeams': null,
   'botTeams.setProjectBrief': BotTeamProjectSetBrief,
   'botTeams.setProjectCodeSource': BotTeamProjectSetCodeSource,
   'botTeams.setProjectWorkspace': BotTeamProjectSetWorkspace,
@@ -770,6 +790,8 @@ export const RPC_PARAMS_BY_METHOD = {
   'botTeams.startTask': BotTeamTaskStart,
   'botTeams.update': BotTeamUpdate,
   'botTeams.updateBot': BotTeamUpdateBot,
+  'botTeams.updateProject': BotTeamProjectUpdate,
+  'botTeams.updateRoutine': BotTeamRoutineUpdate,
   'botTeams.versionFile': BotTeamVersionFileSelector,
   'botTeams.versions': BotTeamVersionsSelector,
   'botTeams.workspace': BotTeamRoomSelector,
@@ -1143,6 +1165,9 @@ export const RPC_PARAMS_BY_METHOD = {
   'managedServer.update': ManagedServerUpdate,
   'markdown.readTab': ActivateTab,
   'markdown.saveTab': SaveMarkdownTab,
+  'marketplace.vault.clear': MarketplaceVaultClear,
+  'marketplace.vault.set': MarketplaceVaultSet,
+  'marketplace.vault.status': null,
   'mobileWeb.bundle.chunk': MobileWebBundleChunkParamsSchema,
   'mobileWeb.bundle.manifest': null,
   'mobileWeb.bundle.range': MobileWebBundleChunkParamsSchema,
@@ -1163,6 +1188,7 @@ export const RPC_PARAMS_BY_METHOD = {
   'orcad.migration.stageSnapshotChunk': OrcadMigrationSnapshotChunkRequestSchema,
   'orcad.terminalCensus': OrcadTerminalCensusParamsSchema,
   'orchestration.ask': AskParams,
+  'orchestration.askUser': AskUserParams,
   'orchestration.botTeamDelegate': BotTeamAgentDelegate,
   'orchestration.botTeamPost': BotTeamAgentPost,
   'orchestration.botTeamRemember': BotTeamAgentRemember,

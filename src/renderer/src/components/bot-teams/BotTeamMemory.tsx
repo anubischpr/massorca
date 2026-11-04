@@ -6,6 +6,7 @@ import { translate } from '@/i18n/i18n'
 import { deleteBotTeamMemory, listBotTeamMemory } from '@/runtime/runtime-bot-team-memory-client'
 import type { BotTeamMemoryEntry } from '../../../../shared/rpc-contract/bot-team-memory-params'
 import type { BotTeam } from '../../../../shared/rpc-contract/bot-team-params'
+import { BotTeamEngramMemory } from './BotTeamEngramMemory'
 import { BotTeamFilesBar } from './BotTeamFilesBar'
 
 const TEAM_TAB = 'team'
@@ -124,6 +125,7 @@ export function BotTeamMemory({ team }: { team: BotTeam }): React.JSX.Element {
               ) : null}
             </div>
           )}
+          <BotTeamEngramMemory team={team} />
         </div>
       </div>
     </div>

@@ -221,7 +221,7 @@ describe('why sheet', () => {
       'Read-only task, so it runs in this worktree'
     ])
     expect(delegationPlacementLines('new-child', null)).toEqual([
-      'Writes code, so it gets its own worktree'
+      'May change files, so it gets its own worktree'
     ])
     expect(delegationPlacementLines('current', 'folder-workspace-writes')).toEqual([
       'Folder workspace, so writes land in this folder'

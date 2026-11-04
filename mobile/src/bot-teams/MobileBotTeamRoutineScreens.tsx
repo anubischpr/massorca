@@ -3,6 +3,7 @@ import { Pressable, Text } from 'react-native'
 import type { BotTeam } from '../../../src/shared/rpc-contract/bot-team-params'
 import type { BotTeamTask } from '../../../src/shared/rpc-contract/bot-team-room-params'
 import type { RpcClient } from '../transport/rpc-client'
+import { MobileBotTeamRoutineEdit } from './MobileBotTeamRoutineEdit'
 import { MobileBotTeamRoutineNew } from './MobileBotTeamRoutineNew'
 import { MobileBotTeamRoutineRuns } from './MobileBotTeamRoutineRuns'
 import { MobileBotTeamRoutines } from './MobileBotTeamRoutines'
@@ -14,13 +15,24 @@ const MobileBotTeamWebhook = lazy(() =>
 )
 
 /** The screens under a team's Routines: the list, a new routine, one routine's runs, a web address. */
-export type BotTeamRoutineScreen =
+export type BotTeamRoutineScreen = (
   | { name: 'routines'; teamId: string }
   | { name: 'routineNew'; teamId: string }
+  | { name: 'routineEdit'; teamId: string; routineId: string }
   | { name: 'routineRuns'; teamId: string; routineId: string }
   | { name: 'webhook'; teamId: string; webhookId?: string }
+) & {
+  /** 'room' when opened from the room menu: the list then goes back to the room, not the bots. */
+  origin?: 'room'
+}
 
-const ROUTINE_SCREEN_NAMES: readonly string[] = ['routines', 'routineNew', 'routineRuns', 'webhook']
+const ROUTINE_SCREEN_NAMES: readonly string[] = [
+  'routines',
+  'routineNew',
+  'routineEdit',
+  'routineRuns',
+  'webhook'
+]
 
 /** True for the screens Routines opens, so the screen file can hand them to this module. */
 export function isBotTeamRoutineScreen(screen: { name: string }): screen is BotTeamRoutineScreen {
@@ -50,6 +62,7 @@ export function MobileBotTeamRoutinesRow({
 /** Every screen a team's Routines can lead to, or back out to. */
 export type BotTeamRoutineExit =
   | BotTeamRoutineScreen
+  | { name: 'team'; teamId: string }
   | { name: 'teamBots'; teamId: string }
   | { name: 'settings' }
 
@@ -72,7 +85,12 @@ export function MobileBotTeamRoutineScreens({
   if (!team) {
     return null
   }
-  const toRoutines = () => onScreen({ name: 'routines', teamId: team.id })
+  const origin = screen.origin ? { origin: screen.origin } : {}
+  const toRoutines = () => onScreen({ name: 'routines', teamId: team.id, ...origin })
+  const leaveRoutines: BotTeamRoutineExit =
+    screen.origin === 'room'
+      ? { name: 'team', teamId: team.id }
+      : { name: 'teamBots', teamId: team.id }
   if (screen.name === 'routineNew') {
     return (
       <MobileBotTeamRoutineNew
@@ -81,6 +99,18 @@ export function MobileBotTeamRoutineScreens({
         offline={offline}
         onBack={toRoutines}
         onCreated={toRoutines}
+        onChangeAccess={() => onScreen({ name: 'settings' })}
+      />
+    )
+  }
+  if (screen.name === 'routineEdit') {
+    return (
+      <MobileBotTeamRoutineEdit
+        client={client}
+        team={team}
+        routineId={screen.routineId}
+        offline={offline}
+        onDone={toRoutines}
         onChangeAccess={() => onScreen({ name: 'settings' })}
       />
     )
@@ -115,11 +145,21 @@ export function MobileBotTeamRoutineScreens({
       client={client}
       team={team}
       offline={offline}
-      onBack={() => onScreen({ name: 'teamBots', teamId: team.id })}
-      onOpenRoutine={(routineId) => onScreen({ name: 'routineRuns', teamId: team.id, routineId })}
-      onNewRoutine={() => onScreen({ name: 'routineNew', teamId: team.id })}
+      onBack={() => onScreen(leaveRoutines)}
+      onOpenRoutine={(routineId) =>
+        onScreen({ name: 'routineRuns', teamId: team.id, routineId, ...origin })
+      }
+      onNewRoutine={() => onScreen({ name: 'routineNew', teamId: team.id, ...origin })}
+      onEditRoutine={(routineId) =>
+        onScreen({ name: 'routineEdit', teamId: team.id, routineId, ...origin })
+      }
       onOpenWebhook={(webhookId) =>
-        onScreen({ name: 'webhook', teamId: team.id, ...(webhookId ? { webhookId } : {}) })
+        onScreen({
+          name: 'webhook',
+          teamId: team.id,
+          ...(webhookId ? { webhookId } : {}),
+          ...origin
+        })
       }
     />
   )

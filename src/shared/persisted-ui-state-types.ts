@@ -79,6 +79,8 @@ export type PersistedUIState = {
   hideDetachedHeadWorkspaces?: boolean
   /** Hide workspaces with known provenance from another paired device or the host UI. */
   hideWorkspacesFromOtherDevices?: boolean
+  /** Show bot teams' folders, their bot-created worktrees and sessions in Workspaces. Absent means off. */
+  showBotTeamWorkspaces?: boolean
   /** Keep each project's main workspace out of the "Hide sleeping" sweep. Absent means on (#8873). */
   alwaysShowDefaultBranchWorkspace?: boolean
   /** Per-worktree Explorer dotfile visibility. Missing entries inherit the default: show. */
@@ -104,6 +106,8 @@ export type PersistedUIState = {
   agentsReadFilter?: ThreadReadFilter
   /** Agents-view thread grouping. Absent means 'status'. */
   agentsGroupBy?: ActivityGroupBy
+  /** Calendar: runs that already happened stay visible, greyed. Absent means hidden. */
+  calendarShowDoneRuns?: boolean
   collapsedGroups: string[]
   uiZoomLevel: number
   editorFontZoomLevel: number

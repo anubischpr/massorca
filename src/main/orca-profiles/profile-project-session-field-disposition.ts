@@ -105,6 +105,8 @@ export const WORKSPACE_SESSION_FIELD_DISPOSITION = {
   tabGroups: { onRepoRemoval: 'prunedByOwnerKey', onTransfer: 'copiedByBespokeRule' },
   tabGroupLayouts: { onRepoRemoval: 'prunedByOwnerKey', onTransfer: 'copiedByOwnerKey' },
   activeGroupIdByWorktree: { onRepoRemoval: 'prunedByOwnerKey', onTransfer: 'copiedByOwnerKey' },
+  // Residue: restore checks it against the restored panes and active workspace, so a stale one restores nothing.
+  paneFocus: { onRepoRemoval: 'notRepoScoped', onTransfer: 'notTransferred' },
   activeConnectionIdsAtShutdown: { onRepoRemoval: 'notRepoScoped', onTransfer: 'notTransferred' },
   // Residue: keyed by tab id and pruned by neither path, so entries for a removed repo's tabs stay.
   remoteSessionIdsByTabId: { onRepoRemoval: 'notRepoScoped', onTransfer: 'notTransferred' },

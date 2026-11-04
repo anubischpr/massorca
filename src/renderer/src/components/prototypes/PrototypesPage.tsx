@@ -104,6 +104,7 @@ export default function PrototypesPage(): React.JSX.Element {
   const sidePanelHidden = usePrototypeViewStore((s) => s.sidePanelHidden)
   const listPanelHidden = usePrototypeViewStore((s) => s.listPanelHidden)
   const setListPanelHidden = usePrototypeViewStore((s) => s.setListPanelHidden)
+  const setFocusedSetSessions = usePrototypeViewStore((s) => s.setFocusedSetSessions)
   const sidebarOpen = useAppStore((s) => s.sidebarOpen)
   const mergeUnderWay = selectedId !== null && (states[selectedId]?.merge ?? null) !== null
   const frameBoxRef = useRef<HTMLDivElement | null>(null)
@@ -172,6 +173,18 @@ export default function PrototypesPage(): React.JSX.Element {
     }
   }, [selectedRequestId, firstRequestId, selectedProjectKey, selectRequest])
 
+  const focusedSessionId = selected?.sessionId
+  const focusedOriginSessionId = selected?.origin?.sessionId
+  useEffect(() => {
+    setFocusedSetSessions(
+      focusedSessionId === undefined
+        ? null
+        : { sessionId: focusedSessionId, originSessionId: focusedOriginSessionId ?? null }
+    )
+  }, [focusedSessionId, focusedOriginSessionId, setFocusedSetSessions])
+  // Why: off this page nothing is in focus, so the floating checklist goes back to the chat.
+  useEffect(() => () => setFocusedSetSessions(null), [setFocusedSetSessions])
+
   useEffect(() => {
     if (selectedRequestId !== undefined) {
       ensureSetState(selectedRequestId, selectedLettersKey.split('|').filter(Boolean))
@@ -237,7 +250,7 @@ export default function PrototypesPage(): React.JSX.Element {
 
   if (system !== undefined) {
     return (
-      <div className="flex min-h-0 min-w-0 flex-1">
+      <div className="flex min-h-0 min-w-0 flex-1 bg-chat-canvas">
         {sidebarOpen ? (
           <PrototypeListPanel
             groups={groups}
@@ -260,7 +273,7 @@ export default function PrototypesPage(): React.JSX.Element {
 
   if (selected === null || setState === undefined) {
     return (
-      <div className="flex min-h-0 min-w-0 flex-1">
+      <div className="flex min-h-0 min-w-0 flex-1 bg-chat-canvas">
         <PrototypeListPanel
           groups={groups}
           filter={filter}
@@ -366,7 +379,7 @@ export default function PrototypesPage(): React.JSX.Element {
     sidebarOpen
   })
   return (
-    <div className="flex min-h-0 min-w-0 flex-1">
+    <div className="flex min-h-0 min-w-0 flex-1 bg-chat-canvas">
       {panels.list ? (
         <PrototypeListPanel
           groups={groups}

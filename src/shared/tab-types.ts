@@ -27,6 +27,10 @@ export type TabContentType =
   | 'agent-session'
   | 'browser'
   | 'simulator'
+  /** A chat's checklist shown in the floating workspace; self-backed like a simulator tab. */
+  | 'checklist'
+  /** A session another workspace owns, shown as a tab of the floating workspace by reference. */
+  | 'session-ref'
 
 export type WorkspaceVisibleTabType =
   | 'terminal'
@@ -78,6 +82,8 @@ export type Tab = {
   viewMode?: 'terminal' | 'chat'
   /** Timestamp when the tab was last focused / activated by the user. */
   lastFocusedAt?: number
+  /** The session a 'session-ref' tab shows; the session stays in the workspace named here. */
+  sessionRef?: TabGroupSessionRef
 }
 
 /**
@@ -85,6 +91,13 @@ export type Tab = {
  * workspace, host and working directory, and this pane holds no tab of its own.
  */
 export type TabGroupSessionRef = { worktreeId: string; tabId: string }
+
+/** Focus on a pane that shows another workspace's session: whose layout shows it, and whose session it is. */
+export type PaneSessionFocus = {
+  layoutWorktreeId: string
+  ownerWorktreeId: string
+  groupId: string
+}
 
 export type TabGroup = {
   id: string

@@ -46,6 +46,7 @@ const FULL: MobileSessionHeaderMenu = {
   chat: {
     agentHistory: false,
     plan: true,
+    checklist: false,
     summary: true,
     artifacts: true,
     prototypes: true,
@@ -76,8 +77,10 @@ describe('MobileSessionHeaderMoreActionsSheet', () => {
       visible: true,
       menu: FULL,
       planHint: '2 of 5 done',
+      checklistHint: '1 of 3',
       recordedFileCount: 7,
       onOpenPlan: vi.fn(),
+      onOpenChecklist: vi.fn(),
       onOpenSummary,
       onOpenArtifacts: vi.fn(),
       onOpenPrototypes: vi.fn(),
@@ -136,6 +139,28 @@ describe('MobileSessionHeaderMoreActionsSheet', () => {
     expect(rowLabels(mounted)).not.toContain('Plan')
   })
 
+  it('shows the Checklist row directly under Plan, with its count, whenever the chat has a session', () => {
+    const withChecklist = mount({
+      menu: { ...FULL, chat: { ...FULL.chat, checklist: true } }
+    })
+    expect(rowLabels(withChecklist.mounted).slice(0, 3)).toEqual(['Plan', 'Checklist', 'Summary'])
+    const texts = withChecklist.mounted.root
+      .findAll((node) => String(node.type) === 'Text')
+      .map(textOf)
+    expect(texts).toContain('1 of 3')
+    expect(rowLabels(mount().mounted)).not.toContain('Checklist')
+  })
+
+  it('hints No items on the Checklist row while the chat has no items', () => {
+    const empty = mount({
+      menu: { ...FULL, chat: { ...FULL.chat, checklist: true } },
+      checklistHint: 'No items'
+    })
+    const texts = empty.mounted.root.findAll((node) => String(node.type) === 'Text').map(textOf)
+    expect(texts).toContain('No items')
+    expect(rowLabels(empty.mounted)).toContain('Checklist')
+  })
+
   it('leaves out the environment section when no environment item applies', () => {
     const { mounted } = mount({
       menu: { ...FULL, environment: { branch: false, checks: false } }
@@ -166,6 +191,7 @@ describe('MobileSessionHeaderMoreActionsSheet', () => {
         chat: {
           agentHistory: true,
           plan: false,
+          checklist: false,
           summary: false,
           artifacts: false,
           quickCommands: false
@@ -186,6 +212,7 @@ describe('MobileSessionHeaderMoreActionsSheet', () => {
         chat: {
           agentHistory: true,
           plan: false,
+          checklist: false,
           summary: false,
           artifacts: false,
           quickCommands: false

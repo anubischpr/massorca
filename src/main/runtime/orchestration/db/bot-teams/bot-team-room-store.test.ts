@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { BOT_TEAM_ALL_AUTHOR } from '../../../../../shared/bot-team-greeting'
 import { SCHEMA_VERSION } from '../contract-constants'
 import { OrchestrationDb } from '../orchestration-db'
@@ -9,6 +9,39 @@ describe('bot team room store', () => {
   afterEach(() => {
     db?.close()
     db = undefined
+    vi.useRealTimers()
+  })
+
+  it('writes the host time on each task and message it saves', () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(5_000)
+    db = new OrchestrationDb(':memory:')
+    const team = db.createBotTeam({
+      name: 'Marketing',
+      purpose: '',
+      character: 'circle',
+      workspacesEnabled: false,
+      bots: [{ name: 'Iris', job: '', agent: 'claude' }]
+    })
+    const message = db.postBotTeamMessage({
+      teamId: team.id,
+      text: 'Make the flyer',
+      authorBotId: null
+    })
+    vi.setSystemTime(9_000)
+    const task = db.createBotTeamTask({
+      teamId: team.id,
+      title: 'Flyer',
+      prompt: 'Make the flyer',
+      ownerBotId: team.bots[0].id
+    })
+
+    expect(message.createdAt).toBe(5_000)
+    expect(task.createdAt).toBe(9_000)
+    expect(db.listBotTeamMessages(team.id)).toEqual([
+      expect.objectContaining({ id: message.id, createdAt: 5_000 })
+    ])
+    expect(db.listBotTeamTasks(team.id)).toEqual([expect.objectContaining({ createdAt: 9_000 })])
   })
 
   function createTeam(open: OrchestrationDb) {

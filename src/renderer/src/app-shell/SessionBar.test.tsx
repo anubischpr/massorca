@@ -26,6 +26,7 @@ vi.mock('../store', () => ({ useAppStore: store }))
 const { SessionBar } = await import('./SessionBar')
 const { useSessionBarActionsTarget } = await import('./session-bar-slot')
 const { TOP_BAR_SURFACE_CLASS } = await import('./top-bar-surface')
+const { selectSidePanelOpen } = await import('../store/slices/tabs/side-panel-state')
 
 const WT = 'repo::/work/a'
 const mounted: { container: HTMLDivElement; root: Root }[] = []
@@ -111,7 +112,7 @@ describe('SessionBar', () => {
     expect(sidePanel?.getAttribute('aria-pressed')).toBe('false')
     expect(rightSidebar?.getAttribute('aria-pressed')).toBe('false')
     act(() => sidePanel?.click())
-    expect(store.getState().sidePanelOpenByWorktree[WT]).toBe(true)
+    expect(selectSidePanelOpen(store.getState(), WT)).toBe(true)
     expect(sidePanel?.getAttribute('aria-pressed')).toBe('true')
     act(() => rightSidebar?.click())
     expect(store.getState().rightSidebarOpen).toBe(true)

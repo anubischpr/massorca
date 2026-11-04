@@ -28,6 +28,8 @@ import type { AgentStatusState } from '../../../../shared/agent-status-types'
 import type { AiVaultSearchHit } from '../../../../shared/ai-vault-search-types'
 import { AiVaultSearchEvidence } from './AiVaultSearchEvidence'
 import { useAiVaultSessionDisplayTitle } from './use-ai-vault-session-display-title'
+import { useAiVaultBotTeam } from './ai-vault-bot-team-sessions'
+import { BotTeamSessionCharacter } from '../bot-teams/BotTeamSessionCharacter'
 
 export function VaultSessionRow({
   session,
@@ -99,6 +101,7 @@ export function VaultSessionRow({
     : defaultResumeLabel
   const updatedAt = session.updatedAt ?? session.modifiedAt
   const title = useAiVaultSessionDisplayTitle(session)
+  const botTeam = useAiVaultBotTeam(session)
   const detailsId = getSessionDetailsId(session.id)
   const latestTurn = latestSessionConversationTurn(session)
   // Computed once so the dropdown menu and the context menu never disagree.
@@ -187,6 +190,11 @@ export function VaultSessionRow({
               }}
             >
               {title}
+              {botTeam ? (
+                <span className="ml-1 inline-flex align-middle">
+                  <BotTeamSessionCharacter sessionTeam={botTeam} />
+                </span>
+              ) : null}
             </div>
             <SessionRowTrailingActions
               session={session}

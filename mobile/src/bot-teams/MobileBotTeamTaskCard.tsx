@@ -16,7 +16,7 @@ function statusDotColor(status: string): string {
   if (status === 'Working' || status === 'Done') {
     return colors.statusGreen
   }
-  return status === 'Waiting for you' ? colors.statusAmber : colors.textMuted
+  return status === 'Waiting for you' ? colors.statusOrange : colors.textMuted
 }
 
 /** A task's owner, project and status; it opens in its workspace, and only the room starts it. */
@@ -48,7 +48,12 @@ export function MobileBotTeamTaskCard({
   const status = statusOf(task)
   const [reassigning, setReassigning] = useState(false)
   return (
-    <View style={[styles.taskCard, status === 'Waiting for you' && styles.taskCardWaiting]}>
+    <View
+      style={[
+        styles.taskCard,
+        status === 'Waiting for you' && { borderColor: colors.statusOrange }
+      ]}
+    >
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={`Open ${task.title}`}
@@ -66,11 +71,25 @@ export function MobileBotTeamTaskCard({
         {owner ? <Text style={styles.rowMeta}>{owner.name}</Text> : null}
         {projectName ? <Text style={styles.rowMeta}>{projectName}</Text> : null}
         <View style={styles.taskCardStatus}>
-          <View style={[styles.statusDot, { backgroundColor: statusDotColor(status) }]} />
-          <Text style={styles.rowMeta}>
-            {status}
-            {offline && task.sessionId !== null ? ', can’t confirm now' : ''}
-          </Text>
+          {status === 'Unknown' ? (
+            <View
+              accessibilityLabel="Checking status"
+              style={{
+                width: 56,
+                height: 8,
+                borderRadius: 4,
+                backgroundColor: colors.borderSubtle
+              }}
+            />
+          ) : (
+            <>
+              <View style={[styles.statusDot, { backgroundColor: statusDotColor(status) }]} />
+              <Text style={styles.rowMeta}>
+                {status}
+                {offline && task.sessionId !== null ? ', can’t confirm now' : ''}
+              </Text>
+            </>
+          )}
         </View>
       </Pressable>
       {task.sessionId === null && onStart ? (

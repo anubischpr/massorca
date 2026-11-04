@@ -1,11 +1,16 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Pressable, ScrollView, Text, View } from 'react-native'
-import { ChevronRight } from 'lucide-react-native'
+import { ChevronDown, ChevronRight } from 'lucide-react-native'
+import { isArchivedBotTeamRoutine } from '../../../src/shared/bot-team-routine-archive'
 import type { BotTeam } from '../../../src/shared/rpc-contract/bot-team-params'
 import type { BotTeamRoutine } from '../../../src/shared/rpc-contract/bot-team-routine-params'
 import { colors } from '../theme/mobile-theme'
 import type { RpcClient } from '../transport/rpc-client'
 import { MobileBotAgentIcon } from './MobileBotAgentIcon'
+import {
+  askDeleteMobileBotTeamRoutine,
+  MobileBotTeamRoutineSheet
+} from './MobileBotTeamRoutineSheet'
 import { listMobileBotTeamRoutines, setMobileBotTeamRoutinePaused } from './MobileBotTeamRoutineRpc'
 import {
   mobileRoutineRunStatus,
@@ -41,7 +46,14 @@ export function useMobileBotTeamRoutines(client: RpcClient, teamId: string, offl
         : current
     )
   }, [])
-  return { read, replace }
+  const drop = useCallback((routineId: string) => {
+    setRead((current) =>
+      current?.kind === 'ready'
+        ? { kind: 'ready', value: current.value.filter((entry) => entry.id !== routineId) }
+        : current
+    )
+  }, [])
+  return { read, replace, drop }
 }
 
 /** On and Paused, side by side; pausing keeps the routine's history. */
@@ -94,6 +106,7 @@ export function MobileBotTeamRoutines({
   onBack,
   onOpenRoutine,
   onNewRoutine,
+  onEditRoutine,
   onOpenWebhook
 }: {
   client: RpcClient
@@ -102,13 +115,56 @@ export function MobileBotTeamRoutines({
   onBack: () => void
   onOpenRoutine: (routineId: string) => void
   onNewRoutine: () => void
+  onEditRoutine: (routineId: string) => void
   /** No id means making a new one. */
   onOpenWebhook: (webhookId?: string) => void
 }) {
-  const { read, replace } = useMobileBotTeamRoutines(client, team.id, offline)
+  const { read, replace, drop } = useMobileBotTeamRoutines(client, team.id, offline)
+  const [sheetRoutine, setSheetRoutine] = useState<BotTeamRoutine | null>(null)
+  const [archiveOpen, setArchiveOpen] = useState(false)
   const { room } = useMobileBotTeamRoom(client, team.id, offline)
   const statusOf = useMobileBotTeamTaskStatus(client)
   const routines = read?.kind === 'ready' ? read.value : []
+  const active = routines.filter((routine) => !isArchivedBotTeamRoutine(routine))
+  const archived = routines.filter(isArchivedBotTeamRoutine)
+  // An archived routine keeps its row, quiet and without the On and Paused switch.
+  const card = (routine: BotTeamRoutine, isArchived: boolean) => {
+    const bot = team.bots.find((entry) => entry.id === routine.botId)
+    const lastTask = room?.tasks.find((task) => task.id === routine.lastRun?.taskId)
+    const lastStatus = routine.lastRun
+      ? mobileRoutineRunStatus(routine.lastRun, lastTask, statusOf)
+      : null
+    return (
+      <View key={routine.id} style={[styles.taskCard, isArchived && { opacity: 0.5 }]}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Open ${routine.name}`}
+          accessibilityHint="Long press to edit or delete"
+          onPress={() => onOpenRoutine(routine.id)}
+          onLongPress={offline ? undefined : () => setSheetRoutine(routine)}
+          style={styles.sheetHeader}
+        >
+          {bot ? <MobileBotAgentIcon agentId={bot.agent} size={20} /> : null}
+          <View style={styles.rowText}>
+            <Text style={styles.rowTitle}>{routine.name}</Text>
+            <Text style={styles.rowMeta}>
+              {`${mobileRoutineScheduleLine(routine.schedule)}, ${bot?.name ?? ''}`}
+            </Text>
+            <Text style={styles.rowMeta}>{mobileRoutineRunsLine(routine, lastStatus)}</Text>
+          </View>
+          <ChevronRight size={16} color={colors.textMuted} />
+        </Pressable>
+        {isArchived ? null : (
+          <MobileBotTeamRoutineSwitch
+            client={client}
+            routine={routine}
+            offline={offline}
+            onChanged={replace}
+          />
+        )}
+      </View>
+    )
+  }
   return (
     <View style={styles.grow}>
       <MobileBotTeamWorkBar title="Routines" onBack={onBack} />
@@ -133,39 +189,23 @@ export function MobileBotTeamRoutines({
             </View>
           </View>
         ) : null}
-        {routines.map((routine) => {
-          const bot = team.bots.find((entry) => entry.id === routine.botId)
-          const lastTask = room?.tasks.find((task) => task.id === routine.lastRun?.taskId)
-          const lastStatus = routine.lastRun
-            ? mobileRoutineRunStatus(routine.lastRun, lastTask, statusOf)
-            : null
-          return (
-            <View key={routine.id} style={styles.taskCard}>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={`Open ${routine.name}`}
-                onPress={() => onOpenRoutine(routine.id)}
-                style={styles.sheetHeader}
-              >
-                {bot ? <MobileBotAgentIcon agentId={bot.agent} size={20} /> : null}
-                <View style={styles.rowText}>
-                  <Text style={styles.rowTitle}>{routine.name}</Text>
-                  <Text style={styles.rowMeta}>
-                    {`${mobileRoutineScheduleLine(routine.schedule)}, ${bot?.name ?? ''}`}
-                  </Text>
-                  <Text style={styles.rowMeta}>{mobileRoutineRunsLine(routine, lastStatus)}</Text>
-                </View>
-                <ChevronRight size={16} color={colors.textMuted} />
-              </Pressable>
-              <MobileBotTeamRoutineSwitch
-                client={client}
-                routine={routine}
-                offline={offline}
-                onChanged={replace}
-              />
-            </View>
-          )
-        })}
+        {active.map((routine) => card(routine, false))}
+        {archived.length > 0 ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityState={{ expanded: archiveOpen }}
+            onPress={() => setArchiveOpen((open) => !open)}
+            style={styles.sheetHeader}
+          >
+            {archiveOpen ? (
+              <ChevronDown size={16} color={colors.textSecondary} />
+            ) : (
+              <ChevronRight size={16} color={colors.textSecondary} />
+            )}
+            <Text style={styles.label}>{`Archived ${archived.length}`}</Text>
+          </Pressable>
+        ) : null}
+        {archiveOpen ? archived.map((routine) => card(routine, true)) : null}
         {read?.kind === 'ready' ? (
           <Pressable
             accessibilityRole="button"
@@ -183,6 +223,22 @@ export function MobileBotTeamRoutines({
         />
         <Text style={styles.rowMeta}>{`These run on the host ${team.name} uses.`}</Text>
       </ScrollView>
+      <MobileBotTeamRoutineSheet
+        routine={sheetRoutine}
+        onClose={() => setSheetRoutine(null)}
+        onEdit={() => {
+          setSheetRoutine(null)
+          if (sheetRoutine) {
+            onEditRoutine(sheetRoutine.id)
+          }
+        }}
+        onDelete={() => {
+          setSheetRoutine(null)
+          if (sheetRoutine) {
+            askDeleteMobileBotTeamRoutine(client, sheetRoutine, drop)
+          }
+        }}
+      />
     </View>
   )
 }

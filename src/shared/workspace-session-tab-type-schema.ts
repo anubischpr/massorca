@@ -8,7 +8,9 @@ export const tabContentTypeSchema = z.enum([
   'check-details',
   'agent-session',
   'browser',
-  'simulator'
+  'simulator',
+  'checklist',
+  'session-ref'
 ])
 
 export const workspaceVisibleTabTypeSchema = z.enum([

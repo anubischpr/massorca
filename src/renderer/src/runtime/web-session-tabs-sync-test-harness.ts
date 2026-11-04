@@ -4,7 +4,6 @@ import { resetWebSessionFocusIntentForTests } from './web-session-focus-intent'
 import { resetWebSessionCloseIntentForTests } from './web-session-close-intent'
 import { resetWebSessionReorderIntentForTests } from './web-session-reorder-intent'
 import { resetWebAgentSessionHandoffsForTests } from './web-agent-session-handoff'
-import { resetWebRuntimeInitialTerminalBootstrapForTests } from './web-runtime-initial-terminal-bootstrap'
 import { resetWebSessionTabsSnapshotFreshnessForTests } from './web-session-tabs-sync/tracking-lifecycle'
 import type { WebSessionTabsSyncState } from './web-session-tabs-sync/state'
 import './web-runtime-browser-creation'
@@ -24,7 +23,6 @@ export function resetWebSessionTabsSyncTestState(): void {
   resetWebSessionCloseIntentForTests()
   resetWebSessionReorderIntentForTests()
   resetWebAgentSessionHandoffsForTests()
-  resetWebRuntimeInitialTerminalBootstrapForTests()
 }
 
 export function layoutHasGroup(layout: TabGroupLayoutNode | undefined, groupId: string): boolean {

@@ -24,7 +24,7 @@ import { BotTeamProjectBrief, type BotTeamProjectTab } from './BotTeamProjectBri
 import { BotTeamBoard, BotTeamProjectBoard, NewBotProjectForm } from './BotTeamProjectViews'
 import { BotTeamMemory } from './BotTeamMemory'
 import { BotTeamRoom } from './BotTeamRoom'
-import { BotTeamRoutineNew } from './BotTeamRoutineNew'
+import { BotTeamRoutineForm } from './BotTeamRoutineForm'
 import { BotTeamRoutineRuns } from './BotTeamRoutineRuns'
 import { BotTeamRoutines } from './BotTeamRoutines'
 import { BotTeamWebhook } from './BotTeamWebhook'
@@ -84,7 +84,7 @@ function TeamDetail({
     return <BotTeamBoard team={team} onBack={toRoom} onOpenTask={onOpenTask} />
   }
   if (section?.kind === 'files') {
-    return <BotTeamFiles team={team} />
+    return <BotTeamFiles team={team} openPath={section.path} />
   }
   if (section?.kind === 'memory') {
     return <BotTeamMemory team={team} />
@@ -95,6 +95,7 @@ function TeamDetail({
         team={team}
         onNew={() => toTeam({ section: { kind: 'routine-new' } })}
         onOpen={(routineId) => toTeam({ section: { kind: 'routine', routineId } })}
+        onEdit={(routineId) => toTeam({ section: { kind: 'routine-new', routineId } })}
         webAddresses={
           <BotTeamWebhookSection
             team={team}
@@ -117,7 +118,7 @@ function TeamDetail({
   }
   if (section?.kind === 'routine-new') {
     const toRoutines = (): void => toTeam({ section: { kind: 'routines' } })
-    return <BotTeamRoutineNew team={team} onBack={toRoutines} onCreated={toRoutines} />
+    return <BotTeamRoutineForm team={team} routineId={section.routineId} onDone={toRoutines} />
   }
   if (section?.kind === 'routine') {
     return (
@@ -133,6 +134,7 @@ function TeamDetail({
     return (
       <NewBotProjectForm
         team={team}
+        allTeams={[team, ...otherTeams]}
         onCancel={toRoom}
         onCreated={(project) => toTeam({ section: { kind: 'project', projectId: project.id } })}
       />
@@ -152,6 +154,7 @@ function TeamDetail({
     ) : (
       <BotTeamProjectBoard
         team={team}
+        allTeams={[team, ...otherTeams]}
         projectId={projectId}
         onBack={toRoom}
         onTab={openTab}
@@ -166,6 +169,8 @@ function TeamDetail({
       onOpenTask={onOpenTask}
       offline={offline}
       otherTeams={otherTeams}
+      onOpenFile={(path) => toTeam({ section: { kind: 'files', path } })}
+      onOpenTeam={(teamId, openTaskId) => onSelect({ teamId, taskId: openTaskId, creating: false })}
       onCreateBot={() => onEditTeam(team.id)}
       onCreateTeam={() => onSelect({ teamId: null, taskId: null, creating: true })}
       header={

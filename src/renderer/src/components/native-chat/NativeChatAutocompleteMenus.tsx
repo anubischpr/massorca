@@ -3,10 +3,8 @@ import { Loader2, Package, RotateCcw } from 'lucide-react'
 import { translate } from '@/i18n/i18n'
 import { cn } from '@/lib/utils'
 import type { SkillSourceKind } from '../../../../shared/skills'
-import { FilenameFirstPath } from '@/components/file-path-cursor-tooltip'
-import { getFileTypeIcon } from '@/lib/file-type-icons'
+import { FilePathTooltip } from './FilePathTooltip'
 import type { ComposerAutocomplete, NativeChatPickerItem } from './native-chat-composer-state'
-import type { NativeChatMentionFiles } from './use-native-chat-mention-files'
 
 export const NativeChatPickerMenu = memo(function NativeChatPickerMenu({
   autocomplete,
@@ -148,15 +146,23 @@ function getPickerEmptyText(
 
 function PickerGroupHeading({ kind }: { kind: 'commands' | 'skills' }): React.JSX.Element {
   return (
-    <div className="px-2 pb-1 pt-1.5 text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
+    <PickerHeading>
       {kind === 'commands'
         ? translate('components.native-chat.composer.commands', 'Commands')
         : translate('components.native-chat.composer.skills', 'Skills')}
+    </PickerHeading>
+  )
+}
+
+export function PickerHeading({ children }: { children: React.ReactNode }): React.JSX.Element {
+  return (
+    <div className="px-2 pb-1 pt-1.5 text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
+      {children}
     </div>
   )
 }
 
-function PickerStatus({ children }: { children: React.ReactNode }): React.JSX.Element {
+export function PickerStatus({ children }: { children: React.ReactNode }): React.JSX.Element {
   return (
     <div className="flex items-center gap-2 px-2 py-1.5 text-xs text-muted-foreground">
       {children}
@@ -236,16 +242,22 @@ function PickerOption({
 
 export function PickerListbox({
   id,
+  placement = 'above',
   children
 }: {
   id: string
+  /** Below suits a box at the top of a page, such as the Tasks home's. */
+  placement?: 'above' | 'below'
   children: React.ReactNode
 }): React.JSX.Element {
   return (
     <div
       id={id}
       role="listbox"
-      className="scrollbar-sleek absolute bottom-full left-0 right-0 z-20 mb-1 max-h-72 overflow-y-auto rounded-lg border border-border bg-popover p-1 text-popover-foreground shadow-[0_10px_24px_rgba(0,0,0,0.18)]"
+      className={cn(
+        'scrollbar-sleek absolute left-0 right-0 z-20 max-h-72 overflow-y-auto rounded-lg border border-border bg-popover p-1 text-popover-foreground shadow-[0_10px_24px_rgba(0,0,0,0.18)]',
+        placement === 'above' ? 'bottom-full mb-1' : 'top-full mt-1'
+      )}
     >
       {children}
     </div>
@@ -257,15 +269,18 @@ export function PickerOptionButton({
   selected,
   activeItemRef,
   onChoose,
+  filePath,
   children
 }: {
   id: string
   selected: boolean
   activeItemRef: React.MutableRefObject<HTMLButtonElement | null>
   onChoose: () => void
+  /** A file row shows its full path on hover. */
+  filePath?: string
   children: React.ReactNode
 }): React.JSX.Element {
-  return (
+  const button = (
     <button
       id={id}
       ref={selected ? activeItemRef : null}
@@ -288,6 +303,7 @@ export function PickerOptionButton({
       {children}
     </button>
   )
+  return filePath ? <FilePathTooltip path={filePath}>{button}</FilePathTooltip> : button
 }
 
 function getPickerAnnotation(item: NativeChatPickerItem): string | null {
@@ -318,61 +334,3 @@ function scopeLabel(sourceKind: SkillSourceKind | undefined): string {
   }
   return sourceKind ? (labels[sourceKind] ?? '') : ''
 }
-
-export const NativeChatMentionMenu = memo(function NativeChatMentionMenu({
-  mention,
-  activeIndex,
-  listboxId,
-  onChoose
-}: {
-  mention: NativeChatMentionFiles
-  activeIndex: number
-  listboxId: string
-  onChoose: (path: string) => void
-}): React.JSX.Element {
-  const activeItemRef = useRef<HTMLButtonElement | null>(null)
-  const { files } = mention
-  const selectedIndex = Math.min(activeIndex, files.length - 1)
-
-  useEffect(() => {
-    activeItemRef.current?.scrollIntoView({ block: 'nearest' })
-  }, [selectedIndex, files])
-
-  const statusText =
-    files.length > 0
-      ? null
-      : mention.loading
-        ? translate('components.native-chat.composer.loadingFiles', 'Loading files...')
-        : mention.failed
-          ? translate('components.native-chat.composer.filesLoadFailed', "Couldn't load files")
-          : translate('components.native-chat.composer.noFiles', 'No matching files')
-
-  return (
-    <PickerListbox id={listboxId}>
-      {files.map((path, index) => {
-        const FileIcon = getFileTypeIcon(path)
-        return (
-          <PickerOptionButton
-            key={path}
-            id={`${listboxId}-option-${index}`}
-            selected={index === selectedIndex}
-            activeItemRef={activeItemRef}
-            onChoose={() => onChoose(path)}
-          >
-            <FileIcon className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" />
-            <FilenameFirstPath path={path} />
-          </PickerOptionButton>
-        )
-      })}
-      {statusText ? (
-        <PickerStatus>
-          {mention.loading ? <Loader2 className="size-3.5 animate-spin" /> : null}
-          {statusText}
-        </PickerStatus>
-      ) : null}
-      <div aria-live="polite" className="sr-only">
-        {statusText ?? ''}
-      </div>
-    </PickerListbox>
-  )
-})

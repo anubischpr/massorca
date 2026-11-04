@@ -8,6 +8,7 @@ import {
   listMobileBotTeamMemory,
   type MobileBotTeamMemoryResult
 } from './mobile-bot-team-memory-rpc'
+import { MobileBotTeamEngramMemory } from './MobileBotTeamEngramMemory'
 import { MobileBotTeamWorkBar } from './MobileBotTeamWorkBar'
 import { botTeamStyles as styles } from './mobile-bot-team-styles'
 
@@ -119,6 +120,7 @@ export function MobileBotTeamMemory({
             </Pressable>
           </View>
         ))}
+        <MobileBotTeamEngramMemory client={client} team={team} offline={offline} />
       </ScrollView>
     </View>
   )

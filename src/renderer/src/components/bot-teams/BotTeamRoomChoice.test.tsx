@@ -26,17 +26,36 @@ vi.mock('@/i18n/i18n', () => ({
     fallback.replace(/\{\{(\w+)\}\}/g, (_all, name: string) => values?.[name] ?? '')
 }))
 vi.mock('@/runtime/bot-team-host', () => ({
+  BOT_TEAM_LOCAL_HOST: 'local',
   botTeamHostTarget: () => ({ kind: 'local' }),
   useBotTeamHost: () => 'local'
 }))
 vi.mock('@/components/native-chat/NativeChatView', () => ({ default: () => null }))
+vi.mock('@/components/native-chat/use-pending-session-question', () => ({
+  usePendingSessionQuestion: () => null
+}))
+vi.mock('@/components/native-chat/NativeChatStructuredQuestionCard', () => ({
+  NativeChatStructuredQuestionCard: () => null
+}))
 vi.mock('../../app-shell/right-sidebar-page-slot', () => ({
   useRightSidebarPageTarget: () => null
 }))
 vi.mock('./use-bot-team-task-status', () => ({ useBotTeamSessionStatuses: () => new Map() }))
 vi.mock('./BotTeamRoomComposer', () => ({
-  BotTeamRoomComposer: ({ onSend }: { onSend: (text: string) => void }) => (
-    <button data-testid="send" onClick={() => onSend('Check inventory')} />
+  BotTeamRoomComposer: ({
+    onSend
+  }: {
+    onSend: (text: string, attachments?: unknown[]) => void
+  }) => (
+    <>
+      <button data-testid="send" onClick={() => onSend('Check inventory')} />
+      <button
+        data-testid="send-with-file"
+        onClick={() =>
+          onSend('Check inventory', [{ path: 'attachments/flyer.png', name: 'flyer.png' }])
+        }
+      />
+    </>
   )
 }))
 vi.mock('./BotAgentIcon', () => ({ BotAgentIcon: () => <i /> }))
@@ -69,7 +88,8 @@ afterEach(() => {
 
 async function mountRoom(
   props: Partial<Parameters<typeof BotTeamRoom>[0]> = {},
-  room: { tasks?: unknown[]; projects?: unknown[] } = {}
+  room: { tasks?: unknown[]; projects?: unknown[] } = {},
+  sendButton = 'send'
 ) {
   client.listBotTeamRoom.mockResolvedValue({
     messages: [],
@@ -92,13 +112,34 @@ async function mountRoom(
       />
     )
   )
-  await act(async () => container.querySelector<HTMLButtonElement>('[data-testid="send"]')?.click())
+  await act(async () =>
+    container.querySelector<HTMLButtonElement>(`[data-testid="${sendButton}"]`)?.click()
+  )
   const button = (name: string): HTMLButtonElement | undefined =>
     [...container.querySelectorAll('button')].find((entry) => entry.textContent === name)
   return { container, button }
 }
 
 describe('the room when the host offers a choice', () => {
+  it('keeps the attached files when the person answers the choice', async () => {
+    client.postBotTeamRequest.mockResolvedValue({
+      task: null,
+      startError: null,
+      choice: { kind: 'other-team', teamId: 'wh' }
+    })
+    client.fileBotTeamRequest.mockResolvedValue({ task: { id: 't' }, startError: null })
+    const { button } = await mountRoom({}, {}, 'send-with-file')
+    await act(async () => button('Send to Warehouse')?.click())
+    expect(client.fileBotTeamRequest).toHaveBeenCalledWith({
+      teamId: 'mk',
+      text: 'Check inventory',
+      toTeamId: 'wh',
+      start: true,
+      askProject: true,
+      attachments: [{ path: 'attachments/flyer.png', name: 'flyer.png' }]
+    })
+  })
+
   it('shows the suggested team and files the request there when the person sends it', async () => {
     client.postBotTeamRequest.mockResolvedValue({
       task: null,

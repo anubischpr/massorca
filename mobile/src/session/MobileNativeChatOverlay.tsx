@@ -11,7 +11,8 @@ import type { MobileNativeChatController } from './use-mobile-native-chat-contro
 import { useMobileNativeChatStreamingBubble } from './use-mobile-native-chat-streaming-bubble'
 import { useMobileNativeChatComposerTray } from './use-mobile-native-chat-composer-tray'
 import { useMobileNativeChatVisualRenderer } from './MobileNativeChatVisual'
-import { MobileNativeChatVisualContext } from './mobile-native-chat-visual-context'
+import { MobileNativeChatTranscriptContexts } from './MobileNativeChatTranscriptContexts'
+import type { MobileNativeChatChecklistView } from './use-mobile-native-chat-checklist'
 import {
   MobileDelegatedChildrenContext,
   useDelegatedChildrenFromJournal
@@ -57,6 +58,8 @@ type Props = {
   onOpenPrototypeSettings?: () => void
   /** Opens the set a prototype request made, from the link card under that request. */
   onOpenPrototypeSet?: (set: PrototypeListedSet) => void
+  /** The chat's checklist: its transcript rows open the Checklist sheet. */
+  checklist?: MobileNativeChatChecklistView
 }
 
 /** Keeps the terminal mounted underneath chat so its PTY subscription survives
@@ -82,7 +85,8 @@ export function MobileNativeChatOverlay({
   chromeTopInset,
   onOpenArtifact,
   onOpenPrototypeSettings,
-  onOpenPrototypeSet
+  onOpenPrototypeSet,
+  checklist
 }: Props): React.JSX.Element | null {
   const session = controller.nativeChatSession
   const folded = useMemo(() => foldMobileNativeChatMessages(session.messages), [session.messages])
@@ -171,7 +175,7 @@ export function MobileNativeChatOverlay({
   return (
     <View style={styles.overlay}>
       <MobileDelegatedChildrenContext.Provider value={delegatedChildren}>
-        <MobileNativeChatVisualContext.Provider value={visuals}>
+        <MobileNativeChatTranscriptContexts visuals={visuals} checklist={checklist ?? null}>
           <MobileNativeChatView
             messages={session.messages}
             folded={folded}
@@ -245,7 +249,7 @@ export function MobileNativeChatOverlay({
               ) : null
             }
           />
-        </MobileNativeChatVisualContext.Provider>
+        </MobileNativeChatTranscriptContexts>
       </MobileDelegatedChildrenContext.Provider>
     </View>
   )

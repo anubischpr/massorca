@@ -2,7 +2,7 @@ import { StyleSheet, Text, View } from 'react-native'
 import { colors, spacing, typography } from '../theme/mobile-theme'
 
 /** A sheet section header: a small uppercase mono label, a hairline, and an optional count. */
-export function SheetSectionLabel({ label, count }: { label: string; count?: number }) {
+export function SheetSectionLabel({ label, count }: { label: string; count?: number | string }) {
   return (
     <View style={styles.row} accessibilityRole="header">
       <Text style={styles.label}>{label}</Text>

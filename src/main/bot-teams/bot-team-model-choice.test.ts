@@ -139,12 +139,19 @@ describe('resolveBotModelChoice', () => {
 
 describe('botLaunchOptions', () => {
   it('omits what is unset', () => {
-    expect(botLaunchOptions({ model: null, effort: null })).toBeUndefined()
-    expect(botLaunchOptions({ model: 'opus', effort: null })).toEqual({ model: 'opus' })
-    expect(botLaunchOptions({ model: 'opus', effort: 'high' })).toEqual({
+    const claude = { agent: 'claude' as const }
+    expect(botLaunchOptions({ ...claude, model: null, effort: null })).toBeUndefined()
+    expect(botLaunchOptions({ ...claude, model: 'opus', effort: null })).toEqual({ model: 'opus' })
+    expect(botLaunchOptions({ ...claude, model: 'opus', effort: 'high' })).toEqual({
       model: 'opus',
       effort: 'high'
     })
+  })
+
+  it('leaves the model to Gentle Shell, whose launch cannot take one', () => {
+    expect(
+      botLaunchOptions({ agent: 'pi', model: 'nan/deepseek-v4-flash', effort: 'high' })
+    ).toBeUndefined()
   })
 })
 

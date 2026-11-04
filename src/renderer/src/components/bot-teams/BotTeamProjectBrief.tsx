@@ -6,6 +6,8 @@ import { translate } from '@/i18n/i18n'
 import { setBotTeamProjectBrief } from '@/runtime/runtime-bot-team-client'
 import type { BotTeam } from '../../../../shared/rpc-contract/bot-team-params'
 import type { BotTeamBrief } from '../../../../shared/rpc-contract/bot-team-room-params'
+import { briefEditorMarkdown } from '../../../../shared/bot-team-project-brief-markdown'
+import { BotTeamProjectBriefEditor } from './BotTeamProjectBriefEditor'
 import { BotTeamViewHeader } from './BotTeamViewHeader'
 import { useTeamWork } from './use-bot-team-work'
 
@@ -47,19 +49,15 @@ const linesOf = (text: string): string[] =>
     .map((line) => line.trim())
     .filter((line) => line !== '')
 
-/** A section of the brief. Pressing it opens the text, one line per entry; leaving it saves. */
+/** A short line of the brief, the Goal. Pressing it opens the text; leaving it saves. */
 function BriefSection({
   label,
   lines,
-  onSave,
-  notLinked = false,
-  empty
+  onSave
 }: {
   label: string
   lines: string[]
   onSave: (lines: string[]) => void
-  notLinked?: boolean
-  empty?: string
 }): React.JSX.Element {
   const [draft, setDraft] = useState<string | null>(null)
   return (
@@ -78,16 +76,8 @@ function BriefSection({
               className="flex items-center gap-3 border-t border-border px-4 py-3 text-sm first:border-t-0"
             >
               <span className="min-w-0 flex-1 whitespace-pre-wrap">{line}</span>
-              {notLinked ? (
-                <span className="text-xs text-muted-foreground">
-                  {translate('components.botTeams.notLinked', 'Not linked yet')}
-                </span>
-              ) : null}
             </span>
           ))}
-          {lines.length === 0 ? (
-            <span className="min-h-11 px-4 py-3 text-sm text-muted-foreground">{empty}</span>
-          ) : null}
         </button>
       ) : (
         <Textarea
@@ -124,9 +114,9 @@ export function BotTeamProjectBrief({
   const [refresh, setRefresh] = useState(0)
   const { projects } = useTeamWork(team.id, String(refresh))
   const project = projects.find((entry) => entry.id === projectId)
-  const save = async (patch: Partial<BotTeamBrief> & { goal?: string }): Promise<void> => {
+  const save = async (patch: Partial<BotTeamBrief> & { goal?: string }): Promise<boolean> => {
     if (!project) {
-      return
+      return false
     }
     const { goal, ...briefPatch } = patch
     try {
@@ -141,11 +131,13 @@ export function BotTeamProjectBrief({
             'This host cannot keep a project brief yet.'
           )
         )
-      } else {
-        setRefresh((current) => current + 1)
+        return false
       }
+      setRefresh((current) => current + 1)
+      return true
     } catch (error) {
       toast.error(error instanceof Error ? error.message : String(error))
+      return false
     }
   }
   return (
@@ -157,9 +149,10 @@ export function BotTeamProjectBrief({
         onBack={onBack}
         trailing={<BotTeamProjectTabs value="brief" onChange={onTab} />}
       />
-      <div className="scrollbar-sleek min-h-0 flex-1 overflow-y-auto">
+      <div className="scrollbar-sleek flex min-h-0 flex-1 flex-col overflow-y-auto">
         {project ? (
-          <div className="mx-auto flex w-full max-w-[736px] flex-col gap-5 px-4 py-8">
+          // Why: the column fills the page so the editor box grows to the window, with a 60vh floor.
+          <div className="mx-auto flex h-full min-h-0 w-full max-w-[736px] flex-col gap-5 px-4 py-8">
             <div>
               <h1 className="text-xl font-semibold">
                 {translate('components.botTeams.brief', 'Brief')}
@@ -176,22 +169,11 @@ export function BotTeamProjectBrief({
               lines={project.goal ? [project.goal] : []}
               onSave={(lines) => void save({ goal: lines.join(' ') })}
             />
-            <BriefSection
-              label={translate('components.botTeams.briefRequirements', 'Requirements')}
-              lines={project.brief.requirements}
-              notLinked
-              empty={translate('components.botTeams.noRequirements', 'No requirements yet.')}
-              onSave={(requirements) => void save({ requirements })}
-            />
-            <BriefSection
-              label={translate('components.botTeams.briefConstraints', 'Constraints')}
-              lines={project.brief.constraints}
-              onSave={(constraints) => void save({ constraints })}
-            />
-            <BriefSection
-              label={translate('components.botTeams.briefDecisions', 'Decisions')}
-              lines={project.brief.decisions}
-              onSave={(decisions) => void save({ decisions })}
+            <BotTeamProjectBriefEditor
+              key={project.id}
+              projectId={project.id}
+              markdown={briefEditorMarkdown(project.brief)}
+              onSave={(markdown) => save({ markdown })}
             />
             {project.briefUpdatedAt !== null ? (
               <p className="text-xs text-muted-foreground">

@@ -5,7 +5,10 @@ import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { BotTeam } from '../../../../shared/rpc-contract/bot-team-params'
-import type { BotTeamProject } from '../../../../shared/rpc-contract/bot-team-room-params'
+import type {
+  BotTeamProject,
+  BotTeamTask
+} from '../../../../shared/rpc-contract/bot-team-room-params'
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true
 
@@ -15,6 +18,8 @@ const setBotTeamProjectCodeSource = vi.hoisted(() => vi.fn())
 const listBotTeamLinkableWorkspaces = vi.hoisted(() => vi.fn())
 const setBotTeamProjectWorkspace = vi.hoisted(() => vi.fn())
 const toastError = vi.hoisted(() => vi.fn())
+const listBotTeamRoutines = vi.hoisted(() => vi.fn(async (): Promise<unknown> => []))
+const liveStatuses = vi.hoisted(() => ({ current: new Map<string, unknown>() }))
 
 vi.mock('@/runtime/runtime-bot-team-client', () => ({
   createBotTeamProject,
@@ -23,15 +28,21 @@ vi.mock('@/runtime/runtime-bot-team-client', () => ({
   setBotTeamProjectCodeSource,
   setBotTeamProjectWorkspace
 }))
+vi.mock('@/runtime/runtime-bot-team-client-routines', () => ({ listBotTeamRoutines }))
 vi.mock('@/i18n/i18n', () => ({
+  i18n: { language: 'en' },
   translate: (_key: string, fallback: string, options?: Record<string, unknown>) =>
     fallback.replace(/\{\{(\w+)\}\}/g, (_match, name: string) => String(options?.[name]))
 }))
 vi.mock('@/lib/agent-catalog', () => ({ AgentIcon: () => null }))
 vi.mock('sonner', () => ({ toast: { error: toastError } }))
-vi.mock('./use-bot-team-task-status', () => ({ useBotTeamSessionStatuses: () => new Map() }))
+vi.mock('./use-bot-team-task-status', () => ({
+  useBotTeamSessionStatuses: () => liveStatuses.current
+}))
 
-const { BotTeamProjectBoard, NewBotProjectForm } = await import('./BotTeamProjectViews')
+const { BotTeamBoard, BotTeamProjectBoard, NewBotProjectForm } =
+  await import('./BotTeamProjectViews')
+const { keepTeamTaskList } = await import('./bot-team-project-board-cache')
 
 function team(workspacesEnabled: boolean): BotTeam {
   return {
@@ -341,5 +352,410 @@ describe('the Advanced options for a Workspaces project', () => {
     await settle()
     expect(container.textContent).not.toContain('Advanced options')
     expect(container.textContent).not.toContain('Not linked to a Workspaces project.')
+  })
+})
+
+describe('projects shared between teams', () => {
+  const marketing: BotTeam = {
+    ...team(false),
+    id: 't2',
+    name: 'Marketing',
+    character: 'circle',
+    bots: [
+      {
+        id: 'b2',
+        name: 'Nora',
+        job: '',
+        agent: 'claude',
+        modelMode: 'auto',
+        model: null,
+        effort: null,
+        skills: []
+      }
+    ]
+  }
+
+  async function settle(): Promise<void> {
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0))
+    })
+  }
+
+  async function fillName(container: HTMLElement, value: string): Promise<void> {
+    const name = container.querySelector<HTMLInputElement>('#project-name')
+    await act(async () => {
+      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set
+      setter?.call(name, value)
+      name?.dispatchEvent(new Event('input', { bubbles: true }))
+    })
+  }
+
+  it('shows the owner team fixed in Teams and creates the project linked to the teams added', async () => {
+    createBotTeamProject.mockResolvedValue(project(null))
+    const container = await mount(
+      <NewBotProjectForm
+        team={team(false)}
+        allTeams={[team(false), marketing]}
+        onCancel={() => {}}
+        onCreated={() => {}}
+      />
+    )
+    expect(container.textContent).toContain('Teams')
+    expect(container.textContent).toContain('Development, owner')
+    expect(container.textContent).toContain("Linked teams can work on this project's tasks.")
+    expect(container.querySelector('[aria-label="Remove Development"]')).toBeNull()
+
+    await act(async () => {
+      buttonWith(container, 'Add team').dispatchEvent(
+        new PointerEvent('pointerdown', { bubbles: true, button: 0, pointerType: 'mouse' })
+      )
+    })
+    const option = [...document.body.querySelectorAll('[role="menuitem"]')].find(
+      (item) => item.textContent === 'Marketing'
+    )
+    await act(async () => (option as HTMLElement).click())
+    expect(container.textContent).toContain('Marketing')
+    await fillName(container, 'NexusCare')
+    await act(async () => buttonWith(container, 'Create project').click())
+
+    expect(createBotTeamProject).toHaveBeenCalledWith({
+      teamId: 't1',
+      name: 'NexusCare',
+      goal: '',
+      codeSource: null,
+      linkedTeamIds: ['t2']
+    })
+  })
+
+  it('lets a team added by mistake be removed before creating', async () => {
+    createBotTeamProject.mockResolvedValue(project(null))
+    const container = await mount(
+      <NewBotProjectForm
+        team={team(false)}
+        allTeams={[team(false), marketing]}
+        onCancel={() => {}}
+        onCreated={() => {}}
+      />
+    )
+    await act(async () => {
+      buttonWith(container, 'Add team').dispatchEvent(
+        new PointerEvent('pointerdown', { bubbles: true, button: 0, pointerType: 'mouse' })
+      )
+    })
+    const option = [...document.body.querySelectorAll('[role="menuitem"]')].find(
+      (item) => item.textContent === 'Marketing'
+    )
+    await act(async () => (option as HTMLElement).click())
+    await act(async () =>
+      container.querySelector<HTMLButtonElement>('[aria-label="Remove Marketing"]')?.click()
+    )
+    await fillName(container, 'NexusCare')
+    await act(async () => buttonWith(container, 'Create project').click())
+    expect(createBotTeamProject.mock.calls[0][0]).not.toHaveProperty('linkedTeamIds')
+  })
+
+  it('shows, on a project another team owns, who owns it and the team of each task', async () => {
+    const shared = {
+      ...project(null),
+      teamId: 't2',
+      linkedTeamIds: ['t1']
+    }
+    listBotTeamRoom.mockResolvedValue({
+      tasks: [
+        {
+          id: 'k1',
+          teamId: 't1',
+          title: 'Booking page',
+          prompt: '',
+          ownerBotId: 'b1',
+          sessionId: null,
+          projectId: 'p1'
+        }
+      ],
+      messages: [],
+      projects: [shared],
+      projectTasks: [
+        {
+          id: 'k2',
+          teamId: 't2',
+          title: 'Launch email',
+          prompt: '',
+          ownerBotId: 'b2',
+          sessionId: null,
+          projectId: 'p1'
+        }
+      ]
+    })
+    const container = await mount(
+      <BotTeamProjectBoard
+        team={team(false)}
+        allTeams={[team(false), marketing]}
+        projectId="p1"
+        onBack={() => {}}
+        onTab={() => {}}
+        onOpenTask={() => {}}
+      />
+    )
+    await settle()
+    expect(container.textContent).toContain('Owner:')
+    expect(container.textContent).toContain('Marketing')
+    expect(container.textContent).toContain('Booking page')
+    expect(container.textContent).toContain('Launch email')
+    const card = [...container.querySelectorAll('button')].find((button) =>
+      button.textContent?.includes('Launch email')
+    )
+    // The card names the team that made the task, and the owner bot from that team.
+    expect(card?.textContent).toContain('Marketing')
+    expect(card?.textContent).toContain('Nora')
+  })
+
+  it('does not name a team on the cards of a project that is not shared', async () => {
+    listBotTeamRoom.mockResolvedValue({
+      tasks: [
+        {
+          id: 'k1',
+          teamId: 't1',
+          title: 'Booking page',
+          prompt: '',
+          ownerBotId: 'b1',
+          sessionId: null,
+          projectId: 'p1'
+        }
+      ],
+      messages: [],
+      projects: [{ ...project(null), linkedTeamIds: [] }]
+    })
+    const container = await mount(
+      <BotTeamProjectBoard
+        team={team(false)}
+        allTeams={[team(false), marketing]}
+        projectId="p1"
+        onBack={() => {}}
+        onTab={() => {}}
+        onOpenTask={() => {}}
+      />
+    )
+    await settle()
+    expect(container.textContent).not.toContain('Owner:')
+    const card = [...container.querySelectorAll('button')].find((button) =>
+      button.textContent?.includes('Booking page')
+    )
+    expect(card?.textContent).not.toContain('Development')
+  })
+})
+
+describe('the project board', () => {
+  const task = {
+    id: 'task1',
+    teamId: 't1',
+    title: 'Write the flyer',
+    prompt: '',
+    ownerBotId: 'b1',
+    sessionId: 's1',
+    projectId: 'p1'
+  }
+
+  const columnOf = (container: ParentNode, name: string): HTMLElement => {
+    const header = [...container.querySelectorAll('span')].find(
+      (span) => span.textContent === name && span.className.includes('text-[13px]')
+    )
+    const column = header?.parentElement?.parentElement
+    if (!column) {
+      throw new Error(`Column ${name} missing`)
+    }
+    return column
+  }
+
+  const mountBoard = (): Promise<HTMLDivElement> =>
+    mount(
+      <BotTeamProjectBoard
+        team={team(false)}
+        projectId="p1"
+        onBack={() => {}}
+        onTab={() => {}}
+        onOpenTask={() => {}}
+      />
+    )
+
+  it('paints a finished task under Done at once when the board comes back from the Brief', async () => {
+    listBotTeamRoom.mockResolvedValue({
+      tasks: [task],
+      messages: [],
+      projects: [project(null)],
+      projectTasks: []
+    })
+    liveStatuses.current = new Map([['s1', { status: 'idle', turnOutcome: 'success' }]])
+    const first = await mountBoard()
+    expect(columnOf(first, 'Done').textContent).toContain('Write the flyer')
+
+    // Why: the Board/Brief toggle unmounts the board; the list is slow and no live status has arrived yet.
+    for (const entry of mounted.splice(0)) {
+      act(() => entry.root.unmount())
+      entry.container.remove()
+    }
+    listBotTeamRoom.mockReturnValue(new Promise(() => {}))
+    liveStatuses.current = new Map()
+    const second = await mountBoard()
+
+    expect(columnOf(second, 'Done').textContent).toContain('Write the flyer')
+    expect(columnOf(second, 'In Progress').textContent).not.toContain('Write the flyer')
+  })
+})
+
+describe('a task whose session has not answered yet', () => {
+  const columnFor = (container: ParentNode, name: string): HTMLElement => {
+    const header = [...container.querySelectorAll('span')].find(
+      (span) => span.textContent === name && span.className.includes('text-[13px]')
+    )
+    const column = header?.parentElement?.parentElement
+    if (!column) {
+      throw new Error(`Column ${name} missing`)
+    }
+    return column
+  }
+
+  const taskWith = (overrides: Partial<BotTeamTask>): BotTeamTask => ({
+    id: 'task',
+    teamId: 't1',
+    title: 'Draft the menu',
+    prompt: '',
+    ownerBotId: 'b1',
+    sessionId: 'session',
+    projectId: 'p1',
+    ...overrides
+  })
+
+  const mountProjectBoard = (): Promise<HTMLDivElement> =>
+    mount(
+      <BotTeamProjectBoard
+        team={team(false)}
+        projectId="p1"
+        onBack={() => {}}
+        onTab={() => {}}
+        onOpenTask={() => {}}
+      />
+    )
+
+  it('sits in Todo under a placeholder, not In Progress, until the feed answers', async () => {
+    listBotTeamRoom.mockResolvedValue({
+      tasks: [taskWith({ id: 'draft', sessionId: 'unanswered-draft' })],
+      messages: [],
+      projects: [project(null)],
+      projectTasks: []
+    })
+    liveStatuses.current = new Map()
+
+    const board = await mountProjectBoard()
+
+    expect(columnFor(board, 'Todo').textContent).toContain('Draft the menu')
+    expect(columnFor(board, 'In Progress').textContent).not.toContain('Draft the menu')
+    expect(board.querySelector('[data-bot-team-status-placeholder]')).not.toBeNull()
+    expect(board.textContent).not.toContain('Working')
+  })
+
+  it('paints a task stored as Done in Done on the first open, before any live status', async () => {
+    listBotTeamRoom.mockResolvedValue({
+      tasks: [
+        taskWith({
+          id: 'ship',
+          title: 'Ship the menu',
+          sessionId: 'unanswered-ship',
+          lastStatus: 'Done'
+        })
+      ],
+      messages: [],
+      projects: [project(null)],
+      projectTasks: []
+    })
+    liveStatuses.current = new Map()
+
+    const board = await mountProjectBoard()
+
+    expect(columnFor(board, 'Done').textContent).toContain('Ship the menu')
+    expect(columnFor(board, 'In Progress').textContent).not.toContain('Ship the menu')
+  })
+
+  it('moves a card with a live status into its column, showing that status', async () => {
+    listBotTeamRoom.mockResolvedValue({
+      tasks: [taskWith({ id: 'plan', title: 'Plan the menu', sessionId: 'live-plan' })],
+      messages: [],
+      projects: [project(null)],
+      projectTasks: []
+    })
+    liveStatuses.current = new Map([['live-plan', { status: 'working' }]])
+
+    const board = await mountProjectBoard()
+
+    expect(columnFor(board, 'In Progress').textContent).toContain('Plan the menu')
+    expect(board.textContent).toContain('Working')
+    expect(board.querySelector('[data-bot-team-status-placeholder]')).toBeNull()
+  })
+
+  it('the team board lists the scheduled one-time work first, with its date, and no past or repeating routine', async () => {
+    const routine = (id: string, name: string, schedule: object, nextRun: object | null) => ({
+      id,
+      teamId: 'team-scheduled',
+      botId: 'b1',
+      name,
+      prompt: '',
+      schedule: { time: '10:00', weekday: null, monthDay: null, ...schedule },
+      paused: false,
+      nextRun,
+      lastRun: null
+    })
+    listBotTeamRoutines.mockResolvedValueOnce([
+      routine(
+        'r1',
+        'Front review',
+        { frequency: 'once', date: '2026-11-04' },
+        { date: '2026-11-04', time: '10:00' }
+      ),
+      routine('r2', 'Done review', { frequency: 'once', date: '2026-11-01' }, null),
+      routine('r3', 'Daily digest', { frequency: 'daily' }, { date: '2026-11-04', time: '10:00' })
+    ])
+    listBotTeamRoom.mockResolvedValue({ tasks: [], messages: [], projects: [] })
+
+    const board = await mount(
+      <BotTeamBoard
+        team={{ ...team(false), id: 'team-scheduled' }}
+        onBack={() => {}}
+        onOpenTask={() => {}}
+      />
+    )
+
+    expect(board.textContent).toContain('Front review')
+    expect(board.textContent).toMatch(/Scheduled, .+, 10:00/)
+    expect(board.textContent).not.toContain('Done review')
+    expect(board.textContent).not.toContain('Daily digest')
+    expect(board.textContent).not.toContain('No tasks here.')
+  })
+
+  it('the team board paints the list it kept at once, with no status word until the feed answers', async () => {
+    keepTeamTaskList('team-kept', {
+      tasks: [
+        taskWith({
+          id: 'kept',
+          teamId: 'team-kept',
+          title: 'Kept on the team board',
+          sessionId: 'unanswered-kept',
+          projectId: null
+        })
+      ],
+      projects: []
+    })
+    listBotTeamRoom.mockReturnValue(new Promise(() => {}))
+    liveStatuses.current = new Map()
+
+    const board = await mount(
+      <BotTeamBoard
+        team={{ ...team(false), id: 'team-kept' }}
+        onBack={() => {}}
+        onOpenTask={() => {}}
+      />
+    )
+
+    expect(board.textContent).toContain('Kept on the team board')
+    expect(board.textContent).not.toContain('Working')
+    expect(board.querySelector('[data-bot-team-status-placeholder]')).not.toBeNull()
   })
 })

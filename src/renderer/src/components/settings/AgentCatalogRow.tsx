@@ -74,6 +74,8 @@ export type AgentCatalogRowProps = {
   onSaveArgs: (value: string) => void
   onSaveEnv: (value: Record<string, string>) => void
   sessionSourceHome?: AgentSessionSourceHomeControl
+  /** Opens the command, arguments and environment editor on first render (an agent's own page). */
+  defaultExpanded?: boolean
 }
 
 export function AgentCatalogRow({
@@ -94,12 +96,16 @@ export function AgentCatalogRow({
   onSaveOverride,
   onSaveArgs,
   onSaveEnv,
-  sessionSourceHome
+  sessionSourceHome,
+  defaultExpanded = false
 }: AgentCatalogRowProps): React.JSX.Element {
   const envSummary = stringifyAgentDefaultEnvDraft(envOverride)
   const defaultEnvSummary = stringifyAgentDefaultEnvDraft(defaultEnv)
   const [cmdOpen, setCmdOpen] = useState(
-    Boolean(cmdOverride) || argsOverride !== defaultArgs || envSummary !== defaultEnvSummary
+    defaultExpanded ||
+      Boolean(cmdOverride) ||
+      argsOverride !== defaultArgs ||
+      envSummary !== defaultEnvSummary
   )
 
   return (

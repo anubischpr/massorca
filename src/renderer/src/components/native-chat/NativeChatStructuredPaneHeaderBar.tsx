@@ -5,10 +5,16 @@ import { AgentSessionContinuationDialog } from '@/components/agent-session-conti
 import { useAppStore } from '../../store'
 import { FLOATING_TERMINAL_WORKTREE_ID } from '../../../../shared/constants'
 import { useSessionBarActionsTarget } from '../../app-shell/session-bar-slot'
+import { useSplitTopBarActionsTarget } from '../../app-shell/split-top-bar-slot'
+import { sessionTabTitle } from '../../app-shell/session-bar-title'
 import { selectFocusedSessionTab } from '../../store/slices/tabs/side-panel-group'
 import type { RuntimeClientTarget } from '../../runtime/runtime-rpc-client'
 import type { PiRuntimeSelection } from '../../../../shared/pi-runtime-selection'
 import { NativeChatStructuredPaneHeader } from './NativeChatStructuredPaneHeader'
+import {
+  isPaneGroupInSplit,
+  nativeChatPaneHeaderPlacement
+} from './native-chat-pane-header-placement'
 import { useStructuredChatPaneActions } from './use-structured-chat-pane-actions'
 import {
   chatTransitionKeyForSession,
@@ -61,8 +67,23 @@ export function NativeChatStructuredPaneHeaderBar({
   const ownsSessionBar = useAppStore(
     (store) => selectFocusedSessionTab(store, worktreeId)?.id === tabId
   )
-  // Why inline: the floating panel and a not-yet-placed chat have no session bar to render into.
-  const inline = !barTarget || worktreeId === '' || worktreeId === FLOATING_TERMINAL_WORKTREE_ID
+  // Why: a split gives every chat its own header; the window bar holds one pane's chat only.
+  const inSplit = useAppStore((store) => isPaneGroupInSplit(store.groupsByWorktree, groupId))
+  const topBarTarget = useSplitTopBarActionsTarget(groupId)
+  const title = useAppStore((store) => {
+    const tab = (store.unifiedTabsByWorktree[worktreeId] ?? []).find((row) => row.id === tabId)
+    return tab ? sessionTabTitle(store, worktreeId, tab) : ''
+  })
+  // Why inline: the floating panel and a not-yet-placed chat have no session bar to render into; a split has none either.
+  const inline =
+    (!barTarget && !inSplit) || worktreeId === '' || worktreeId === FLOATING_TERMINAL_WORKTREE_ID
+  const placement = nativeChatPaneHeaderPlacement({
+    isVisible,
+    inline,
+    inSplit,
+    ownsSessionBar,
+    topBarMounted: topBarTarget !== null
+  })
   const header = (
     <NativeChatStructuredPaneHeader
       canHandOff={actions.canHandOff}
@@ -77,14 +98,24 @@ export function NativeChatStructuredPaneHeaderBar({
   )
   return (
     <>
-      {isVisible ? (
-        inline ? (
-          <div className="flex h-8 shrink-0 items-center justify-end border-b border-border px-2">
-            {header}
-          </div>
-        ) : ownsSessionBar && barTarget ? (
-          createPortal(header, barTarget)
-        ) : null
+      {placement === 'inline' ? (
+        <div className="flex h-8 shrink-0 items-center justify-end border-b border-border px-2">
+          {header}
+        </div>
+      ) : placement === 'top-bar' && topBarTarget ? (
+        createPortal(header, topBarTarget)
+      ) : placement === 'pane-row' ? (
+        <div
+          data-native-chat-pane-title-row=""
+          className="flex h-9 shrink-0 items-center gap-2 border-b border-border px-3"
+        >
+          <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
+            {title}
+          </span>
+          {header}
+        </div>
+      ) : placement === 'session-bar' && barTarget ? (
+        createPortal(header, barTarget)
       ) : null}
       {handOffRequest ? (
         <AgentSessionContinuationDialog

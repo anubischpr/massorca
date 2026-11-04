@@ -8,7 +8,8 @@ beforeEach(() => {
     selectedRequestId: null,
     states: {},
     sidePanelHidden: false,
-    listPanelHidden: false
+    listPanelHidden: false,
+    focusedSetSessions: null
   })
 })
 
@@ -122,5 +123,27 @@ describe('a merged direction joining the set', () => {
       mergeInto: null,
       mergedFrom: { D: ['A', 'C'] }
     })
+  })
+})
+
+describe('the chats behind the set in view', () => {
+  it('publishes them for the floating checklist, and clears them off the page', () => {
+    const store = usePrototypeViewStore.getState()
+    expect(store.focusedSetSessions).toBeNull()
+    store.setFocusedSetSessions({ sessionId: 'own', originSessionId: 'origin' })
+    expect(usePrototypeViewStore.getState().focusedSetSessions).toEqual({
+      sessionId: 'own',
+      originSessionId: 'origin'
+    })
+    store.setFocusedSetSessions(null)
+    expect(usePrototypeViewStore.getState().focusedSetSessions).toBeNull()
+  })
+
+  it('keeps the same object when the same chats are published again', () => {
+    const store = usePrototypeViewStore.getState()
+    store.setFocusedSetSessions({ sessionId: 'own', originSessionId: null })
+    const first = usePrototypeViewStore.getState().focusedSetSessions
+    store.setFocusedSetSessions({ sessionId: 'own', originSessionId: null })
+    expect(usePrototypeViewStore.getState().focusedSetSessions).toBe(first)
   })
 })

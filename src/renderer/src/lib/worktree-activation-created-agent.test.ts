@@ -21,17 +21,15 @@ function makeWebRuntimeWorktree() {
   }
 }
 
-/** Activates and asserts a focusable tab appeared with no queued startup, returning its id. */
+/** Activates an empty worktree and asserts no tab and no queued startup, so nothing relaunches. */
 function activateAndExpectNoRelaunch(
   worktreeId: string,
   opts?: Parameters<typeof activateAndRevealWorktree>[1]
-): string {
+): void {
   const result = activateAndRevealWorktree(worktreeId, opts)
-  const tabId = result === false ? undefined : (result.primaryTabId ?? undefined)
 
-  expect(tabId).toBeDefined()
-  expect(useAppStore.getState().pendingStartupByTabId[tabId!]).toBeUndefined()
-  return tabId!
+  expect(result).toEqual({ primaryTabId: null })
+  expect(useAppStore.getState().pendingStartupByTabId).toEqual({})
 }
 
 afterEach(() => {
@@ -85,12 +83,11 @@ describe('activateAndRevealWorktree', () => {
 
     const result = activateAndRevealWorktree(worktree.id)
     const state = useAppStore.getState()
-    const reopenedTab = state.tabsByWorktree[worktree.id]?.[0]
 
-    // A focusable surface still appears — it is just a plain shell, with no queued agent launch.
-    expect(result).toEqual({ primaryTabId: reopenedTab?.id })
-    expect(reopenedTab).toBeDefined()
-    expect(state.pendingStartupByTabId[reopenedTab!.id]).toBeUndefined()
+    // An empty workspace gets no plain shell on reopen, so no agent launch is queued either.
+    expect(result).toEqual({ primaryTabId: null })
+    expect(state.tabsByWorktree[worktree.id] ?? []).toEqual([])
+    expect(state.pendingStartupByTabId).toEqual({})
     expect(revealWorktreeInSidebar).toHaveBeenCalledWith(worktree.id)
   })
 
@@ -268,7 +265,7 @@ describe('activateAndRevealWorktree', () => {
 
     const result = activateAndRevealWorktree(worktree.id, { sidebarRevealBehavior: 'auto' })
 
-    expect(result).toEqual({ primaryTabId: expect.any(String) })
+    expect(result).toEqual({ primaryTabId: null })
     expect(revealWorktreeInSidebar).toHaveBeenCalledWith(worktree.id, { behavior: 'auto' })
   })
 

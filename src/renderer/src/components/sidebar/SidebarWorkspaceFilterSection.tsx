@@ -1,5 +1,6 @@
 import React from 'react'
 import {
+  Bot,
   CalendarClock,
   GitBranch,
   GitCommitHorizontal,
@@ -32,6 +33,8 @@ const SidebarWorkspaceFilterSection = React.memo(function SidebarWorkspaceFilter
   const setAlwaysShowDefaultBranchWorkspace = useAppStore(
     (s) => s.setAlwaysShowDefaultBranchWorkspace
   )
+  const showBotTeamWorkspaces = useAppStore((s) => s.showBotTeamWorkspaces)
+  const setShowBotTeamWorkspaces = useAppStore((s) => s.setShowBotTeamWorkspaces)
   const showOtherClientFilter =
     !runtimeEnvironmentCatalogHydrated ||
     runtimeEnvironments.length > 0 ||
@@ -121,6 +124,16 @@ const SidebarWorkspaceFilterSection = React.memo(function SidebarWorkspaceFilter
         )}
         checked={hideDetachedHeadWorkspaces}
         onChange={setHideDetachedHeadWorkspaces}
+      />
+      {/* Why a show switch, not a hide one: it starts off, so bot teams stay out of Workspaces until chosen. */}
+      <FilterToggleRow
+        icon={<Bot className="size-3.5" />}
+        label={translate(
+          'auto.components.sidebar.SidebarWorkspaceFilterSection.showBotTeams',
+          'Show bot teams'
+        )}
+        checked={showBotTeamWorkspaces}
+        onChange={setShowBotTeamWorkspaces}
       />
     </>
   )

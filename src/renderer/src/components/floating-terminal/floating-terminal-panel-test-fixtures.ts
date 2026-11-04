@@ -13,6 +13,10 @@ export type FloatingPanelStoreState = {
   unifiedTabsByWorktree: Record<string, Tab[]>
   openFiles: OpenFile[]
   activeGroupIdByWorktree: Record<string, string | null>
+  // Why: the floating creators read the host selection; no paired host keeps them local.
+  activeWorktreeId: string | null
+  runtimeEnvironments: unknown[]
+  runtimeStatusByEnvironmentId: Record<string, unknown>
   activeTabIdByWorktree: Record<string, string | null>
   layoutByWorktree: Record<string, TabGroupLayoutNode>
   expandedPaneByTabId: Record<string, boolean>

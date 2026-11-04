@@ -1,4 +1,5 @@
 import { ORCA_AGENT_SESSION_ID_ENV } from '../../shared/agent-session-caller-env'
+import { CHECKLIST_INSTRUCTION_LINES } from './checklist-agent-instructions'
 
 // Free of quotes, angle brackets, pipes, ampersands, percent and caret, so a Windows .cmd shim
 // carries the single-line form as one argument unchanged.
@@ -9,13 +10,19 @@ const DELEGATION_INSTRUCTION_LINES = [
   'The command returns at once and a card in this chat asks the user which agent runs the child. Tell the user the request is waiting for their choice, then end your turn without polling.',
   'When the child finishes, its result arrives in this chat as a message. Read it and report to the user; do not redo the work. If the report says the child reused or created a design system, tell the user which.',
   'For a design or prototype task, write the design request itself in TASK. Do not name output folders or design tools in it: the host gives the child its prototype folder and the design system choice.',
-  'If you are a dispatched worker, you are a child session. In anything the user reads, such as questions, options and reports, call the location of the session that started you the parent worktree, never its folder or branch name alone, and never show internal ids. Use its real path only inside commands.'
+  'If you are a dispatched worker, you are a child session. In anything the user reads, such as questions, options and reports, call the location of the session that started you the parent worktree, never its folder or branch name alone, and never show internal ids. Use its real path only inside commands.',
+  'MassOrca question cards.',
+  'To ask the user a multiple-choice question, Claude AskUserQuestion, Codex request_user_input, Grok ask_user_question and the Gentle Shell ask dialog already show an interactive card in this chat; use them. Every other agent, Antigravity and OpenCode included, runs `orca orchestration ask-user --question TEXT --options A,B,C` instead (add `--multi-select` to allow several picks), because its own question tool (such as ask_question) is skipped here and nobody sees it. Quote TEXT and the options list; options are comma-separated.',
+  'The command shows the card, waits for the answer and prints the chosen options (or the text the user typed); exit code 1 means the user dismissed the card or did not answer. Ask one question per command.',
+  'Never draw choices yourself as HTML, Markdown, buttons or a feedback artifact.'
 ] as const
 
-export const DELEGATION_AGENT_INSTRUCTIONS = DELEGATION_INSTRUCTION_LINES.join('\n')
+const AGENT_INSTRUCTION_LINES = [...DELEGATION_INSTRUCTION_LINES, ...CHECKLIST_INSTRUCTION_LINES]
+
+export const DELEGATION_AGENT_INSTRUCTIONS = AGENT_INSTRUCTION_LINES.join('\n')
 
 /** The same text on one line, for a channel that carries it as a single command-line argument. */
-export const DELEGATION_AGENT_INSTRUCTIONS_ONE_LINE = DELEGATION_INSTRUCTION_LINES.join(' ')
+export const DELEGATION_AGENT_INSTRUCTIONS_ONE_LINE = AGENT_INSTRUCTION_LINES.join(' ')
 
 /**
  * The text for a structured session whose child env can actually delegate: its own session id is

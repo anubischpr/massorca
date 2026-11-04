@@ -1,5 +1,5 @@
 import type { AgentStatusEntry } from '../../../../shared/agent-status-types'
-import { isFreshNonDoneAgentStatus } from '../../../../shared/agent-status-freshness'
+import { isFreshOrAwaitingNonDoneAgentStatus } from '../../../../shared/agent-status-freshness'
 import { formatAgentTypeLabel } from '../../../../shared/agent-type-label'
 import { parsePaneKey } from '../../../../shared/stable-pane-id'
 import { resolveUnifiedTabLabel } from '../../../../shared/tab-title-resolution'
@@ -72,8 +72,8 @@ function sessionTitle(
 }
 
 /**
- * Sessions waiting on the user, read from the agent status store: a fresh blocked or waiting
- * entry whose tab and workspace can be resolved. The longest wait comes first.
+ * Sessions waiting on the user, read from the agent status store: a blocked or waiting
+ * entry, held until its pane reports or closes, whose tab and workspace resolve. Longest wait first.
  */
 export function deriveApprovalRows(state: ApprovalSourceState, now = Date.now()): ApprovalRow[] {
   const rows: ApprovalRow[] = []
@@ -81,7 +81,7 @@ export function deriveApprovalRows(state: ApprovalSourceState, now = Date.now())
     if (entry.state !== 'blocked' && entry.state !== 'waiting') {
       continue
     }
-    if (!isFreshNonDoneAgentStatus(entry, now)) {
+    if (!isFreshOrAwaitingNonDoneAgentStatus(entry, now)) {
       continue
     }
     const tabId = parsePaneKey(paneKey)?.tabId

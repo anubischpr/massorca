@@ -20,6 +20,8 @@ export type DiscoveredSkill = {
   directoryPath: string
   skillFilePath: string
   installed: boolean
+  /** Where it came from, for a "Installed from Marketplace" label; absent from older hosts. */
+  source?: 'installed' | 'marketplace'
   updatedAt: number | null
   /** Frontmatter `disable-slash-command: true`: discoverable, but not offered in a `/` menu. */
   disableSlashCommand?: true

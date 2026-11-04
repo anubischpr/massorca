@@ -1,7 +1,9 @@
 import { STATUS_METHODS } from './status'
 import { BOT_TEAM_METHODS } from './bot-teams'
+import { BOT_TEAM_PROJECT_FILES_METHODS } from './bot-team-project-files'
 import { BOT_TEAM_ROOM_METHODS } from './bot-team-room'
 import { BOT_TEAM_ROUTINE_METHODS } from './bot-team-routine-methods'
+import { botTeamListScheduledRunsMethod } from './bot-team-scheduled-run-methods'
 import { BOT_TEAM_WEBHOOK_METHODS } from './bot-team-webhook-methods'
 import { ORCAD_TERMINAL_CENSUS_METHODS } from './orcad-terminal-census'
 import { ORCAD_MIGRATION_METHODS } from './orcad-migration'
@@ -56,6 +58,7 @@ import { AGENT_SESSION_METHODS } from './agent-session'
 import { STRUCTURED_AGENT_SESSION_METHODS } from './structured-agent-session'
 import { STRUCTURED_AGENT_SESSION_ATTACHMENT_METHODS } from './structured-agent-session-attachments'
 import { STRUCTURED_AGENT_SESSION_VISUAL_METHODS } from './structured-agent-session-visual'
+import { STRUCTURED_AGENT_SESSION_CHECKLIST_METHODS } from './structured-agent-session-checklist'
 import { STRUCTURED_AGENT_SESSION_PLAN_DOCUMENT_METHODS } from './structured-agent-session-plan-document'
 import { STRUCTURED_AGENT_SESSION_RECORDED_FILE_METHODS } from './structured-agent-session-recorded-file'
 import { STRUCTURED_AGENT_SESSION_AGENTS_METHODS } from './structured-agent-session-agents'
@@ -63,6 +66,7 @@ import { STRUCTURED_AGENT_SESSION_PROTOTYPE_METHODS } from './prototypes'
 import { ARTIFACT_METHODS } from './artifacts'
 import { AGENT_HOOK_METHODS } from './agent-hooks'
 import { AGENT_LAUNCH_METHODS } from './agent-launch'
+import { MARKETPLACE_VAULT_METHODS } from './marketplace-vault-methods'
 
 // Why: a flat manifest keeps registration order explicit and provides one
 // grep-point for "what methods does the RPC server expose?" — useful when
@@ -74,8 +78,10 @@ export const ALL_RPC_METHODS = [
   ...AGENT_HOOK_METHODS,
   ...AI_VAULT_METHODS,
   ...BOT_TEAM_METHODS,
+  ...BOT_TEAM_PROJECT_FILES_METHODS,
   ...BOT_TEAM_ROOM_METHODS,
   ...BOT_TEAM_ROUTINE_METHODS,
+  botTeamListScheduledRunsMethod,
   ...BOT_TEAM_WEBHOOK_METHODS,
   ...ARTIFACT_METHODS,
   ...AUTOMATION_METHODS,
@@ -85,11 +91,13 @@ export const ALL_RPC_METHODS = [
   ...STRUCTURED_AGENT_SESSION_METHODS,
   ...STRUCTURED_AGENT_SESSION_ATTACHMENT_METHODS,
   ...STRUCTURED_AGENT_SESSION_VISUAL_METHODS,
+  ...STRUCTURED_AGENT_SESSION_CHECKLIST_METHODS,
   ...STRUCTURED_AGENT_SESSION_PLAN_DOCUMENT_METHODS,
   ...STRUCTURED_AGENT_SESSION_RECORDED_FILE_METHODS,
   ...STRUCTURED_AGENT_SESSION_PROTOTYPE_METHODS,
   ...STRUCTURED_AGENT_SESSION_AGENTS_METHODS,
   ...AGENT_LAUNCH_METHODS,
+  ...MARKETPLACE_VAULT_METHODS,
   ...TERMINAL_METHODS,
   ...TERMINAL_ORPHAN_METHODS,
   ...BROWSER_CORE_METHODS,

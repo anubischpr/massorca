@@ -22,6 +22,29 @@ vi.mock('@/i18n/i18n', () => ({
     fallback.replace(/\{\{(\w+)\}\}/g, (_match, name: string) => String(options?.[name]))
 }))
 vi.mock('sonner', () => ({ toast: { error: toastError } }))
+// Why: the rich editor needs a layout engine jsdom lacks; a textarea stands in for its content and change hooks.
+vi.mock('@/components/editor/editor-lazy-views', async () => {
+  const React = await import('react')
+  return {
+    RichMarkdownEditor: ({
+      content,
+      onContentChange,
+      onDirtyStateHint
+    }: {
+      content: string
+      onContentChange: (value: string) => void
+      onDirtyStateHint: (dirty: boolean) => void
+    }) =>
+      React.createElement('textarea', {
+        'aria-label': 'Brief editor',
+        value: content,
+        onChange: (event: { target: { value: string } }) => {
+          onContentChange(event.target.value)
+          onDirtyStateHint(true)
+        }
+      })
+  }
+})
 
 const { BotTeamProjectBrief } = await import('./BotTeamProjectBrief')
 
@@ -87,7 +110,7 @@ afterEach(() => {
 })
 
 describe('the project brief', () => {
-  it('lists Goal, Requirements, Constraints and Decisions with the design’s copy', async () => {
+  it('shows Goal and the Brief editor with the design’s copy', async () => {
     const container = await mount()
     const text = container.textContent ?? ''
     for (const copy of [
@@ -95,64 +118,110 @@ describe('the project brief', () => {
       'The project holds the why. Each task holds the how. Bots read this brief and their own task thread.',
       'Goal',
       'Sell the offers',
-      'Requirements',
-      'Flyer for the offers',
-      'Offer email',
-      'Constraints',
-      'Prices are checked first',
-      'Decisions'
+      'Summer campaign',
+      'Marketing'
     ]) {
       expect(text).toContain(copy)
     }
-    expect([...container.querySelectorAll('h2')].map((h) => h.textContent)).toEqual([
-      'Goal',
-      'Requirements',
-      'Constraints',
-      'Decisions'
-    ])
-    expect(text).toContain('Summer campaign')
-    expect(text).toContain('Marketing')
+    expect([...container.querySelectorAll('h2')].map((h) => h.textContent)).toEqual(['Goal'])
   })
 
-  it('says a requirement is not linked while nothing links it', async () => {
+  it('gives the Brief editor the page height, at least 60% of the viewport', async () => {
     const container = await mount()
-    expect(container.textContent?.match(/Not linked yet/g)).toHaveLength(2)
+    const box = container
+      .querySelector<HTMLElement>('textarea[aria-label="Brief editor"]')
+      ?.closest<HTMLElement>('.min-h-\\[60vh\\]')
+    expect(box).not.toBeNull()
+    expect(box?.className).toContain('flex-1')
+    expect(box?.className).not.toContain('min-h-72')
   })
 
-  it('shows the empty requirements text', async () => {
+  it('opens the editor on the Markdown built from the lists when none is saved yet', async () => {
+    const container = await mount()
+    expect(container.querySelector<HTMLTextAreaElement>('[aria-label="Brief editor"]')?.value).toBe(
+      '## Requirements\n- Flyer for the offers\n- Offer email\n\n## Constraints\n- Prices are checked first\n\n## Decisions'
+    )
+  })
+
+  it('opens the editor on the saved Markdown when the project has one', async () => {
     listBotTeamRoom.mockResolvedValue({
       tasks: [],
       messages: [],
-      projects: [project({ brief: { requirements: [], constraints: [], decisions: [] } })]
+      projects: [
+        project({ brief: { ...project().brief, markdown: '## Decisions\n1. Nora writes' } })
+      ]
     })
     const container = await mount()
-    expect(container.textContent).toContain('No requirements yet.')
+    expect(container.querySelector<HTMLTextAreaElement>('[aria-label="Brief editor"]')?.value).toBe(
+      '## Decisions\n1. Nora writes'
+    )
   })
 
-  it('saves a section when the person edits it and leaves it, one line per entry', async () => {
+  it('saves the editor Markdown and keeps the lists as they were, then shows the saved text', async () => {
     setBotTeamProjectBrief.mockResolvedValue(project())
     const container = await mount()
+    const save = () =>
+      [...container.querySelectorAll<HTMLButtonElement>('button')].find(
+        (button) => button.textContent?.trim() === 'Save'
+      )
+    expect(save()?.disabled).toBe(true)
 
+    const editor = container.querySelector<HTMLTextAreaElement>('[aria-label="Brief editor"]')
     await act(async () =>
-      container.querySelector<HTMLButtonElement>('[aria-label="Decisions"]')?.click()
+      typeInto(editor, '## Requirements\n- Flyer for the offers\n\nIris writes the text.')
     )
-    const textarea = container.querySelector('textarea')
-    await act(async () => typeInto(textarea, 'Iris lays out the flyer.\nNora writes the text.\n'))
-    await act(async () => {
-      textarea?.dispatchEvent(new FocusEvent('focusout', { bubbles: true }))
-    })
+    await act(async () => save()?.click())
 
     expect(setBotTeamProjectBrief).toHaveBeenCalledWith('p1', {
       goal: 'Sell the offers',
       brief: {
         requirements: ['Flyer for the offers', 'Offer email'],
         constraints: ['Prices are checked first'],
-        decisions: ['Iris lays out the flyer.', 'Nora writes the text.']
+        decisions: [],
+        markdown: '## Requirements\n- Flyer for the offers\n\nIris writes the text.'
       }
     })
   })
 
-  it('saves the goal as text', async () => {
+  it('drops the editor changes on Cancel without saving', async () => {
+    const container = await mount()
+    const editor = container.querySelector<HTMLTextAreaElement>('[aria-label="Brief editor"]')
+    await act(async () => typeInto(editor, 'Changed my mind'))
+    await act(async () =>
+      [...container.querySelectorAll<HTMLButtonElement>('button')]
+        .find((button) => button.textContent?.trim() === 'Cancel')
+        ?.click()
+    )
+    expect(
+      container.querySelector<HTMLTextAreaElement>('[aria-label="Brief editor"]')?.value
+    ).toContain('## Requirements')
+    expect(setBotTeamProjectBrief).not.toHaveBeenCalled()
+  })
+
+  it('keeps unsaved editor changes when the person leaves the Brief and comes back', async () => {
+    const first = await mount()
+    const editor = first.querySelector<HTMLTextAreaElement>('[aria-label="Brief editor"]')
+    await act(async () => typeInto(editor, 'Half-written flyer copy'))
+    act(() => {
+      for (const { root } of mounted.splice(0)) {
+        root.unmount()
+      }
+    })
+
+    const again = await mount()
+    expect(again.querySelector<HTMLTextAreaElement>('[aria-label="Brief editor"]')?.value).toBe(
+      'Half-written flyer copy'
+    )
+    expect(again.textContent).toContain('Unsaved changes')
+    expect(setBotTeamProjectBrief).not.toHaveBeenCalled()
+    await act(async () =>
+      [...again.querySelectorAll<HTMLButtonElement>('button')]
+        .find((button) => button.textContent?.trim() === 'Cancel')
+        ?.click()
+    )
+  })
+
+  it('saves the Goal as text', async () => {
     setBotTeamProjectBrief.mockResolvedValue(project())
     const container = await mount()
     await act(async () =>
@@ -169,10 +238,10 @@ describe('the project brief', () => {
     )
   })
 
-  it('does not save when nothing changed', async () => {
+  it('does not save the Goal when nothing changed', async () => {
     const container = await mount()
     await act(async () =>
-      container.querySelector<HTMLButtonElement>('[aria-label="Constraints"]')?.click()
+      container.querySelector<HTMLButtonElement>('[aria-label="Goal"]')?.click()
     )
     await act(async () => {
       container

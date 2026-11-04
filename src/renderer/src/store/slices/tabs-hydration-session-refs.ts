@@ -1,7 +1,32 @@
-import type { Tab, TabGroup, TabGroupLayoutNode } from '../../../../shared/tab-types'
+import type {
+  PaneSessionFocus,
+  Tab,
+  TabGroup,
+  TabGroupLayoutNode
+} from '../../../../shared/tab-types'
 import { isSessionTab } from './tabs/side-panel-group'
 import { layoutSpanningGroups } from './tab-group-reference-repair'
 import { pruneTabGroupLayoutForGroups } from './tab-group-layout-pruning'
+
+/**
+ * The saved focus on a pane that shows another workspace's session, while that pane still shows a
+ * session of the restored active workspace. Anything else restores the active workspace's own layout.
+ */
+export function restorablePaneFocus(
+  saved: PaneSessionFocus | undefined,
+  groupsByWorktree: Record<string, TabGroup[]>,
+  activeWorktreeId: string | null
+): PaneSessionFocus | null {
+  if (!saved || saved.ownerWorktreeId !== activeWorktreeId) {
+    return null
+  }
+  const pane = (groupsByWorktree[saved.layoutWorktreeId] ?? []).find(
+    (group) => group.id === saved.groupId
+  )
+  return pane?.sessionRef?.worktreeId === saved.ownerWorktreeId && pane.tabOrder.length === 0
+    ? saved
+    : null
+}
 
 /** A pane whose referenced session no longer exists closes, as any empty pane does on restore. */
 export function dropDanglingSessionRefPanes(

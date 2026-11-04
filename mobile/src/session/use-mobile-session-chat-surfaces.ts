@@ -7,6 +7,7 @@ import {
   publishMobileChatSurfaceSnapshot
 } from './mobile-chat-surface-snapshot'
 import { chatSessionTargetOf, type ChatSessionTab } from './mobile-chat-session-target'
+import { mobileNativeChatChecklistMenuHint } from './mobile-native-chat-checklist-model'
 import { mobileNativeChatPlan, mobileNativeChatPlanProgress } from './mobile-native-chat-plan'
 import { mobileNativeChatRecordedFileCount } from './mobile-native-chat-recorded-files'
 import { resolveMobileSessionHeaderMenu } from './mobile-session-header-menu'
@@ -14,9 +15,10 @@ import type { MobileArtifactTarget } from './mobile-chat-artifacts-model'
 import { mobileSessionSwitcherRows } from './mobile-session-switcher-rows'
 import { isTerminalPanelOpen, terminalTabsOf } from './mobile-terminal-panel-model'
 import type { MobileSessionPanelRouteActionsModel } from './use-mobile-session-panel-route-actions'
+import { useMobileNativeChatChecklist } from './use-mobile-native-chat-checklist'
 
-/** The chat surfaces the ⋯ menu opens: the Plan sheet, and the Summary and Artifacts screens. */
-type ChatSurface = 'plan' | 'summary' | 'artifacts'
+/** The chat surfaces the ⋯ menu opens: the Plan and Checklist sheets, and the Summary and Artifacts screens. */
+type ChatSurface = 'plan' | 'checklist' | 'summary' | 'artifacts'
 
 /** A chat surface asked for from another pane, held until its chat is on screen. */
 type PendingChatSurface = { surface: ChatSurface; tabId: string; fromTabId: string | null }
@@ -68,6 +70,14 @@ export function useMobileSessionChatSurfaces(scope: MobileSessionPanelRouteActio
   )
 
   const messages = nativeChatController.nativeChatSession.messages
+  // The chat's checklist, read from the host that owns it: the transcript rows, the menu and the sheets share it.
+  const chatChecklist = useMobileNativeChatChecklist({
+    source: nativeChatController.nativeChatVisualSource,
+    messages,
+    worktreeId: isFloatingWorkspaceRoute ? null : worktreeId
+  })
+  const openChecklistList = chatChecklist.openList
+  const checklistHint = mobileNativeChatChecklistMenuHint(chatChecklist.checklist)
   const transcriptPlan = useMemo(
     () => (showNativeChat ? mobileNativeChatPlan(messages) : null),
     [messages, showNativeChat]
@@ -140,9 +150,13 @@ export function useMobileSessionChatSurfaces(scope: MobileSessionPanelRouteActio
         setPlanSheetOpen(true)
         return
       }
+      if (surface === 'checklist') {
+        openChecklistList()
+        return
+      }
       openChatRoute(surface === 'summary' ? 'chat-summary' : 'chat-artifacts')
     },
-    [openChatRoute]
+    [openChatRoute, openChecklistList]
   )
   // From another pane the surface waits: the worktree's chat comes on screen first, then it opens.
   const showChatSurface = useCallback(
@@ -168,6 +182,7 @@ export function useMobileSessionChatSurfaces(scope: MobileSessionPanelRouteActio
     ]
   )
   const openPlanSheet = useCallback(() => showChatSurface('plan'), [showChatSurface])
+  const openChecklist = useCallback(() => showChatSurface('checklist'), [showChatSurface])
   const openSummary = useCallback(() => showChatSurface('summary'), [showChatSurface])
   const openArtifacts = useCallback(() => showChatSurface('artifacts'), [showChatSurface])
   // Declared after the snapshot effect above, so a Summary or Artifacts screen finds its chat published.
@@ -254,6 +269,9 @@ export function useMobileSessionChatSurfaces(scope: MobileSessionPanelRouteActio
     openPlanSheet,
     planSheetOpen,
     setPlanSheetOpen,
+    chatChecklist,
+    checklistHint,
+    openChecklist,
     headerMenu,
     recordedFileCount,
     openSummary,

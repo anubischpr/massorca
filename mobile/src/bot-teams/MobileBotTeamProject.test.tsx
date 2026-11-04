@@ -16,6 +16,11 @@ vi.mock('react-native', () => ({
   TextInput: 'TextInput',
   View: 'View'
 }))
+vi.mock('../components/MobileRepoIcon', () => ({ MobileRepoIcon: 'MobileRepoIcon' }))
+// Why: the real Markdown renderer needs more native modules than this file mocks; it has its own tests.
+vi.mock('../components/MobileMarkdown', () => ({
+  MobileMarkdown: ({ content }: { content?: string }) => createElement('Text', null, content)
+}))
 vi.mock('lucide-react-native', () => ({ ChevronLeft: 'ChevronLeft' }))
 vi.mock('../components/MobileAgentIcon', () => ({ MobileAgentIcon: () => null }))
 vi.mock('./MobileBotTeamCharacterIcon', () => ({ MobileBotTeamCharacterIcon: () => null }))
@@ -167,6 +172,18 @@ describe('MobileBotTeamProject', () => {
     expect(content).toContain('Not linked yet')
     expect(content).toContain('Nothing is sent without OK')
     expect(content).toContain('by you.')
+    expect(renderer.root.findAll((node) => node.type === 'TextInput')).toHaveLength(0)
+  })
+
+  it('reads a Markdown brief with its structure, without any way to edit it', async () => {
+    const markdown =
+      '## Requirements\n- Flyer for the offers\n\n## Decisions\n1. Nora writes the text'
+    const renderer = await render(
+      baseProps({ tab: 'brief', project: { ...PROJECT, brief: { ...PROJECT.brief, markdown } } })
+    )
+    expect(text(renderer)).toContain('## Requirements')
+    expect(text(renderer)).toContain('Nora writes the text')
+    expect(text(renderer)).toContain('Ship the flyer')
     expect(renderer.root.findAll((node) => node.type === 'TextInput')).toHaveLength(0)
   })
 

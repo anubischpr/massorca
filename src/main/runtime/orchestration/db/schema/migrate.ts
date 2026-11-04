@@ -27,6 +27,11 @@ import { migrateV53 } from './migrate-v53'
 import { migrateV54 } from './migrate-v54'
 import { migrateV55 } from './migrate-v55'
 import { migrateV56 } from './migrate-v56'
+import { migrateV57 } from './migrate-v57'
+import { migrateV58 } from './migrate-v58'
+import { migrateV59 } from './migrate-v59'
+import { migrateV60 } from './migrate-v60'
+import { migrateV61 } from './migrate-v61'
 
 // Why: CREATE TABLE IF NOT EXISTS won't alter existing DBs; migrate in a txn that bumps user_version only on success (atomic all-or-nothing).
 export function migrate(this: OrchestrationDb): void {
@@ -68,6 +73,11 @@ export function migrate(this: OrchestrationDb): void {
     migrateV54.call(this, current)
     migrateV55.call(this, current)
     migrateV56.call(this, current)
+    migrateV57.call(this, current)
+    migrateV58.call(this, current)
+    migrateV59.call(this, current)
+    migrateV60.call(this, current)
+    migrateV61.call(this, current)
     this.createMailboxDeliveryIndexesIfPossible()
     // Why: rebuild steps above RENAME the table, which SQLite refuses while a view names it.
     this.db.exec(DERIVED_DELIVERY_SCHEMA_SQL)

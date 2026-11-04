@@ -46,11 +46,10 @@ export const ORCHESTRATION_DELEGATE_HANDLER: Record<string, CommandHandler> = {
         ...(flags.get('writes') === true ? { writes: true } : {})
       }
     )
-    printResult(
-      result,
-      json,
-      (value) =>
-        `Delegation ${value.requestId} requested [${value.status}]. A card in this chat asks the person which agent should run it; the child's result reaches you as a message when it finishes. Do not wait for it.`
+    printResult(result, json, (value) =>
+      value.status === 'starting'
+        ? `Delegation ${value.requestId} requested [${value.status}]. The child starts on the agent the router picked; its result reaches you as a message when it finishes. Do not wait for it.`
+        : `Delegation ${value.requestId} requested [${value.status}]. A card in this chat asks the person which agent should run it; the child's result reaches you as a message when it finishes. Do not wait for it.`
     )
   }
 }

@@ -136,6 +136,8 @@ export function createUiHydrationActions(set: UISliceSet, _get: UISliceGet): Par
           hideCliCreatedWorkspaces: ui.hideCliCreatedWorkspaces === true,
           hideDetachedHeadWorkspaces: ui.hideDetachedHeadWorkspaces === true,
           hideWorkspacesFromOtherDevices: ui.hideWorkspacesFromOtherDevices === true,
+          // Why === true: a peer that predates the switch omits it, and that means off.
+          showBotTeamWorkspaces: ui.showBotTeamWorkspaces === true,
           // Why !== false: profiles written before #8873 have no key, and they are
           // precisely the ones showing the bug, so absence must mean "exempt".
           alwaysShowDefaultBranchWorkspace: ui.alwaysShowDefaultBranchWorkspace !== false,
@@ -164,6 +166,7 @@ export function createUiHydrationActions(set: UISliceSet, _get: UISliceGet): Par
           agentsShowSearch: ui.agentsShowSearch !== false,
           agentsReadFilter: normalizeThreadReadFilter(ui.agentsReadFilter),
           agentsGroupBy: normalizeActivityGroupBy(ui.agentsGroupBy),
+          calendarShowDoneRuns: ui.calendarShowDoneRuns === true,
           collapsedGroups: new Set(ui.collapsedGroups ?? []),
           uiZoomLevel: ui.uiZoomLevel ?? 0,
           editorFontZoomLevel: ui.editorFontZoomLevel ?? 0,

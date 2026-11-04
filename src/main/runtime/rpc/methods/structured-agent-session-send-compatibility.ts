@@ -7,6 +7,22 @@ import type { StructuredAgentSessionHost } from '../../../native-chat/agent-sess
 import { STRUCTURED_AGENT_SESSION_START_WAIT_MS } from '../../../native-chat/agent-session-wire/structured-agent-session-send-settlement'
 import type { RpcContext } from '../core'
 import { requireStructuredSessionHost, structuredCallerFor } from './structured-agent-session-gate'
+import { getNativeChatChecklistStore } from '../../../native-chat/native-chat-checklist-store-registry'
+
+type SendParams = Parameters<StructuredAgentSessionHost['send']>[1]
+
+/** The person's message, led by the checklist changes the agent has not seen yet. */
+export function withNativeChatChecklistUpdate(params: SendParams, update: string): SendParams {
+  const [first, ...rest] = params.body.blocks
+  // Joined into the first text block, so the block count the schema bounds never grows.
+  const blocks =
+    first?.type === 'text'
+      ? [{ ...first, text: `${update}
+
+${first.text}` }, ...rest]
+      : [{ type: 'text' as const, text: update }, ...params.body.blocks]
+  return { ...params, body: { ...params.body, blocks } }
+}
 
 /**
  * A send answers once the host accepts it. A client that predates that answer cannot show a
@@ -16,12 +32,20 @@ import { requireStructuredSessionHost, structuredCallerFor } from './structured-
  * answer.
  */
 export async function sendStructuredAgentSessionForClient(
-  params: Parameters<StructuredAgentSessionHost['send']>[1],
+  clientParams: SendParams,
   context: RpcContext
 ) {
-  const host = requireStructuredSessionHost(context, params.envelope.sessionId)
+  const host = requireStructuredSessionHost(context, clientParams.envelope.sessionId)
+  const { sessionId, clientOperationId } = clientParams.envelope
+  const checklist = getNativeChatChecklistStore()
+  // Claimed per operation, so a retried send carries the same update and stays byte-identical.
+  const update = await checklist.claimUpdate(sessionId, clientOperationId)
+  const params = update ? withNativeChatChecklistUpdate(clientParams, update) : clientParams
   // A client's own send: a restart or a close keeps it as a card if it never reached the agent.
   const result = await host.send(structuredCallerFor(context), { ...params, userSend: true })
+  if (update && !result.ok) {
+    await checklist.releaseUpdate(sessionId, clientOperationId)
+  }
   const capabilities = context.clientCapabilities ?? []
   if (
     !result.ok ||

@@ -14,7 +14,8 @@ import {
   routineAccessLabel,
   routineRunStatus,
   routineScheduleLine,
-  routineWhenLabel
+  routineWhenLabel,
+  isPastOnceRoutine
 } from './BotTeamRoutineLabels'
 import { BotTeamRoutineSwitch, useBotTeamRoutines } from './BotTeamRoutines'
 import { BotTeamViewHeader } from './BotTeamViewHeader'
@@ -79,7 +80,7 @@ function RunsList({
           >
             <span className="min-w-0 flex-1">
               <span className="block text-sm font-medium">
-                {routineWhenLabel(run.scheduledFor)}
+                {routineWhenLabel(run.scheduledFor, run.scheduledAt)}
               </span>
               <span className="block text-xs text-muted-foreground">
                 {run.error ??
@@ -166,8 +167,10 @@ export function BotTeamRoutineRuns({
               </DetailRow>
               <DetailRow label={translate('components.botTeams.routineNext', 'Next run')}>
                 {routine.nextRun
-                  ? routineWhenLabel(routine.nextRun)
-                  : translate('components.botTeams.routinePausedLine', 'Paused.')}
+                  ? routineWhenLabel(routine.nextRun, routine.nextRunAt)
+                  : isPastOnceRoutine(routine)
+                    ? translate('components.botTeams.routineOnceNoNext', 'None. It ran once.')
+                    : translate('components.botTeams.routinePausedLine', 'Paused.')}
               </DetailRow>
             </div>
             <h2 className="text-lg font-semibold">

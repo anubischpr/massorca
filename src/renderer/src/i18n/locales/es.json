@@ -6486,7 +6486,8 @@
         },
         "OneLineSessionMenu": {
           "copyTitle": "Copiar título",
-          "sleep": "Dormir"
+          "sleep": "Dormir",
+          "splitView": "Vista dividida"
         }
       },
       "shared": {
@@ -17871,7 +17872,24 @@
     }
   },
   "components": {
+    "calendar": {
+      "previous": "Anterior",
+      "next": "Siguiente",
+      "today": "Hoy",
+      "viewAria": "Vista del calendario",
+      "day": "Día",
+      "week": "Semana",
+      "month": "Mes",
+      "teamsAria": "Equipos",
+      "upcoming": "Próximas ejecuciones",
+      "showDone": "Mostrar hechas",
+      "monthly": "Mensual",
+      "todayAt": "Hoy a las {{time}}",
+      "tomorrowAt": "Mañana a las {{time}}",
+      "dayAt": "{{day}} a las {{time}}"
+    },
     "app-rail": {
+      "calendar": "Calendario",
       "workspacesAgainHint": "Haz clic en Workspaces de nuevo para cambiar a Bot teams.",
       "label": "Aplicación",
       "settings": "Ajustes",
@@ -17879,7 +17897,6 @@
       "workspaces": "Espacios de trabajo"
     },
     "side-panel": {
-      "close": "Cerrar panel",
       "label": "Panel lateral",
       "new-tab": "Nueva pestaña"
     },

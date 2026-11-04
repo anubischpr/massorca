@@ -2,6 +2,7 @@ import type { AppState } from '../../types'
 import type { Tab } from '../../../../../shared/tab-types'
 import { dedupeTabOrder, ensureGroup, sanitizeRecentTabIds, updateGroup } from '../tab-group-state'
 import { pruneTabGroupLayoutForGroups } from '../tabs-hydration'
+import { resolveSessionRefTab } from './pane-session-ref'
 import {
   buildOrphanTerminalCleanupPatch,
   getOrphanTerminalIds,
@@ -119,10 +120,18 @@ export function projectWorktreeTabModelReconciliation(
     if (tab.contentType === 'terminal') {
       return liveTerminalIds.has(tab.entityId)
     }
+    if (tab.contentType === 'session-ref') {
+      // Why: a session tab is live only while the session it shows exists in its own workspace.
+      return tab.sessionRef !== undefined && resolveSessionRefTab(state, tab.sessionRef) !== null
+    }
     if (tab.contentType === 'browser') {
       return liveBrowserIds.has(tab.entityId)
     }
-    if (tab.contentType === 'simulator' || tab.contentType === 'agent-session') {
+    if (
+      tab.contentType === 'simulator' ||
+      tab.contentType === 'agent-session' ||
+      tab.contentType === 'checklist'
+    ) {
       return true
     }
     return liveEditorIds.has(tab.entityId)

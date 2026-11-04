@@ -2,6 +2,7 @@ import type { StructuredAgentSessionHostOwnedPrompts } from '../native-chat/agen
 import type { OrchestrationDb } from '../runtime/orchestration/db'
 import type { DelegationRequestRow } from '../runtime/orchestration/db/delegation/delegation-request-store'
 import {
+  DELEGATION_AUTOMATIC_OPTION_ID,
   delegationRequestIdOfQuestionItem,
   parseDelegationOptionId,
   type DelegationChoice,
@@ -73,14 +74,23 @@ export class DelegationAnswerService {
 
   /** Starts a request filed with its agent already decided; there is no card to answer. */
   startChosenAgent(requestId: string, agent: string): void {
+    this.startWithoutCard(requestId, { kind: 'agent', agent }, delegationAgentOptionId(agent))
+  }
+
+  /** Starts a request on the router's choice, for a chat no person answers cards in. */
+  startAutomatic(requestId: string): void {
+    this.startWithoutCard(requestId, { kind: 'automatic' }, DELEGATION_AUTOMATIC_OPTION_ID)
+  }
+
+  private startWithoutCard(requestId: string, choice: DelegationChoice, optionId: string): void {
     const db = this.deps.getDb()
     const row = db?.getDelegationRequest(requestId)
-    const choice = { kind: 'agent' as const, agent }
     if (!db || !row || !this.offers(row, choice)) {
-      throw new Error(`Delegation request ${requestId} cannot start ${agent}.`)
+      const what = choice.kind === 'agent' ? choice.agent : 'automatically'
+      throw new Error(`Delegation request ${requestId} cannot start ${what}.`)
     }
     const claimed = db.transitionDelegationRequest(row.id, 'pending', 'starting', {
-      choice: delegationAgentOptionId(agent),
+      choice: optionId,
       ...this.recomputedDecision(row, choice, row.parent_session_id)
     })
     if (!claimed) {
@@ -196,6 +206,8 @@ export class DelegationAnswerService {
     }
     const route = routeDelegationRequest({
       summary: row.summary,
+      title: row.title,
+      prompt: row.prompt,
       writes: row.writes === 1,
       workspaceKind: row.workspace_kind,
       parentAgent: this.deps.readParent(sessionId)?.agent ?? null,

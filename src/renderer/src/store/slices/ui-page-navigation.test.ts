@@ -737,3 +737,44 @@ describe('createUISlice space navigation', () => {
     expect(store.getState().activeView).toBe('artifacts')
   })
 })
+
+describe('createUISlice marketplace navigation', () => {
+  it('returns to the previous view after closing Marketplace', () => {
+    const store = createUIStore()
+
+    store.getState().openTaskPage()
+    store.getState().openMarketplacePage()
+
+    expect(store.getState().activeView).toBe('marketplace')
+    expect(store.getState().previousViewBeforeMarketplace).toBe('tasks')
+
+    store.getState().closeMarketplacePage()
+
+    expect(store.getState().activeView).toBe('tasks')
+  })
+
+  it('keeps Marketplace out of worktree back and forward history', () => {
+    const store = createUIStore()
+    store.setState({ worktreesByRepo: { 'repo-1': [makeWorktree('a')] } })
+
+    store.getState().recordWorktreeVisit('a')
+    store.getState().openMarketplacePage()
+
+    expect(store.getState().activeView).toBe('marketplace')
+    expect(store.getState().worktreeNavHistory).toEqual(['a'])
+  })
+
+  it('keeps the original return target when Marketplace is reopened while visible', () => {
+    const store = createUIStore()
+
+    store.getState().openTaskPage()
+    store.getState().openMarketplacePage()
+    store.getState().openMarketplacePage()
+
+    expect(store.getState().previousViewBeforeMarketplace).toBe('tasks')
+
+    store.getState().closeMarketplacePage()
+
+    expect(store.getState().activeView).toBe('tasks')
+  })
+})

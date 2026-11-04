@@ -1,4 +1,6 @@
+import type { BotTeamRoomAttachment } from '../../../shared/bot-team-room-attachments'
 import type { BotTeamRequestChoice } from '../../../shared/bot-team-request-choice'
+import { withSenderTimeZone } from '../../../shared/bot-team-routine-zone'
 import type {
   BotDraftInput,
   BotTeam,
@@ -9,7 +11,6 @@ import type {
   BotTeamBrief,
   BotTeamCodeSource,
   BotTeamLinkableWorkspace,
-  BotTeamMessage,
   BotTeamProject,
   BotTeamTask
 } from '../../../shared/rpc-contract/bot-team-room-params'
@@ -25,7 +26,9 @@ import type {
   RuntimeFileReadResult
 } from '../../../shared/runtime-file-contracts'
 import { botTeamHostTarget, currentBotTeamHost } from './bot-team-host'
+import { withProjectDefaults } from './runtime-bot-team-project-client'
 import { callRuntimeRpc } from './runtime-rpc-client'
+import { postWithFileNamesIfTextRequired } from './runtime-bot-team-files-only-retry'
 import { RuntimeRpcCallError } from './runtime-rpc-result'
 import { toRuntimeWorktreeSelector } from './runtime-worktree-selector'
 
@@ -34,32 +37,13 @@ function call<TResult>(method: string, params?: unknown): Promise<TResult> {
   return callRuntimeRpc<TResult>(botTeamHostTarget(currentBotTeamHost()), method, params)
 }
 
-// A host from before code sources or briefs sends projects without them: not connected, empty.
-function withProjectDefaults(project: BotTeamProject): BotTeamProject {
-  return {
-    ...project,
-    codeSource: project.codeSource ?? null,
-    brief: project.brief ?? { requirements: [], constraints: [], decisions: [] },
-    briefUpdatedAt: project.briefUpdatedAt ?? null
-  }
-}
-
-export async function listBotTeamRoom(
-  teamId: string
-): Promise<{ tasks: BotTeamTask[]; messages: BotTeamMessage[]; projects?: BotTeamProject[] }> {
-  const room = await call<{
-    tasks: BotTeamTask[]
-    messages: BotTeamMessage[]
-    projects?: BotTeamProject[]
-  }>('botTeams.listRoom', { teamId })
-  return room.projects ? { ...room, projects: room.projects.map(withProjectDefaults) } : room
-}
-
 export async function createBotTeamProject(input: {
   teamId: string
   name: string
   goal: string
   codeSource: BotTeamCodeSource | null
+  /** Teams besides the owner; an older host drops it and makes an owner-only project. */
+  linkedTeamIds?: string[]
 }): Promise<BotTeamProject> {
   return withProjectDefaults(
     (await call<{ project: BotTeamProject }>('botTeams.createProject', input)).project
@@ -135,12 +119,16 @@ export async function setBotTeamTaskProject(
   return (await call<{ task: BotTeamTask }>('botTeams.setTaskProject', { taskId, projectId })).task
 }
 
-export function postBotTeamRequest(input: {
+export async function postBotTeamRequest(input: {
   teamId: string
   text: string
   start: boolean
   /** Only this client can answer the project question, so it asks; an older client never does. */
   askProject?: boolean
+  /** One id per send, reused on a retry of that send; a host from before it posts again. */
+  clientRequestId?: string
+  /** Files from the team folder; sent only to a host that takes them in its room. */
+  attachments?: BotTeamRoomAttachment[]
 }): Promise<{
   task: BotTeamTask | null
   startError: string | null
@@ -150,12 +138,15 @@ export function postBotTeamRequest(input: {
   composite?: string[]
   /** A bot answered a plain conversation in the room; nothing was filed. */
   answered?: boolean
+  /** A bot is answering in the background; the room shows it typing until its line lands. */
+  replying?: { botId: string }
   /** The request went to another team, because the person named it with @. */
   sentTo?: { teamId: string; teamName: string }
   /** The person asked for the work later: it waits in Todo and nothing starts. */
   later?: boolean
 }> {
-  return call('botTeams.postMessage', input)
+  const sent = withSenderTimeZone(input)
+  return postWithFileNamesIfTextRequired(sent, (next) => call('botTeams.postMessage', next))
 }
 
 /** What the person answered on a choice card, or the project question, for one held request. */
@@ -170,6 +161,8 @@ export type BotTeamRequestFiling = {
   askProject?: boolean
   /** A project of the team, or null for none; absent until the project question is asked. */
   projectId?: string | null
+  /** Files the person attached to the request before the choice was asked. */
+  attachments?: BotTeamRoomAttachment[]
 }
 
 /** Files a request the room held: the host may ask the project question again before filing. */
@@ -178,7 +171,7 @@ export function fileBotTeamRequest(input: BotTeamRequestFiling): Promise<{
   startError: string | null
   choice?: BotTeamRequestChoice
 }> {
-  return call('botTeams.assignRequest', input)
+  return call('botTeams.assignRequest', withSenderTimeZone(input))
 }
 
 export async function startBotTeamTask(taskId: string): Promise<BotTeamTask> {
@@ -241,6 +234,23 @@ async function teamFolderSelector(teamId: string): Promise<string | null> {
     teamId
   })
   return workspaceId === null ? null : toRuntimeWorktreeSelector(workspaceId)
+}
+
+/** The team folder's workspace id on its host; null before any task made it, or when the host cannot say. */
+/** The team folder's workspace and path on its host, made now when the team has none: the first attach needs it. */
+export function ensureBotTeamFolderWorkspace(
+  teamId: string
+): Promise<{ workspaceId: string; folderPath: string }> {
+  return call('botTeams.workspace', { teamId, ensure: true })
+}
+
+export async function botTeamFolderWorkspaceId(teamId: string): Promise<string | null> {
+  try {
+    return (await call<{ workspaceId: string | null }>('botTeams.workspace', { teamId }))
+      .workspaceId
+  } catch {
+    return null
+  }
 }
 
 /** A host from before team files lacks a method: the answer is 'unavailable', not a failure. */
@@ -340,3 +350,5 @@ export function restoreBotTeamFileVersion(
       ).result
   )
 }
+
+export { listBotTeamRoom } from './runtime-bot-team-project-client'

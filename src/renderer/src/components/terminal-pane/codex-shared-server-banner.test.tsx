@@ -18,17 +18,13 @@ import type { Tab } from '../../../../shared/tab-types'
 
 const routing = vi.hoisted(() => ({
   activateAndRevealWorkspace: vi.fn<(id: string) => unknown>(),
-  revealFloatingWorkspacePanel: vi.fn(),
-  createFloatingWorkspaceTerminalTab: vi.fn()
+  revealFloatingWorkspacePanel: vi.fn()
 }))
 vi.mock('@/lib/worktree-activation', () => ({
   activateAndRevealWorkspace: routing.activateAndRevealWorkspace
 }))
 vi.mock('@/lib/floating-workspace-panel-reveal', () => ({
   revealFloatingWorkspacePanel: routing.revealFloatingWorkspacePanel
-}))
-vi.mock('@/lib/floating-workspace-tab-creation', () => ({
-  createFloatingWorkspaceTerminalTab: routing.createFloatingWorkspaceTerminalTab
 }))
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true
@@ -396,10 +392,13 @@ describe('CodexSharedServerBanner', () => {
       expect(openNewTerminal).not.toHaveBeenCalled()
     })
 
-    it('reveals the floating panel and opens a floating terminal', async () => {
-      const openNewTerminal = await clickOpenNewTerminal(FLOATING_TERMINAL_WORKTREE_ID)
+    it('reveals the floating panel and opens a local floating terminal', async () => {
+      // Why local: the floating header's host must not move this terminal to a paired host.
+      const openNewTerminal = await renderOldTab(FLOATING_TERMINAL_WORKTREE_ID)
+      const createTab = vi.spyOn(useAppStore.getState(), 'createTab')
+      await act(async () => button('Open new terminal').click())
       expect(routing.revealFloatingWorkspacePanel).toHaveBeenCalledTimes(1)
-      expect(routing.createFloatingWorkspaceTerminalTab).toHaveBeenCalledTimes(1)
+      expect(createTab).toHaveBeenCalledWith(FLOATING_TERMINAL_WORKTREE_ID, undefined)
       expect(routing.activateAndRevealWorkspace).not.toHaveBeenCalled()
       expect(openNewTerminal).not.toHaveBeenCalled()
     })

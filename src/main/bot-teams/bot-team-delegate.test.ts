@@ -5,6 +5,7 @@ import {
   type BotTeamDelegateDeps
 } from './bot-team-delegate'
 import type { BotTeam } from '../../shared/rpc-contract/bot-team-params'
+import type { BotTeamProject } from '../../shared/rpc-contract/bot-team-room-params'
 
 const TEAM: BotTeam = {
   id: 'team',
@@ -71,6 +72,40 @@ describe('delegateToBotTeammate', () => {
     expect(prompt).toContain('- Flyers in two colors')
   })
 
+  describe('the folder a child writes in', () => {
+    const LINKED: BotTeamProject = {
+      id: 'p1',
+      teamId: 'team',
+      name: 'NexusCare',
+      goal: '',
+      codeSource: null,
+      brief: { requirements: ['Audit the intake flow'], constraints: [], decisions: [] },
+      briefUpdatedAt: null,
+      workspace: { key: 'repo:nexuscare', name: 'NexusCare' }
+    }
+    const PAIR: BotTeam = {
+      ...TEAM,
+      bots: [TEAM.bots[0], { ...TEAM.bots[0], id: 'rosa', name: 'Rosa', agent: 'pi' }]
+    }
+
+    it.each(['Max', 'Rosa'])(
+      '%s, on any agent, is told to write where its child starts, not in the project workspace',
+      async (botName) => {
+        const d = deps()
+        await delegateToBotTeammate(d, {
+          team: PAIR,
+          botName,
+          text: 'Write the audit files',
+          project: LINKED
+        })
+        const prompt = vi.mocked(d.fileRequest).mock.calls[0][0].prompt
+        expect(prompt).toContain('- Audit the intake flow')
+        expect(prompt).not.toContain("this project's workspace")
+        expect(prompt).toContain('current working directory')
+      }
+    )
+  })
+
   it('gives the teammate what the team and the teammate remember', async () => {
     const d = deps({
       memoryFor: vi.fn(() => ({ team: ['Closed on Monday.'], bot: ['Short sentences.'] }))
@@ -85,13 +120,25 @@ describe('delegateToBotTeammate', () => {
   it('names no brief when the caller has no project', async () => {
     const d = deps()
     await delegateToBotTeammate(d, { team: TEAM, botName: 'Max', text: 'Write the file' })
-    expect(vi.mocked(d.fileRequest).mock.calls[0][0].prompt).not.toContain('project')
+    expect(vi.mocked(d.fileRequest).mock.calls[0][0].prompt).not.toContain('part of the project')
   })
 
   it('names no Pi runtime for any other agent', async () => {
     const d = deps()
     await delegateToBotTeammate(d, { team: TEAM, botName: 'Max', text: 'Write the file' })
     expect(vi.mocked(d.fileRequest).mock.calls[0][0].piRuntime).toBeUndefined()
+  })
+
+  it('files no model for Gentle Shell, which runs the one from its own config', async () => {
+    const d = deps()
+    const shell = {
+      ...TEAM.bots[0],
+      name: 'Rosa',
+      agent: 'pi' as const,
+      model: 'nan/deepseek-v4-flash'
+    }
+    await delegateToBotTeammate(d, { team: { ...TEAM, bots: [shell] }, botName: 'Rosa', text: 'x' })
+    expect(vi.mocked(d.fileRequest).mock.calls[0][0].launch).toBeUndefined()
   })
 
   it("files the child with the teammate's own model", async () => {
@@ -125,6 +172,23 @@ describe('delegateToBotTeammate', () => {
       delegateToBotTeammate(d, { team: TEAM, botName: 'Max', text: 'Do it' })
     ).rejects.toThrow('cannot run a chat')
     expect(d.createTask).not.toHaveBeenCalled()
+  })
+
+  it('tells the caller when the teammate did not start, so it never says the work was handed over', async () => {
+    const d = deps({
+      launchOutcome: vi.fn(async () => ({
+        failed: 'Agent pi does not support launch-time model selection.'
+      }))
+    })
+    await expect(
+      delegateToBotTeammate(d, { team: TEAM, botName: 'Max', text: 'Do it' })
+    ).rejects.toThrow(/Max did not start .*launch-time model selection.*Not started/s)
+  })
+
+  it('returns the task when the launch outcome is a start', async () => {
+    const d = deps({ launchOutcome: vi.fn(async () => ({ failed: null })) })
+    const task = await delegateToBotTeammate(d, { team: TEAM, botName: 'Max', text: 'Do it' })
+    expect(task.ownerBotId).toBe('max')
   })
 
   it('refuses a bot that is not on the team, with no effects', async () => {

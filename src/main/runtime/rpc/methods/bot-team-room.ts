@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { mkdir } from 'node:fs/promises'
 import {
   BotTeamMessagePost,
+  BotTeamRoomListSelector,
   BotTeamRoomSelector,
   BotTeamProjectCreate,
   BotTeamProjectSetBrief,
@@ -20,21 +21,25 @@ import { botTeamFolderPath, botTeamsParentPath } from '../../../bot-teams/bot-te
 import { readBotTeamMemoryLines } from '../../../bot-teams/bot-team-memory-read'
 import { botSessionOptions } from '../../../bot-teams/bot-team-model-choice'
 import { startBotTeamTask } from '../../../bot-teams/bot-team-task-start'
+import {
+  linkedTaskWorkspaceDeps,
+  prepareLinkedTaskWorkspace
+} from '../../../bot-teams/bot-team-task-worktree'
 import { getStructuredAgentSessionHost } from '../../../native-chat/agent-session-wire/structured-agent-session-registry'
 import { defineMethod, type RpcContext } from '../core'
 import { botTeamAssignMethods } from './bot-team-assign-methods'
 import { BOT_TEAM_MEMORY_METHODS } from './bot-team-memory-methods'
+import { BOT_TEAM_PROJECT_METHODS, roomProjectsFor } from './bot-team-project-methods'
 import { postBotTeamRequestOnHost } from './bot-team-post-request'
+import { listBotTeamReplying, rememberBotTeamPost } from './bot-team-reply-in-flight'
 import { BOT_TEAM_VERSION_METHODS } from './bot-team-versions'
 import { commitStructuredAgentSessionLaunchPrompt } from './agent-launch-structured-prompt'
 import { isDefinitiveAgentSessionCreateRefusal } from '../../../../shared/agent-session-definitive-refusal'
 import { createStructuredAgentSessionForWorktree } from './structured-agent-session-create'
 import { structuredCallerFor } from './structured-agent-session-gate'
-import {
-  BOT_TEAM_PROJECT_WORKSPACE_METHODS,
-  linkableWorkspaceExists,
-  linkableWorkspaceSource
-} from './bot-team-project-workspace'
+import { botTeamRoomExcerpt } from '../../../bot-teams/bot-team-prompt-notes'
+import { BOT_TEAM_PROJECT_WORKSPACE_METHODS } from './bot-team-project-workspace'
+import { BOT_TEAM_SESSION_TEAM_METHODS } from './bot-team-session-team-methods'
 
 const BOT_TEAMS_GROUP_NAME = 'Bot teams'
 
@@ -109,8 +114,13 @@ async function startUnclaimedTaskOnHost(ctx: RpcContext, taskId: string): Promis
   return startBotTeamTask(
     {
       ensureTeamWorkspace: (entry) => ensureTeamWorkspace(ctx, entry),
-      workspaceExists: (workspaceKey) =>
-        linkableWorkspaceExists(linkableWorkspaceSource(ctx.runtime), workspaceKey),
+      prepareLinkedWorkspace: ({ projectId, workspaceKey, taskTitle, taskPrompt }) =>
+        prepareLinkedTaskWorkspace(linkedTaskWorkspaceDeps(ctx.runtime), {
+          projectId,
+          workspaceKey,
+          taskTitle,
+          taskPrompt
+        }),
       createSession: async ({ workspaceId, agent, accessMode, piRuntime, options }) => {
         const attempt = (seed: typeof options) =>
           createStructuredAgentSessionForWorktree({
@@ -155,32 +165,40 @@ async function startUnclaimedTaskOnHost(ctx: RpcContext, taskId: string): Promis
     {
       team,
       task,
-      project: db.listBotTeamProjects(team.id).find((entry) => entry.id === task.projectId) ?? null,
+      // By id: a team unlinked from the project still keeps its task there, with the brief.
+      project: task.projectId ? db.getBotTeamProject(task.projectId) : null,
       notes: db.getBotTeamTaskStartNotes(task.id),
-      memory: readBotTeamMemoryLines(db, team.id, task.ownerBotId)
+      memory: readBotTeamMemoryLines(db, team.id, task.ownerBotId),
+      roomExcerpt: botTeamRoomExcerpt(db.listBotTeamMessages(team.id), team.bots)
     }
   )
 }
 
 export const BOT_TEAM_ROOM_METHODS = [
+  ...BOT_TEAM_SESSION_TEAM_METHODS,
   ...BOT_TEAM_VERSION_METHODS,
   ...botTeamAssignMethods(startTaskOnHost),
   ...BOT_TEAM_MEMORY_METHODS,
   ...BOT_TEAM_PROJECT_WORKSPACE_METHODS,
+  ...BOT_TEAM_PROJECT_METHODS,
   defineMethod({
     name: 'botTeams.listRoom',
     permission: 'workspace',
-    params: BotTeamRoomSelector,
-    handler: ({ teamId }, { runtime }) => {
+    params: BotTeamRoomListSelector,
+    handler: ({ teamId, withLinkedProjects }, { runtime }) => {
       const db = runtime.getOrchestrationDb()
       // Rooms are read all the time, so this also covers tasks that outlive a restart.
       ensureBotTeamVersionWatcher(() => runtime.getOrchestrationDb())
       return {
         tasks: db.listBotTeamTasks(teamId),
         messages: db.listBotTeamMessages(teamId),
-        projects: db.listBotTeamProjects(teamId),
+        // Tasks other teams hold for this room's requests; a client from before it ignores the field.
+        sentRequests: db.listBotTeamSentRequests(teamId),
+        ...roomProjectsFor(db, { teamId, withLinkedProjects }),
         // Null until a task starts; a client opens a task's session in this workspace.
-        workspaceId: db.getBotTeamWorkspace(teamId)
+        workspaceId: db.getBotTeamWorkspace(teamId),
+        // The bots answering in the background; a client from before it ignores the field.
+        replying: listBotTeamReplying(teamId)
       }
     }
   }),
@@ -197,7 +215,9 @@ export const BOT_TEAM_ROOM_METHODS = [
     permission: 'workspace',
     params: BotTeamMessagePost,
     handler: (params, ctx) =>
-      postBotTeamRequestOnHost(ctx, params, (id) => startTaskOnHost(ctx, id))
+      rememberBotTeamPost(params.teamId, params.clientRequestId, () =>
+        postBotTeamRequestOnHost(ctx, params, (id) => startTaskOnHost(ctx, id))
+      )
   }),
   defineMethod({
     name: 'botTeams.createProject',
@@ -211,10 +231,21 @@ export const BOT_TEAM_ROOM_METHODS = [
     name: 'botTeams.workspace',
     permission: 'workspace',
     params: BotTeamRoomSelector,
-    // Null until a task starts: listing a team's files never creates its folder.
-    handler: ({ teamId }, { runtime }) => ({
-      workspaceId: runtime.getOrchestrationDb().getBotTeamWorkspace(teamId)
-    })
+    // Null until a task starts: listing a team's files never creates its folder; only `ensure` makes it.
+    handler: async ({ teamId, ensure }, ctx) => {
+      const db = ctx.runtime.getOrchestrationDb()
+      if (ensure !== true) {
+        return { workspaceId: db.getBotTeamWorkspace(teamId) }
+      }
+      const team = db.listBotTeams().find((entry) => entry.id === teamId)
+      if (!team) {
+        throw new Error(`Team ${teamId} was not found.`)
+      }
+      return {
+        workspaceId: await ensureTeamWorkspace(ctx, team),
+        folderPath: botTeamFolderPath(teamId)
+      }
+    }
   }),
   defineMethod({
     name: 'botTeams.setProjectBrief',

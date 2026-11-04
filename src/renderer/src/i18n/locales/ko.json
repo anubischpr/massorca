@@ -6461,7 +6461,8 @@
         },
         "OneLineSessionMenu": {
           "copyTitle": "제목 복사",
-          "sleep": "절전"
+          "sleep": "절전",
+          "splitView": "분할 보기"
         }
       },
       "shared": {
@@ -17827,6 +17828,24 @@
     }
   },
   "components": {
+    "calendar": {
+      "previous": "이전",
+      "next": "다음",
+      "today": "오늘",
+      "viewAria": "캘린더 보기",
+      "day": "일",
+      "week": "주",
+      "month": "월",
+      "teamsAria": "팀",
+      "upcoming": "예정된 실행",
+      "monthly": "매월",
+      "todayAt": "오늘 {{time}}",
+      "tomorrowAt": "내일 {{time}}",
+      "dayAt": "{{day}} {{time}}"
+    },
+    "app-rail": {
+      "calendar": "캘린더"
+    },
     "prototypes": {
       "settings": {
         "title": "프로토타입",

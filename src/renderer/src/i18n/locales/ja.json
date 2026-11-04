@@ -6461,7 +6461,8 @@
         },
         "OneLineSessionMenu": {
           "copyTitle": "タイトルをコピー",
-          "sleep": "スリープ"
+          "sleep": "スリープ",
+          "splitView": "分割表示"
         }
       },
       "shared": {
@@ -17827,6 +17828,24 @@
     }
   },
   "components": {
+    "calendar": {
+      "previous": "前へ",
+      "next": "次へ",
+      "today": "今日",
+      "viewAria": "カレンダー表示",
+      "day": "日",
+      "week": "週",
+      "month": "月",
+      "teamsAria": "チーム",
+      "upcoming": "今後の実行",
+      "monthly": "毎月",
+      "todayAt": "今日 {{time}}",
+      "tomorrowAt": "明日 {{time}}",
+      "dayAt": "{{day}} {{time}}"
+    },
+    "app-rail": {
+      "calendar": "カレンダー"
+    },
     "prototypes": {
       "settings": {
         "title": "プロトタイプ",

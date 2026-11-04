@@ -20,6 +20,7 @@ vi.mock('lucide-react-native', () => ({
   SlidersHorizontal: 'Icon',
   SquareTerminal: 'Icon',
   UserCircle: 'Icon',
+  Users: 'Icon',
   X: 'Icon'
 }))
 

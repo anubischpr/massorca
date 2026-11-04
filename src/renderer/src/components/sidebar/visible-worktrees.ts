@@ -1,4 +1,4 @@
-import { isBotTeamFolderShown } from '../../../../shared/bot-team-folder'
+import { isBotTeamFolderVisibleInWorkspaces } from './bot-team-workspace-visibility'
 import type { Repo } from '../../../../shared/repo-types'
 import type { TerminalTab } from '../../../../shared/terminal-tab-types'
 import type { WorktreeLineage } from '../../../../shared/worktree/lineage-types'
@@ -92,6 +92,8 @@ export type VisibleWorktreeOptions = {
   forcedVisibleWorktreeIds?: readonly string[]
   /** Teams whose folders show in Workspaces; a team's folder is hidden without its id. */
   botTeamWorkspaceIds?: ReadonlySet<string>
+  /** "Show bot teams": off hides team folders and the child worktrees bot tasks made. */
+  showBotTeamWorkspaces?: boolean
 }
 
 export function computeVisibleWorktrees(
@@ -104,9 +106,15 @@ export function computeVisibleWorktrees(
   // Filter archived
   all = all.filter((w) => !w.isArchived)
 
-  // A team's folder belongs to Bot teams mode, not to the Workspaces list.
+  // Only a team's own folder (the Bot teams group) follows "Show bot teams"; a bot task's worktree
+  // inside a project stays with that project.
+  const showBotTeams = opts.showBotTeamWorkspaces === true
   all = all.filter((w) =>
-    isBotTeamFolderShown(w.path, opts.botTeamWorkspaceIds ?? EMPTY_BOT_TEAM_WORKSPACE_IDS)
+    isBotTeamFolderVisibleInWorkspaces(
+      w.path,
+      opts.botTeamWorkspaceIds ?? EMPTY_BOT_TEAM_WORKSPACE_IDS,
+      showBotTeams
+    )
   )
 
   // Why: sidebar lineage is structural. Archived workspaces stay hidden, but

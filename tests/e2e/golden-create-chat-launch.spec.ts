@@ -53,6 +53,30 @@ async function activeSessionPlacement(page: Page): Promise<SessionPlacement> {
   })
 }
 
+/** Plain shell terminals of the new session's workspace: tabs the person never opened. */
+async function plainTerminalsInActiveWorkspace(page: Page): Promise<number> {
+  return page.evaluate(() => {
+    const state = window.__store?.getState()
+    const worktreeId = state?.activeWorktreeId
+    if (!state || !worktreeId) {
+      return -1
+    }
+    return (state.unifiedTabsByWorktree[worktreeId] ?? []).filter(
+      (tab) => tab.contentType === 'terminal' && tab.viewMode === undefined
+    ).length
+  })
+}
+
+/** A new session starts with no terminal of its own and its side panel hidden. */
+async function expectNoInitialTerminalAndHiddenPanel(page: Page): Promise<void> {
+  // Why: a seeded terminal arrives after the session; give it the time it would take.
+  await page.waitForTimeout(3000)
+  expect(await plainTerminalsInActiveWorkspace(page)).toBe(0)
+  await expect(
+    page.locator('[data-side-panel="true"][data-open="true"]').filter({ visible: true })
+  ).toHaveCount(0)
+}
+
 test.beforeEach(async ({ orcaPage }) => {
   await waitForSessionReady(orcaPage)
   await waitForActiveWorktree(orcaPage)
@@ -88,6 +112,7 @@ test('a Terminal-mode session fills the main area with a live TUI @create-chat-l
   await expect
     .poll(() => getTerminalContent(orcaPage), { timeout: 30_000 })
     .toContain(GOLDEN_STUB_READY_MARKER)
+  await expectNoInitialTerminalAndHiddenPanel(orcaPage)
 })
 
 test('a Chat-mode session shows in the main area under the session bar @create-chat-launch-golden', async ({
@@ -105,6 +130,7 @@ test('a Chat-mode session shows in the main area under the session bar @create-c
     timeout: 30_000
   })
   await expect(orcaPage.getByRole('button', { name: /Chat summary/ })).toBeVisible()
+  await expectNoInitialTerminalAndHiddenPanel(orcaPage)
 })
 
 test('picking an existing worktree in the workspace chip only sets the target @create-chat-launch-golden', async ({

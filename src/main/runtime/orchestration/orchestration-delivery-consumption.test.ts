@@ -74,6 +74,35 @@ describe('mailbox delivery consumption', () => {
     expect(replay.replayed).toBe(true)
   })
 
+  it('supersedes an unacked batch that hides a later report, and keeps its unread member', () => {
+    // pv79: the parent checked one child's report, ended its turn without an ack, and the other
+    // child's report waited behind that batch for good.
+    const { run, params, insert } = setup()
+    const shown = insert('first report')
+    const first = db.getOrCreateRunDelivery(params)!
+    const later = insert('second report')
+    const mailbox = `run:${run.id}`
+
+    expect(db.supersedeMailboxDeliveryHiding(mailbox, [later.id])).toBe(true)
+
+    expect(db.getDeliveryRaw(first.delivery.id)?.status).toBe('fenced')
+    expect(db.hasOutstandingRunDelivery(run.id)).toBe(false)
+    const next = db.getOrCreateRunDelivery(params)!
+    expect(next.replayed).toBe(false)
+    expect(next.messages.map((m) => m.id)).toEqual([shown.id, later.id])
+  })
+
+  it('keeps an unacked batch when no mail waits outside it', () => {
+    const { run, params, insert } = setup()
+    const shown = insert('report')
+    const first = db.getOrCreateRunDelivery(params)!
+
+    expect(db.supersedeMailboxDeliveryHiding(`run:${run.id}`, [shown.id])).toBe(false)
+
+    expect(db.getDeliveryRaw(first.delivery.id)?.status).toBe('outstanding')
+    expect(db.getOrCreateRunDelivery(params)!.replayed).toBe(true)
+  })
+
   it('derives eligibility again when a read transaction rolls back', () => {
     const { params, insert } = setup()
     const message = insert('old')

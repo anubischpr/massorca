@@ -25,9 +25,11 @@ export function botTeamAssignRequestMethod(startTask: StartTask) {
           ...(request.toTeamId !== undefined ? { toTeamId: request.toTeamId } : {}),
           ...(request.alsoNeeds !== undefined ? { alsoNeeds: request.alsoNeeds } : {}),
           ...(request.projectId !== undefined ? { projectId: request.projectId } : {}),
+          ...(request.attachments !== undefined ? { attachments: request.attachments } : {}),
           start: request.start,
           later: request.later === true,
-          askProject: request.askProject === true
+          askProject: request.askProject === true,
+          timeZone: request.timeZone ?? null
         },
         (taskId) => startTask(ctx, taskId)
       )

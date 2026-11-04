@@ -13,15 +13,24 @@ describe('resolveMobileSessionHeaderMenu', () => {
     const chatItems = {
       agentHistory: false,
       plan: true,
+      checklist: false,
       summary: true,
       artifacts: true,
       prototypes: true,
       quickCommands: true
     }
-    expect(resolveMobileSessionHeaderMenu({ ...none, hasChatSession: true }).chat).toEqual(
-      chatItems
-    )
+    expect(resolveMobileSessionHeaderMenu({ ...none, hasChatSession: true }).chat).toEqual({
+      ...chatItems,
+      checklist: true
+    })
     expect(resolveMobileSessionHeaderMenu(none).chat).toEqual(chatItems)
+  })
+
+  it('offers the Checklist row whenever the chat has a session, empty or not', () => {
+    expect(resolveMobileSessionHeaderMenu({ ...none, hasChatSession: true }).chat.checklist).toBe(
+      true
+    )
+    expect(resolveMobileSessionHeaderMenu(none).chat.checklist).toBe(false)
   })
 
   it('keeps the ⋯ button, since the chat items always apply', () => {

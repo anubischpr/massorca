@@ -13,6 +13,7 @@ import type {
   BotTeamFileVersion,
   BotTeamVersion
 } from '../../../../shared/rpc-contract/bot-team-version-params'
+import { BotTeamFilePreview } from './BotTeamFilePreview'
 import { BotTeamFilesBar } from './BotTeamFilesBar'
 import { VersionHistoryList } from '../version-history/VersionHistoryList'
 import { BotTeamRestoreDialog } from './BotTeamRestoreDialog'
@@ -27,11 +28,14 @@ function failure(error: unknown): void {
 export function BotTeamFileVersions({
   teamId,
   relativePath,
+  binary = false,
   onBack,
   onRestored
 }: {
   teamId: string
   relativePath: string
+  /** A binary file: its preview replaces the text, and its versions cannot be compared as text. */
+  binary?: boolean
   onBack: () => void
   onRestored: () => void
 }): React.JSX.Element {
@@ -44,14 +48,16 @@ export function BotTeamFileVersions({
 
   const load = useCallback(async (): Promise<void> => {
     const [read, listed] = await Promise.all([
-      readBotTeamFile(teamId, relativePath),
+      binary ? null : readBotTeamFile(teamId, relativePath),
       listBotTeamFileVersions(teamId, relativePath)
     ])
-    const text = read === 'unavailable' ? '' : read.content
+    // A binary file has no text: the viewer shows its preview instead.
+    const text = read === null || read === 'unavailable' ? null : read.content
     const versions = listed === 'unavailable' ? [] : listed
     const newest = versions[0]
     // The newest version is the file as it stands only when nothing changed since it was saved.
     const matches =
+      text !== null &&
       newest !== undefined &&
       !newest.deleted &&
       (await readBotTeamVersionFile(teamId, newest.version.id, relativePath).then(
@@ -61,7 +67,7 @@ export function BotTeamFileVersions({
     setCurrent(text)
     setEntries(versions)
     setNewestMatches(matches)
-  }, [teamId, relativePath])
+  }, [teamId, relativePath, binary])
 
   useEffect(() => {
     void load().catch(failure)
@@ -134,9 +140,12 @@ export function BotTeamFileVersions({
       </BotTeamFilesBar>
       <div className="flex min-h-0 flex-1 gap-5 p-5">
         <div className="scrollbar-sleek min-h-0 min-w-0 flex-1 overflow-y-auto">
-          <pre className="min-h-[420px] whitespace-pre-wrap break-words rounded-xl border border-border bg-card p-4 font-mono text-xs">
-            {current}
-          </pre>
+          <BotTeamFilePreview
+            teamId={teamId}
+            relativePath={relativePath}
+            kind={binary ? 'binary' : 'text'}
+            text={current}
+          />
         </div>
         <div className="w-[360px] shrink-0">
           <h2 className="mb-2 text-sm font-semibold">
@@ -155,9 +164,11 @@ export function BotTeamFileVersions({
                 meta: botTeamVersionMeta(version),
                 actions: (
                   <>
-                    <Button variant="outline" size="xs" onClick={() => setComparing(index)}>
-                      {translate('components.botTeams.compare', 'Compare')}
-                    </Button>
+                    {binary ? null : (
+                      <Button variant="outline" size="xs" onClick={() => setComparing(index)}>
+                        {translate('components.botTeams.compare', 'Compare')}
+                      </Button>
+                    )}
                     <Button variant="outline" size="xs" onClick={() => setRestoring(version)}>
                       <RotateCcw className="size-3" />
                       {translate('components.botTeams.restore', 'Restore')}

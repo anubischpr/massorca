@@ -289,6 +289,8 @@ export function RichMarkdownEditorSurface({
             selectedIndex={selectedCommandIndex}
             onImagePick={onImagePick}
             onEmojiPick={() => onEmojiPick(slashMenu)}
+            portalToDocument
+            anchorElement={rootElement}
           />
         ) : null}
         {emojiMenu ? (

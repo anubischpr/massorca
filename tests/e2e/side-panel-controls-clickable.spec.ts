@@ -6,6 +6,14 @@ import { ensureTerminalVisible, waitForActiveWorktree, waitForSessionReady } fro
 const PANEL = '[data-side-panel="true"]'
 const panelTabs = (page: Page) => page.locator(`${PANEL} [data-testid="side-panel-tab"]`)
 
+// Why: a hidden test window holds animation frames back, so a pane's focus-on-reveal can land
+// late and close a menu opened in between; let pending frames run first.
+async function settleFrames(page: Page): Promise<void> {
+  await page.evaluate(
+    () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))
+  )
+}
+
 test.beforeEach(async ({ orcaPage }) => {
   await waitForSessionReady(orcaPage)
   await waitForActiveWorktree(orcaPage)
@@ -24,8 +32,7 @@ test('no side panel control is a window drag region, with the terminal focused o
   const controls = [
     `${PANEL} button[aria-label="New tab"]`,
     `${PANEL} [role="tab"]`,
-    `${PANEL} button[aria-label="Close tab"]`,
-    `${PANEL} button[aria-label="Close panel"]`
+    `${PANEL} button[aria-label="Close tab"]`
   ]
   for (const terminalFocused of [true, false]) {
     // Why: main.css turns focus-release surfaces into drag regions unless xterm owns focus, so a
@@ -57,6 +64,7 @@ test('the + menu creates a terminal, a browser tab, a markdown file and a mobile
     /New Mobile Emulator/i
   ]) {
     const before = await panelTabs(orcaPage).count()
+    await settleFrames(orcaPage)
     await orcaPage.locator(PANEL).getByRole('button', { name: 'New tab' }).click()
     await orcaPage.getByRole('menuitem', { name: item }).click()
     await expect.poll(() => panelTabs(orcaPage).count(), { message: String(item) }).toBe(before + 1)

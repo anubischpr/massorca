@@ -1,0 +1,34 @@
+import React from 'react'
+import { ListChecks } from 'lucide-react'
+import { translate } from '@/i18n/i18n'
+import { DropdownMenuItem, DropdownMenuSeparator } from '@/components/ui/dropdown-menu'
+
+const ITEM_CLASS = 'gap-2 rounded-[7px] px-2 py-1.5 text-[12px] leading-5 font-medium'
+
+/**
+ * The end of the floating workspace's "+" menu: a separator, the Checklist tab, then
+ * "Open a session..." when the panel offers it.
+ */
+export function TabBarChecklistMenuItem({
+  onNewChecklistTab,
+  onOpenSessionPicker
+}: {
+  onNewChecklistTab: () => void
+  onOpenSessionPicker?: () => void
+}): React.JSX.Element {
+  return (
+    <>
+      <DropdownMenuSeparator />
+      <DropdownMenuItem onSelect={onNewChecklistTab} className={ITEM_CLASS}>
+        <ListChecks className="size-4 text-muted-foreground" />
+        {translate('components.tabBar.checklist', 'Checklist')}
+      </DropdownMenuItem>
+      {onOpenSessionPicker ? (
+        <DropdownMenuItem onSelect={onOpenSessionPicker} className={ITEM_CLASS}>
+          <span aria-hidden className="size-4" />
+          {translate('components.tabBar.openSession', 'Open a session...')}
+        </DropdownMenuItem>
+      ) : null}
+    </>
+  )
+}

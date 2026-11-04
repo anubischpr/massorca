@@ -94,8 +94,37 @@ describe('DelegationRequestService.request', () => {
       prompt: input.prompt,
       writes: 0,
       workspace_kind: 'git',
-      question_item_id: receipt.questionItemId
+      question_item_id: delegationQuestionItemId(receipt.requestId)
     })
+  })
+
+  it("starts a bot task chat's child on the router's choice, with no card", async () => {
+    // pv79: a bot-run parent's children sat on "Which agent should handle this session?" with no
+    // person there to answer it.
+    const startAutomatic = vi.fn()
+    const receipt = await new DelegationRequestService({
+      ...deps,
+      isBotRunSession: (sessionId) => sessionId === PARENT.sessionId,
+      startAutomatic
+    }).request(input)
+
+    expect(receipt).toEqual({ requestId: expect.stringMatching(/^deleg_/), status: 'starting' })
+    expect(startAutomatic).toHaveBeenCalledWith(receipt.requestId)
+    expect(appended).toEqual([])
+    expect(db.getDelegationRequest(receipt.requestId)?.decision_json).not.toBeNull()
+  })
+
+  it('still asks in a chat a person runs', async () => {
+    const startAutomatic = vi.fn()
+    const receipt = await new DelegationRequestService({
+      ...deps,
+      isBotRunSession: () => false,
+      startAutomatic
+    }).request(input)
+
+    expect(receipt.status).toBe('awaiting_choice')
+    expect(startAutomatic).not.toHaveBeenCalled()
+    expect(appended).toHaveLength(1)
   })
 
   it('posts no card when the request cannot record its question', async () => {

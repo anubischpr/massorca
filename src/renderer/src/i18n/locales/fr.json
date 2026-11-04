@@ -6566,7 +6566,8 @@
         },
         "OneLineSessionMenu": {
           "copyTitle": "Copier le titre",
-          "sleep": "Mettre en veille"
+          "sleep": "Mettre en veille",
+          "splitView": "Vue partagée"
         }
       },
       "shared": {
@@ -17928,6 +17929,24 @@
     }
   },
   "components": {
+    "calendar": {
+      "previous": "Précédent",
+      "next": "Suivant",
+      "today": "Aujourd’hui",
+      "viewAria": "Vue du calendrier",
+      "day": "Jour",
+      "week": "Semaine",
+      "month": "Mois",
+      "teamsAria": "Équipes",
+      "upcoming": "Prochaines exécutions",
+      "monthly": "Mensuel",
+      "todayAt": "Aujourd’hui à {{time}}",
+      "tomorrowAt": "Demain à {{time}}",
+      "dayAt": "{{day}} à {{time}}"
+    },
+    "app-rail": {
+      "calendar": "Calendrier"
+    },
     "prototypes": {
       "settings": {
         "title": "Prototypes",

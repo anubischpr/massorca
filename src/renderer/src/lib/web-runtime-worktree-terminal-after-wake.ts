@@ -14,7 +14,6 @@ import { getRuntimeEnvironmentIdForWorktree } from '@/lib/worktree-runtime-owner
 import type { WorktreeStartupPayload } from '@/lib/worktree-startup-payload'
 import type { TuiAgent } from '../../../shared/tui-agent'
 import { toast } from 'sonner'
-import { shouldAutoCreateInitialTerminal } from '@/components/terminal/initial-terminal'
 
 export function ensureWebRuntimeWorktreeTerminalAfterWake(
   worktreeId: string,
@@ -67,17 +66,12 @@ export function ensureWebRuntimeWorktreeTerminalAfterWake(
       return
     }
 
-    const { renderableTabCount } = state.reconcileWorktreeTabModel(worktreeId)
-    if (tabs.length === 0) {
-      if (
-        !shouldAutoCreateInitialTerminal(
-          renderableTabCount,
-          Object.hasOwn(state.tabsByWorktree, worktreeId)
-        )
-      ) {
-        return
-      }
-    } else if (renderableTabCount === 0) {
+    // Why: only a terminal the person had, or a Blank Terminal they picked, is opened on the host.
+    const blankTerminalRequested = opts?.agent === null && tabs.length === 0
+    if (
+      !blankTerminalRequested &&
+      (tabs.length === 0 || state.reconcileWorktreeTabModel(worktreeId).renderableTabCount === 0)
+    ) {
       return
     }
   }

@@ -16,6 +16,19 @@ type FloatingTerminalPanelDragActionsInput = Pick<
   > &
   FloatingTerminalPanelMaximize
 
+/**
+ * Why: a portaled popup (the host select's list) bubbles React events to the titlebar, and
+ * capturing its press would swallow the pointerup that picks the option.
+ */
+function isPressOnTitlebar(event: PointerEvent<HTMLDivElement>): boolean {
+  if (typeof Node === 'undefined' || !(event.target instanceof Node)) {
+    return true
+  }
+  return (
+    typeof event.currentTarget.contains !== 'function' || event.currentTarget.contains(event.target)
+  )
+}
+
 export function createFloatingTerminalPanelDragActions({
   maximized,
   dragRef,
@@ -26,7 +39,12 @@ export function createFloatingTerminalPanelDragActions({
   toggleMaximized
 }: FloatingTerminalPanelDragActionsInput) {
   const handleDragStart = (event: PointerEvent<HTMLDivElement>): void => {
-    if (maximized || event.button !== 0 || !isFloatingTerminalDragTarget(event.target)) {
+    if (
+      maximized ||
+      event.button !== 0 ||
+      !isPressOnTitlebar(event) ||
+      !isFloatingTerminalDragTarget(event.target)
+    ) {
       return
     }
     focusPanelForShortcuts()

@@ -25,6 +25,7 @@ import { ChildBringBackService } from './child-bring-back'
 import { ChildBringBackAutomatic, childBringBackPolicyOf } from './child-bring-back-automatic'
 import { storedOptionsWithAutomaticBringBack } from './delegation-stored-request'
 import { readJevApiKey } from '../jev/jev-api-key-store'
+import { AskUserService } from './ask-user-service'
 import { DelegationAnswerService } from './delegation-answer-service'
 import { createJevDelegationTierAdvisor } from './delegation-jev-tier'
 import { createDelegationLauncher } from './delegation-launch'
@@ -197,6 +198,17 @@ function hostRows(): DelegationRequestDeps['rows'] {
   }
 }
 
+let askUserService: AskUserService | null = null
+
+/** The host's ask-user service: one per process, as its waiters are. */
+export function getAskUserService(): AskUserService {
+  askUserService ??= new AskUserService({
+    holdsSession: (sessionId) => readParentSession(sessionId) !== null,
+    rows: hostRows()
+  })
+  return askUserService
+}
+
 /** The runtime's delegation request service. */
 export function getDelegationRequestService(runtime: OrcaRuntimeService): DelegationRequestService {
   const existing = requestServices.get(runtime)
@@ -215,6 +227,9 @@ export function getDelegationRequestService(runtime: OrcaRuntimeService): Delega
     readRateLimits: () => readRateLimits(runtime),
     refreshUsage: () => runtime.refreshAccountsForMobileSubscriber(),
     now: () => Date.now(),
+    isBotRunSession: (sessionId) =>
+      existingDb(runtime)?.findBotTeamTaskBySession(sessionId) != null,
+    startAutomatic: (requestId) => getDelegationAnswerService(runtime).startAutomatic(requestId),
     // Why here: the host holding the chat decides, with its own setting and key.
     adviseTier: createJevDelegationTierAdvisor({
       isEnabled: () => runtime.isJevDecisionsEnabled(),

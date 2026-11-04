@@ -12,6 +12,7 @@ vi.mock('react-native', () => ({
   TextInput: 'TextInput',
   View: 'View'
 }))
+vi.mock('../components/MobileRepoIcon', () => ({ MobileRepoIcon: 'MobileRepoIcon' }))
 vi.mock('lucide-react-native', () => ({ ChevronLeft: 'ChevronLeft' }))
 
 const TEAM = {

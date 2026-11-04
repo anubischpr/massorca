@@ -21,10 +21,17 @@ vi.mock('@/i18n/i18n', () => ({
     fallback.replace(/\{\{(\w+)\}\}/g, (_all, name: string) => values?.[name] ?? '')
 }))
 vi.mock('@/runtime/bot-team-host', () => ({
+  BOT_TEAM_LOCAL_HOST: 'local',
   botTeamHostTarget: () => ({ kind: 'local' }),
   useBotTeamHost: () => 'local'
 }))
 vi.mock('@/components/native-chat/NativeChatView', () => ({ default: () => null }))
+vi.mock('@/components/native-chat/use-pending-session-question', () => ({
+  usePendingSessionQuestion: () => null
+}))
+vi.mock('@/components/native-chat/NativeChatStructuredQuestionCard', () => ({
+  NativeChatStructuredQuestionCard: () => null
+}))
 vi.mock('../../app-shell/right-sidebar-page-slot', () => ({
   useRightSidebarPageTarget: () => null
 }))

@@ -32,6 +32,7 @@ export function useVisibleWorkspaceKanbanWorktreeIds({
   const hideDefaultBranchWorkspace = useAppStore((s) => s.hideDefaultBranchWorkspace)
   const hideAutomationGeneratedWorkspaces = useAppStore((s) => s.hideAutomationGeneratedWorkspaces)
   const hideCliCreatedWorkspaces = useAppStore((s) => s.hideCliCreatedWorkspaces)
+  const showBotTeamWorkspaces = useAppStore((s) => s.showBotTeamWorkspaces)
   const hideDetachedHeadWorkspaces = useAppStore((s) => s.hideDetachedHeadWorkspaces)
   const hideWorkspacesFromOtherDevices = useAppStore((s) => s.hideWorkspacesFromOtherDevices)
   const runtimeEnvironments = useAppStore((s) =>
@@ -92,6 +93,7 @@ export function useVisibleWorkspaceKanbanWorktreeIds({
         hideCliCreatedWorkspaces,
         hideDetachedHeadWorkspaces,
         hideWorkspacesFromOtherDevices,
+        showBotTeamWorkspaces,
         pairedDeviceIdsByEnvironment: hideWorkspacesFromOtherDevices
           ? getPairedDeviceIdsByEnvironment(runtimeEnvironments, runtimeStatusByEnvironmentId)
           : EMPTY_PAIRED_DEVICE_IDS_BY_ENVIRONMENT,
@@ -115,6 +117,7 @@ export function useVisibleWorkspaceKanbanWorktreeIds({
     hideCliCreatedWorkspaces,
     hideDetachedHeadWorkspaces,
     hideWorkspacesFromOtherDevices,
+    showBotTeamWorkspaces,
     alwaysShowDefaultBranchWorkspace,
     workspaceHostScope,
     visibleWorkspaceHostIds,

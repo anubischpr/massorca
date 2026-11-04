@@ -40,6 +40,8 @@ export function useFloatingWorkspaceChromeModel() {
     activeTab.contentType !== 'terminal' &&
     activeTab.contentType !== 'browser' &&
     activeTab.contentType !== 'simulator' &&
+    activeTab.contentType !== 'checklist' &&
+    activeTab.contentType !== 'session-ref' &&
     activeTab.contentType !== 'agent-session'
       ? activeTab.id
       : null
@@ -77,7 +79,12 @@ export function useFloatingWorkspaceChromeModel() {
         if (tab.contentType === 'browser') {
           return model.browserItems.some((item) => item.tabId === tab.id)
         }
-        if (tab.contentType === 'simulator' || tab.contentType === 'agent-session') {
+        if (
+          tab.contentType === 'simulator' ||
+          tab.contentType === 'agent-session' ||
+          tab.contentType === 'checklist' ||
+          tab.contentType === 'session-ref'
+        ) {
           return true
         }
         return model.editorItems.some((item) => item.tabId === tab.id)

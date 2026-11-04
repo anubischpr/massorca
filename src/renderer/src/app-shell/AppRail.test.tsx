@@ -101,6 +101,38 @@ describe('the rail mode button', () => {
   })
 })
 
+describe('the Calendar button', () => {
+  it('sits after Tasks, opens the Calendar page and marks itself current there', () => {
+    const container = mount()
+    const labels = [...container.querySelectorAll('nav button')].map((b) =>
+      b.getAttribute('aria-label')
+    )
+    expect(labels.slice(0, 3)).toEqual(['Workspaces', 'Tasks', 'Calendar'])
+    const calendar = container.querySelector<HTMLButtonElement>('button[aria-label="Calendar"]')!
+    expect(calendar.getAttribute('aria-current')).toBeNull()
+    act(() => calendar.click())
+    expect(store.getState().activeView).toBe('calendar')
+    expect(calendar.getAttribute('aria-current')).toBe('page')
+  })
+})
+
+describe('the Marketplace button', () => {
+  it('sits after Calendar, opens the Marketplace page and marks itself current there', () => {
+    const container = mount()
+    const labels = [...container.querySelectorAll('nav button')].map((b) =>
+      b.getAttribute('aria-label')
+    )
+    expect(labels.slice(0, 4)).toEqual(['Workspaces', 'Tasks', 'Calendar', 'Marketplace'])
+    const marketplace = container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Marketplace"]'
+    )!
+    expect(marketplace.getAttribute('aria-current')).toBeNull()
+    act(() => marketplace.click())
+    expect(store.getState().activeView).toBe('marketplace')
+    expect(marketplace.getAttribute('aria-current')).toBe('page')
+  })
+})
+
 describe('the Workspaces again hint', () => {
   it('shows once, when Workspaces home is reached again from another page through the button', () => {
     seedStore(store, { activeView: 'tasks' })

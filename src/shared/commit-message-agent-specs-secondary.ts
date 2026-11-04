@@ -273,6 +273,11 @@ export function buildSecondaryCommitMessageAgentSpecs({
         ...(thinkingLevel ? ['--effort', thinkingLevel] : [])
       ],
       singletonOptions: [['--model'], ['--effort']],
+      // Why: --print --sandbox already grounds answers with Google search (agy 1.4.12), so no flag is added.
+      webResearchArgs: [],
+      // Why: agy 1.4.12 cannot limit MCP tools, so a code turn is allowed only when the host finds no MCP
+      // server configured; `--mode plan` keeps it from editing.
+      codeReadArgs: { add: () => ['--mode', 'plan'], hostChecked: true },
       modelSource: 'dynamic',
       modelDiscovery: { binary: 'agy', args: ['models'], parse: parseAntigravityModels },
       models: [{ id: 'default', label: 'Config default' }],

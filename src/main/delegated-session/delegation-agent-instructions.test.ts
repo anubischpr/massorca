@@ -9,20 +9,39 @@ import {
 } from './delegation-agent-instructions'
 
 describe('delegation agent instructions', () => {
-  it('names only flags the delegate command accepts', () => {
+  it('names only flags each command it teaches accepts', () => {
     // The CLI sits outside the main-process project, so its spec is read as text.
     const specSource = readFileSync(
       join(__dirname, '../../cli/specs/orchestration-worker-specs.ts'),
       'utf8'
     )
-    const delegate = specSource.slice(specSource.indexOf("path: ['orchestration', 'delegate']"))
-    const allowed = /allowedFlags: \[([^\]]*)\]/.exec(delegate)?.[1] ?? ''
-    const flags = [...DELEGATION_AGENT_INSTRUCTIONS.matchAll(/--([a-z-]+)/g)].map((m) => m[1])
-    expect(flags).toEqual(expect.arrayContaining(['summary', 'prompt', 'title', 'writes', 'json']))
-    // `json` is accepted through the shared global flags, not the command's own list.
-    for (const flag of flags) {
-      expect(CLI_GLOBAL_FLAGS.includes(flag) || allowed.includes(`'${flag}'`)).toBe(true)
+    const allowedFlagsOf = (command: string): string => {
+      const spec = specSource.slice(specSource.indexOf(`path: ['orchestration', '${command}']`))
+      return /allowedFlags: \[([^\]]*)\]/.exec(spec)?.[1] ?? ''
     }
+    const lines = DELEGATION_AGENT_INSTRUCTIONS.split('\n')
+    for (const [command, expected] of [
+      ['delegate', ['summary', 'prompt', 'title', 'writes', 'json']],
+      ['ask-user', ['question', 'options', 'multi-select']]
+    ] as const) {
+      const allowed = allowedFlagsOf(command)
+      const flags = lines
+        .filter((line) => line.includes(`orchestration ${command} `))
+        .flatMap((line) => [...line.matchAll(/--([a-z-]+)/g)].map((m) => m[1]))
+      expect(flags).toEqual(expect.arrayContaining([...expected]))
+      // `json` is accepted through the shared global flags, not the command's own list.
+      for (const flag of flags) {
+        expect(CLI_GLOBAL_FLAGS.includes(flag!) || allowed.includes(`'${flag}'`)).toBe(true)
+      }
+    }
+  })
+
+  it('sends agents whose own question tool is skipped to the ask-user card', () => {
+    expect(DELEGATION_AGENT_INSTRUCTIONS).toContain('orca orchestration ask-user --question')
+    for (const name of ['Antigravity', 'ask_question', 'AskUserQuestion', 'request_user_input']) {
+      expect(DELEGATION_AGENT_INSTRUCTIONS).toContain(name)
+    }
+    expect(DELEGATION_AGENT_INSTRUCTIONS).toMatch(/Never draw choices yourself as HTML/)
   })
 
   it('forbids the internal subagent tools of every structured agent', () => {
@@ -43,6 +62,14 @@ describe('delegation agent instructions', () => {
   it('tells the parent to pass on whether a child reused or created the design system', () => {
     for (const text of [DELEGATION_AGENT_INSTRUCTIONS, DELEGATION_AGENT_INSTRUCTIONS_ONE_LINE]) {
       expect(text).toMatch(/reused or created a design system, tell the user which/)
+    }
+  })
+
+  it('teaches every agent the checklist block and the update it reads, in both forms', () => {
+    for (const text of [DELEGATION_AGENT_INSTRUCTIONS, DELEGATION_AGENT_INSTRUCTIONS_ONE_LINE]) {
+      expect(text).toMatch(/fenced code block whose info string is orca-checklist/)
+      expect(text).toMatch(/- \[ \] text, or - \[x\] text/)
+      expect(text).toMatch(/starts with an orca-checklist-update block/)
     }
   })
 

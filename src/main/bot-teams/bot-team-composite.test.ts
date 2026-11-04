@@ -17,6 +17,13 @@ describe('botTeamCompositeNotes', () => {
     expect(notes).toContain('orca orchestration team-delegate --bot <name> --text')
   })
 
+  it('keeps the hand-offs out of the room and has the owner react to a failed one', () => {
+    const notes = botTeamCompositeNotes(BOTS, ['max']) ?? ''
+    expect(notes).toContain('Yo tomaré')
+    expect(notes).toContain('Never mention the hand-offs')
+    expect(notes).toContain('If that command fails, the part did not start')
+  })
+
   it('is empty when no other bot is needed, or the ids are not on the team', () => {
     expect(botTeamCompositeNotes(BOTS, [])).toBeNull()
     expect(botTeamCompositeNotes(BOTS, ['ghost'])).toBeNull()

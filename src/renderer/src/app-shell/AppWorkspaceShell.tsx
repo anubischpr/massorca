@@ -14,6 +14,11 @@ import { TitlebarLeftControls } from './TitlebarLeftControls'
 import { PageTopBand } from './PageTopBand'
 import { hasCustomTitleBar } from './app-window-chrome'
 import { SessionBar } from './SessionBar'
+import {
+  SplitTopBarChromeProvider,
+  selectMainAreaSplit,
+  type SplitTopBarChrome
+} from './split-top-bar-chrome'
 import type { AppChromeLayout } from './use-app-chrome-layout'
 import type { FloatingWorkspacePanelState } from './use-floating-workspace-panel'
 import { submitCreateChatDraft } from '../components/create-chat/create-chat-submit'
@@ -33,7 +38,9 @@ const PrototypesPage = lazy(() => import('../components/prototypes/PrototypesPag
 const BotTeamsPage = lazy(() => import('../components/bot-teams/BotTeamsPage'))
 const WorkspaceSpacePage = lazy(() => import('../components/workspace-space/WorkspaceSpacePage'))
 const MobilePage = lazy(() => import('../components/mobile/MobilePage'))
+const CalendarPage = lazy(() => import('../components/calendar/CalendarPage'))
 const CreateChatPage = lazy(() => import('../components/create-chat/CreateChatPage'))
+const MarketplacePage = lazy(() => import('../components/marketplace/MarketplacePage'))
 const Terminal = lazy(() => import('../components/Terminal'))
 
 type WorktreeSidebarScrollRefs = {
@@ -93,7 +100,9 @@ function ActivePage({ layout }: { layout: AppChromeLayout }): React.JSX.Element 
       {activeView === 'activity' ? <ActivityPrototypePage /> : null}
       {activeView === 'space' ? <WorkspaceSpacePage /> : null}
       {activeView === 'mobile' ? <MobilePage /> : null}
+      {activeView === 'calendar' ? <CalendarPage /> : null}
       {activeView === 'create-chat' ? <CreateChatPage onSubmit={submitCreateChatDraft} /> : null}
+      {activeView === 'marketplace' ? <MarketplacePage /> : null}
       {activeView === 'terminal' && creationLayoutActive && activePendingCreationId ? (
         <WorktreeCreationPanel
           creationId={activePendingCreationId}
@@ -116,6 +125,26 @@ export function AppWorkspaceShell(props: {
   const scrollOffsetRef = useRef(0)
   const scrollAnchorRef = useRef<VirtualizedScrollAnchor>(null)
   const sidebarScrollRefs = { scrollOffsetRef, scrollAnchorRef }
+  // Why: a split draws each top pane's own top row, so the window session bar is not mounted then.
+  const mainAreaSplit = useAppStore(
+    (s) => layout.activeWorktreeId !== null && selectMainAreaSplit(s, layout.activeWorktreeId)
+  )
+  const topBarsActive =
+    layout.workspaceChromeActive && layout.activeWorktreeId !== null && mainAreaSplit
+  const collapsePane =
+    layout.showTitlebarExpandButton && layout.effectiveActiveTabId
+      ? { tabId: layout.effectiveActiveTabId, canExpand: layout.activeTabCanExpand }
+      : null
+  const splitTopBarChrome: SplitTopBarChrome | null =
+    topBarsActive && layout.activeWorktreeId
+      ? {
+          worktreeId: layout.activeWorktreeId,
+          reserveWindowControls: hasCustomTitleBar && !layout.rightSidebarOpen,
+          reserveCollapsedSidebarHeader:
+            layout.leftTitlebarChromeLayout.isFloating && !layout.sidebarOpen,
+          collapsePane
+        }
+      : null
 
   return (
     // Why: workspace activation is a hot path; activeWorktreeId in reset keys would remount whole surfaces during wake.
@@ -172,17 +201,10 @@ export function AppWorkspaceShell(props: {
               ) : layout.stackedSidebarOpen ? (
                 <PageTopBand layout={layout} withLeftControls={false} />
               ) : null}
-              {layout.workspaceChromeActive && layout.activeWorktreeId ? (
+              {layout.workspaceChromeActive && layout.activeWorktreeId && !topBarsActive ? (
                 <SessionBar
                   worktreeId={layout.activeWorktreeId}
-                  collapsePane={
-                    layout.showTitlebarExpandButton && layout.effectiveActiveTabId
-                      ? {
-                          tabId: layout.effectiveActiveTabId,
-                          canExpand: layout.activeTabCanExpand
-                        }
-                      : null
-                  }
+                  collapsePane={collapsePane}
                   // Why: the collapsed sidebar's floating header sits over the bar's left end.
                   reserveCollapsedSidebarHeader={
                     layout.leftTitlebarChromeLayout.isFloating && !layout.sidebarOpen
@@ -191,51 +213,53 @@ export function AppWorkspaceShell(props: {
                   reserveWindowControls={hasCustomTitleBar && !layout.rightSidebarOpen}
                 />
               ) : null}
-              <div className="relative flex flex-1 min-w-0 min-h-0 overflow-hidden">
-                <div className="flex flex-1 min-w-0 min-h-0 flex-col">
-                  {layout.shouldMountTerminalWorkbench ? (
-                    <TerminalWorkbenchContainer isVisible={layout.terminalWorkbenchVisible}>
-                      <Suspense fallback={null}>
-                        <RecoverableRenderErrorBoundary
-                          boundaryId="terminal.workbench"
-                          surface="terminal-workbench"
-                          resetKey="terminal"
-                          title={translate(
-                            'auto.App.5a9519aef0',
-                            'The workspace workbench hit an error.'
-                          )}
-                          description={translate(
-                            'auto.App.98d4ea2823',
-                            'Terminal, browser, or editor rendering failed in this workspace. Retry to remount it.'
-                          )}
-                        >
-                          <Terminal />
-                        </RecoverableRenderErrorBoundary>
-                      </Suspense>
-                    </TerminalWorkbenchContainer>
+              <SplitTopBarChromeProvider value={splitTopBarChrome}>
+                <div className="relative flex flex-1 min-w-0 min-h-0 overflow-hidden">
+                  <div className="flex flex-1 min-w-0 min-h-0 flex-col">
+                    {layout.shouldMountTerminalWorkbench ? (
+                      <TerminalWorkbenchContainer isVisible={layout.terminalWorkbenchVisible}>
+                        <Suspense fallback={null}>
+                          <RecoverableRenderErrorBoundary
+                            boundaryId="terminal.workbench"
+                            surface="terminal-workbench"
+                            resetKey="terminal"
+                            title={translate(
+                              'auto.App.5a9519aef0',
+                              'The workspace workbench hit an error.'
+                            )}
+                            description={translate(
+                              'auto.App.98d4ea2823',
+                              'Terminal, browser, or editor rendering failed in this workspace. Retry to remount it.'
+                            )}
+                          >
+                            <Terminal />
+                          </RecoverableRenderErrorBoundary>
+                        </Suspense>
+                      </TerminalWorkbenchContainer>
+                    ) : null}
+                    <Suspense fallback={null}>
+                      <RecoverableRenderErrorBoundary
+                        boundaryId={`page.${layout.activeView}`}
+                        surface="page"
+                        resetKey={layout.activeView}
+                        title={translate('auto.App.b7a714db1e', 'This page hit an error.')}
+                        description={translate(
+                          'auto.App.03a14f6b5b',
+                          'Retry the page or navigate to another MassOrca surface.'
+                        )}
+                      >
+                        <ActivePage layout={layout} />
+                      </RecoverableRenderErrorBoundary>
+                    </Suspense>
+                  </div>
+                  {floatingWorkspace.showToggleButton ? (
+                    <FloatingTerminalToggleButton
+                      open={floatingWorkspace.open}
+                      onToggle={() => floatingWorkspace.setOpenWithFocus((open) => !open)}
+                    />
                   ) : null}
-                  <Suspense fallback={null}>
-                    <RecoverableRenderErrorBoundary
-                      boundaryId={`page.${layout.activeView}`}
-                      surface="page"
-                      resetKey={layout.activeView}
-                      title={translate('auto.App.b7a714db1e', 'This page hit an error.')}
-                      description={translate(
-                        'auto.App.03a14f6b5b',
-                        'Retry the page or navigate to another MassOrca surface.'
-                      )}
-                    >
-                      <ActivePage layout={layout} />
-                    </RecoverableRenderErrorBoundary>
-                  </Suspense>
                 </div>
-                {floatingWorkspace.showToggleButton ? (
-                  <FloatingTerminalToggleButton
-                    open={floatingWorkspace.open}
-                    onToggle={() => floatingWorkspace.setOpenWithFocus((open) => !open)}
-                  />
-                ) : null}
-              </div>
+              </SplitTopBarChromeProvider>
             </div>
             {/* Why: keep the shell mounted for layout stability (heavy panels disconnect while closed); unmount on the distraction-free tasks view. */}
             {layout.showRightSidebarControls ? (

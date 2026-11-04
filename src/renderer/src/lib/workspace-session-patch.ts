@@ -189,6 +189,10 @@ export function buildWorkspaceSessionPatch(
   ) {
     Object.assign(patch, buildPersistedUnifiedTabSessionData(snapshot))
   }
+  if (changed.has('paneFocus')) {
+    // Why: an own undefined key clears the saved focus once it moves off a reference pane.
+    patch.paneFocus = snapshot.paneFocus ?? undefined
+  }
   if (changed.has('lastVisitedAtByWorktreeId')) {
     patch.lastVisitedAtByWorktreeId = buildLastVisitedAtByWorktreeId(snapshot)
   }

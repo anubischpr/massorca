@@ -29,7 +29,7 @@ export function CreateChatPageFrame({
   return (
     <div
       className={cn(
-        'flex min-h-0 flex-1 flex-col overflow-y-auto px-6 pb-6 scrollbar-sleek',
+        'flex min-h-0 flex-1 flex-col overflow-y-auto bg-chat-canvas px-6 pb-6 scrollbar-sleek',
         // Why: a list appearing below must not widen the page and nudge the composer sideways.
         layout === 'top' && '[scrollbar-gutter:stable]'
       )}

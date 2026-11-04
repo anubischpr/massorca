@@ -1,4 +1,3 @@
-import { openExternalLink } from '../platform/external-link'
 import { createMarkdownInlineMatcher, type MarkdownInlineMatch } from './markdown-inline-matcher'
 import { INLINE_TEXT_SELECTION } from './inline-text-selection'
 import { MobileSelectableText } from './MobileSelectableText'
@@ -19,7 +18,7 @@ import {
   isFilePathCodeSpan,
   normalizeFilePath
 } from './markdown-file-path-detection'
-import { routeMarkdownHref } from './markdown-href-routing'
+import { openMarkdownHref } from './MobileMarkdownHref'
 import {
   isIntrawordUnderscoreToken,
   trimAutolinkTrailingPunctuation
@@ -28,6 +27,7 @@ import { isMobileMermaidLanguage } from './mobile-mermaid-language'
 import { useMobileMarkdownBlocks } from './use-mobile-markdown-blocks'
 import type { NativeChatVisualDirective } from '../../../src/shared/native-chat-visual-directive'
 import { MermaidDiagram } from './pr-sidebar/MermaidDiagram'
+import { MarkdownPlainTextContext, type MarkdownPlainTextRenderer } from './MobileMarkdownPlainText'
 
 type Props = {
   content?: string
@@ -77,28 +77,19 @@ function MarkdownText(props: TextProps): React.JSX.Element {
   })
 }
 
-// Web/mail hrefs open the system handler; file-target hrefs (file: URIs and
-// scheme-less paths — the entire desktop file-link contract) go to onOpenFile.
-function openMarkdownHref(href: string, onOpenFile?: (pathText: string) => void): void {
-  const route = routeMarkdownHref(href)
-  if (route.kind === 'web') {
-    // The seam, not react-native's `Linking`: this module is in the tasks page closure, and inside
-    // the shell's WebView `openURL` resolves without opening anything.
-    openExternalLink(route.url)
-    return
-  }
-  if (route.kind === 'file' && onOpenFile) {
-    onOpenFile(route.pathText)
-  }
-}
-
 // Render a plain (non-token) text run, splitting out tappable file paths when
 // onOpenFile is provided. Without it, paths stay plain text.
 function renderTextRun(
   text: string,
   keyPrefix: string,
-  onOpenFile?: (pathText: string) => void
+  onOpenFile?: (pathText: string) => void,
+  plainText?: MarkdownPlainTextRenderer
 ): ReactNode {
+  // Why: a run with a drawn mention skips file-path links; a room that draws mentions has no file viewer.
+  const drawn = plainText?.(text, keyPrefix) ?? null
+  if (drawn) {
+    return drawn
+  }
   if (!onOpenFile) {
     return text
   }
@@ -122,7 +113,11 @@ function renderTextRun(
   })
 }
 
-function renderInline(text: string, onOpenFile?: (pathText: string) => void): ReactNode[] {
+function renderInline(
+  text: string,
+  onOpenFile?: (pathText: string) => void,
+  plainText?: MarkdownPlainTextRenderer
+): ReactNode[] {
   const parts: ReactNode[] = []
   const pattern = createMarkdownInlineMatcher(
     text,
@@ -144,7 +139,12 @@ function renderInline(text: string, onOpenFile?: (pathText: string) => void): Re
     }
     if (match.index > pendingStart) {
       parts.push(
-        renderTextRun(text.slice(pendingStart, match.index), `t${pendingStart}`, onOpenFile)
+        renderTextRun(
+          text.slice(pendingStart, match.index),
+          `t${pendingStart}`,
+          onOpenFile,
+          plainText
+        )
       )
     }
     pendingStart = pattern.lastIndex
@@ -207,26 +207,26 @@ function renderInline(text: string, onOpenFile?: (pathText: string) => void): Re
     } else if (token.startsWith('~~')) {
       parts.push(
         <MarkdownText key={key} style={styles.strike}>
-          {renderTextRun(token.slice(2, -2), `${key}i`, onOpenFile)}
+          {renderTextRun(token.slice(2, -2), `${key}i`, onOpenFile, plainText)}
         </MarkdownText>
       )
     } else if (token.startsWith('**') || token.startsWith('__')) {
       parts.push(
         <MarkdownText key={key} style={styles.bold}>
-          {renderTextRun(token.slice(2, -2), `${key}i`, onOpenFile)}
+          {renderTextRun(token.slice(2, -2), `${key}i`, onOpenFile, plainText)}
         </MarkdownText>
       )
     } else {
       parts.push(
         <MarkdownText key={key} style={styles.italic}>
-          {renderTextRun(token.slice(1, -1), `${key}i`, onOpenFile)}
+          {renderTextRun(token.slice(1, -1), `${key}i`, onOpenFile, plainText)}
         </MarkdownText>
       )
     }
   }
 
   if (pendingStart < text.length) {
-    parts.push(renderTextRun(text.slice(pendingStart), `t${pendingStart}`, onOpenFile))
+    parts.push(renderTextRun(text.slice(pendingStart), `t${pendingStart}`, onOpenFile, plainText))
   }
   return parts
 }
@@ -241,6 +241,7 @@ function MobileMarkdownContent({
 }: Props) {
   // Interactive children own their touches and must forward the row action.
   const setup = useContext(MarkdownTextContext)
+  const plainText = useContext(MarkdownPlainTextContext) ?? undefined
   const rowLongPress = setup.androidTranscript ? setup.onLongPress : undefined
   const text = content?.trim() ?? ''
   const { blocks, directives } = useMobileMarkdownBlocks(text, renderVisual !== undefined)
@@ -277,7 +278,7 @@ function MobileMarkdownContent({
               selectable
               style={[styles.heading, block.level <= 2 ? styles.headingLarge : null]}
             >
-              {renderInline(block.text, onOpenFile)}
+              {renderInline(block.text, onOpenFile, plainText)}
             </MarkdownText>
           )
         }
@@ -285,7 +286,7 @@ function MobileMarkdownContent({
           return (
             <View key={index} style={styles.quote}>
               <MarkdownText selectable style={styles.quoteText}>
-                {renderInline(block.text, onOpenFile)}
+                {renderInline(block.text, onOpenFile, plainText)}
               </MarkdownText>
             </View>
           )
@@ -346,7 +347,7 @@ function MobileMarkdownContent({
                       selectable
                       style={[styles.tableCell, styles.tableHeader]}
                     >
-                      {renderInline(header, onOpenFile)}
+                      {renderInline(header, onOpenFile, plainText)}
                     </MarkdownText>
                   ))}
                 </View>
@@ -354,7 +355,7 @@ function MobileMarkdownContent({
                   <View key={rowIndex} style={styles.tableRow}>
                     {visibleHeaders.map((_, cellIndex) => (
                       <MarkdownText key={cellIndex} selectable style={styles.tableCell}>
-                        {renderInline(row[cellIndex] ?? '', onOpenFile)}
+                        {renderInline(row[cellIndex] ?? '', onOpenFile, plainText)}
                       </MarkdownText>
                     ))}
                   </View>
@@ -385,7 +386,7 @@ function MobileMarkdownContent({
                         : '[ ]'}
                   </NativeText>
                   <MarkdownText selectable style={[styles.listText, listScale]}>
-                    {renderInline(item.text, onOpenFile)}
+                    {renderInline(item.text, onOpenFile, plainText)}
                   </MarkdownText>
                 </View>
               ))}
@@ -404,7 +405,7 @@ function MobileMarkdownContent({
             {block.text.split('\n').map((line, lineIndex) => (
               <Fragment key={lineIndex}>
                 {lineIndex > 0 ? '\n' : null}
-                {renderInline(line, onOpenFile)}
+                {renderInline(line, onOpenFile, plainText)}
               </Fragment>
             ))}
           </MarkdownText>

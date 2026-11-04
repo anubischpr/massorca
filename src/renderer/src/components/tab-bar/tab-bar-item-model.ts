@@ -75,7 +75,9 @@ export function getTabDragLabel(item: TabBarItem, generatedTitlesEnabled: boolea
     return getBrowserTabLabel(item.data)
   }
   if (item.type === 'simulator' || item.type === 'agent-session') {
-    return item.data.label || 'Mobile Emulator'
+    return (
+      item.data.label || (item.data.contentType === 'checklist' ? 'Checklist' : 'Mobile Emulator')
+    )
   }
   return getEditorDisplayLabel(item.data)
 }
@@ -190,8 +192,13 @@ export function buildOrderedTabItems({
       })
       continue
     }
+    // Why: a checklist tab is self-backed like a simulator tab, so it rides the same strip item.
     const simulatorTab = unifiedTabByVisibleId.get(id)
-    if (simulatorTab?.contentType === 'simulator') {
+    if (
+      simulatorTab?.contentType === 'simulator' ||
+      simulatorTab?.contentType === 'checklist' ||
+      simulatorTab?.contentType === 'session-ref'
+    ) {
       items.push({
         type: 'simulator',
         id,

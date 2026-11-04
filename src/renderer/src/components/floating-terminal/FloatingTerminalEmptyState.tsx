@@ -1,4 +1,4 @@
-import { FileText, Globe, Minus, TerminalSquare } from 'lucide-react'
+import { FileText, Globe, ListChecks, MessagesSquare, Minus, TerminalSquare } from 'lucide-react'
 import { ShortcutKeyCombo } from '@/components/ShortcutKeyCombo'
 import { Button } from '@/components/ui/button'
 import type { ShortcutKeyComboDetails } from '@/hooks/useShortcutLabel'
@@ -10,6 +10,8 @@ type FloatingTerminalEmptyStateProps = {
   onOpenMarkdown: () => void
   onNewBrowser: () => void
   showNewBrowser: boolean
+  onNewChecklist: () => void
+  onOpenSession: () => void
   onClose: () => void
   onFocusPanel: () => void
   newTerminalShortcut: ShortcutKeyComboDetails
@@ -25,6 +27,8 @@ export function FloatingTerminalEmptyState({
   onOpenMarkdown,
   onNewBrowser,
   showNewBrowser,
+  onNewChecklist,
+  onOpenSession,
   onClose,
   onFocusPanel,
   newTerminalShortcut,
@@ -105,6 +109,30 @@ export function FloatingTerminalEmptyState({
             <FloatingEmptyStateShortcut shortcut={newBrowserShortcut} />
           </Button>
         ) : null}
+        <Button
+          type="button"
+          variant="ghost"
+          className="grid h-8 w-full grid-cols-[1rem_minmax(0,1fr)_auto] items-center gap-2.5 rounded-md px-3 py-0 text-sm font-normal text-foreground hover:bg-muted/40 hover:text-foreground"
+          onClick={onNewChecklist}
+        >
+          <ListChecks className="size-3.5 opacity-90" />
+          <span className="truncate text-left leading-none">
+            {translate('components.tabBar.checklist', 'Checklist')}
+          </span>
+          <span aria-hidden />
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          className="grid h-8 w-full grid-cols-[1rem_minmax(0,1fr)_auto] items-center gap-2.5 rounded-md px-3 py-0 text-sm font-normal text-foreground hover:bg-muted/40 hover:text-foreground"
+          onClick={onOpenSession}
+        >
+          <MessagesSquare className="size-3.5 opacity-90" />
+          <span className="truncate text-left leading-none">
+            {translate('components.tabBar.openSession', 'Open a session...')}
+          </span>
+          <span aria-hidden />
+        </Button>
         <Button
           type="button"
           variant="ghost"

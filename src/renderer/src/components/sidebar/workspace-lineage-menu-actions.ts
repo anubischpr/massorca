@@ -32,8 +32,14 @@ export function getWorkspaceLineageMenuActions(args: {
   worktrees: readonly Worktree[]
   lineageById: Record<string, WorktreeLineage>
   activity: WorkspaceActivityMaps
+  childSessionWorktrees?: ReadonlyMap<string, readonly string[]>
 }): WorkspaceLineageMenuActions {
-  const { descendants } = getWorkspaceDeleteLineage(args.parent, args.worktrees, args.lineageById)
+  const { descendants } = getWorkspaceDeleteLineage(
+    args.parent,
+    args.worktrees,
+    args.lineageById,
+    args.childSessionWorktrees
+  )
   const targets = [args.parent, ...descendants]
   return {
     descendants,
@@ -53,7 +59,7 @@ const EMPTY_LINEAGE_MENU_ACTIONS: WorkspaceLineageMenuActions = {
 export function useWorkspaceLineageMenuActions(
   args: Parameters<typeof getWorkspaceLineageMenuActions>[0] & { enabled: boolean }
 ): WorkspaceLineageMenuActions {
-  const { enabled, parent, worktrees, lineageById, activity } = args
+  const { enabled, parent, worktrees, lineageById, activity, childSessionWorktrees } = args
   const { tabsByWorktree, ptyIdsByTabId, browserTabsByWorktree } = activity
   return useMemo(
     () =>
@@ -62,9 +68,19 @@ export function useWorkspaceLineageMenuActions(
             parent,
             worktrees,
             lineageById,
-            activity: { tabsByWorktree, ptyIdsByTabId, browserTabsByWorktree }
+            activity: { tabsByWorktree, ptyIdsByTabId, browserTabsByWorktree },
+            ...(childSessionWorktrees ? { childSessionWorktrees } : {})
           })
         : EMPTY_LINEAGE_MENU_ACTIONS,
-    [browserTabsByWorktree, enabled, lineageById, parent, ptyIdsByTabId, tabsByWorktree, worktrees]
+    [
+      browserTabsByWorktree,
+      childSessionWorktrees,
+      enabled,
+      lineageById,
+      parent,
+      ptyIdsByTabId,
+      tabsByWorktree,
+      worktrees
+    ]
   )
 }

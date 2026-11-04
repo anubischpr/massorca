@@ -8,6 +8,7 @@ import { NativeChatCopyButton } from './NativeChatCopyButton'
 import { NativeChatMessageTimestamp } from './NativeChatMessageTimestamp'
 import { nativeChatProviderFrameSummary } from '../../../../shared/native-chat-provider-frame-summary'
 import { withoutNativeChatVisualDirectiveLines } from '../../../../shared/native-chat-visual-directive'
+import { withoutNativeChatChecklistBlocks } from './native-chat-checklist-replies'
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
 import {
   getLocalImageCacheKey,
@@ -295,7 +296,9 @@ export function NativeChatAgentControls({
     // Hover-only row chrome: find skips it rather than counting what the mouse happens to show.
     <div data-native-chat-find-skip className={cn('flex items-center gap-1', className)}>
       {/* A visual line means nothing pasted outside Orca, so the copy leaves it out. */}
-      <NativeChatCopyButton text={withoutNativeChatVisualDirectiveLines(markdown)} />
+      <NativeChatCopyButton
+        text={withoutNativeChatChecklistBlocks(withoutNativeChatVisualDirectiveLines(markdown))}
+      />
       <button
         type="button"
         onClick={onScrollToTop}

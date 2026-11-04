@@ -11,6 +11,7 @@ import { parseWorkspaceKey } from '../../../../shared/workspace-scope'
 import { runSleepWorktrees } from './sleep-worktree-flow'
 import { hasSleepableWorkspaceActivity } from './workspace-lineage-menu-actions'
 import { getWorkspaceDeleteLineage } from './workspace-delete-lineage'
+import { selectChildSessionWorktreesByWorktree } from './worktree-child-placement'
 import {
   createWorktreeContextMenuDeleteIntent,
   deferWorktreeContextMenuDeleteIntent
@@ -46,6 +47,7 @@ export function OneLineSessionWorktreeItems({
   )
   const allWorktrees = useAllWorktrees()
   const lineageById = useAppStore((s) => s.worktreeLineageById)
+  const childSessionWorktrees = useAppStore(selectChildSessionWorktreesByWorktree)
   const canSleep = useAppStore((s) =>
     hasSleepableWorkspaceActivity(worktreeId, {
       tabsByWorktree: s.tabsByWorktree,
@@ -62,8 +64,12 @@ export function OneLineSessionWorktreeItems({
     return null
   }
   const removal = getSessionWorktreeRemoval(worktree)
-  const descendantCount = getWorkspaceDeleteLineage(worktree, allWorktrees, lineageById).descendants
-    .length
+  const descendantCount = getWorkspaceDeleteLineage(
+    worktree,
+    allWorktrees,
+    lineageById,
+    childSessionWorktrees
+  ).descendants.length
   const removeLabel =
     removal?.kind === 'folder'
       ? translate('auto.components.sidebar.WorktreeContextMenu.250de158fd', 'Remove Workspace')

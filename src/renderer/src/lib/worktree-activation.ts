@@ -26,7 +26,8 @@ import { ensureWebRuntimeWorktreeTerminalAfterWake } from '@/lib/web-runtime-wor
 import { applyWorktreeNavViewEntry } from '@/lib/worktree-nav-view-history-replay'
 import {
   activationProvidesInitialSurface,
-  activationSeedsUserDefaultSurface,
+  activationSeedChoices,
+  type ActivationSeedChoices,
   type WorktreeActivationOptions,
   type WorktreeActivationSurfaceSelection
 } from './worktree-activation-surface-selection'
@@ -50,7 +51,7 @@ function ensureFolderWorkspaceInitialTerminal(
   folderWorkspace: FolderWorkspace,
   startup?: WorktreeStartupPayload,
   providesInitialSurface?: boolean,
-  seedUserDefaultSurface?: boolean
+  seedChoices: ActivationSeedChoices = {}
 ): string | null {
   if (providesInitialSurface === true && startup === undefined) {
     return null
@@ -66,7 +67,7 @@ function ensureFolderWorkspaceInitialTerminal(
     undefined,
     {
       reseedEmptiedWorkspace: providesInitialSurface !== true,
-      ...(seedUserDefaultSurface ? { seedUserDefaultSurface: true } : {})
+      ...seedChoices
     }
   )
   return primaryTabId
@@ -135,7 +136,7 @@ export function activateAndRevealFolderWorkspace(
 
   const workspaceKey = folderWorkspaceKey(folderWorkspaceId)
   const providesInitialSurface = activationProvidesInitialSurface(opts)
-  const seedUserDefaultSurface = activationSeedsUserDefaultSurface(opts)
+  const seedChoices = activationSeedChoices(opts)
   state.markWorktreeVisited(workspaceKey)
   if (!state.isNavigatingHistory) {
     state.recordWorktreeVisit(workspaceKey)
@@ -154,7 +155,7 @@ export function activateAndRevealFolderWorkspace(
   if (shouldGateAgentActivation) {
     gateAndReseedEmptyWorkspace(workspaceKey, {
       callerProvidesSurface: opts?.providesInitialSurface === true,
-      seedUserDefaultSurface,
+      ...seedChoices,
       ...(opts?.executionHostId ? { executionHostId: opts.executionHostId } : {})
     })
   }
@@ -164,7 +165,7 @@ export function activateAndRevealFolderWorkspace(
         folderWorkspace,
         opts?.startup,
         providesInitialSurface,
-        seedUserDefaultSurface
+        seedChoices
       )
 
   if (opts?.showWorkspaceList) {
@@ -206,7 +207,7 @@ export function activateAndRevealWorktree(
     opts?.startup || opts?.setup || opts?.defaultTabs || opts?.issueCommand
   )
   const providesInitialSurface = activationProvidesInitialSurface(opts)
-  const seedUserDefaultSurface = activationSeedsUserDefaultSurface(opts)
+  const seedChoices = activationSeedChoices(opts)
   // Why: a plain reselect should still reveal the sidebar row but must not restamp focus recency or wake persistence.
   const isPlainAlreadyActiveTerminal =
     !hasActivationWork &&
@@ -267,7 +268,7 @@ export function activateAndRevealWorktree(
   if (shouldGateAgentActivation) {
     gateAndReseedEmptyWorkspace(worktreeId, {
       callerProvidesSurface: opts?.providesInitialSurface === true,
-      seedUserDefaultSurface,
+      ...seedChoices,
       ...(opts?.executionHostId ? { executionHostId: opts.executionHostId } : {})
     })
   }
@@ -288,7 +289,7 @@ export function activateAndRevealWorktree(
             ...(opts?.backendStartupTerminalSpawned ? { backendStartupTerminalSpawned: true } : {}),
             ...(opts?.createNewTerminalForStartup ? { createNewTerminalForStartup: true } : {}),
             ...(providesInitialSurface ? { callerProvidesSurface: true } : {}),
-            ...(seedUserDefaultSurface ? { seedUserDefaultSurface: true } : {}),
+            ...seedChoices,
             reseedEmptiedWorkspace: !providesInitialSurface
           }
         )

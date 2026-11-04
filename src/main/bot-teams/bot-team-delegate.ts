@@ -17,8 +17,18 @@ export type BotTeamDelegateDeps = {
   createTask: (args: { title: string; prompt: string; ownerBotId: string }) => BotTeamTask
   linkTask: (taskId: string, requestId: string) => void
   startRequest: (requestId: string, agent: BotTeamBot['agent']) => void
+  /** Settles once the request left pending/starting; a request that cannot say is taken as started. */
+  launchOutcome?: (requestId: string) => Promise<{ failed: string | null }>
   /** What the team and the teammate remember, as a task's own start would read it. */
   memoryFor?: (botId: string) => BotTeamMemoryLines
+}
+
+/**
+ * A child saves where it starts (its parent's workspace or its own worktree), not in the project's
+ * workspace, which is the repo's main checkout. The brief still goes to it.
+ */
+function projectForChild(project: BotTeamProject | null): BotTeamProject | null {
+  return project ? { ...project, workspace: null } : null
 }
 
 /** Hands work to a teammate as a child session. The request is filed first: when it is refused, nothing was changed. */
@@ -28,13 +38,19 @@ export async function delegateToBotTeammate(
     team,
     botName,
     text,
-    project = null
+    project = null,
+    roomExcerpt = [],
+    clock = null
   }: {
     team: BotTeam
     botName: string
     text: string
     /** The caller's project: its brief goes to the teammate, who works on the same project. */
     project?: BotTeamProject | null
+    /** The last room messages, so the teammate sees what the others said. */
+    roomExcerpt?: readonly string[]
+    /** The person's clock the caller's request was asked on, so a day the text names is read on it. */
+    clock?: string | null
   }
 ): Promise<BotTeamTask> {
   const teammate = team.bots.find((bot) => bot.name.toLowerCase() === botName.toLowerCase())
@@ -50,7 +66,13 @@ export async function delegateToBotTeammate(
       team,
       teammate,
       { title, prompt: text },
-      { project, memory: deps.memoryFor?.(teammate.id) }
+      {
+        project: projectForChild(project),
+        memory: deps.memoryFor?.(teammate.id),
+        roomExcerpt,
+        delegated: true,
+        notes: clock
+      }
     ),
     agent: teammate.agent,
     ...(launch ? { launch } : {}),
@@ -59,6 +81,13 @@ export async function delegateToBotTeammate(
   const task = deps.createTask({ title, prompt: text, ownerBotId: teammate.id })
   deps.linkTask(task.id, requestId)
   deps.startRequest(requestId, teammate.agent)
+  const outcome = await deps.launchOutcome?.(requestId)
+  if (outcome?.failed) {
+    // Why: a silent failure let the caller tell the room the work was handed over when it never started.
+    throw new Error(
+      `${teammate.name} did not start "${title}": ${outcome.failed} The task stays on the board as Not started. Do this part yourself or tell the person in the Conference room that it did not start; do not say it was handed over.`
+    )
+  }
   return task
 }
 

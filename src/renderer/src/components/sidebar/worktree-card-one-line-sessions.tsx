@@ -2,6 +2,7 @@ import React, { useMemo } from 'react'
 import type { DashboardAgentRow as DashboardAgentRowData } from '@/components/dashboard/useDashboardData'
 import { translate } from '@/i18n/i18n'
 import { cn } from '@/lib/utils'
+import type { BotTeamSessionTeam } from '../bot-teams/BotTeamSessionCharacter'
 import { OneLineSessionRow } from './worktree-card-one-line-session-row'
 import {
   collectSubtreeGlyphs,
@@ -36,6 +37,8 @@ export type OneLineSessionTreeProps = {
   hostDisconnectedByWorktreeId?: Readonly<Record<string, boolean>>
   /** The branch each other worktree runs on, named by the branch icon of its child session. */
   branchByWorktreeId?: Readonly<Record<string, string>>
+  /** The bot team behind each session's tab; a tab no bot team started is absent. */
+  botTeamByTabId?: Readonly<Record<string, BotTeamSessionTeam>>
   getSendTarget?: (paneKey: string) => SendTarget
   onSendTargetClick?: (paneKey: string) => void
 }
@@ -105,6 +108,7 @@ export function OneLineSessionTree(props: OneLineSessionTreeProps): React.JSX.El
           isFocusedPane={agent.paneKey === props.focusedAgentPaneKey}
           dimmed={oneLineRowDimmed(agent, props.dimmed, props.hostDisconnectedByWorktreeId)}
           crossWorktreeBranch={crossWorktreeBranchOf(agent, props.branchByWorktreeId)}
+          botTeam={props.botTeamByTabId?.[agent.tab.id]}
           onActivate={agent.rowSource === 'retained' ? props.onActivateRetained : props.onActivate}
           sendTargetStatus={sendTarget?.status}
           sendTargetDisabledReason={sendTarget?.disabledReason}

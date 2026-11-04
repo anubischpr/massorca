@@ -6715,7 +6715,8 @@
         },
         "OneLineSessionMenu": {
           "copyTitle": "Copy Title",
-          "sleep": "Sleep"
+          "sleep": "Sleep",
+          "splitView": "Split view"
         }
       },
       "shared": {
@@ -18079,7 +18080,24 @@
     }
   },
   "components": {
+    "calendar": {
+      "previous": "Previous",
+      "next": "Next",
+      "today": "Today",
+      "viewAria": "Calendar view",
+      "day": "Day",
+      "week": "Week",
+      "month": "Month",
+      "teamsAria": "Teams",
+      "upcoming": "Upcoming runs",
+      "showDone": "Show done",
+      "monthly": "Monthly",
+      "todayAt": "Today at {{time}}",
+      "tomorrowAt": "Tomorrow at {{time}}",
+      "dayAt": "{{day}} at {{time}}"
+    },
     "app-rail": {
+      "calendar": "Calendar",
       "workspacesAgainHint": "Click Workspaces again to switch to Bot teams.",
       "label": "App",
       "settings": "Settings",
@@ -18087,7 +18105,6 @@
       "workspaces": "Workspaces"
     },
     "side-panel": {
-      "close": "Close panel",
       "label": "Side panel",
       "new-tab": "New tab"
     },
@@ -19788,6 +19805,9 @@
     },
     "botTeams": {
       "conferenceRoom": "Conference room",
+      "newFile": "New file",
+      "openToPreview": "Open the file to see it.",
+      "unreadFiles": "{{count}} new files",
       "sidebarAria": "Bot teams",
       "addBot": "Add a bot",
       "addBotHelp": "This bot keeps its name and job between tasks.",

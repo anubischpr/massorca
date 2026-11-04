@@ -1,17 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { ChevronLeft, Play } from 'lucide-react'
+import { ChevronLeft } from 'lucide-react'
 import { toast } from 'sonner'
 import { useRightSidebarPageTarget } from '../../app-shell/right-sidebar-page-slot'
-import StatusIndicator from '@/components/sidebar/StatusIndicator'
 import { Button } from '@/components/ui/button'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from '@/components/ui/select'
 import NativeChatView from '@/components/native-chat/NativeChatView'
 import { botTeamHostTarget, useBotTeamHost } from '@/runtime/bot-team-host'
 import { translate } from '@/i18n/i18n'
@@ -21,25 +13,34 @@ import {
   setBotTeamTaskProject,
   startBotTeamTask
 } from '@/runtime/runtime-bot-team-client'
-import { BOT_TEAM_ALL_AUTHOR } from '../../../../shared/bot-team-greeting'
 import { botTeamTaskStatus, type BotTeamTaskStatus } from '../../../../shared/bot-team-task-status'
 import { structuredAgentSessionTabId } from '../../../../shared/structured-agent-session-projection'
 import type { BotTeam } from '../../../../shared/rpc-contract/bot-team-params'
 import type {
   BotTeamMessage,
   BotTeamProject,
+  BotTeamSentRequest,
   BotTeamTask
 } from '../../../../shared/rpc-contract/bot-team-room-params'
 import { useBotTeamSessionStatuses } from './use-bot-team-task-status'
-import { BotAgentIcon } from './BotAgentIcon'
-import { BotTeamAllAuthor } from './BotTeamAllAuthor'
 import { BotTeamTypingLine } from './BotTeamTypingLine'
 import { botTeamTypingAuthor } from '../../../../shared/bot-team-typing'
+import { useBotTeamReplying } from './BotTeamRoomReplying'
 import { BotTeamReassignButton } from './BotTeamReassignButton'
 import { BotTeamPendingChoice, type BotTeamPendingChoiceRequest } from './BotTeamPendingChoice'
 import { BotTeamRoomComposer } from './BotTeamRoomComposer'
+import { useBotTeamRoomMentions } from './bot-team-mention-projects'
+import { BotTeamSentTrackers } from './BotTeamRoomTracker'
+import { BotTeamRoomMessage } from './BotTeamRoomMessage'
+import { useBotTeamRoomPrototypeLinks } from './BotTeamRoomPrototypeLinks'
+import { useBotTeamRoomAttachments } from './bot-team-room-attach-state'
+import type { BotTeamRoomAttachment } from '../../../../shared/bot-team-room-attachments'
+import { BotTeamTaskCard } from './BotTeamTaskCard'
+import { BotTeamRoomQuestion } from './BotTeamRoomQuestion'
 import { BotTeamRoomSidePanel } from './BotTeamRoomSidePanel'
-import { botTeamTaskGlyph, botTeamTaskLabel } from './bot-team-task-status-display'
+import { placeBotTeamRoomTasks } from '../../../../shared/bot-team-room-order'
+import { NativeChatJumpToLatest } from '../native-chat/NativeChatJumpToLatest'
+import { useBotTeamRoomScroll } from './use-bot-team-room-scroll'
 
 const NO_PROJECT = 'none'
 const NO_TEAMS: readonly BotTeam[] = []
@@ -102,7 +103,9 @@ export function BotTeamRoom({
   header,
   otherTeams = NO_TEAMS,
   onCreateBot,
-  onCreateTeam
+  onCreateTeam,
+  onOpenFile,
+  onOpenTeam
 }: {
   /** Teams the room can suggest or send a request to. */
   otherTeams?: readonly BotTeam[]
@@ -115,17 +118,30 @@ export function BotTeamRoom({
   offline: boolean
   openTaskId: string | null
   onOpenTask: (taskId: string | null) => void
+  /** Opens a file a message names in the team's Files view; without it the file chips stay plain. */
+  onOpenFile?: (path: string) => void
+  /** Opens another team's room, or one of its tasks; without it the tracker has no way in. */
+  onOpenTeam?: (teamId: string, taskId: string | null) => void
 }): React.JSX.Element {
   const [messages, setMessages] = useState<BotTeamMessage[]>([])
   const [tasks, setTasks] = useState<BotTeamTask[]>([])
   const [projects, setProjects] = useState<BotTeamProject[]>([])
+  const [sent, setSent] = useState<BotTeamSentRequest[]>([])
   const [needsOwner, setNeedsOwner] = useState(false)
   const [pending, setPending] = useState<BotTeamPendingChoiceRequest | null>(null)
   // The text with the host, if any; the room shows who is typing until the reply comes back.
   const [typing, setTyping] = useState<string | null>(null)
+  const { mentionProjects, mentionIcons } = useBotTeamRoomMentions(team, otherTeams, projects)
+  const replying = useBotTeamReplying(team.bots)
+  const readReplying = replying.readRoom
   const sidePanel = useRightSidebarPageTarget()
   const statuses = useBotTeamSessionStatuses()
+  const scroll = useBotTeamRoomScroll({
+    teamId: team.id,
+    hasContent: messages.length > 0 || tasks.length > 0
+  })
   const botOf = (botId: string | null) => team.bots.find((bot) => bot.id === botId)
+  const onAttachFiles = useBotTeamRoomAttachments({ teamId: team.id })
 
   const latestRead = useRef(0)
   const sending = useRef(false)
@@ -138,6 +154,8 @@ export function BotTeamRoom({
           setMessages(room.messages)
           setTasks(room.tasks)
           setProjects(room.projects ?? [])
+          setSent(room.sentRequests ?? [])
+          readReplying(room.replying)
         }
       },
       (error: unknown) => {
@@ -146,7 +164,7 @@ export function BotTeamRoom({
         }
       }
     )
-  }, [team.id])
+  }, [team.id, readReplying])
 
   useEffect(reload, [reload])
   // Catches up on what happened while the host was out of reach.
@@ -156,11 +174,14 @@ export function BotTeamRoom({
     }
     reload()
     // Bots post and add tasks on their own; the host has no push for the room.
-    const timer = window.setInterval(reload, ROOM_CHECK_MS)
+    const timer = window.setInterval(reload, replying.pollMs ?? ROOM_CHECK_MS)
     return () => window.clearInterval(timer)
-  }, [offline, reload])
+  }, [offline, reload, replying.pollMs])
 
-  const send = async (text: string): Promise<boolean> => {
+  const send = async (
+    text: string,
+    attachments: BotTeamRoomAttachment[] = []
+  ): Promise<boolean> => {
     if (sending.current) {
       return false
     }
@@ -173,11 +194,23 @@ export function BotTeamRoom({
         teamId: team.id,
         text,
         start: true,
-        askProject: true
+        askProject: true,
+        clientRequestId: replying.requestIdFor(text),
+        ...(attachments.length > 0 ? { attachments } : {})
       })
-      setNeedsOwner(sent.task === null && !sent.greeted && !sent.choice && !sent.answered)
+      replying.settle(sent.replying?.botId ?? null)
+      setNeedsOwner(
+        sent.task === null && !sent.greeted && !sent.choice && !sent.answered && !sent.replying
+      )
       setPending(
-        sent.choice ? { choice: sent.choice, text, ...(sent.later ? { later: true } : {}) } : null
+        sent.choice
+          ? {
+              choice: sent.choice,
+              text,
+              ...(sent.later ? { later: true } : {}),
+              ...(attachments.length > 0 ? { attachments } : {})
+            }
+          : null
       )
       if (sent.startError) {
         toast.error(sent.startError)
@@ -218,6 +251,8 @@ export function BotTeamRoom({
     }
   }
 
+  // A send with the host shows who is typing; once it returns, the host's reply in flight does.
+  const typingAuthor = typing === null ? replying.author : botTeamTypingAuthor(typing, team.bots)
   const statusOf = (task: BotTeamTask): BotTeamTaskStatus =>
     botTeamTaskStatus(
       task.sessionId,
@@ -234,6 +269,9 @@ export function BotTeamRoom({
       />
     ) : null
 
+  // A card sits right after the request that made it; the rest follow the conversation.
+  const placement = useMemo(() => placeBotTeamRoomTasks(messages, tasks), [messages, tasks])
+  const prototypeLinks = useBotTeamRoomPrototypeLinks(messages, tasks, sent, team.id)
   const openTask = tasks.find((task) => task.id === openTaskId)
   const openAgent = botOf(openTask?.ownerBotId ?? null)?.agent
   if (openTask && openAgent) {
@@ -247,157 +285,123 @@ export function BotTeamRoom({
     )
   }
 
-  const taskCard = (task: BotTeamTask): React.JSX.Element => {
-    const owner = botOf(task.ownerBotId)
-    return (
-      <div key={task.id} className="flex items-center gap-3 rounded-lg border border-border p-3">
-        <BotAgentIcon agent={owner?.agent} size={20} />
-        <div className="min-w-0 flex-1">
-          <div className="truncate text-sm font-medium">{task.title}</div>
-          <div className="truncate text-xs text-muted-foreground">{owner?.name}</div>
-        </div>
-        <span className="flex shrink-0 items-center gap-1.5 text-xs text-muted-foreground">
-          <StatusIndicator status={botTeamTaskGlyph(statusOf(task))} showTooltip={false} />
-          {botTeamTaskLabel(
-            botTeamTaskStatus(
-              task.sessionId,
-              task.sessionId === null ? undefined : statuses.get(task.sessionId)
-            )
-          )}
-          {offline && task.sessionId !== null
-            ? translate('components.botTeams.cannotConfirm', ', can’t confirm now')
-            : ''}
-        </span>
-        {projects.length > 0 ? (
-          <Select
-            value={task.projectId ?? NO_PROJECT}
-            disabled={offline}
-            onValueChange={(next) => void moveTask(task.id, next)}
-          >
-            <SelectTrigger
-              size="sm"
-              aria-label={translate('components.botTeams.projectForTask', 'Project for this task')}
-            >
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={NO_PROJECT}>
-                {translate('components.botTeams.noProject', 'No project')}
-              </SelectItem>
-              {projects.map((project) => (
-                <SelectItem key={project.id} value={project.id}>
-                  {project.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        ) : null}
-        {reassignButton(task)}
-        {task.sessionId === null ? (
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={offline}
-            onClick={() => void startTask(task.id)}
-          >
-            <Play className="size-3.5" />
-            {translate('components.botTeams.start', 'Start')}
-          </Button>
-        ) : (
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={offline}
-            onClick={() => onOpenTask(task.id)}
-          >
-            {translate('components.botTeams.open', 'Open')}
-          </Button>
-        )}
-      </div>
-    )
-  }
-  // A task sits under the request that made it; the rest follow the conversation.
-  const requestOf = (task: BotTeamTask): BotTeamMessage | undefined =>
-    messages.find((message) => message.authorBotId === null && message.text === task.prompt)
+  // A tracker sits right after the message that asked another team; any without one follow the conversation.
+  const trackers = (requests: BotTeamSentRequest[]): React.JSX.Element => (
+    <BotTeamSentTrackers
+      requests={requests}
+      teams={otherTeams}
+      statusOf={statusOf}
+      offline={offline}
+      onOpenTeam={onOpenTeam}
+    />
+  )
+  const unplacedSent = sent.filter(
+    (request) => !messages.some((message) => message.id === request.messageId)
+  )
 
+  const taskCard = (task: BotTeamTask): React.JSX.Element => (
+    <BotTeamTaskCard
+      key={task.id}
+      task={task}
+      owner={botOf(task.ownerBotId)}
+      status={statusOf(task)}
+      projects={projects}
+      offline={offline}
+      reassign={reassignButton(task)}
+      onMove={(next) => void moveTask(task.id, next)}
+      onStart={() => void startTask(task.id)}
+      onOpen={() => onOpenTask(task.id)}
+    />
+  )
   return (
     <div className="flex h-full min-h-0 flex-1">
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         {header}
-        <div className="scrollbar-sleek min-h-0 flex-1 overflow-y-auto">
-          <div className="mx-auto flex w-full max-w-[736px] flex-col gap-5 px-4 py-6">
-            {messages.length === 0 && tasks.length === 0 ? (
-              <div className="py-12 text-center">
-                <h2 className="text-lg font-semibold">
-                  {translate('components.botTeams.askTeam', 'Ask {{team}} for something', {
-                    team: team.name
-                  })}
-                </h2>
+        <div className="relative flex min-h-0 flex-1 flex-col">
+          <div
+            ref={scroll.attachScroll}
+            onScroll={scroll.onScroll}
+            className="scrollbar-sleek min-h-0 flex-1 overflow-y-auto"
+          >
+            <div
+              ref={scroll.attachContent}
+              className="mx-auto flex w-full max-w-[736px] flex-col gap-5 px-4 py-6"
+            >
+              {messages.length === 0 && tasks.length === 0 ? (
+                <div className="py-12 text-center">
+                  <h2 className="text-lg font-semibold">
+                    {translate('components.botTeams.askTeam', 'Ask {{team}} for something', {
+                      team: team.name
+                    })}
+                  </h2>
+                  <p className="text-xs text-muted-foreground">
+                    {translate(
+                      'components.botTeams.askTeamHelp',
+                      'Each request becomes one or more tasks.'
+                    )}
+                  </p>
+                </div>
+              ) : null}
+              {messages.map((message) => (
+                <BotTeamRoomMessage
+                  key={message.id}
+                  message={message}
+                  team={team}
+                  otherTeams={otherTeams}
+                  mentions={mentionIcons}
+                  onOpenFile={onOpenFile}
+                >
+                  {placement.cardsByMessageId.get(message.id)?.map(taskCard)}
+                  {trackers(sent.filter((request) => request.messageId === message.id))}
+                  {prototypeLinks(message.id)}
+                </BotTeamRoomMessage>
+              ))}
+              {placement.trailing.map(taskCard)}
+              {trackers(unplacedSent)}
+              {tasks.map((task) => {
+                const bot = botOf(task.ownerBotId)
+                return bot && task.sessionId !== null && statusOf(task) === 'Waiting for you' ? (
+                  <BotTeamRoomQuestion key={task.id} task={task} bot={bot} />
+                ) : null
+              })}
+              {typingAuthor ? <BotTeamTypingLine author={typingAuthor} bots={team.bots} /> : null}
+              {pending ? (
+                <BotTeamPendingChoice
+                  pending={pending}
+                  team={team}
+                  otherTeams={otherTeams}
+                  projects={projects}
+                  onAsked={(choice) =>
+                    setPending((current) => (current ? { ...current, choice } : current))
+                  }
+                  onFiled={() => {
+                    setPending(null)
+                    reload()
+                  }}
+                  onCreateBot={() => onCreateBot?.()}
+                  onCreateTeam={() => onCreateTeam?.()}
+                />
+              ) : null}
+              {needsOwner ? (
                 <p className="text-xs text-muted-foreground">
                   {translate(
-                    'components.botTeams.askTeamHelp',
-                    'Each request becomes one or more tasks.'
+                    'components.botTeams.whoTakesIt',
+                    'Who should take this? Mention a bot with @ and its name.'
                   )}
                 </p>
-              </div>
-            ) : null}
-            {messages.map((message) => {
-              const author = botOf(message.authorBotId)
-              const fromAll = message.authorBotId === BOT_TEAM_ALL_AUTHOR
-              return (
-                <div key={message.id} className="flex flex-col gap-3">
-                  {author ? (
-                    <div className="flex items-center gap-2 text-[13px] font-medium">
-                      <BotAgentIcon agent={author.agent} size={16} />
-                      {author.name}
-                    </div>
-                  ) : null}
-                  {fromAll ? <BotTeamAllAuthor bots={team.bots} /> : null}
-                  <div
-                    className={
-                      author || fromAll
-                        ? 'whitespace-pre-wrap text-sm leading-relaxed text-foreground/80'
-                        : 'max-w-[80%] self-end whitespace-pre-wrap rounded-xl border border-border bg-muted px-3.5 py-2.5 text-sm leading-relaxed'
-                    }
-                  >
-                    {message.text}
-                  </div>
-                  {tasks.filter((task) => requestOf(task)?.id === message.id).map(taskCard)}
-                </div>
-              )
-            })}
-            {tasks.filter((task) => requestOf(task) === undefined).map(taskCard)}
-            {typing !== null ? (
-              <BotTeamTypingLine author={botTeamTypingAuthor(typing, team.bots)} bots={team.bots} />
-            ) : null}
-            {pending ? (
-              <BotTeamPendingChoice
-                pending={pending}
-                team={team}
-                otherTeams={otherTeams}
-                projects={projects}
-                onAsked={(choice) =>
-                  setPending((current) => (current ? { ...current, choice } : current))
-                }
-                onFiled={() => {
-                  setPending(null)
-                  reload()
-                }}
-                onCreateBot={() => onCreateBot?.()}
-                onCreateTeam={() => onCreateTeam?.()}
-              />
-            ) : null}
-            {needsOwner ? (
-              <p className="text-xs text-muted-foreground">
-                {translate(
-                  'components.botTeams.whoTakesIt',
-                  'Who should take this? Mention a bot with @ and its name.'
-                )}
-              </p>
-            ) : null}
+              ) : null}
+            </div>
           </div>
+          <NativeChatJumpToLatest visible={scroll.showJump} onJump={scroll.jumpToEnd} />
         </div>
-        <BotTeamRoomComposer team={team} otherTeams={otherTeams} offline={offline} onSend={send} />
+        <BotTeamRoomComposer
+          team={team}
+          otherTeams={otherTeams}
+          projects={mentionProjects}
+          offline={offline}
+          onSend={send}
+          onAttachFiles={onAttachFiles}
+        />
       </div>
       {sidePanel
         ? createPortal(

@@ -17,6 +17,10 @@ import { sessionStatusGlyph } from './worktree-session-status'
 import { OneLineSessionMenu } from './worktree-card-one-line-session-menu'
 import { CrossWorktreeBranchIcon } from './worktree-card-one-line-cross-worktree-branch'
 import { WorktreeTitleInlineRename } from './WorktreeTitleInlineRename'
+import {
+  BotTeamSessionCharacter,
+  type BotTeamSessionTeam
+} from '../bot-teams/BotTeamSessionCharacter'
 import type { SessionStatusGlyph } from './worktree-session-status'
 
 export const ONE_LINE_SESSION_ROW_HEIGHT_PX = 26
@@ -32,6 +36,8 @@ type OneLineSessionRowProps = {
   dimmed: boolean
   /** The branch a child session in another worktree runs on; its icon names it. */
   crossWorktreeBranch?: string
+  /** The bot team that started this session; its character sits right after the name. */
+  botTeam?: BotTeamSessionTeam
   /** A child session in another worktree passes that worktree, so its pane is focused there. */
   onActivate: (tabId: string, paneKey: string, ownerWorktreeId?: string) => void
   // Why: send-target mode turns sidebar rows into the picker surface, as the other row layouts do.
@@ -57,6 +63,30 @@ export function getOneLineSessionTitleClassName(args: {
   return 'text-muted-foreground'
 }
 
+/** A folded parent's "+N" sits in the chevron's own hit target, so clicking the count unfolds it. */
+export function OneLineChildDisclosure({
+  count,
+  expanded,
+  onToggle
+}: {
+  count: number
+  expanded: boolean
+  onToggle: () => void
+}): React.JSX.Element {
+  return (
+    <DashboardAgentChildDisclosure
+      childAgentCount={count}
+      childAgentsExpanded={expanded}
+      onToggleChildAgents={onToggle}
+      timestamp={
+        expanded ? undefined : (
+          <span className="text-[10px] tabular-nums text-muted-foreground/70">+{count}</span>
+        )
+      }
+    />
+  )
+}
+
 export const OneLineSessionRow = React.memo(function OneLineSessionRow({
   agent,
   now,
@@ -65,6 +95,7 @@ export const OneLineSessionRow = React.memo(function OneLineSessionRow({
   isFocusedPane,
   dimmed,
   crossWorktreeBranch,
+  botTeam,
   onActivate,
   sendTargetStatus,
   sendTargetDisabledReason,
@@ -141,7 +172,8 @@ export const OneLineSessionRow = React.memo(function OneLineSessionRow({
       draggable={false}
       className={cn(
         'group/one-line-session flex min-w-0 cursor-pointer items-center gap-1.5 rounded-sm px-1 text-xs leading-none',
-        'worktree-agent-row-hover',
+        // Why: agent-disclosure-row reveals a folded parent's chevron on hover; without it the chevron stays invisible.
+        'worktree-agent-row-hover agent-disclosure-row',
         isFocusedPane && 'bg-worktree-sidebar-accent',
         dimmed && 'opacity-60',
         sendTargetStatus === 'sending' && 'cursor-progress opacity-75',
@@ -176,14 +208,17 @@ export const OneLineSessionRow = React.memo(function OneLineSessionRow({
       )}
       {crossWorktreeBranch ? <CrossWorktreeBranchIcon branch={crossWorktreeBranch} /> : null}
       {renameStep === 'off' ? (
-        <span
-          className={cn(
-            'min-w-0 flex-1 truncate',
-            getOneLineSessionTitleClassName({ isUnvisited, isFocusedPane, glyph: shownGlyph })
-          )}
-          title={sendTargetDisabledReason ? undefined : title}
-        >
-          {title}
+        <span className="flex min-w-0 flex-1 items-center gap-1">
+          <span
+            className={cn(
+              'min-w-0 truncate',
+              getOneLineSessionTitleClassName({ isUnvisited, isFocusedPane, glyph: shownGlyph })
+            )}
+            title={sendTargetDisabledReason ? undefined : title}
+          >
+            {title}
+          </span>
+          <BotTeamSessionCharacter sessionTeam={botTeam} />
         </span>
       ) : (
         <WorktreeTitleInlineRename
@@ -200,16 +235,11 @@ export const OneLineSessionRow = React.memo(function OneLineSessionRow({
           onRename={(name) => setTabCustomTitle(agent.tab.id, name)}
         />
       )}
-      {hasChildDisclosure && !childAgentsExpanded ? (
-        <span className="shrink-0 text-[10px] tabular-nums text-muted-foreground/70">
-          +{childAgentCount}
-        </span>
-      ) : null}
       {hasChildDisclosure ? (
-        <DashboardAgentChildDisclosure
-          childAgentCount={childAgentCount}
-          childAgentsExpanded={childAgentsExpanded}
-          onToggleChildAgents={onToggleChildAgents}
+        <OneLineChildDisclosure
+          count={childAgentCount}
+          expanded={childAgentsExpanded}
+          onToggle={onToggleChildAgents}
         />
       ) : null}
       {shownGlyph ? <SessionStatusGlyphIcon glyph={shownGlyph} /> : null}

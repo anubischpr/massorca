@@ -24,6 +24,7 @@ import type { TabBarItemProjection } from './use-tab-bar-item-projection'
 import type { TabBarItemActions } from './use-tab-bar-item-actions'
 import { renderTabBarItems } from './tab-bar-item-surface'
 import { TabBarStaticCreateMenu } from './tab-bar-static-create-menu'
+import { TabBarChecklistMenuItem } from './TabBarChecklistMenuItem'
 import ClientHostedBrowserTabRows from './ClientHostedBrowserTabRows'
 import type { ClientHostedBrowserRow } from '../../../../shared/client-hosted-browser-rows'
 
@@ -283,6 +284,12 @@ export function renderTabBarSurface({
                 onFocusTerminal={queueTerminalTabFocusAfterNewTabMenuClose}
               />
             </>
+          ) : null}
+          {!terminalOnly && props.onNewChecklistTab ? (
+            <TabBarChecklistMenuItem
+              onNewChecklistTab={props.onNewChecklistTab}
+              onOpenSessionPicker={props.onOpenSessionPicker}
+            />
           ) : null}
         </DropdownMenuContent>
       </DropdownMenu>

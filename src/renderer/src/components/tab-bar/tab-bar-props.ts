@@ -2,6 +2,7 @@ import type { BrowserTab as BrowserTabState } from '../../../../shared/browser-w
 import type { ClientHostedBrowserRow } from '../../../../shared/client-hosted-browser-rows'
 import type { Tab, WorkspaceVisibleTabType } from '../../../../shared/tab-types'
 import type { TerminalTab } from '../../../../shared/terminal-tab-types'
+import type { TuiAgent } from '../../../../shared/tui-agent'
 import type { OpenFile } from '../../store/slices/editor'
 import type { HoveredTabInsertion } from '../tab-group/useTabDragSplit'
 import type { TabCreateEntryArgs } from './tab-create-entry-action'
@@ -22,6 +23,15 @@ export type TabBarProps = {
   onNewTerminalWithShell?: (shell: string) => void
   onNewBrowserTab: () => void
   onNewSimulatorTab?: () => void
+  /** Adds "Checklist" to the end of the "+" menu; only the floating workspace offers it. */
+  onNewChecklistTab?: () => void
+  /** Adds "Open a session..." after Checklist; only the floating workspace offers it. */
+  onOpenSessionPicker?: () => void
+  /**
+   * The workspace whose host supplies the "+" menu's agents and shells and runs its agents; only
+   * the floating workspace sets it, while a paired host is selected.
+   */
+  createHost?: { worktreeId: string; launchAgent: (agent: TuiAgent, label: string) => void }
   onOpenEntry?: (args: TabCreateEntryArgs) => Promise<void>
   terminalOnly?: boolean
   showAgentLaunchItems?: boolean

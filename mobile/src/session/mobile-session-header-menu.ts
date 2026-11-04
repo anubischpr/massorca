@@ -18,6 +18,8 @@ export type MobileSessionHeaderMenu = {
     /** Only without a chat in the worktree: beside one, the Sessions sheet holds the resume row. */
     agentHistory: boolean
     plan: boolean
+    /** With a chat: beside Plan, it opens the Checklist sheet, empty or not. */
+    checklist: boolean
     summary: boolean
     artifacts: boolean
     prototypes: boolean
@@ -36,6 +38,7 @@ export function resolveMobileSessionHeaderMenu(
   const chat = {
     agentHistory: !input.hasChatSession && input.showAgentHistory,
     plan: true,
+    checklist: input.hasChatSession,
     summary: true,
     artifacts: true,
     prototypes: true,

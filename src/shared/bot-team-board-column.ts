@@ -7,6 +7,7 @@ export type BotTeamBoardColumn = (typeof BOT_TEAM_BOARD_COLUMNS)[number]
 export function botTeamBoardColumn(status: BotTeamTaskStatus): BotTeamBoardColumn {
   switch (status) {
     case 'Not started':
+    case 'Unknown':
       return 'Todo'
     case 'Waiting for you':
       return 'In Review'

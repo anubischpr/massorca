@@ -43,6 +43,7 @@ export type DelegationReasonCode =
   | 'effort-clamped'
   | 'read-only-current-worktree'
   | 'writes-new-child-worktree'
+  | 'uncertain-new-child-worktree'
   | 'folder-workspace-writes'
 
 export type DelegationDecision = {

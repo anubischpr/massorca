@@ -73,6 +73,9 @@ describe('orcad automations', () => {
   it('orcad starts the service with its runtime and feeds it to managed idle exit', () => {
     const entry = readFileSync(join(import.meta.dirname, 'orcad-entry.ts'), 'utf8')
     expect(entry).toContain('startOrcadAutomations(runtime, profileStore, registerCleanup)')
-    expect(entry).toContain('automationsBusy: () => orcadAutomationsKeepHostBusy(profileStore)')
+    expect(entry).toContain(
+      'orcadAutomationsKeepHostBusy(profileStore) || botTeamRoutinesKeepHostBusy(runtime)'
+    )
+    expect(entry).toContain('startBotTeamRoutineScheduler(runtime)')
   })
 })

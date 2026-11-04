@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type ComponentProps } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Alert, Pressable, ScrollView, Switch, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Plus, Settings, Users } from 'lucide-react-native'
@@ -12,7 +12,7 @@ import { MobileBotTeamCharacterIcon } from './MobileBotTeamCharacterIcon'
 import { MobileBotTeamIntegrations } from './MobileBotTeamIntegrations'
 import { MobileBotTeamIntegrationsRow } from './MobileBotTeamIntegrationsRow'
 import { MobileAddBotForm, MobileNewTeamForm } from './MobileBotTeamForms'
-import { MobileBotTeamRoom } from './MobileBotTeamRoom'
+import { MobileBotTeamConferenceRoom as TeamRoom } from './MobileBotTeamConferenceRoom'
 import * as Routines from './MobileBotTeamRoutineScreens'
 import { MobileBotTeamWork, isBotTeamWorkScreen, type BotTeamWorkScreen } from './MobileBotTeamWork'
 import { MobileBotTeamWorkBar as SubBar } from './MobileBotTeamWorkBar'
@@ -31,6 +31,7 @@ import {
   setBotCharacterAnimations,
   useBotCharacterAnimations
 } from './mobile-bot-character-preference'
+import { MobileBotTeamWaitingMark } from './MobileBotTeamRoomMark'
 import { useMobileBotTeamStatus } from './use-mobile-bot-team-status'
 
 const HOST_CHECK_MS = 20_000
@@ -86,16 +87,11 @@ function TeamCarousel({
           <Text style={styles.carouselName} numberOfLines={1}>
             {team.name}
           </Text>
+          {statusOf(team.id) === 'Waiting for you' ? <MobileBotTeamWaitingMark /> : null}
         </Pressable>
       ))}
     </ScrollView>
   )
-}
-
-/** The Conference room with its team's real state, read the same way the carousel reads it. */
-function TeamRoom(props: Omit<ComponentProps<typeof MobileBotTeamRoom>, 'workingOf'>) {
-  const statusOf = useMobileBotTeamStatus(props.client, props.teams)
-  return <MobileBotTeamRoom {...props} workingOf={(teamId) => statusOf(teamId) === 'Working'} />
 }
 
 export function MobileBotTeamsScreen({
@@ -248,6 +244,7 @@ export function MobileBotTeamsScreen({
         {notice}
         <TeamRoom
           key={openTeam.id}
+          hostId={hostId}
           client={client}
           team={openTeam}
           teams={teams}
@@ -257,6 +254,9 @@ export function MobileBotTeamsScreen({
           onOpenBots={() => setScreen({ name: 'teamBots', teamId: openTeam.id })}
           onOpenTask={(workspaceId, task) => onOpenTask(workspaceId, task)}
           onOpenWork={setScreen}
+          onOpenRoutines={() =>
+            setScreen({ name: 'routines', teamId: openTeam.id, origin: 'room' })
+          }
           onAddBot={() => setScreen({ name: 'teamBot', teamId: openTeam.id })}
           onNewTeam={() => setScreen({ name: 'newTeam' })}
         />

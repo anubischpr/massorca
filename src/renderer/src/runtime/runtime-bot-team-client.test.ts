@@ -9,8 +9,10 @@ vi.mock('./bot-team-host', () => ({
 }))
 
 const {
+  fileBotTeamRequest,
   listBotTeamFiles,
   listBotTeamRoom,
+  postBotTeamRequest,
   readBotTeamFile,
   setBotTeamProjectBrief,
   setBotTeamProjectCodeSource
@@ -140,6 +142,45 @@ describe('the files of a team', () => {
     expect(callRuntimeRpc).toHaveBeenCalledWith({ kind: 'local' }, 'files.read', {
       worktree: 'id:folder:1',
       relativePath: 'flyer.html'
+    })
+  })
+})
+
+describe('filing a request the room held', () => {
+  it("sends the sender's zone with the answer, so a day it names is read on their clock", async () => {
+    callRuntimeRpc.mockResolvedValue({ task: null, startError: null })
+    await fileBotTeamRequest({ teamId: 't1', text: 'Escribe el informe para mañana', start: false })
+    expect(callRuntimeRpc).toHaveBeenLastCalledWith({ kind: 'local' }, 'botTeams.assignRequest', {
+      teamId: 't1',
+      text: 'Escribe el informe para mañana',
+      start: false,
+      timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
+    })
+  })
+})
+
+describe('posting files with no text', () => {
+  const FLYER = { path: 'attachments/flyer.png', name: 'flyer.png' }
+
+  it('retries once with the file names when the host still requires text', async () => {
+    callRuntimeRpc
+      .mockRejectedValueOnce(
+        new RuntimeRpcCallError({
+          id: '1',
+          ok: false,
+          error: { code: 'invalid_argument', message: 'Missing message text' }
+        })
+      )
+      .mockResolvedValueOnce({ task: null, startError: null })
+
+    await postBotTeamRequest({ teamId: 't1', text: '', start: true, attachments: [FLYER] })
+
+    expect(callRuntimeRpc).toHaveBeenLastCalledWith({ kind: 'local' }, 'botTeams.postMessage', {
+      teamId: 't1',
+      text: 'flyer.png',
+      start: true,
+      attachments: [FLYER],
+      timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
     })
   })
 })
