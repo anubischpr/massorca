@@ -12,7 +12,7 @@ import {
   botScheduledRunToCalendarRun,
   loadBotRuns
 } from './calendar-bot-runs-source'
-import { loadCalendarRuns } from './calendar-runs-source'
+import { dropStartedBotRuns, loadCalendarRuns, nextRunStartAfter } from './calendar-runs-source'
 import type { CalendarRun } from './calendar-types'
 
 const mocks = vi.hoisted(() => ({ listScheduledRuns: vi.fn() }))
@@ -208,5 +208,44 @@ describe('merging both sources', () => {
       throw new Error('host down')
     }
     expect(await loadCalendarRuns(day, [automation()], failing)).toHaveLength(1)
+  })
+})
+
+describe('runs that have started', () => {
+  const now = local(2026, 10, 31, 14, 24)
+  const botRun = (id: string, at: number): CalendarRun => ({
+    id,
+    name: 'Launch brief',
+    at,
+    frequency: 'daily',
+    source: 'bot',
+    botName: 'Nora',
+    teamId: 't1',
+    teamName: 'Marketing'
+  })
+  const triage: CalendarRun = {
+    id: 'automation:a1:9',
+    name: 'Nightly triage',
+    at: local(2026, 10, 31, 9),
+    frequency: 'daily',
+    source: 'automation',
+    agentId: 'claude'
+  }
+
+  it('drops a bot run once its time has passed, and keeps automation runs', () => {
+    const started = botRun('bot:r1:14', local(2026, 10, 31, 14))
+    const later = botRun('bot:r1:15', local(2026, 10, 31, 15))
+    expect(dropStartedBotRuns([triage, started, later], now)).toEqual([triage, later])
+  })
+
+  it('names the next run to start across bot and automation runs, or null', () => {
+    const later = botRun('bot:r1:15', local(2026, 10, 31, 15))
+    const tomorrow: CalendarRun = {
+      ...triage,
+      id: 'automation:a1:tomorrow',
+      at: local(2026, 11, 1, 9)
+    }
+    expect(nextRunStartAfter([triage, tomorrow, later], now)).toBe(later.at)
+    expect(nextRunStartAfter([triage], now)).toBeNull()
   })
 })
