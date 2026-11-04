@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Plus } from 'lucide-react'
+import { ChevronDown, ChevronRight, Plus } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { translate } from '@/i18n/i18n'
 import { useBotTeamHost } from '@/runtime/bot-team-host'
@@ -14,6 +15,7 @@ import type { BotTeam } from '../../../../shared/rpc-contract/bot-team-params'
 import type { BotTeamRoutine } from '../../../../shared/rpc-contract/bot-team-routine-params'
 import { BotAgentIcon } from './BotAgentIcon'
 import { BotTeamFilesBar } from './BotTeamFilesBar'
+import { BotTeamRoutineMenu, isArchivedBotTeamRoutine } from './BotTeamRoutineActions'
 import {
   routineAccessLabel,
   routineRunStatus,
@@ -27,6 +29,7 @@ import { useTeamWork } from './use-bot-team-work'
 export function useBotTeamRoutines(teamId: string): {
   routines: BotTeamRoutine[] | 'unavailable' | null
   replace: (routine: BotTeamRoutine) => void
+  drop: (routineId: string) => void
 } {
   const [routines, setRoutines] = useState<BotTeamRoutine[] | 'unavailable' | null>(null)
   useEffect(() => {
@@ -48,7 +51,14 @@ export function useBotTeamRoutines(teamId: string): {
       ),
     []
   )
-  return { routines, replace }
+  const drop = useCallback(
+    (routineId: string) =>
+      setRoutines((current) =>
+        Array.isArray(current) ? current.filter((entry) => entry.id !== routineId) : current
+      ),
+    []
+  )
+  return { routines, replace, drop }
 }
 
 /** On and Paused, side by side; pausing keeps the routine's history. */
@@ -95,23 +105,83 @@ export function useBotTeamHostName(): string {
   )
 }
 
-/** Routines (boards 39 and 40): what each does and when, with the way to add one. */
+/** One routine: what it does and when; an archived one keeps only its menu (board 57). */
+function RoutineRow({
+  routine,
+  archived = false,
+  team,
+  tasks,
+  statuses,
+  onOpen,
+  onEdit,
+  onChanged,
+  onDeleted
+}: {
+  routine: BotTeamRoutine
+  archived?: boolean
+  team: BotTeam
+  tasks: Parameters<typeof routineRunStatus>[1]
+  statuses: Parameters<typeof routineRunStatus>[2]
+  onOpen: (routineId: string) => void
+  onEdit: (routineId: string) => void
+  onChanged: (routine: BotTeamRoutine) => void
+  onDeleted: (routineId: string) => void
+}): React.JSX.Element {
+  const bot = team.bots.find((entry) => entry.id === routine.botId)
+  const lastStatus = routine.lastRun
+    ? (routineRunStatus(routine.lastRun, tasks, statuses)?.label ?? null)
+    : null
+  const detail = archived
+    ? `${routineScheduleLine(routine.schedule)}, ${bot?.name ?? ''}`
+    : `${routineScheduleLine(routine.schedule)}, ${bot?.name ?? ''}, ${routineAccessLabel(team).toLowerCase()}`
+  return (
+    <div className="flex items-center gap-3 border-t border-border px-4 py-3 first:border-t-0">
+      <button
+        type="button"
+        className="flex min-w-0 flex-1 items-center gap-3 text-left"
+        onClick={() => onOpen(routine.id)}
+      >
+        <span className="shrink-0 data-[archived=true]:opacity-60" data-archived={archived}>
+          <BotAgentIcon agent={bot?.agent} size={20} />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-sm font-medium">{routine.name}</span>
+          <span className="block text-xs text-muted-foreground">{detail}</span>
+          <span className="block text-xs text-muted-foreground">
+            {routineRunsLine(routine, lastStatus)}
+          </span>
+        </span>
+      </button>
+      {archived ? null : <BotTeamRoutineSwitch routine={routine} onChanged={onChanged} />}
+      <BotTeamRoutineMenu routine={routine} onEdit={onEdit} onDeleted={onDeleted} />
+    </div>
+  )
+}
+
+/** Routines (boards 39, 40 and 57): what each does and when, the way to add one, and the finished ones archived. */
 export function BotTeamRoutines({
   team,
   onNew,
   onOpen,
+  onEdit,
   webAddresses
 }: {
   team: BotTeam
   onNew: () => void
   onOpen: (routineId: string) => void
+  onEdit: (routineId: string) => void
   /** The Web addresses section under the routines. */
   webAddresses?: React.ReactNode
 }): React.JSX.Element {
-  const { routines, replace } = useBotTeamRoutines(team.id)
+  const { routines, replace, drop } = useBotTeamRoutines(team.id)
   const { tasks } = useTeamWork(team.id)
   const statuses = useBotTeamSessionStatuses()
   const hostName = useBotTeamHostName()
+  const [archiveOpen, setArchiveOpen] = useState(false)
+  const listed = Array.isArray(routines) ? routines : []
+  const active = listed.filter((routine) => !isArchivedBotTeamRoutine(routine))
+  const archived = listed.filter(isArchivedBotTeamRoutine)
+  const rowProps = { team, tasks, statuses, onOpen, onEdit, onChanged: replace, onDeleted: drop }
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <BotTeamFilesBar>
@@ -161,38 +231,35 @@ export function BotTeamRoutines({
               </Button>
             </div>
           ) : (
-            <div className="flex flex-col rounded-xl border border-border bg-card">
-              {routines.map((routine) => {
-                const bot = team.bots.find((entry) => entry.id === routine.botId)
-                const lastStatus = routine.lastRun
-                  ? (routineRunStatus(routine.lastRun, tasks, statuses)?.label ?? null)
-                  : null
-                return (
-                  <div
-                    key={routine.id}
-                    className="flex items-center gap-3 border-t border-border px-4 py-3 first:border-t-0"
-                  >
-                    <button
-                      type="button"
-                      className="flex min-w-0 flex-1 items-center gap-3 text-left"
-                      onClick={() => onOpen(routine.id)}
-                    >
-                      <BotAgentIcon agent={bot?.agent} size={20} />
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-sm font-medium">{routine.name}</span>
-                        <span className="block text-xs text-muted-foreground">
-                          {`${routineScheduleLine(routine.schedule)}, ${bot?.name ?? ''}, ${routineAccessLabel(team).toLowerCase()}`}
-                        </span>
-                        <span className="block text-xs text-muted-foreground">
-                          {routineRunsLine(routine, lastStatus)}
-                        </span>
-                      </span>
-                    </button>
-                    <BotTeamRoutineSwitch routine={routine} onChanged={replace} />
-                  </div>
-                )
-              })}
-            </div>
+            <>
+              {active.length > 0 ? (
+                <div className="flex flex-col rounded-xl border border-border bg-card">
+                  {active.map((routine) => (
+                    <RoutineRow key={routine.id} routine={routine} {...rowProps} />
+                  ))}
+                </div>
+              ) : null}
+              {archived.length > 0 ? (
+                <Collapsible open={archiveOpen} onOpenChange={setArchiveOpen}>
+                  <CollapsibleTrigger className="flex items-center gap-1.5 py-1 text-sm font-semibold">
+                    {archiveOpen ? (
+                      <ChevronDown className="size-4" />
+                    ) : (
+                      <ChevronRight className="size-4" />
+                    )}
+                    {translate('components.botTeams.routinesArchived', 'Archived')}
+                    <span className="font-normal text-muted-foreground">{archived.length}</span>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="pt-2">
+                    <div className="flex flex-col rounded-xl border border-border bg-card">
+                      {archived.map((routine) => (
+                        <RoutineRow key={routine.id} routine={routine} archived {...rowProps} />
+                      ))}
+                    </div>
+                  </CollapsibleContent>
+                </Collapsible>
+              ) : null}
+            </>
           )}
           {webAddresses}
           <p className="text-xs text-muted-foreground">

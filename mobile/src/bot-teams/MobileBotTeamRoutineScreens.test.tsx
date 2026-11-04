@@ -236,6 +236,27 @@ describe('Routines on the phone', () => {
     expect(text(renderer)).toContain('Last run Mon 2 Nov, done. Paused.')
   })
 
+  it('goes back to the room when the list was opened from the room menu', async () => {
+    const client = host({
+      'botTeams.listRoutines': { routines: [ROUTINE] },
+      'botTeams.listWebhooks': { webhooks: [], endpoint: OFF }
+    })
+    const { renderer, props } = await render(client, {
+      name: 'routines',
+      teamId: 'team',
+      origin: 'room'
+    })
+    await press(renderer, 'Open Monday check-in')
+    expect(props.onScreen).toHaveBeenLastCalledWith({
+      name: 'routineRuns',
+      teamId: 'team',
+      routineId: 'r1',
+      origin: 'room'
+    })
+    await press(renderer, 'Back')
+    expect(props.onScreen).toHaveBeenLastCalledWith({ name: 'team', teamId: 'team' })
+  })
+
   it('says so on a host that cannot run routines', async () => {
     const { renderer } = await render(host({}), { name: 'routines', teamId: 'team' })
     expect(text(renderer)).toContain('This host cannot run routines yet.')

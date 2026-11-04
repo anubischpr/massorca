@@ -14,6 +14,7 @@ import {
   type BotTeamRoutineRun
 } from '../../../../../shared/rpc-contract/bot-team-routine-params'
 import { generateId } from '../generated-id'
+import { keptSchedule, requireTeamBot } from './bot-team-routine-input'
 import type { OrchestrationDb } from '../orchestration-db'
 
 // Plain functions over the database, not methods, so this store stays out of the shared method lists.
@@ -108,21 +109,8 @@ export function createBotTeamRoutine(
   input: BotTeamRoutineInput,
   now: number
 ): BotTeamRoutine {
-  const bot = db.db
-    .prepare('SELECT id FROM bot_team_bots WHERE id = ? AND team_id = ?')
-    .get(input.botId, input.teamId)
-  if (bot === undefined) {
-    throw new Error(`Bot ${input.botId} is not on team ${input.teamId}.`)
-  }
-  // A frequency keeps only the day it uses, so a stale day never changes when it runs.
-  const schedule: BotTeamRoutineSchedule = {
-    frequency: input.schedule.frequency,
-    time: input.schedule.time,
-    weekday: input.schedule.frequency === 'weekly' ? input.schedule.weekday : null,
-    monthDay: input.schedule.frequency === 'monthly' ? input.schedule.monthDay : null,
-    date: input.schedule.frequency === 'once' ? (input.schedule.date ?? null) : null,
-    timeZone: input.schedule.timeZone ?? null
-  }
+  requireTeamBot(db, input.teamId, input.botId)
+  const schedule = keptSchedule(input.schedule)
   const id = generateId('botroutine')
   db.db
     .prepare(

@@ -20,7 +20,13 @@ function identityLine({ team, bot }: Pick<CodeAnswerIdentity, 'team' | 'bot'>): 
  * a fixed order and the answer cites each one it used.
  */
 export function buildBotTeamCodeAnswerPrompt(
-  args: CodeAnswerIdentity & { projectName: string; canSearch: boolean; research: boolean }
+  args: CodeAnswerIdentity & {
+    projectName: string
+    canSearch: boolean
+    research: boolean
+    /** The sender's clock, so a day the question names is read on it. */
+    clock?: string | null
+  }
 ): string {
   const web = args.research
     ? args.canSearch
@@ -37,6 +43,7 @@ export function buildBotTeamCodeAnswerPrompt(
     ].join('\n'),
     `Answer in the same language as the question, in at most ten short sentences, as ${args.bot.name}.${web} End with a sources list under a heading in the language of the question (for example "Fuentes" for Spanish, "Sources" for English): the file paths you read for the repository (with the function or line when you know it), the Engram memories you used by title, and the OpenMetadata assets you used by name. List only sources you actually used; if the code does not answer the question, say so plainly instead of guessing.`,
     'You are read-only: do not edit, create or delete files, do not run commands that change anything, do not create tasks, and never call an OpenMetadata or any other tool that creates or changes anything.',
+    ...(args.clock ? [args.clock] : []),
     ...(args.projectContext ? [args.projectContext] : []),
     `Question from the person:\n${args.text}`,
     DATA_NOTE

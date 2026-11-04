@@ -34,7 +34,13 @@ describe('assignMobileBotTeamRequest', () => {
     })
     expect(sendRequest).toHaveBeenCalledWith(
       'botTeams.assignRequest',
-      { teamId: 'team_1', text: 'Count the stock', toTeamId: 'team_2', start: true },
+      {
+        teamId: 'team_1',
+        text: 'Count the stock',
+        toTeamId: 'team_2',
+        start: true,
+        timeZone: expect.any(String)
+      },
       expect.anything()
     )
     expect(filed).toEqual({ kind: 'filed', task: TASK, startError: null })
@@ -48,7 +54,7 @@ describe('assignMobileBotTeamRequest', () => {
     const filed = await assignMobileBotTeamRequest(client, { teamId: 'team_1', text: 'Hi' })
     expect(sendRequest).toHaveBeenCalledWith(
       'botTeams.assignRequest',
-      { teamId: 'team_1', text: 'Hi', start: true },
+      { teamId: 'team_1', text: 'Hi', start: true, timeZone: expect.any(String) },
       expect.anything()
     )
     expect(filed).toEqual({ kind: 'filed', task: TASK, startError: 'No API key' })
@@ -124,7 +130,8 @@ describe('assignMobileBotTeamRequest', () => {
         projectId: 'project_1',
         alsoNeeds: ['bot_3'],
         later: true,
-        start: true
+        start: true,
+        timeZone: expect.any(String)
       },
       expect.anything()
     )

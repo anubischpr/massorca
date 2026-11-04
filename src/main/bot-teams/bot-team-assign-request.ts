@@ -1,5 +1,6 @@
 import { chooseBotTeamOwner, findNamedProject } from '../../shared/bot-team-owner-selection'
 import type { BotTeamRequestChoice } from '../../shared/bot-team-request-choice'
+import { botTeamClockNote } from '../../shared/bot-team-person-clock'
 import { botTeamRequestTiming } from '../../shared/bot-team-request-later'
 import {
   botTeamRoomAttachmentsNote,
@@ -43,6 +44,8 @@ export type BotTeamRequestFiling = {
   attachments?: BotTeamRoomAttachment[]
   /** The room message that asked, kept with a task sent to another team so its card sits under it. */
   originMessageId?: string
+  /** The sender's zone: the task's start notes keep the clock the request was asked on. */
+  timeZone?: string | null
 }
 
 export type BotTeamFiling = {
@@ -68,13 +71,18 @@ export async function startFiled(
   }
 }
 
-/** The task's start notes: a composite task's parts, then the files the person attached. */
+/** The task's start notes: the person's clock, a composite task's parts, then the files attached. */
 function taskStartNotes(
   bots: Parameters<typeof botTeamCompositeNotes>[0],
   alsoNeeds: readonly string[],
-  attachments: readonly BotTeamRoomAttachment[]
+  attachments: readonly BotTeamRoomAttachment[],
+  clock: string | null
 ): string | null {
-  const notes = [botTeamCompositeNotes(bots, alsoNeeds), botTeamRoomAttachmentsNote(attachments)]
+  const notes = [
+    clock,
+    botTeamCompositeNotes(bots, alsoNeeds),
+    botTeamRoomAttachmentsNote(attachments)
+  ]
   const present = notes.filter((note): note is string => note !== null)
   return present.length > 0 ? present.join('\n\n') : null
 }
@@ -141,9 +149,15 @@ export async function fileBotTeamRequest(
     db.setBotTeamTaskOrigin(created.id, input.teamId, input.originMessageId ?? null)
   }
   // Saved with the task, so the owner reads it whether the task starts now or from Todo later.
+  // The clock is the one the request was asked on, so "mañana" stays the day it meant.
   db.setBotTeamTaskStartNotes(
     created.id,
-    taskStartNotes(receiving.bots, alsoNeeds, input.attachments ?? [])
+    taskStartNotes(
+      receiving.bots,
+      alsoNeeds,
+      input.attachments ?? [],
+      botTeamClockNote(Date.now(), input.timeZone)
+    )
   )
   // Read again: the project was set after the task was created.
   const task = db.getBotTeamTask(created.id)

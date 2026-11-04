@@ -124,7 +124,8 @@ export async function postBotTeamRequestOnHost(
         later,
         askProject: false,
         attachments,
-        originMessageId: message.id
+        originMessageId: message.id,
+        timeZone: timeZone ?? null
       },
       startTask
     )
@@ -140,7 +141,8 @@ export async function postBotTeamRequestOnHost(
       text: botTeamRoomTextWithAttachments(text, attachments),
       subjectBotIds: decision.subjectBotIds,
       research: classifyReply !== null && parseBotTeamClassifyResearch(classifyReply),
-      code: classifyReply !== null && parseBotTeamClassifyCode(classifyReply)
+      code: classifyReply !== null && parseBotTeamClassifyCode(classifyReply),
+      timeZone: timeZone ?? null
     })
     if (!started) {
       return { message, task: null, startError: null }
@@ -194,7 +196,8 @@ export async function postBotTeamRequestOnHost(
       start,
       later,
       askProject,
-      attachments
+      attachments,
+      timeZone: timeZone ?? null
     },
     startTask
   )

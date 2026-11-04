@@ -10,6 +10,7 @@ import {
   recordBotTeamRoutineRun,
   setBotTeamRoutinePaused
 } from './bot-team-routine-store'
+import { deleteBotTeamRoutine, updateBotTeamRoutine } from './bot-team-routine-edit'
 
 const at = (month: number, day: number, hour = 0, minute = 0): number =>
   new Date(2026, month - 1, day, hour, minute).getTime()
@@ -194,6 +195,52 @@ describe('bot team routine store', () => {
     // Resuming a past one-time routine does not run it again.
     setBotTeamRoutinePaused(db, routine.id, true, at(11, 5, 0, 0))
     expect(setBotTeamRoutinePaused(db, routine.id, false, at(11, 5, 0, 0)).nextRun).toBeNull()
+  })
+
+  it('edits a finished one-time routine with a new date, so it runs again', () => {
+    const { db, team, input } = setup()
+    const schedule = { frequency: 'once', time: '10:00', weekday: null, monthDay: null } as const
+    const routine = createBotTeamRoutine(
+      db,
+      { ...input, schedule: { ...schedule, date: '2026-11-04' } },
+      at(11, 3, 12, 0)
+    )
+    claimDueBotTeamRoutines(db, at(11, 4, 10, 1))
+    expect(listBotTeamRoutines(db, team.id)[0]?.nextRun).toBeNull()
+    const edited = updateBotTeamRoutine(
+      db,
+      {
+        routineId: routine.id,
+        botId: input.botId,
+        name: 'Front review again',
+        prompt: 'Review it again.',
+        schedule: { ...schedule, weekday: 2, date: '2026-11-10' }
+      },
+      at(11, 5, 0, 0)
+    )
+    expect(edited).toMatchObject({
+      name: 'Front review again',
+      prompt: 'Review it again.',
+      schedule: { frequency: 'once', weekday: null, date: '2026-11-10' },
+      nextRun: { date: '2026-11-10', time: '10:00' }
+    })
+    expect(() =>
+      updateBotTeamRoutine(db, { ...input, routineId: routine.id, botId: 'nobody' }, at(11, 5))
+    ).toThrow(/is not on team/)
+  })
+
+  it('deletes a routine with its runs, and nothing else', () => {
+    const { db, team, input } = setup()
+    const kept = createBotTeamRoutine(db, { ...input, name: 'Kept' }, at(11, 1, 12, 0))
+    const gone = createBotTeamRoutine(db, input, at(11, 1, 12, 0))
+    for (const claimed of claimDueBotTeamRoutines(db, at(11, 2, 9, 1))) {
+      recordBotTeamRoutineRun(db, claimed.runId, { taskId: 'task-1', error: null })
+    }
+    deleteBotTeamRoutine(db, gone.id)
+    expect(listBotTeamRoutines(db, team.id).map((routine) => routine.id)).toEqual([kept.id])
+    expect(listBotTeamRoutineRuns(db, gone.id)).toEqual([])
+    expect(listBotTeamRoutineRuns(db, kept.id)).toHaveLength(1)
+    expect(() => deleteBotTeamRoutine(db, gone.id)).toThrow(/was not found/)
   })
 
   it('runs a routine on the clock of the zone it was made in, whatever the host clock is', () => {
