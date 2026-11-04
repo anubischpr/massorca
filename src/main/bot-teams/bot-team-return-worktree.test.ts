@@ -83,7 +83,7 @@ describe('returnFinishedBotTeamTask for a task that ran in a linked worktree', (
     return worktree
   }
 
-  it('copies the text files a linked worktree changed, and names its branch, folder and the files it did not copy', async () => {
+  it('copies the files a linked worktree changed, binary ones too, and names its branch, folder and the files over the size limit', async () => {
     const { db, asking, owning, deps } = setup()
     const worktree = linkedWorktree()
     writeFileSync(path.join(worktree, 'summary.md'), 'Counted 42')
@@ -97,12 +97,13 @@ describe('returnFinishedBotTeamTask for a task that ran in a linked worktree', (
 
     const posted = db.listBotTeamMessages(asking.id).find((m) => m.fromTeamId === owning.id)
     expect(posted?.attachments).toEqual([
+      { path: 'attachments/from-warehouse-boxes.xlsx', name: 'boxes.xlsx' },
       { path: 'attachments/from-warehouse-summary.md', name: 'summary.md' }
     ])
     expect(posted?.text).toContain('Bea finished "Count boxes".')
     expect(posted?.text).toContain('delegated/count')
     expect(posted?.text).toContain(worktree)
-    expect(posted?.text).toContain('boxes.xlsx')
+    expect(posted?.text).not.toContain('boxes.xlsx')
     expect(posted?.text).toContain('video.bin')
   })
 

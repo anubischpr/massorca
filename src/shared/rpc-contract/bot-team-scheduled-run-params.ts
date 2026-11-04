@@ -36,8 +36,12 @@ export const BotTeamScheduledRunSchema = z.object({
   frequency: z.enum(BOT_TEAM_ROUTINE_FREQUENCIES),
   /** Epoch ms of the run. */
   at: z.number(),
-  /** The same moment as the host's clock reads it. */
-  hostTime: z.object({ date: z.string(), time: z.string() })
+  /** The same moment as the host's clock reads it. A viewer places the run by `at`, in their own zone. */
+  hostTime: z.object({ date: z.string(), time: z.string() }),
+  /** The zone the routine was made in, when it has one; absent from older hosts. */
+  timeZone: z.string().optional(),
+  /** The same moment on the routine's clock, when it has a zone. */
+  routineTime: z.object({ date: z.string(), time: z.string() }).optional()
 })
 
 export const BotTeamScheduledRunsResult = z.object({

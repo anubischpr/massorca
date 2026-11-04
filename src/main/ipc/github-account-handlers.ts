@@ -14,6 +14,7 @@ import {
 import { getRateLimit } from '../github/rate-limit'
 import { inferRepoGhAccount } from '../github/gh-account-repo-inference'
 import { listGhAccountOrgs } from '../github/gh-account-orgs'
+import { switchGhActiveAccount } from '../github/gh-account-switch'
 import type { Store } from '../persistence'
 import { getCohortAtEmit } from '../telemetry/cohort-classifier'
 import { track } from '../telemetry/client'
@@ -99,6 +100,15 @@ export function registerGitHubAccountHandlers(store: Store): void {
   // Why: no repo exists yet during add-project, so accounts come from the host (or a WSL distro).
   ipcMain.handle('gh:listHostBindableAccounts', (_event, args?: { wslDistro?: string }) =>
     listGhAccountBindingInventory(args?.wslDistro ? { wslDistro: args.wslDistro } : {}, {})
+  )
+
+  ipcMain.handle(
+    'gh:switchActiveAccount',
+    (_event, args: { host: string; user: string; wslDistro?: string }) =>
+      switchGhActiveAccount(
+        { host: args?.host, user: args?.user },
+        args?.wslDistro ? { wslDistro: args.wslDistro } : {}
+      )
   )
 
   ipcMain.handle(

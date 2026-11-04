@@ -23,9 +23,11 @@ function team(id: string, name: string): BotTeam {
 const listBotTeams = vi.hoisted(() => vi.fn())
 const listBotTeamRoom = vi.hoisted(() => vi.fn())
 const statuses = vi.hoisted(() => ({ current: new Map<string, { status: string }>() }))
+const listBotTeamFiles = vi.hoisted(() => vi.fn(async () => ({ files: [], truncated: false })))
 vi.mock('@/runtime/runtime-bot-team-client', () => ({
   listBotTeams,
   listBotTeamRoom,
+  listBotTeamFiles,
   setBotTeamProjectWorkspace: vi.fn()
 }))
 vi.mock('@/runtime/runtime-bot-team-project-client', () => ({

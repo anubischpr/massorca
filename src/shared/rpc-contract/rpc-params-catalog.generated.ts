@@ -76,6 +76,7 @@ import {
   BotTeamAgentTaskCreate
 } from './bot-team-agent-params'
 import { BotTeamEngramList } from './bot-team-engram-params'
+import { BotTeamProjectFilesSelector } from './bot-team-files-project-params'
 import { BotTeamMemoryDelete, BotTeamMemoryList } from './bot-team-memory-params'
 import {
   BotTeamAddBot,
@@ -106,7 +107,8 @@ import {
   BotTeamRoutineCreate,
   BotTeamRoutineList,
   BotTeamRoutineSelector,
-  BotTeamRoutineSetPaused
+  BotTeamRoutineSetPaused,
+  BotTeamRoutineUpdate
 } from './bot-team-routine-params'
 import { BotTeamScheduledRunsQuery } from './bot-team-scheduled-run-params'
 import {
@@ -761,6 +763,7 @@ export const RPC_PARAMS_BY_METHOD = {
   'botTeams.delete': BotTeamSelector,
   'botTeams.deleteMemory': BotTeamMemoryDelete,
   'botTeams.deleteProject': BotTeamProjectDelete,
+  'botTeams.deleteRoutine': BotTeamRoutineSelector,
   'botTeams.fileVersions': BotTeamFileVersionsSelector,
   'botTeams.list': null,
   'botTeams.listEngramMemory': BotTeamEngramList,
@@ -772,6 +775,7 @@ export const RPC_PARAMS_BY_METHOD = {
   'botTeams.listScheduledRuns': BotTeamScheduledRunsQuery,
   'botTeams.listWebhooks': BotTeamWebhookList,
   'botTeams.postMessage': BotTeamMessagePost,
+  'botTeams.projectFiles': BotTeamProjectFilesSelector,
   'botTeams.reassignTask': BotTeamTaskReassign,
   'botTeams.removeBot': BotTeamRemoveBot,
   'botTeams.replaceWebhookSecret': BotTeamWebhookSelector,
@@ -786,6 +790,7 @@ export const RPC_PARAMS_BY_METHOD = {
   'botTeams.update': BotTeamUpdate,
   'botTeams.updateBot': BotTeamUpdateBot,
   'botTeams.updateProject': BotTeamProjectUpdate,
+  'botTeams.updateRoutine': BotTeamRoutineUpdate,
   'botTeams.versionFile': BotTeamVersionFileSelector,
   'botTeams.versions': BotTeamVersionsSelector,
   'botTeams.workspace': BotTeamRoomSelector,

@@ -11,7 +11,8 @@ globalThis.IS_REACT_ACT_ENVIRONMENT = true
 
 const client = vi.hoisted(() => ({
   listBotTeamRoutines: vi.fn(),
-  setBotTeamRoutinePaused: vi.fn()
+  setBotTeamRoutinePaused: vi.fn(),
+  deleteBotTeamRoutine: vi.fn()
 }))
 const listBotTeamRoom = vi.hoisted(() => vi.fn())
 const statuses = vi.hoisted(() => ({ current: new Map() }))
@@ -87,16 +88,19 @@ async function mount(listed: BotTeamRoutine[] | 'unavailable', extras = {}) {
   })
   const onNew = vi.fn()
   const onOpen = vi.fn()
+  const onEdit = vi.fn()
   const container = document.createElement('div')
   document.body.append(container)
   const root = createRoot(container)
   mounted.push({ container, root })
   await act(async () =>
-    root.render(<BotTeamRoutines team={TEAM} onNew={onNew} onOpen={onOpen} {...extras} />)
+    root.render(
+      <BotTeamRoutines team={TEAM} onNew={onNew} onOpen={onOpen} onEdit={onEdit} {...extras} />
+    )
   )
   const button = (name: string): HTMLButtonElement | undefined =>
     [...container.querySelectorAll('button')].find((entry) => entry.textContent?.trim() === name)
-  return { container, button, onNew, onOpen }
+  return { container, button, onNew, onOpen, onEdit }
 }
 
 describe('Routines', () => {
@@ -119,6 +123,35 @@ describe('Routines', () => {
     ])
     expect(container.textContent).toContain('Not run yet. Next run')
     expect(container.textContent).toContain('Paused.')
+  })
+
+  it('shows a one-time routine with its date, and as done or past once its moment is gone', async () => {
+    const once = { frequency: 'once', time: '10:00', weekday: null, monthDay: null } as const
+    const { container } = await mount([
+      routine({ name: 'Front review', schedule: { ...once, date: '2026-11-04' }, lastRun: null }),
+      routine({
+        id: 'r2',
+        name: 'Copy review',
+        schedule: { ...once, date: '2026-11-02' },
+        nextRun: null
+      }),
+      routine({
+        id: 'r3',
+        name: 'Missed',
+        schedule: { ...once, date: '2026-11-01' },
+        nextRun: null,
+        lastRun: null
+      })
+    ])
+    const archive = [...container.querySelectorAll('button')].find((entry) =>
+      entry.textContent?.startsWith('Archived')
+    )
+    act(() => archive?.click())
+    const text = container.textContent ?? ''
+    expect(text).toMatch(/Once on .+ at 10:00, Nora/)
+    expect(text).toContain('Not run yet. Next run')
+    expect(text).toMatch(/Done\. Ran .+, not started\./)
+    expect(text).toContain('Past. It did not run.')
   })
 
   it('opens a routine and starts a new one', async () => {
@@ -156,6 +189,67 @@ describe('Routines', () => {
     const { container, button } = await mount('unavailable')
     expect(container.textContent).toContain('This host cannot run routines yet.')
     expect(button('New routine')).toBeUndefined()
+  })
+
+  it('archives a Once routine that ran, in a section closed by default with its count', async () => {
+    const once = { frequency: 'once', time: '15:00', weekday: null, monthDay: null } as const
+    const { container, button } = await mount([
+      routine(),
+      routine({
+        id: 'r2',
+        name: 'Launch flyer',
+        schedule: { ...once, date: '2026-11-03' },
+        nextRun: null
+      })
+    ])
+    const archive = [...container.querySelectorAll('button')].find((entry) =>
+      entry.textContent?.startsWith('Archived')
+    )
+    expect(archive?.textContent).toBe('Archived1')
+    expect(archive?.getAttribute('aria-expanded')).toBe('false')
+    expect(container.textContent).not.toContain('Launch flyer')
+    act(() => archive?.click())
+    expect(container.textContent).toContain('Launch flyer')
+    // An archived routine has no On and Paused switch: only the active one does.
+    expect(
+      [...container.querySelectorAll('button')].filter((entry) => entry.textContent === 'Paused')
+    ).toHaveLength(1)
+    expect(button('Paused')).toBeDefined()
+  })
+
+  it('edits a routine from its menu', async () => {
+    const { container, onEdit } = await mount([routine()])
+    const menu = container.querySelector<HTMLButtonElement>('[aria-label="Routine actions"]')
+    act(() => {
+      menu?.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0 }))
+    })
+    const edit = [...document.querySelectorAll('[role="menuitem"]')].find(
+      (entry) => entry.textContent === 'Edit'
+    )
+    act(() => (edit as HTMLElement | undefined)?.click())
+    expect(onEdit).toHaveBeenCalledWith('r1')
+  })
+
+  it('deletes a routine only after the dialog confirms it', async () => {
+    client.deleteBotTeamRoutine.mockResolvedValue(undefined)
+    const { container } = await mount([routine()])
+    const menu = container.querySelector<HTMLButtonElement>('[aria-label="Routine actions"]')
+    act(() => {
+      menu?.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0 }))
+    })
+    const remove = [...document.querySelectorAll('[role="menuitem"]')].find(
+      (entry) => entry.textContent === 'Delete'
+    )
+    act(() => (remove as HTMLElement | undefined)?.click())
+    const dialog = document.querySelector('[role="alertdialog"]')
+    expect(dialog?.textContent).toContain('Delete Monday check-in?')
+    expect(client.deleteBotTeamRoutine).not.toHaveBeenCalled()
+    const confirm = [...(dialog?.querySelectorAll('button') ?? [])].find(
+      (entry) => entry.textContent === 'Delete'
+    )
+    await act(async () => confirm?.click())
+    expect(client.deleteBotTeamRoutine).toHaveBeenCalledWith('r1')
+    expect(container.textContent).not.toContain('Monday check-in')
   })
 
   it('leaves room for the web addresses under the routines', async () => {

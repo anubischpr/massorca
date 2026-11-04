@@ -232,6 +232,15 @@ describe('composer goal mode', () => {
     expect(calls.sendStructured).toHaveBeenCalledWith('hello', [])
   })
 
+  it('tells the agent to use an app the message names', () => {
+    const { hook, calls } = harness({ draft: 'check it with @GitHub' })
+    act(() => hook.result.current.send())
+    expect(calls.sendStructured).toHaveBeenCalledWith(
+      'check it with @GitHub\n\nUse GitHub (the gh command) for this request.',
+      []
+    )
+  })
+
   it('leaves the PTY lane alone: every draft goes to the PTY send, and goal mode never activates', () => {
     const { hook, calls } = harness({ draft: '/goal', lane: 'pty' })
     act(() => hook.result.current.send())

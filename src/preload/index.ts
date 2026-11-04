@@ -40,6 +40,8 @@ import { claudeAccountsApi } from './api/claude-accounts-bridge'
 import { cliApi } from './api/cli-bridge'
 import { codexConfigSyncApi } from './api/codex-config-sync-bridge'
 import { preflightApi } from './api/preflight-bridge'
+import { marketplaceApi } from './api/marketplace-bridge'
+import { marketplaceAppsApi } from './api/marketplace-apps-bridge'
 import { notificationsApi } from './api/notifications-bridge'
 import { onboardingApi } from './api/onboarding-bridge'
 import { dashboardApi } from './api/dashboard-bridge'
@@ -144,6 +146,8 @@ const api = {
   cli: cliApi,
   codexConfigSync: codexConfigSyncApi,
   preflight: preflightApi,
+  marketplace: marketplaceApi,
+  marketplaceApps: marketplaceAppsApi,
   notifications: notificationsApi,
   onboarding: onboardingApi,
   dashboard: dashboardApi,

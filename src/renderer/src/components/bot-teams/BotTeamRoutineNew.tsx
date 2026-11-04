@@ -1,21 +1,29 @@
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
+import { DatePicker } from '@/components/ui/date-picker'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { translate } from '@/i18n/i18n'
-import { createBotTeamRoutine } from '@/runtime/runtime-bot-team-client-routines'
+import {
+  createBotTeamRoutine,
+  updateBotTeamRoutine
+} from '@/runtime/runtime-bot-team-client-routines'
 import { useAppStore } from '@/store'
 import {
   BOT_TEAM_ROUTINE_FREQUENCIES,
   BOT_TEAM_ROUTINE_MAX_MONTH_DAY,
+  hostWallTime,
   type BotTeamRoutineFrequency
 } from '../../../../shared/bot-team-routine-schedule'
+import { localTimeZone } from '../../../../shared/bot-team-routine-zone'
 import type { BotTeam } from '../../../../shared/rpc-contract/bot-team-params'
+import type { BotTeamRoutine } from '../../../../shared/rpc-contract/bot-team-routine-params'
 import { BotAgentIcon } from './BotAgentIcon'
 import { ROUTINE_WEEKDAYS, routineAccessLabel, routineWeekdayName } from './BotTeamRoutineLabels'
+import { BotTeamRoutineTimePicker } from './BotTeamRoutineTimePicker'
 import { BotTeamViewHeader } from './BotTeamViewHeader'
 
 function frequencyLabel(frequency: BotTeamRoutineFrequency): string {
@@ -26,35 +34,58 @@ function frequencyLabel(frequency: BotTeamRoutineFrequency): string {
       return translate('components.botTeams.routineEveryWeekChoice', 'Every week')
     case 'monthly':
       return translate('components.botTeams.routineEveryMonthChoice', 'Every month')
+    case 'once':
+      return translate('components.botTeams.routineOnceChoice', 'Once')
   }
+}
+
+/** Tomorrow on this computer's clock, as a date input reads it. */
+function tomorrowDate(): string {
+  return hostWallTime(Date.now() + 86_400_000).date
 }
 
 const MONTH_DAYS = Array.from({ length: BOT_TEAM_ROUTINE_MAX_MONTH_DAY }, (_, index) => index + 1)
 
-/** New routine (board 41): what it does, when, and which bot does it. */
+/** New routine (board 41), or Edit routine (board 57) filled in: what it does, when, and which bot does it. */
 export function BotTeamRoutineNew({
   team,
+  routine,
   onBack,
   onCreated
 }: {
   team: BotTeam
+  /** The routine Edit opens; absent for a new one. */
+  routine?: BotTeamRoutine
   onBack: () => void
   onCreated: () => void
 }): React.JSX.Element {
   const openSettingsTarget = useAppStore((state) => state.openSettingsTarget)
-  const [name, setName] = useState('')
-  const [prompt, setPrompt] = useState('')
-  const [frequency, setFrequency] = useState<BotTeamRoutineFrequency>('weekly')
-  const [time, setTime] = useState('09:00')
-  const [weekday, setWeekday] = useState(1)
-  const [monthDay, setMonthDay] = useState(1)
-  const [botId, setBotId] = useState(team.bots[0]?.id ?? '')
+  const schedule = routine?.schedule
+  const [name, setName] = useState(routine?.name ?? '')
+  const [prompt, setPrompt] = useState(routine?.prompt ?? '')
+  const [frequency, setFrequency] = useState<BotTeamRoutineFrequency>(
+    schedule?.frequency ?? 'weekly'
+  )
+  const [time, setTime] = useState(schedule?.time ?? '09:00')
+  const [weekday, setWeekday] = useState(schedule?.weekday ?? 1)
+  const [monthDay, setMonthDay] = useState(schedule?.monthDay ?? 1)
+  const [today] = useState(() => hostWallTime(Date.now()).date)
+  // A day already past, as an archived Once routine has, starts over from tomorrow.
+  const [date, setDate] = useState(() =>
+    schedule?.date && schedule.date > today ? schedule.date : tomorrowDate()
+  )
+  const zone = localTimeZone()
+  const [botId, setBotId] = useState(routine?.botId ?? team.bots[0]?.id ?? '')
   const bot = team.bots.find((entry) => entry.id === botId)
-  const ready = name.trim() !== '' && prompt.trim() !== '' && time !== '' && bot !== undefined
+  const ready =
+    name.trim() !== '' &&
+    prompt.trim() !== '' &&
+    time !== '' &&
+    bot !== undefined &&
+    (frequency !== 'once' || date !== '')
   const create = async (): Promise<void> => {
     try {
-      await createBotTeamRoutine({
-        teamId: team.id,
+      const fields = {
         botId,
         name: name.trim(),
         prompt: prompt.trim(),
@@ -62,18 +93,26 @@ export function BotTeamRoutineNew({
           frequency,
           time,
           weekday: frequency === 'weekly' ? weekday : null,
-          monthDay: frequency === 'monthly' ? monthDay : null
+          monthDay: frequency === 'monthly' ? monthDay : null,
+          date: frequency === 'once' ? date : null,
+          timeZone: zone
         }
-      })
+      }
+      await (routine
+        ? updateBotTeamRoutine({ routineId: routine.id, ...fields })
+        : createBotTeamRoutine({ teamId: team.id, ...fields }))
       onCreated()
     } catch (error) {
       toast.error(error instanceof Error ? error.message : String(error))
     }
   }
+  const heading = routine
+    ? translate('components.botTeams.editRoutine', 'Edit routine')
+    : translate('components.botTeams.newRoutine', 'New routine')
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <BotTeamViewHeader
-        title={translate('components.botTeams.newRoutine', 'New routine')}
+        title={heading}
         detail={team.name}
         backLabel={translate('components.botTeams.routines', 'Routines')}
         onBack={onBack}
@@ -81,9 +120,7 @@ export function BotTeamRoutineNew({
       <div className="scrollbar-sleek min-h-0 flex-1 overflow-y-auto">
         <div className="mx-auto flex w-full max-w-[736px] flex-col gap-5 px-4 py-8">
           <div>
-            <h1 className="text-xl font-semibold">
-              {translate('components.botTeams.newRoutine', 'New routine')}
-            </h1>
+            <h1 className="text-xl font-semibold">{heading}</h1>
             <p className="mt-1 text-sm text-muted-foreground">
               {translate(
                 'components.botTeams.newRoutineHelp',
@@ -137,14 +174,17 @@ export function BotTeamRoutineNew({
                   </ToggleGroupItem>
                 ))}
               </ToggleGroup>
-              <Input
-                type="time"
-                className="w-28"
-                aria-label={translate('components.botTeams.routineTime', 'Time')}
-                value={time}
-                onChange={(event) => setTime(event.target.value)}
-              />
+              {frequency === 'once' ? (
+                <DatePicker
+                  aria-label={translate('components.botTeams.routineDate', 'Date')}
+                  value={date}
+                  today={today}
+                  min={today}
+                  onChange={setDate}
+                />
+              ) : null}
             </div>
+            <BotTeamRoutineTimePicker value={time} onChange={setTime} />
             {frequency === 'weekly' ? (
               <div className="flex flex-wrap gap-1.5 pt-1">
                 {ROUTINE_WEEKDAYS.map((day) => (
@@ -178,11 +218,17 @@ export function BotTeamRoutineNew({
               </div>
             ) : null}
             <p className="text-xs text-muted-foreground">
-              {translate(
-                'components.botTeams.routineClockHelp',
-                'Runs at this time, on the clock of the host {{team}} uses.',
-                { team: team.name }
-              )}
+              {zone === null
+                ? translate(
+                    'components.botTeams.routineClockHelp',
+                    'Runs at this time, on the clock of the host {{team}} uses.',
+                    { team: team.name }
+                  )
+                : translate(
+                    'components.botTeams.routineZoneHelp',
+                    'Runs at this time in {{zone}}, your time zone, wherever the host is.',
+                    { zone }
+                  )}
             </p>
           </div>
           <div className="flex flex-col gap-1.5">
@@ -230,7 +276,9 @@ export function BotTeamRoutineNew({
               {translate('components.botTeams.cancel', 'Cancel')}
             </Button>
             <Button disabled={!ready} onClick={() => void create()}>
-              {translate('components.botTeams.createRoutine', 'Create routine')}
+              {routine
+                ? translate('components.botTeams.saveRoutine', 'Save')
+                : translate('components.botTeams.createRoutine', 'Create routine')}
             </Button>
           </div>
         </div>

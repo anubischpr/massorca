@@ -25,6 +25,11 @@ vi.mock('@/runtime/runtime-bot-team-client', () => ({
   restoreBotTeamFileVersion: vi.fn()
 }))
 vi.mock('./bot-team-file-preview-read', () => ({ readBotTeamFilePreview }))
+vi.mock('@/runtime/runtime-bot-team-client-project-files', () => ({
+  listBotTeamProjectFiles: vi.fn(async () => 'unavailable'),
+  readBotTeamProjectFile: vi.fn(),
+  readBotTeamProjectFilePreview: vi.fn()
+}))
 vi.mock('@/i18n/i18n', () => ({
   translate: (_key: string, fallback: string, values?: Record<string, string>) =>
     fallback.replace(/\{\{(\w+)\}\}/g, (_all, name: string) => values?.[name] ?? '')
@@ -120,7 +125,7 @@ describe('the Files of a team', () => {
   })
 
   it('marks a file that arrived after the first listing, until the person opens it', async () => {
-    useBotTeamSeenFilesStore.setState({ seen: { t1: ['flyer.html'] } })
+    useBotTeamSeenFilesStore.setState({ seen: { t1: ['team:flyer.html'] } })
     listBotTeamFiles.mockResolvedValue({
       files: [
         { relativePath: 'flyer.html', basename: 'flyer.html', kind: 'text' },
@@ -136,6 +141,6 @@ describe('the Files of a team', () => {
 
     await act(async () => rowFor(container, 'deck.html').click())
 
-    expect(useBotTeamSeenFilesStore.getState().seen.t1).toContain('deck.html')
+    expect(useBotTeamSeenFilesStore.getState().seen.t1).toContain('team:deck.html')
   })
 })

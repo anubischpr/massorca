@@ -1,38 +1,8 @@
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from '@/components/ui/select'
 import { Label } from '@/components/ui/label'
 import { translate } from '@/i18n/i18n'
 import { BOT_TEAM_LOCAL_HOST, useBotTeamHost, useBotTeamHostStore } from '@/runtime/bot-team-host'
-import {
-  runtimeHostConnectionStateForEntry,
-  type RuntimeHostConnectionState
-} from '@/runtime/runtime-host-connection-state'
-import StatusIndicator, { type Status } from '@/components/sidebar/StatusIndicator'
+import { RuntimeHostSelect } from '@/components/runtime-host/RuntimeHostSelect'
 import { useAppStore } from '@/store'
-
-function hostGlyph(state: RuntimeHostConnectionState): Status {
-  return state === 'connected' ? 'active' : 'inactive'
-}
-
-/** Never "stopped": losing contact says nothing about what the bots on that host are doing. */
-function hostStateLabel(state: RuntimeHostConnectionState): string {
-  switch (state) {
-    case 'connected':
-      return translate('components.botTeams.hostConnected', 'Connected')
-    case 'checking':
-    case 'reconnecting':
-      return translate('components.botTeams.hostChecking', 'Checking')
-    case 'runtime-unavailable':
-    case 'workspace-window-closed':
-    case 'disconnected':
-      return translate('components.botTeams.hostNotReachable', 'Not reachable')
-  }
-}
 
 // A purchased server arrives as one more paired environment, so it needs no case of its own here.
 function HostSelect({ id }: { id?: string }): React.JSX.Element {
@@ -41,30 +11,15 @@ function HostSelect({ id }: { id?: string }): React.JSX.Element {
   const environments = useAppStore((state) => state.runtimeEnvironments)
   const statuses = useAppStore((state) => state.runtimeStatusByEnvironmentId)
   return (
-    <Select value={host} onValueChange={choose}>
-      <SelectTrigger id={id} size="sm" aria-label={translate('components.botTeams.host', 'Host')}>
-        <SelectValue />
-      </SelectTrigger>
-      <SelectContent>
-        {environments.map((environment) => {
-          const state = runtimeHostConnectionStateForEntry(statuses.get(environment.id))
-          return (
-            <SelectItem key={environment.id} value={environment.id}>
-              <StatusIndicator status={hostGlyph(state)} showTooltip={false} />
-              {environment.name}
-              <span className="text-xs text-muted-foreground">{hostStateLabel(state)}</span>
-            </SelectItem>
-          )
-        })}
-        <SelectItem value={BOT_TEAM_LOCAL_HOST}>
-          <StatusIndicator status="active" showTooltip={false} />
-          {translate('components.botTeams.thisComputer', 'This computer')}
-          <span className="text-xs text-muted-foreground">
-            {translate('components.botTeams.hostHere', 'Here')}
-          </span>
-        </SelectItem>
-      </SelectContent>
-    </Select>
+    <RuntimeHostSelect
+      id={id}
+      ariaLabel={translate('components.botTeams.host', 'Host')}
+      value={host}
+      localValue={BOT_TEAM_LOCAL_HOST}
+      onValueChange={choose}
+      environments={environments}
+      statuses={statuses}
+    />
   )
 }
 

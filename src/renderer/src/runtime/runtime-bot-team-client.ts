@@ -1,5 +1,6 @@
 import type { BotTeamRoomAttachment } from '../../../shared/bot-team-room-attachments'
 import type { BotTeamRequestChoice } from '../../../shared/bot-team-request-choice'
+import { withSenderTimeZone } from '../../../shared/bot-team-routine-zone'
 import type {
   BotDraftInput,
   BotTeam,
@@ -144,7 +145,8 @@ export async function postBotTeamRequest(input: {
   /** The person asked for the work later: it waits in Todo and nothing starts. */
   later?: boolean
 }> {
-  return postWithFileNamesIfTextRequired(input, (next) => call('botTeams.postMessage', next))
+  const sent = withSenderTimeZone(input)
+  return postWithFileNamesIfTextRequired(sent, (next) => call('botTeams.postMessage', next))
 }
 
 /** What the person answered on a choice card, or the project question, for one held request. */
@@ -169,7 +171,7 @@ export function fileBotTeamRequest(input: BotTeamRequestFiling): Promise<{
   startError: string | null
   choice?: BotTeamRequestChoice
 }> {
-  return call('botTeams.assignRequest', input)
+  return call('botTeams.assignRequest', withSenderTimeZone(input))
 }
 
 export async function startBotTeamTask(taskId: string): Promise<BotTeamTask> {

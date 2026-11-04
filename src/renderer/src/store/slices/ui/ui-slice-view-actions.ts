@@ -1,5 +1,6 @@
 import type { UISlice, UISliceGet, UISliceSet } from './ui-slice-contract'
 import { rewindHistoryIndexPastView } from '../worktree-nav-history'
+import { createUiMarketplaceActions } from './ui-slice-marketplace-actions'
 
 export function createUiViewActions(set: UISliceSet, get: UISliceGet): Partial<UISlice> {
   return {
@@ -164,7 +165,24 @@ export function createUiViewActions(set: UISliceSet, get: UISliceGet): Partial<U
       set((state) => ({
         activeView: state.previousViewBeforeMobile
       })),
+    // Why: no visit is recorded, like Mobile, so back/forward history skips Marketplace.
+    openMarketplacePage: () =>
+      set((state) => ({
+        activeView: 'marketplace',
+        previousViewBeforeMarketplace:
+          state.activeView === 'marketplace'
+            ? state.previousViewBeforeMarketplace
+            : state.activeView,
+        // Why: entering from another page opens the catalog, not the app page left open last time.
+        marketplaceSelectedItemId:
+          state.activeView === 'marketplace' ? state.marketplaceSelectedItemId : null
+      })),
+    closeMarketplacePage: () =>
+      set((state) => ({
+        activeView: state.previousViewBeforeMarketplace
+      })),
     setNewWorkspaceDraft: (draft) => set({ newWorkspaceDraft: draft }),
-    clearNewWorkspaceDraft: () => set({ newWorkspaceDraft: null })
+    clearNewWorkspaceDraft: () => set({ newWorkspaceDraft: null }),
+    ...createUiMarketplaceActions(set)
   }
 }

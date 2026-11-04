@@ -1,6 +1,7 @@
 import type {
   GhAccountBindingInventory,
-  GhAccountBindingValidationResult
+  GhAccountBindingValidationResult,
+  GhActiveAccountSwitchResult
 } from '../../shared/github/auth-types'
 import type {
   GhAccountGitConfigResult,
@@ -32,6 +33,11 @@ export type GithubAccountApi = {
     repoId?: string
   }) => Promise<GhAccountGitConfigState | null>
   listHostBindableAccounts: (args?: { wslDistro?: string }) => Promise<GhAccountBindingInventory>
+  switchActiveAccount: (args: {
+    host: string
+    user: string
+    wslDistro?: string
+  }) => Promise<GhActiveAccountSwitchResult>
   listAccountOrgs: (args: {
     accounts: { host: string; user: string }[]
     wslDistro?: string

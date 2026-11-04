@@ -13,6 +13,7 @@ import {
   useWorkspaceLineageMenuActions
 } from './workspace-lineage-menu-actions'
 import { parseWorkspaceKey } from '../../../../shared/workspace-scope'
+import { selectChildSessionWorktreesByWorktree } from './worktree-child-placement'
 import { getDeleteStateForWorktreeHost } from './worktree-delete-state-host-match'
 import {
   EMPTY_BROWSER_TABS_BY_WORKTREE,
@@ -144,8 +145,10 @@ export function useWorktreeContextMenuModel({
       ),
     [activeContextWorktrees, browserTabsByWorktree, ptyIdsByTabId, tabsByWorktree]
   )
+  const childSessionWorktrees = useAppStore(selectChildSessionWorktreesByWorktree)
   const lineageMenuActions = useWorkspaceLineageMenuActions({
     enabled: !isMultiContext,
+    childSessionWorktrees,
     parent: worktree,
     worktrees: allWorktrees,
     lineageById: worktreeLineageById,

@@ -5,12 +5,13 @@ import { useAppStore } from '@/store'
 import type { BotTeamsSelection } from '@/store/slices/ui/ui-slice-contract-core'
 import type { BotTeam } from '../../../../shared/rpc-contract/bot-team-params'
 import { translate } from '@/i18n/i18n'
-import { botTeamBoardColumn } from '../../../../shared/bot-team-board-column'
 import { botTeamTaskStatus } from '../../../../shared/bot-team-task-status'
 import { BotTeamCharacterIcon } from '../bot-teams/BotTeamCharacterIcon'
 import { BotTeamWaitingMark } from '../bot-teams/BotTeamRoomQuestionMark'
 import { useBotTeamAttention } from '../bot-teams/use-bot-team-attention'
 import { useBotTeamSessionStatuses } from '../bot-teams/use-bot-team-task-status'
+import { useBotTeamUnreadFileCount } from '../bot-teams/use-bot-team-unread-files'
+import { useOpenBotTeamTaskCount } from '../bot-teams/use-open-bot-team-task-count'
 import { useBotTeams } from '../bot-teams/use-bot-teams'
 import { BotTeamsSidebarProjects } from './BotTeamsSidebarProjects'
 import { RowMeta, SidebarRow } from './BotTeamsSidebarProjectsRow'
@@ -39,15 +40,9 @@ function OpenTeamRows({
     `${section?.kind ?? 'room'}:${selection.taskId ?? ''}:${changes}`
   )
   const statuses = useBotTeamSessionStatuses()
-  const open = tasks.filter(
-    (task) =>
-      botTeamBoardColumn(
-        botTeamTaskStatus(
-          task.sessionId,
-          task.sessionId === null ? undefined : statuses.get(task.sessionId)
-        )
-      ) !== 'Done'
-  ).length
+  // Null while a started task's status is unknown; the count then stays hidden, see the hook.
+  const open = useOpenBotTeamTaskCount(tasks, statuses)
+  const unreadFiles = useBotTeamUnreadFileCount(teamId)
   const waiting = tasks.some(
     (task) =>
       task.sessionId !== null &&
@@ -62,7 +57,7 @@ function OpenTeamRows({
           {translate('components.botTeams.conferenceRoom', 'Conference room')}
         </span>
         {waiting ? <BotTeamWaitingMark /> : null}
-        {known ? (
+        {known && open !== null ? (
           <RowMeta>
             {open > 0
               ? translate('components.botTeams.openCount', '{{count}} open', { count: open })
@@ -111,6 +106,15 @@ function OpenTeamRows({
       >
         <Files className="size-4 shrink-0 text-worktree-sidebar-foreground/30" />
         <span className="flex-1">{translate('components.botTeams.files', 'Files')}</span>
+        {unreadFiles > 0 ? (
+          <span
+            role="img"
+            aria-label={translate('components.botTeams.unreadFiles', '{{count}} new files', {
+              count: unreadFiles
+            })}
+            className="size-2 shrink-0 rounded-full bg-primary"
+          />
+        ) : null}
       </SidebarRow>
       <SidebarRow
         indented

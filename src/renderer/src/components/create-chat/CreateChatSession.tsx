@@ -1,5 +1,6 @@
 import { useRef, useState, type ReactNode } from 'react'
 import { useComposerDraft } from '@/lib/composer-draft'
+import { withMarketplaceAppPromptLines } from '../../../../shared/marketplace-app-mentions'
 import { CreateChatAgentChip } from './CreateChatAgentChip'
 import { CreateChatComposer } from './CreateChatComposer'
 import { CreateChatPageFrame } from './CreateChatPageFrame'
@@ -7,6 +8,7 @@ import { CreateChatPermissionsChip, CreateChatPlaceChips } from './CreateChatLef
 import { CreateChatSessionViewSwitch } from './CreateChatSessionViewSwitch'
 import { CreateChatTerminalNotice } from './CreateChatTerminalNotice'
 import { useCreateChatAgents } from './use-create-chat-agents'
+import { useCreateChatMentionWorktreeId } from './use-create-chat-mention'
 import { useCreateChatModelCatalog } from './use-create-chat-model-catalog'
 import {
   buildDefaultCreateChatSelection,
@@ -66,6 +68,7 @@ export function CreateChatSession({
     selection.executionHostId,
     modelListingContext
   )
+  const mentionWorktreeId = useCreateChatMentionWorktreeId(selection)
   const view: CreateChatSessionView = selection.sessionView ?? 'chat'
   const terminalBlock = view === 'terminal' ? createChatTerminalBlock(selection.agent) : null
   const canSubmit =
@@ -81,7 +84,8 @@ export function CreateChatSession({
     setPending(true)
     setError(null)
     try {
-      const outcome = await onSubmit(draft.trim(), selection)
+      const prompt = draft.trim()
+      const outcome = await onSubmit(withMarketplaceAppPromptLines(prompt, prompt), selection)
       if (outcome.started) {
         clearDraft()
       } else {
@@ -108,6 +112,7 @@ export function CreateChatSession({
         pending={pending}
         error={error}
         onSubmit={submit}
+        mentionWorktreeId={mentionWorktreeId}
         placeChips={
           <CreateChatPlaceChips
             selection={selection}

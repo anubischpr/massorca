@@ -8,7 +8,7 @@ import type { PrototypeListedSet } from '../../../src/shared/rpc-contract/protot
 import { MobilePrototypeRequestLink } from '../prototypes/MobilePrototypeRequestLink'
 import { useMobilePrototypeSetsOfSession } from '../prototypes/use-mobile-prototype-session-sets'
 import type { RpcClient } from '../transport/rpc-client'
-import { botTeamRoomPrototypeTasks } from './mobile-bot-team-room-prototype-tasks'
+import { botTeamRoomPrototypeTasks } from '../../../src/shared/bot-team-room-prototype-tasks'
 
 /** How the room opens a Prototypes set; null where Prototypes cannot open, so no link shows. */
 export const BotTeamRoomPrototypeOpenContext = createContext<

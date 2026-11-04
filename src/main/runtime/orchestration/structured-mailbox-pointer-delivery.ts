@@ -58,6 +58,8 @@ export type StructuredPointerSendOutcome =
 export type StructuredPointerSessionFacts = {
   /** Current-context sends, oldest first: what the lane's own sends settled as. */
   submissions: readonly StructuredPointerSubmission[]
+  /** A turn is running, so a batch it checked may still be acked in it. */
+  turnRunning: boolean
 }
 
 export type StructuredMailboxPointerHost = {
@@ -172,14 +174,6 @@ export class OrchestrationStructuredMailboxPointerDelivery<
     if (!db || this.inFlight.has(mailboxHandle)) {
       return
     }
-    // Don't re-nudge a mailbox whose consumer still holds an unacknowledged batch. The lookup is
-    // keyed on the exact handle being nudged, so a coordinator's own `run:` delivery is invisible
-    // to a worker's `dispatch:` gate and cannot suppress the nudges a coordinator sends its
-    // workers. Worth more here than in the PTY lane: a structured nudge costs a whole provider
-    // turn, not a line of text into a composer.
-    if (db.hasOutstandingMailboxDelivery?.(mailboxHandle)) {
-      return
-    }
     const unread = selectOrchestrationPointerBatch({
       db,
       mailboxHandle,
@@ -201,6 +195,9 @@ export class OrchestrationStructuredMailboxPointerDelivery<
         return
       }
       attemptedContexts.add(contextKey)
+      if (!this.unblocked(db, mailboxHandle, target.sessionId, unread, reservedTypes, session)) {
+        return
+      }
       await this.attempt(
         db,
         mailboxHandle,
@@ -222,6 +219,39 @@ export class OrchestrationStructuredMailboxPointerDelivery<
         ).catch(() => undefined)
       }
     }
+  }
+
+  /**
+   * Whether no unacknowledged batch of this mailbox's consumer stands in the way of a nudge.
+   *
+   * The lookup is keyed on the exact handle being nudged, so a coordinator's own `run:` delivery is
+   * invisible to a worker's `dispatch:` gate and cannot suppress the nudges a coordinator sends its
+   * workers. A consumer mid-turn may still ack, so its mail waits for the next journal edge. An idle
+   * one ended the turn it was shown the batch in without an ack: the batch is superseded when other
+   * mail waits behind it, since a child's report would otherwise never reach its parent.
+   */
+  private unblocked(
+    db: OrchestrationDb,
+    mailboxHandle: string,
+    sessionId: string,
+    unread: readonly MessageRow[],
+    reservedTypes: ReadonlySet<string> | undefined,
+    session: StructuredPointerSessionFacts | null
+  ): boolean {
+    if (!db.hasOutstandingMailboxDelivery?.(mailboxHandle)) {
+      return true
+    }
+    if (session?.turnRunning !== false) {
+      this.retain(mailboxHandle, sessionId, 'turn-unsettled', reservedTypes)
+      return false
+    }
+    // Mail already in the batch is no news, and a second nudge would spend a whole provider turn on it.
+    return (
+      db.supersedeMailboxDeliveryHiding?.(
+        mailboxHandle,
+        unread.map((message) => message.id)
+      ) ?? false
+    )
   }
 
   /** Clear's idle edge can land during a send; retry only a changed context, once per context. */

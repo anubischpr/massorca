@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest'
 import {
   applyBotTeamComposerItem,
   botTeamComposerMenu,
-  botTeamMentionOpen
+  botTeamMentionOpen,
+  botTeamProjectLogo
 } from './bot-team-composer-menu'
 import { findMentionedBot } from './bot-team-owner-selection'
 
@@ -29,6 +30,25 @@ describe('botTeamComposerMenu', () => {
     ])
   })
 
+  it('offers installed apps last, after the files, and keeps them when files fill the menu', () => {
+    const apps = [
+      { id: 'engram' as const, name: 'Engram' },
+      { id: 'github' as const, name: 'GitHub' }
+    ]
+    expect(inserts('@', { files: ['notes.md'], apps })).toEqual([
+      '@Nora ',
+      '@Max Power ',
+      '@notes.md ',
+      '@Engram ',
+      '@GitHub '
+    ])
+    expect(inserts('@git', { apps })).toEqual(['@GitHub '])
+    const files = Array.from({ length: 20 }, (_, index) => `file${index}.md`)
+    const items = botTeamComposerMenu({ text: '@', caret: 1, bots: BOTS, files, apps })?.items
+    expect(items).toHaveLength(12)
+    expect(items?.slice(-2).map((item) => item.kind)).toEqual(['app', 'app'])
+  })
+
   it('offers the other teams between the bots and the files, each with its character', () => {
     const teams = [
       { id: 'wh', name: 'Warehouse', character: 'square' as const },
@@ -44,6 +64,40 @@ describe('botTeamComposerMenu', () => {
     expect(menu?.items.map((item) => item.insert)).toEqual(['@Nora ', '@Nora Labs ', '@notes.md '])
     expect(menu?.items[1]).toMatchObject({ kind: 'team', team: { id: 'no', character: 'blob' } })
     expect(inserts('@', { teams })).toEqual(['@Nora ', '@Max Power ', '@Warehouse ', '@Nora Labs '])
+  })
+
+  it('offers the projects after the teams and before the files, each with its logo or none', () => {
+    const logo = { type: 'emoji' as const, emoji: '🛒' }
+    const projects = [
+      { id: 'p1', name: 'Nordic shop', logo },
+      { id: 'p2', name: 'Spring campaign', logo: null }
+    ]
+    const menu = botTeamComposerMenu({
+      text: '@no',
+      caret: 3,
+      bots: BOTS,
+      teams: [{ id: 'no', name: 'Nora Labs', character: 'blob' as const }],
+      projects,
+      files: ['notes.md']
+    })
+    expect(menu?.items.map((item) => item.insert)).toEqual([
+      '@Nora ',
+      '@Nora Labs ',
+      '@Nordic shop ',
+      '@notes.md '
+    ])
+    expect(menu?.items[2]).toMatchObject({ kind: 'project', project: { id: 'p1', logo } })
+    expect(inserts('@spr', { projects })).toEqual(['@Spring campaign '])
+  })
+
+  it('reads an image or emoji as a project logo, and the generic icon as none', () => {
+    expect(botTeamProjectLogo({ type: 'emoji', emoji: '🛒' })).toEqual({
+      type: 'emoji',
+      emoji: '🛒'
+    })
+    expect(botTeamProjectLogo({ type: 'image', src: 'a.png', source: 'upload' })).not.toBeNull()
+    expect(botTeamProjectLogo({ type: 'lucide', name: 'Folder' })).toBeNull()
+    expect(botTeamProjectLogo(undefined)).toBeNull()
   })
 
   it('does not open inside an email or after the mention closes', () => {

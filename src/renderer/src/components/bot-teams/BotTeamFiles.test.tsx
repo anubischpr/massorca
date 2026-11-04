@@ -25,6 +25,11 @@ vi.mock('@/runtime/runtime-bot-team-client', () => ({
   restoreBotTeamFileVersion: vi.fn()
 }))
 vi.mock('./bot-team-file-preview-read', () => ({ readBotTeamFilePreview }))
+vi.mock('@/runtime/runtime-bot-team-client-project-files', () => ({
+  listBotTeamProjectFiles: vi.fn(async () => 'unavailable'),
+  readBotTeamProjectFile: vi.fn(),
+  readBotTeamProjectFilePreview: vi.fn()
+}))
 vi.mock('@/i18n/i18n', () => ({
   translate: (_key: string, fallback: string, values?: Record<string, string>) =>
     fallback.replace(/\{\{(\w+)\}\}/g, (_all, name: string) => values?.[name] ?? '')

@@ -11,6 +11,7 @@ import type { TerminalLayoutSnapshot, TerminalTab } from '../../../../shared/ter
 import { liveEntryWorktreeId } from './worktree-agent-live-index-patch'
 import { entryWithRuntimeOrchestration } from './worktree-agent-row-orchestration'
 import { getLiveTabIdToWorktreeId } from './worktree-agent-row-selectors'
+import { childSessionWorktreesOf } from './worktree-child-session-worktrees'
 
 /**
  * Where a session with a parent is listed. A session whose parent is listed in another worktree
@@ -35,6 +36,8 @@ type PlacementTopology = {
   retainedChildrenByWorktree: ReadonlyMap<string, readonly string[]>
   /** Worktrees whose every listed session is placed away, mapped to the worktrees those sessions are placed under. */
   branchRowCandidatesByWorktree: ReadonlyMap<string, readonly string[]>
+  /** Worktrees of the sessions whose parent runs in this worktree, one level down. */
+  childWorktreesByWorktree: ReadonlyMap<string, readonly string[]>
 }
 
 /** True when the parent links from this session loop back on themselves. */
@@ -179,7 +182,8 @@ function buildTopology(state: AppState): PlacementTopology {
     placedAwayByWorktree: placedAway,
     liveChildrenByWorktree: liveChildren,
     retainedChildrenByWorktree: retainedChildren,
-    branchRowCandidatesByWorktree: branchRowCandidates
+    branchRowCandidatesByWorktree: branchRowCandidates,
+    childWorktreesByWorktree: childSessionWorktreesOf(records, paneKeyByTerminalHandle)
   }
 }
 
@@ -338,4 +342,14 @@ export function selectBranchRowCandidatesByWorktree(
   state: AppState
 ): ReadonlyMap<string, readonly string[]> {
   return topologyOf(state).branchRowCandidatesByWorktree
+}
+
+/**
+ * The worktrees of the child sessions each worktree's sessions delegated, one level down. Delete with
+ * Descendants reads it, since a delegated child has no worktree lineage of its own.
+ */
+export function selectChildSessionWorktreesByWorktree(
+  state: AppState
+): ReadonlyMap<string, readonly string[]> {
+  return topologyOf(state).childWorktreesByWorktree
 }

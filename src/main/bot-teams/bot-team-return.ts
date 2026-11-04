@@ -8,6 +8,10 @@ import {
 import type { BotTeamMessage } from '../../shared/rpc-contract/bot-team-room-params'
 import type { OrchestrationDb } from '../runtime/orchestration/db/orchestration-db'
 import { copyBotTeamDeliverables, listBotTeamDeliverables } from './bot-team-deliverables'
+import {
+  botTeamDeliverableStoreDir,
+  recordFinishedTaskDeliverables
+} from './bot-team-deliverables-record'
 import { botTeamFolderPath } from './bot-team-version-deps'
 import {
   readWorktreeChanges,
@@ -21,6 +25,8 @@ export type BotTeamReturnDeps = {
   settleMs: number
   /** The workspace the finished session ran in, as the host's status feed names it; null when unseen. */
   sessionWorkspaceId?: string | null
+  /** Where finished tasks' file records are kept; the app's data folder when not given. */
+  deliverableStoreDir?: string
 }
 
 const DEFAULT_DEPS: BotTeamReturnDeps = { folderOf: botTeamFolderPath, settleMs: 3000 }
@@ -146,6 +152,27 @@ async function deliverFiles(
   return { attachments, note: [link, notCopied].filter((part) => part !== null).join('\n') }
 }
 
+/** Keeps where a finished task of a project ran, so the team's Files can list what it changed there. */
+function recordFinishedDeliverables(
+  task: { id: string; teamId: string; projectId: string | null; createdAt?: number | null },
+  deps: BotTeamReturnDeps
+): void {
+  try {
+    recordFinishedTaskDeliverables({
+      storeDir: deps.deliverableStoreDir ?? botTeamDeliverableStoreDir(),
+      taskId: task.id,
+      teamId: task.teamId,
+      projectId: task.projectId,
+      workspaceId: deps.sessionWorkspaceId ?? null,
+      location: deps.sessionWorkspaceId ? worktreeOfWorkspace(deps.sessionWorkspaceId) : null,
+      since: task.createdAt ?? Date.now(),
+      now: Date.now()
+    })
+  } catch (error) {
+    console.warn('[bot-teams] recording the files of a finished task failed', error)
+  }
+}
+
 /**
  * When a task another team asked for finishes, tells that team's room once: the bot's finish line
  * and the files it made, copied into the asking team's folder.
@@ -156,6 +183,9 @@ export async function returnFinishedBotTeamTask(
   deps: BotTeamReturnDeps = DEFAULT_DEPS
 ): Promise<void> {
   const task = db.findBotTeamTaskBySession(sessionId)
+  if (task) {
+    recordFinishedDeliverables(task, deps)
+  }
   const origin = task ? db.getBotTeamTaskOrigin(task.id) : null
   if (!task || !origin || db.hasBotTeamReturn(task.id)) {
     return

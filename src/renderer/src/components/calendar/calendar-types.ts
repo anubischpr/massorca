@@ -5,7 +5,14 @@ export type CalendarView = 'day' | 'week' | 'month'
 /** Half-open window of epoch milliseconds: from <= at < to. */
 export type CalendarRange = { from: number; to: number }
 
-export type CalendarFrequency = 'hourly' | 'daily' | 'weekdays' | 'weekly' | 'monthly' | 'custom'
+export type CalendarFrequency =
+  | 'once'
+  | 'hourly'
+  | 'daily'
+  | 'weekdays'
+  | 'weekly'
+  | 'monthly'
+  | 'custom'
 
 /** One scheduled run on the calendar, from a bot team routine or an Orca automation. */
 export type CalendarRun = {

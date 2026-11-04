@@ -27,6 +27,7 @@ import { shouldRefreshNativeClaudeAgentTeamsEnv } from '../pane/launch-authority
 import type { PtyIpcSpawnState } from './spawn-state'
 import { assemblePtyIpcSpawnCodexEnv } from './spawn-env-codex'
 import { prepareAntigravityAccountForLaunch } from '../../../antigravity/native-account-launch'
+import { buildMarketplaceAgentEnv } from '../../../marketplace/marketplace-agent-env'
 
 export async function assemblePtyIpcSpawnEnv(ctx: PtyIpcSpawnState): Promise<void> {
   const args = ctx.args
@@ -187,6 +188,17 @@ export async function assemblePtyIpcSpawnEnv(ctx: PtyIpcSpawnState): Promise<voi
   ctx.validatedLeafId = ctx.verifiedLeafId ?? ctx.metadataLeafId
   ctx.spawnTiming.mark('pane_env')
   await assemblePtyIpcSpawnCodexEnv(ctx)
+  // Why: daemon-backed spawns skip LocalPtyProvider's buildSpawnEnv; ctx.env is already a private clone here.
+  // Safety: never for SSH or WSL, where the vars would leak to a host the vault does not belong to.
+  if (
+    ctx.isDaemonHostSpawn &&
+    !ctx.preAdoptedStablePane &&
+    !args.connectionId &&
+    ctx.env &&
+    ctx.codexSelectionTarget.runtime !== 'wsl'
+  ) {
+    Object.assign(ctx.env, buildMarketplaceAgentEnv())
+  }
   await prepareAntigravityAccountForLaunch({
     launchAgent: args.launchAgent,
     command: args.command ?? args.launchConfig?.agentCommand,

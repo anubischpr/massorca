@@ -5,6 +5,8 @@ import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { BotTeam } from '../../../../shared/rpc-contract/bot-team-params'
+import type { BotTeamMentionProject } from '../../../../shared/bot-team-composer-menu'
+import { clearNativeChatDraftCacheForTests } from '../native-chat/native-chat-draft-cache'
 import { promptTextContent } from '../native-chat/native-chat-prompt-document-text'
 import { promptEditor, promptValue } from '../native-chat/native-chat-prompt-editor.test-support'
 
@@ -33,18 +35,19 @@ const TEAM: BotTeam = {
 const mounted: { container: HTMLDivElement; root: Root }[] = []
 
 afterEach(() => {
+  clearNativeChatDraftCacheForTests()
   for (const { container, root } of mounted.splice(0)) {
     act(() => root.unmount())
     container.remove()
   }
 })
 
-function mount(onSend = vi.fn(async () => true)) {
+function mount(onSend = vi.fn(async () => true), projects: BotTeamMentionProject[] = []) {
   const container = document.createElement('div')
   document.body.append(container)
   const root = createRoot(container)
   mounted.push({ container, root })
-  act(() => root.render(<BotTeamRoomComposer team={TEAM} offline={false} onSend={onSend} />))
+  act(() => root.render(<BotTeamRoomComposer team={TEAM} projects={projects} offline={false} onSend={onSend} />))
   const box = container.querySelector<HTMLElement>('[role="combobox"]')!
   return { onSend, box, container }
 }
@@ -166,6 +169,24 @@ describe('the room composer layout and mentions', () => {
     press(box, { key: 'Enter', keyCode: 13 })
     await act(async () => {})
     expect(onSend).toHaveBeenCalledWith('Make the flyer @Iris', [])
+  })
+
+  it('lists projects under their own heading, and picks one as a chip with its logo', async () => {
+    const { onSend, box, container } = mount(undefined, [
+      { id: 'p1', name: 'Shop', logo: { type: 'emoji', emoji: 'S' } },
+      { id: 'p2', name: 'Spring', logo: null }
+    ])
+    type(box, '@')
+    const options = [...container.querySelectorAll('[role="option"]')].map((o) => o.textContent)
+    expect(options).toEqual(['IrisDesigns flyers', 'SShop', 'Spring'])
+    expect(container.textContent).toContain('Projects')
+    type(box, '@Sh')
+    press(box, { key: 'Enter', keyCode: 13 })
+    await act(async () => {})
+    expect(box.querySelector('[data-bot-team-mention="Shop"]')?.textContent).toBe('SShop')
+    press(box, { key: 'Enter', keyCode: 13 })
+    await act(async () => {})
+    expect(onSend).toHaveBeenCalledWith('@Shop', [])
   })
 
   it('removes a picked chip whole on Backspace right after it', () => {

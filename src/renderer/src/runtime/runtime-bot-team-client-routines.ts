@@ -38,6 +38,18 @@ export async function createBotTeamRoutine(input: BotTeamRoutineInput): Promise<
   return (await call<{ routine: BotTeamRoutine }>('botTeams.createRoutine', input)).routine
 }
 
+/** Saves an edited routine; a finished Once routine with a new date runs again. */
+export async function updateBotTeamRoutine(
+  input: { routineId: string } & Omit<BotTeamRoutineInput, 'teamId'>
+): Promise<BotTeamRoutine> {
+  return (await call<{ routine: BotTeamRoutine }>('botTeams.updateRoutine', input)).routine
+}
+
+/** Deletes a routine and its run history; tasks it started stay. */
+export async function deleteBotTeamRoutine(routineId: string): Promise<void> {
+  await call('botTeams.deleteRoutine', { routineId })
+}
+
 export async function setBotTeamRoutinePaused(
   routineId: string,
   paused: boolean

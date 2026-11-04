@@ -8,6 +8,7 @@ import {
   coerceWorktreeCardVisibleTitle,
   getWorktreeCardTitleDisplay
 } from './worktree-card-title-display'
+import { useBotTeamForFolder } from '../bot-teams/use-bot-teams'
 import { useWorkspaceDeleteModifierPressed } from './workspace-delete-quick-action'
 import type { WorktreeCardProps } from './worktree-card-model'
 import type { useWorktreeCardFoundation } from './use-worktree-card-foundation'
@@ -85,7 +86,10 @@ export function useWorktreeCardLinkedDetails({
     reviewTitle: prDisplay?.title
   })
   const legacyCardTitleDisplay = coerceWorktreeCardVisibleTitle(worktree.displayName)
-  const visibleCardTitle = newCardStyle ? cardTitleDisplay : legacyCardTitleDisplay
+  // Why: a team's folder row is named for its team, not for the folder's id.
+  const teamOfFolder = useBotTeamForFolder(worktree.path)
+  const visibleCardTitle =
+    teamOfFolder?.name ?? (newCardStyle ? cardTitleDisplay : legacyCardTitleDisplay)
   const isDeleting = deleteState?.isDeleting ?? false
   const isQueuedForDeletion = deleteState?.phase === 'queued'
   const deleteLabel = isQueuedForDeletion

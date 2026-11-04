@@ -2,7 +2,8 @@
 
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { NativeChatMentionMenu, NativeChatPickerMenu } from './NativeChatAutocompleteMenus'
+import { NativeChatPickerMenu } from './NativeChatAutocompleteMenus'
+import { NativeChatMentionMenu } from './NativeChatMentionMenu'
 import { buildNativeChatPickerItems } from './native-chat-picker-items'
 import { sessionSlashCommandSuggestions } from '../../../../shared/native-chat-slash-commands'
 import type { ComposerAutocomplete } from './native-chat-composer-state'

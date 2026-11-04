@@ -13,9 +13,15 @@ const readBotTeamFilePreview = vi.hoisted(() => vi.fn())
 vi.mock('./bot-team-file-preview-read', () => ({ readBotTeamFilePreview }))
 vi.mock('@/i18n/i18n', () => ({ translate: (_key: string, fallback: string) => fallback }))
 vi.mock('../native-chat/NativeChatVisualFrame', () => ({
-  NativeChatVisualFrame: (props: { document: { html: string } }) => (
-    <div data-testid="visual-frame">{props.document.html}</div>
+  NativeChatVisualFrame: (props: { document: { html: string }; strictScripts?: boolean }) => (
+    <div data-testid="visual-frame" data-strict-scripts={String(props.strictScripts)}>
+      {props.document.html}
+    </div>
   )
+}))
+vi.mock('../../runtime/runtime-bot-team-client-project-files', () => ({
+  readBotTeamProjectFile: vi.fn(),
+  readBotTeamProjectFilePreview: vi.fn()
 }))
 
 const mounted: { container: HTMLDivElement; root: Root }[] = []
@@ -114,6 +120,10 @@ describe('a file of the team as it reads', () => {
     expect(container.querySelector('[data-testid="visual-frame"]')?.textContent).toBe(
       '<p>Summer</p>'
     )
+    // A bot's page renders with its own scripts switched off.
+    expect(
+      container.querySelector('[data-testid="visual-frame"]')?.getAttribute('data-strict-scripts')
+    ).toBe('true')
     expect(container.querySelector('pre')).toBeNull()
   })
 

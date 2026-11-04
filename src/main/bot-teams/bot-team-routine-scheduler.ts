@@ -1,3 +1,4 @@
+import { botTeamClockNote } from '../../shared/bot-team-person-clock'
 import type { OrchestrationDb } from '../runtime/orchestration/db/orchestration-db'
 import {
   claimDueBotTeamRoutines,
@@ -18,7 +19,8 @@ export type BotTeamRoutineSchedulerDeps = {
 async function runClaimed(
   db: OrchestrationDb,
   { runId, routine }: ClaimedBotTeamRoutineRun,
-  startTask: BotTeamRoutineSchedulerDeps['startTask']
+  startTask: BotTeamRoutineSchedulerDeps['startTask'],
+  at: number
 ): Promise<void> {
   const team = db.listBotTeams().find((entry) => entry.id === routine.teamId)
   if (!team?.bots.some((bot) => bot.id === routine.botId)) {
@@ -34,6 +36,11 @@ async function runClaimed(
     prompt: routine.prompt,
     ownerBotId: routine.botId
   })
+  // The run's own clock, on the routine's zone: "today" in its prompt is the day it runs.
+  const clock = botTeamClockNote(at, routine.schedule.timeZone)
+  if (clock !== null) {
+    db.setBotTeamTaskStartNotes(task.id, clock)
+  }
   recordBotTeamRoutineRun(db, runId, { taskId: task.id, error: null })
   try {
     await startTask(task.id)
@@ -56,8 +63,9 @@ export function createBotTeamRoutineScheduler(deps: BotTeamRoutineSchedulerDeps)
     if (!db) {
       return
     }
-    const claimed = claimDueBotTeamRoutines(db, now())
-    await Promise.allSettled(claimed.map((claim) => runClaimed(db, claim, deps.startTask)))
+    const at = now()
+    const claimed = claimDueBotTeamRoutines(db, at)
+    await Promise.allSettled(claimed.map((claim) => runClaimed(db, claim, deps.startTask, at)))
   }
 
   return {

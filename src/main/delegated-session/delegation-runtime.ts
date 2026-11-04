@@ -227,6 +227,9 @@ export function getDelegationRequestService(runtime: OrcaRuntimeService): Delega
     readRateLimits: () => readRateLimits(runtime),
     refreshUsage: () => runtime.refreshAccountsForMobileSubscriber(),
     now: () => Date.now(),
+    isBotRunSession: (sessionId) =>
+      existingDb(runtime)?.findBotTeamTaskBySession(sessionId) != null,
+    startAutomatic: (requestId) => getDelegationAnswerService(runtime).startAutomatic(requestId),
     // Why here: the host holding the chat decides, with its own setting and key.
     adviseTier: createJevDelegationTierAdvisor({
       isEnabled: () => runtime.isJevDecisionsEnabled(),

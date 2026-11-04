@@ -195,6 +195,34 @@ export function fenceUnacknowledgedMailboxDeliveries(
     .run(mailboxHandle)
 }
 
+/**
+ * Fences the mailbox's outstanding batch when mail outside it is waiting, for a consumer whose turn
+ * ended without an ack: the batch would otherwise hide that mail for good. Its unread members go
+ * into the next check's batch. Returns whether no outstanding batch blocks a nudge now.
+ */
+export function supersedeMailboxDeliveryHiding(
+  this: OrchestrationDb,
+  mailboxHandle: string,
+  messageIds: readonly string[]
+): boolean {
+  this.db.exec('BEGIN IMMEDIATE')
+  try {
+    const existing = this.db
+      .prepare('SELECT message_ids FROM outstanding_deliveries WHERE mailbox_handle = ?')
+      .get(mailboxHandle) as Pick<DeliveryRow, 'message_ids'> | undefined
+    const held = new Set<string>(existing ? JSON.parse(existing.message_ids) : [])
+    const hidesMail = existing !== undefined && messageIds.some((id) => !held.has(id))
+    if (hidesMail) {
+      this.fenceUnacknowledgedMailboxDeliveries(mailboxHandle)
+    }
+    this.db.exec('COMMIT')
+    return existing === undefined || hidesMail
+  } catch (error) {
+    this.db.exec('ROLLBACK')
+    throw error
+  }
+}
+
 export type RoleMailboxDeliveryMethods = {
   getDeliveryRaw: typeof getDeliveryRaw
   getDeliveryMessages: typeof getDeliveryMessages
@@ -202,6 +230,7 @@ export type RoleMailboxDeliveryMethods = {
   acknowledgeMailboxDelivery: typeof acknowledgeMailboxDelivery
   hasOutstandingMailboxDelivery: typeof hasOutstandingMailboxDelivery
   fenceUnacknowledgedMailboxDeliveries: typeof fenceUnacknowledgedMailboxDeliveries
+  supersedeMailboxDeliveryHiding: typeof supersedeMailboxDeliveryHiding
 }
 
 export function attachRoleMailboxDelivery(ctor: { prototype: object }): void {
@@ -211,6 +240,7 @@ export function attachRoleMailboxDelivery(ctor: { prototype: object }): void {
     getOrCreateMailboxDelivery,
     acknowledgeMailboxDelivery,
     hasOutstandingMailboxDelivery,
-    fenceUnacknowledgedMailboxDeliveries
+    fenceUnacknowledgedMailboxDeliveries,
+    supersedeMailboxDeliveryHiding
   })
 }

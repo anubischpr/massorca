@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest'
+import { FLOATING_TERMINAL_WORKTREE_ID } from '../../../../../shared/constants'
 import { createTestStore, makeTabGroup, makeUnifiedTab, seedStore } from '../store-test-helpers'
 import { installSidePanelNormalizer } from './side-panel-normalizer'
 import { referencedPlacement, selectReferencedSessions } from './pane-session-ref'
@@ -168,6 +169,97 @@ describe('when the session or its workspace goes away', () => {
     const pane = store.getState().groupsByWorktree[A].find((group) => group.id === 'a-pane')
     expect(pane?.tabOrder).toEqual(['a-chat'])
     expect(pane?.sessionRef).toBeUndefined()
+    stop()
+  })
+})
+
+describe('a session shown by a floating session tab', () => {
+  const FLOAT = FLOATING_TERMINAL_WORKTREE_ID
+  const SESSION_TAB = 'ref-tab'
+
+  function showAsTab(active: boolean): void {
+    seedStore(store, {
+      unifiedTabsByWorktree: {
+        ...store.getState().unifiedTabsByWorktree,
+        [FLOAT]: [
+          {
+            ...makeUnifiedTab({
+              id: SESSION_TAB,
+              worktreeId: FLOAT,
+              groupId: 'float-main',
+              contentType: 'session-ref',
+              label: 'b-chat'
+            }),
+            sessionRef: { worktreeId: B, tabId: 'b-chat' }
+          },
+          makeUnifiedTab({
+            id: 'float-check',
+            worktreeId: FLOAT,
+            groupId: 'float-main',
+            contentType: 'checklist',
+            label: 'Checklist'
+          })
+        ]
+      },
+      groupsByWorktree: {
+        ...store.getState().groupsByWorktree,
+        [FLOAT]: [
+          makeTabGroup({
+            id: 'float-main',
+            worktreeId: FLOAT,
+            tabOrder: [SESSION_TAB, 'float-check'],
+            activeTabId: active ? SESSION_TAB : 'float-check'
+          })
+        ]
+      }
+    })
+  }
+
+  it('lists the session under its floating tab, anchored to that tab group', () => {
+    showAsTab(true)
+    expect(selectReferencedSessions(store.getState()).get('b-chat')).toMatchObject({
+      tabId: 'b-chat',
+      ownerWorktreeId: B,
+      layoutWorktreeId: FLOAT,
+      groupId: 'float-main'
+    })
+  })
+
+  it('is visible only while its tab is the active tab of its group', () => {
+    showAsTab(true)
+    const referenced = selectReferencedSessions(store.getState())
+    expect(referencedPlacement(referenced, 'b-chat', FLOAT, { [FLOAT]: 'float-main' })).toEqual({
+      groupId: 'float-main',
+      isVisible: true,
+      isFocusedGroup: true,
+      focusWorktreeId: FLOAT
+    })
+
+    showAsTab(false)
+    const inactive = selectReferencedSessions(store.getState())
+    expect(referencedPlacement(inactive, 'b-chat', FLOAT, { [FLOAT]: 'float-main' })).toEqual({
+      groupId: 'float-main',
+      isVisible: false,
+      isFocusedGroup: false,
+      focusWorktreeId: FLOAT
+    })
+  })
+
+  it('releases the session when its floating tab closes, and keeps the session in its workspace', () => {
+    showAsTab(true)
+    store.getState().closeUnifiedTab(SESSION_TAB)
+    expect(selectReferencedSessions(store.getState()).size).toBe(0)
+    expect(store.getState().unifiedTabsByWorktree[B]).toHaveLength(2)
+  })
+
+  it('drops the floating tab when its session closes in the owner workspace', () => {
+    const stop = installSidePanelNormalizer(store)
+    showAsTab(true)
+    store.getState().closeUnifiedTab('b-chat')
+    expect(
+      store.getState().unifiedTabsByWorktree[FLOAT]?.some((tab) => tab.id === SESSION_TAB)
+    ).toBe(false)
+    expect(selectReferencedSessions(store.getState()).size).toBe(0)
     stop()
   })
 })

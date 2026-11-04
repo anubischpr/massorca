@@ -5,9 +5,18 @@ import { createUntitledMarkdownFileWithTemplateSelection } from './create-untitl
 import { getConnectionId } from './connection-context'
 import { detectLanguage } from './language-detect'
 import type { AppState } from '@/store/types'
+import { useAppStore } from '@/store'
 import { focusTerminalTabSurface } from './focus-terminal-tab-surface'
 import { translate } from '@/i18n/i18n'
 import { assertClientCreationActionAvailable } from './client-creation-action-policy'
+import { toast } from 'sonner'
+import {
+  selectFloatingHostCreationTarget,
+  selectSelectedFloatingHost
+} from './floating-workspace-host'
+import { useFloatingWorkspaceHostStore } from './floating-workspace-host-store'
+import { showHostSessionInFloating } from './floating-workspace-host-session'
+import { releaseLegacyPaneReference } from '../store/slices/tabs/pane-session-ref-new-session'
 
 type FloatingWorkspaceTerminalStore = Pick<AppState, 'activeGroupIdByWorktree' | 'createTab'>
 
@@ -24,7 +33,29 @@ export async function createFloatingWorkspaceTerminalTab(
   /** A split group's own "+"; omitted, the tab lands in the focused group. */
   groupId?: string
 ): Promise<TerminalTab | null> {
+  const live = useAppStore.getState()
+  const host = selectSelectedFloatingHost(live, useFloatingWorkspaceHostStore.getState())
+  const target = selectFloatingHostCreationTarget(live, host)
+  if (target.kind === 'unavailable') {
+    toast.error(translate('components.floatingWorkspace.noWorkspaceOnHost', target.reason))
+    return null
+  }
+  if (target.kind === 'workspace') {
+    // Why: a paired host's terminal runs in that host's workspace; the floating pane only shows it.
+    // The group is that workspace's own, so the floating "+" split does not apply to it.
+    const tab = live.createTab(
+      target.worktreeId,
+      live.activeGroupIdByWorktree[target.worktreeId],
+      shellOverride,
+      { activate: false, viewMode: 'terminal' }
+    )
+    showHostSessionInFloating(target.worktreeId, tab.id)
+    useFloatingWorkspaceHostStore.getState().markUsed(target.environmentId)
+    return tab
+  }
+
   const targetGroupId = groupId ?? store.activeGroupIdByWorktree[FLOATING_TERMINAL_WORKTREE_ID]
+  releaseLegacyPaneReference(live, FLOATING_TERMINAL_WORKTREE_ID, targetGroupId)
 
   // Why: the floating workspace is a local scratchpad; a focused remote runtime
   // must not own its SSH/tmux terminals or prune them via session snapshots.
@@ -42,6 +73,7 @@ export async function createFloatingWorkspaceBrowserTab(
     'managed-browser'
   )
   const targetGroupId = store.activeGroupIdByWorktree[FLOATING_TERMINAL_WORKTREE_ID]
+  releaseLegacyPaneReference(useAppStore.getState(), FLOATING_TERMINAL_WORKTREE_ID, targetGroupId)
   const url = store.browserDefaultUrl ?? 'about:blank'
 
   // Why: browser tabs in the floating workspace share the same local-only
@@ -59,6 +91,7 @@ export async function createFloatingWorkspaceMarkdownTab(
   markdownDirectory?: string | null
 ): Promise<void> {
   const targetGroupId = store.activeGroupIdByWorktree[FLOATING_TERMINAL_WORKTREE_ID]
+  releaseLegacyPaneReference(useAppStore.getState(), FLOATING_TERMINAL_WORKTREE_ID, targetGroupId)
   const floatingMarkdownDirectory =
     markdownDirectory ?? (await window.api.app.getFloatingMarkdownDirectory())
   if (!floatingMarkdownDirectory) {

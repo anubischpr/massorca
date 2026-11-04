@@ -1,3 +1,5 @@
+import type { MarketplaceAppMention } from './marketplace-app-mentions'
+import type { RepoIcon } from './repo-icon'
 import type { BotTeam, BotTeamBot } from './rpc-contract/bot-team-params'
 
 /** MassOrca's commands that assume no one session and no agent; the room has neither. */
@@ -8,10 +10,15 @@ export type BotTeamMentionFile = { path: string }
 
 export type BotTeamMentionTeam = Pick<BotTeam, 'id' | 'name' | 'character'>
 
+/** A project the room can name; `logo` is its linked Workspaces project's image or emoji, null for none. */
+export type BotTeamMentionProject = { id: string; name: string; logo: RepoIcon | null }
+
 export type BotTeamComposerItem =
   | { kind: 'bot'; bot: Pick<BotTeamBot, 'id' | 'name' | 'job' | 'agent'>; insert: string }
   | { kind: 'team'; team: BotTeamMentionTeam; insert: string }
+  | { kind: 'project'; project: BotTeamMentionProject; insert: string }
   | { kind: 'file'; path: string; insert: string }
+  | { kind: 'app'; app: MarketplaceAppMention; insert: string }
   | { kind: 'command'; command: BotTeamRoomCommand; insert: string }
 
 export type BotTeamComposerMenu = {
@@ -29,14 +36,22 @@ export function botTeamMentionOpen(text: string, caret: number): boolean {
   return OPEN_MENTION.test(text.slice(0, caret))
 }
 
-/** What the room's composer offers at the caret: bots, other teams and files after `@`, commands after a leading `/`. */
+/** A Workspaces project icon that reads as a logo: an image or an emoji, never the generic glyph. */
+export function botTeamProjectLogo(icon: RepoIcon | null | undefined): RepoIcon | null {
+  return icon && icon.type !== 'lucide' ? icon : null
+}
+
+/** What the room's composer offers at the caret: bots, other teams, projects, files and apps after `@`, commands after a leading `/`. */
 export function botTeamComposerMenu(args: {
   text: string
   caret: number
   bots: readonly Pick<BotTeamBot, 'id' | 'name' | 'job' | 'agent'>[]
   /** The other teams: `@Name` sends the request there, with no query. */
   teams?: readonly BotTeamMentionTeam[]
+  projects?: readonly BotTeamMentionProject[]
   files?: readonly string[]
+  /** Installed Marketplace apps, listed last. */
+  apps?: readonly MarketplaceAppMention[]
   /** A surface that cannot run the room's commands offers none. */
   commands?: readonly BotTeamRoomCommand[]
 }): BotTeamComposerMenu | null {
@@ -60,10 +75,20 @@ export function botTeamComposerMenu(args: {
   const teams: BotTeamComposerItem[] = (args.teams ?? [])
     .filter((team) => team.name.toLowerCase().includes(query))
     .map((team) => ({ kind: 'team', team, insert: `@${team.name} ` }))
+  const projects: BotTeamComposerItem[] = (args.projects ?? [])
+    .filter((project) => project.name.toLowerCase().includes(query))
+    .map((project) => ({ kind: 'project', project, insert: `@${project.name} ` }))
   const files: BotTeamComposerItem[] = (args.files ?? [])
     .filter((path) => path.toLowerCase().includes(query))
     .map((path) => ({ kind: 'file', path, insert: `@${path} ` }))
-  const items = [...bots, ...teams, ...files].slice(0, MAX_ITEMS)
+  const apps: BotTeamComposerItem[] = (args.apps ?? [])
+    .filter((app) => app.name.toLowerCase().includes(query))
+    .map((app) => ({ kind: 'app', app, insert: `@${app.name} ` }))
+  // Why: the few apps keep their room at the end, so a long file list never pushes them out.
+  const items = [
+    ...[...bots, ...teams, ...projects, ...files].slice(0, MAX_ITEMS - apps.length),
+    ...apps
+  ]
   return items.length > 0
     ? { items, start: args.caret - mention[1].length - 1, end: args.caret }
     : null

@@ -59,6 +59,10 @@ export type GhAccountBindingInventory = {
   accounts: GhAuthAccount[]
 }
 
+export type GhActiveAccountSwitchResult =
+  | { ok: true }
+  | { ok: false; reason: 'invalid_account' | 'unsupported' | 'failed' }
+
 export type GhAccountBindingValidationError =
   | 'gh_multi_account_unsupported'
   | 'gh_multi_account_capability_unknown'

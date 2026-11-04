@@ -13,6 +13,7 @@ import {
 } from '../../../src/shared/rpc-contract/bot-team-room-params'
 import type { BotTeamRoomAttachment } from '../../../src/shared/bot-team-room-attachments'
 import { botTeamFileNamesText } from '../../../src/shared/bot-team-room-attachments-line'
+import { withSenderTimeZone } from '../../../src/shared/bot-team-routine-zone'
 import { isMobileMethodUnavailableError } from '../transport/mobile-method-unavailable'
 import type { RpcClient } from '../transport/rpc-client'
 
@@ -124,7 +125,7 @@ export async function postMobileBotTeamRequest(
   }
 ): Promise<MobileBotTeamPostResult> {
   try {
-    let response = await client.sendRequest('botTeams.postMessage', input, {
+    let response = await client.sendRequest('botTeams.postMessage', withSenderTimeZone(input), {
       timeoutMs: START_TIMEOUT_MS
     })
     // A host from before files-only messages refuses empty text: retry once with the file names.
@@ -136,7 +137,7 @@ export async function postMobileBotTeamRequest(
     ) {
       response = await client.sendRequest(
         'botTeams.postMessage',
-        { ...input, text: botTeamFileNamesText(input.attachments ?? []) },
+        withSenderTimeZone({ ...input, text: botTeamFileNamesText(input.attachments ?? []) }),
         { timeoutMs: START_TIMEOUT_MS }
       )
     }

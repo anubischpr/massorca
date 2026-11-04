@@ -1,9 +1,13 @@
-/** A bot or team the room writes as `@Name`; the stored text stays plain, chips only render it. */
-export type BotTeamMentionName = { name: string; kind: 'bot' | 'team' }
+/** A bot, team, project or app the room writes as `@Name`; the stored text stays plain, chips only render it. */
+export type BotTeamMentionName = { name: string; kind: 'bot' | 'team' | 'project' | 'app' }
 
 export type BotTeamMentionSegment =
   | { kind: 'text'; value: string }
   | { kind: 'mention'; value: string; name: string }
+  | { kind: 'file'; value: string; path: string }
+
+// A relative path ending in an extension, e.g. "brief.md" or "site/flyer.html"; a trailing period stays text.
+const FILE_PATH = String.raw`((?:[\p{L}\p{N}_.-]+/)*[\p{L}\p{N}_-][\p{L}\p{N}_.-]*\.[A-Za-z][A-Za-z0-9]{0,7})(?![\p{L}\p{N}_/-]|\.[\p{L}\p{N}])`
 
 function escapeForPattern(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
@@ -25,17 +29,23 @@ function canonicalName(names: readonly BotTeamMentionName[], typed: string): str
   return names.find((entry) => entry.name.toLowerCase() === lower)?.name ?? typed
 }
 
-/** Splits text into plain runs and the known `@Name` mentions in it. */
+/** Splits text into plain runs and the known `@Name` mentions in it; with `files`, `@path.ext` too. */
 export function splitBotTeamMentionText(
   text: string,
-  names: readonly BotTeamMentionName[]
+  names: readonly BotTeamMentionName[],
+  options: { files?: boolean } = {}
 ): BotTeamMentionSegment[] {
   const alternation = mentionAlternation(names)
-  if (alternation === null) {
+  if (alternation === null && !options.files) {
     return [{ kind: 'text', value: text }]
   }
+  // Group 1 is a known name (never matching without names), group 2 a file path; a name wins at the same place.
+  const name = alternation === null ? '(?!)()' : `(${alternation})(?![\\p{L}\\p{N}_])`
   // Why: the lookbehind keeps a mid-word @ (an address) plain; the lookahead keeps a name that is only a prefix plain.
-  const pattern = new RegExp(`(?<![\\p{L}\\p{N}_@])@(${alternation})(?![\\p{L}\\p{N}_])`, 'giu')
+  const pattern = new RegExp(
+    `(?<![\\p{L}\\p{N}_@])@(?:${name}${options.files ? `|${FILE_PATH}` : ''})`,
+    'giu'
+  )
   const segments: BotTeamMentionSegment[] = []
   let last = 0
   for (const match of text.matchAll(pattern)) {
@@ -43,7 +53,11 @@ export function splitBotTeamMentionText(
     if (start > last) {
       segments.push({ kind: 'text', value: text.slice(last, start) })
     }
-    segments.push({ kind: 'mention', value: match[0], name: canonicalName(names, match[1]) })
+    segments.push(
+      match[1] !== undefined
+        ? { kind: 'mention', value: match[0], name: canonicalName(names, match[1]) }
+        : { kind: 'file', value: match[0], path: match[2] }
+    )
     last = start + match[0].length
   }
   if (last < text.length) {

@@ -11,7 +11,7 @@ type PickerState = Pick<
   'groupsByWorktree' | 'unifiedTabsByWorktree' | 'tabsByWorktree' | 'settings'
 >
 
-type OtherWorkspacesState = PickerState &
+export type OtherWorkspacesState = PickerState &
   Pick<
     ReturnType<typeof useAppStore.getState>,
     'repos' | 'worktreesByRepo' | 'detectedWorktreesByRepo' | 'folderWorkspaces'
@@ -113,9 +113,13 @@ export function closeSessionPane(worktreeId: string, groupId: string): boolean {
  */
 export function listOtherWorkspaceSessionGroups(
   state: OtherWorkspacesState,
-  layoutWorktreeId: string
+  layoutWorktreeId: string,
+  options: {
+    /** Also list a session some pane already shows, for a picker that reads it rather than moves it. */
+    includeReferenced?: boolean
+  } = {}
 ): OtherWorkspaceSessionGroup[] {
-  const referenced = selectReferencedSessions(state)
+  const referenced = options.includeReferenced ? new Set<string>() : selectReferencedSessions(state)
   const lookup = { floatingWorkspacePath: null, ...state }
   const groups: (OtherWorkspaceSessionGroup & { order: number })[] = []
   for (const [worktreeId, tabs] of Object.entries(state.unifiedTabsByWorktree)) {

@@ -29,9 +29,10 @@ import { useBotTeamReplying } from './BotTeamRoomReplying'
 import { BotTeamReassignButton } from './BotTeamReassignButton'
 import { BotTeamPendingChoice, type BotTeamPendingChoiceRequest } from './BotTeamPendingChoice'
 import { BotTeamRoomComposer } from './BotTeamRoomComposer'
+import { useBotTeamRoomMentions } from './bot-team-mention-projects'
 import { BotTeamSentTrackers } from './BotTeamRoomTracker'
 import { BotTeamRoomMessage } from './BotTeamRoomMessage'
-import type { BotTeamMentionIcon } from './BotTeamMentionChip'
+import { useBotTeamRoomPrototypeLinks } from './BotTeamRoomPrototypeLinks'
 import { useBotTeamRoomAttachments } from './bot-team-room-attach-state'
 import type { BotTeamRoomAttachment } from '../../../../shared/bot-team-room-attachments'
 import { BotTeamTaskCard } from './BotTeamTaskCard'
@@ -130,18 +131,7 @@ export function BotTeamRoom({
   const [pending, setPending] = useState<BotTeamPendingChoiceRequest | null>(null)
   // The text with the host, if any; the room shows who is typing until the reply comes back.
   const [typing, setTyping] = useState<string | null>(null)
-  // The names a message can chip: this team's bots, then the other teams the @ menu offers.
-  const mentionIcons = useMemo<BotTeamMentionIcon[]>(
-    () => [
-      ...team.bots.map((bot) => ({ name: bot.name, kind: 'bot' as const, agent: bot.agent })),
-      ...otherTeams.map((entry) => ({
-        name: entry.name,
-        kind: 'team' as const,
-        character: entry.character
-      }))
-    ],
-    [team.bots, otherTeams]
-  )
+  const { mentionProjects, mentionIcons } = useBotTeamRoomMentions(team, otherTeams, projects)
   const replying = useBotTeamReplying(team.bots)
   const readReplying = replying.readRoom
   const sidePanel = useRightSidebarPageTarget()
@@ -281,6 +271,7 @@ export function BotTeamRoom({
 
   // A card sits right after the request that made it; the rest follow the conversation.
   const placement = useMemo(() => placeBotTeamRoomTasks(messages, tasks), [messages, tasks])
+  const prototypeLinks = useBotTeamRoomPrototypeLinks(messages, tasks, sent, team.id)
   const openTask = tasks.find((task) => task.id === openTaskId)
   const openAgent = botOf(openTask?.ownerBotId ?? null)?.agent
   if (openTask && openAgent) {
@@ -362,6 +353,7 @@ export function BotTeamRoom({
                 >
                   {placement.cardsByMessageId.get(message.id)?.map(taskCard)}
                   {trackers(sent.filter((request) => request.messageId === message.id))}
+                  {prototypeLinks(message.id)}
                 </BotTeamRoomMessage>
               ))}
               {placement.trailing.map(taskCard)}
@@ -405,6 +397,7 @@ export function BotTeamRoom({
         <BotTeamRoomComposer
           team={team}
           otherTeams={otherTeams}
+          projects={mentionProjects}
           offline={offline}
           onSend={send}
           onAttachFiles={onAttachFiles}

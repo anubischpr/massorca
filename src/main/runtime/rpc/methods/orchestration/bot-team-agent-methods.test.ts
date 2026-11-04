@@ -64,7 +64,7 @@ describe('botTeamDelegationProject', () => {
 })
 
 describe('orchestration.botTeamTaskCreate', () => {
-  it('files the new card in the project of the task that made it', async () => {
+  it('files the new card in the project of the task that made it, on its clock', async () => {
     const { OrchestrationDb } = await import('../../../orchestration/db/orchestration-db')
     const { ORCHESTRATION_BOT_TEAM_METHODS } = await import('./bot-team-agent-methods')
     const open = new OrchestrationDb(':memory:')
@@ -90,6 +90,8 @@ describe('orchestration.botTeamTaskCreate', () => {
       })
       open.setBotTeamTaskProject(running.id, project.id)
       open.setBotTeamTaskSession(running.id, 'session-1')
+      const clock = "The person's clock when they asked: Tuesday 2026-11-03 23:38 America/Lima."
+      open.setBotTeamTaskStartNotes(running.id, `Hand-over note.\n\n${clock}`)
       const method = ORCHESTRATION_BOT_TEAM_METHODS.find(
         (entry) => entry.name === 'orchestration.botTeamTaskCreate'
       )!
@@ -102,6 +104,8 @@ describe('orchestration.botTeamTaskCreate', () => {
         task: BotTeamTask
       }
       expect(result.task.projectId).toBe(project.id)
+      // It reads its days on the asker's clock, without the caller's other notes.
+      expect(open.getBotTeamTaskStartNotes(result.task.id)).toBe(clock)
     } finally {
       open.close()
     }

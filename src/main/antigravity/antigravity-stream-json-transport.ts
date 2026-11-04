@@ -200,7 +200,11 @@ export class AntigravityStreamJsonTransport {
         'Antigravity emitted a step without an active prompt'
       )
     }
-    if (!pending.accepted && step.step_index <= this.lastStepIndex) {
+    // Before the echo, a resumed agy can still settle its interrupted turn; that work isn't this prompt's.
+    if (
+      !pending.accepted &&
+      (step.step_index <= this.lastStepIndex || step.step_type !== 'user_input')
+    ) {
       return
     }
     if (step.step_index > this.lastStepIndex) {
@@ -223,11 +227,6 @@ export class AntigravityStreamJsonTransport {
         )
       }
       return
-    }
-    if (!pending.accepted) {
-      throw new AntigravityStreamProtocolError(
-        'Antigravity work arrived before its user_input echo'
-      )
     }
     this.emit({
       type: 'step_update',

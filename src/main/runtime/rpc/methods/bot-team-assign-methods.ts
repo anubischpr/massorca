@@ -28,7 +28,8 @@ export function botTeamAssignRequestMethod(startTask: StartTask) {
           ...(request.attachments !== undefined ? { attachments: request.attachments } : {}),
           start: request.start,
           later: request.later === true,
-          askProject: request.askProject === true
+          askProject: request.askProject === true,
+          timeZone: request.timeZone ?? null
         },
         (taskId) => startTask(ctx, taskId)
       )

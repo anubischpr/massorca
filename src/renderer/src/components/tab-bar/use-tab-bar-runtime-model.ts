@@ -91,11 +91,15 @@ export type TabBarRuntimeModel = {
 
 export function useTabBarRuntimeModel({
   worktreeId,
-  groupId
+  groupId,
+  hostWorktreeId
 }: {
   worktreeId: string
   groupId?: string
+  /** The workspace whose host the "+" menu's agents and shells come from; defaults to `worktreeId`. */
+  hostWorktreeId?: string
 }): TabBarRuntimeModel {
+  const menuHostWorktreeId = hostWorktreeId ?? worktreeId
   const newTerminalShortcut = useShortcutLabel('tab.newTerminal')
   const newBrowserShortcut = useShortcutLabel('tab.newBrowser')
   const newSimulatorShortcut = useShortcutLabel('tab.newSimulator')
@@ -129,11 +133,11 @@ export function useTabBarRuntimeModel({
   const settings = useAppStore((s) => s.settings)
   // Why: use the worktree's owning host so offered Windows shells match the host that actually runs the terminal.
   const activeRuntimeEnvironmentId = useAppStore(
-    (s) => getRuntimeEnvironmentIdForWorktree(s, worktreeId)?.trim() || null
+    (s) => getRuntimeEnvironmentIdForWorktree(s, menuHostWorktreeId)?.trim() || null
   )
   // Why: retained tab strips rerun selectors on every store write; reuse canonical indexes, don't flatten both slices here.
   const worktreeConnectionId = useAppStore(
-    (s) => getConnectionIdFromState(s, worktreeId)?.trim() || null
+    (s) => getConnectionIdFromState(s, menuHostWorktreeId)?.trim() || null
   )
   const worktreeRemotePlatform = useAppStore((s) => {
     if (!worktreeConnectionId) {
@@ -148,7 +152,7 @@ export function useTabBarRuntimeModel({
   const agentCmdOverrides = useAppStore(
     (s) => s.settings?.agentCmdOverrides ?? EMPTY_AGENT_CMD_OVERRIDES
   )
-  const agentDetectionTarget = useAgentDetectionTargetForWorktree(worktreeId)
+  const agentDetectionTarget = useAgentDetectionTargetForWorktree(menuHostWorktreeId)
   const { detectedIds } = useDetectedAgents(agentDetectionTarget)
   const agentLaunchOptions = useMemo(
     () =>

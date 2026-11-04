@@ -16,7 +16,9 @@ export const BotTeamComposerMention = Node.create({
     token: { default: '' },
     kind: { default: 'file' },
     agent: { default: null },
-    character: { default: null }
+    character: { default: null },
+    logo: { default: null },
+    appId: { default: null }
   }),
   renderText: ({ node }) => String(node.attrs.token ?? ''),
   renderHTML: ({ node }) => [

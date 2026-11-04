@@ -89,6 +89,7 @@ export function createTabsCreateActions(
           ...(executionHostId ? { executionHostId } : {}),
           contentType,
           ...(init?.agentSessionAgent ? { agentSessionAgent: init.agentSessionAgent } : {}),
+          ...(init?.sessionRef ? { sessionRef: init.sessionRef } : {}),
           label:
             init?.label ??
             (contentType === 'terminal' ? `Terminal ${existingTabs.length + 1}` : id),
@@ -170,6 +171,7 @@ export function createTabsCreateActions(
           ...(executionHostId ? { executionHostId } : {}),
           contentType,
           ...(init?.agentSessionAgent ? { agentSessionAgent: init.agentSessionAgent } : {}),
+          ...(init?.sessionRef ? { sessionRef: init.sessionRef } : {}),
           label:
             init?.label ??
             (contentType === 'terminal' ? `Terminal ${existingTabs.length + 1}` : id),

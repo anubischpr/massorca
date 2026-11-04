@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { Alert, Pressable, Text, View } from 'react-native'
 import { ChevronDown, ChevronLeft, Ellipsis } from 'lucide-react-native'
 import { useMobileDictation } from '../hooks/use-mobile-dictation'
@@ -22,7 +22,7 @@ import { MobileBotTeamRequestChoice } from './MobileBotTeamRequestChoice'
 import { MobileBotTeamRoomMenu } from './MobileBotTeamRoomMenu'
 import { MobileBotTeamRoomSwitcher } from './MobileBotTeamRoomSwitcher'
 import { MobileBotTeamRoomQuestions } from './MobileBotTeamRoomQuestion'
-import { botTeamRoomSuggestions } from './MobileBotTeamRoomSuggestions'
+import { useBotTeamComposerSuggestions } from './use-mobile-bot-team-composer-suggestions'
 import { MobileBotTeamTaskCard } from './MobileBotTeamTaskCard'
 import type { BotTeamWorkScreen } from './MobileBotTeamWork'
 import { botTeamStyles as styles } from './mobile-bot-team-styles'
@@ -38,6 +38,7 @@ import { RoomWho } from './MobileBotTeamRoomWho'
 import { MobileBotTeamSentTrackers } from './MobileBotTeamRoomTracker'
 import { MobileBotTeamAttachChips } from './MobileBotTeamAttachChips'
 import { useBotTeamMentionRenderer } from './MobileBotTeamMentionChip'
+import { useBotTeamMentionProjects } from './use-mobile-bot-team-mention-projects'
 import { useMobileBotTeamRoomAttachments } from './mobile-bot-team-attach-room'
 import { MarkdownPlainTextContext } from '../components/MobileMarkdownPlainText'
 import { useBotTeamRoomPrototypeLinks } from './MobileBotTeamRoomPrototypeLinks'
@@ -66,6 +67,7 @@ export function MobileBotTeamRoom({
   onOpenBots,
   onOpenTask,
   onOpenWork,
+  onOpenRoutines,
   onAddBot,
   onNewTeam
 }: {
@@ -82,6 +84,8 @@ export function MobileBotTeamRoom({
   onOpenTask: (workspaceId: string, task: BotTeamTask) => void
   /** Opens one of the room menu's work screens: the team board, a project, or a new project. */
   onOpenWork: (screen: BotTeamWorkScreen) => void
+  /** The room menu's Routines: the team's routines, going back to this room. */
+  onOpenRoutines: () => void
   /** The choice card's "Create a new bot" and "Create a new team" open the existing forms. */
   onAddBot: () => void
   onNewTeam: () => void
@@ -100,6 +104,7 @@ export function MobileBotTeamRoom({
   const tasks = room?.tasks ?? []
   const allProjects = room?.projects ?? []
   const projects = allProjects.filter((project) => project.archivedAt == null)
+  const mentionProjects = useBotTeamMentionProjects(client, team, allProjects, offline)
   const projectTasks = room?.projectTasks ?? []
   const workspaceId = room?.workspaceId ?? null
   const { nativeChatFilePaths, loadNativeChatFiles } = useMobileNativeChatFileSearch({
@@ -116,16 +121,11 @@ export function MobileBotTeamRoom({
 
   const sending = useRef(false)
   const attachments = useMobileBotTeamRoomAttachments({ client, workspaceId, enabled: !offline })
-  const renderMentions = useBotTeamMentionRenderer(team, teams)
+  const renderMentions = useBotTeamMentionRenderer(team, teams, mentionProjects)
 
   // The phone has no Sessions panel to open, so the room's two commands stay on the desktop.
   const files = workspaceId === null ? NO_FILES : nativeChatFilePaths
-  const otherTeams = useMemo(() => teams.filter((entry) => entry.id !== team.id), [teams, team.id])
-  const roomSuggestions = useCallback(
-    (composerText: string, cursor: number) =>
-      botTeamRoomSuggestions({ text: composerText, caret: cursor, team, otherTeams, files }),
-    [team, otherTeams, files]
-  )
+  const roomSuggestions = useBotTeamComposerSuggestions(team, teams, mentionProjects, files)
 
   const send = async (typed: string): Promise<boolean> => {
     if (sending.current) {
@@ -398,6 +398,10 @@ export function MobileBotTeamRoom({
         onOpenBoard={() => {
           setSheet(null)
           onOpenWork({ name: 'board', teamId: team.id })
+        }}
+        onOpenRoutines={() => {
+          setSheet(null)
+          onOpenRoutines()
         }}
         onOpenProject={(projectId) => {
           setSheet(null)

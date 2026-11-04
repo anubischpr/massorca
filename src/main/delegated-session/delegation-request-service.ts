@@ -34,11 +34,10 @@ export type DelegationRequestInput = {
   writes: boolean
 }
 
-export type DelegationRequestReceipt = {
-  requestId: string
-  status: 'awaiting_choice'
-  questionItemId: string
-}
+export type DelegationRequestReceipt =
+  | { requestId: string; status: 'awaiting_choice'; questionItemId: string }
+  /** A bot-run chat's request, started on the router's choice with no card. */
+  | { requestId: string; status: 'starting' }
 
 const CARD_QUESTION = 'Which agent should handle this session?'
 const TITLE_MAX_CHARS = 80
@@ -232,6 +231,23 @@ export class DelegationRequestService {
       optionsJson: JSON.stringify({ agents, ...(prototypeTask ? { prototype: true } : {}) }),
       decisionJson: route.status === 'routed' ? JSON.stringify(route.decision) : null
     })
+    // Why: no person answers a bot task's cards, so its child waited on one for good.
+    const startAutomatic = this.deps.startAutomatic
+    if (
+      route.status === 'routed' &&
+      startAutomatic &&
+      this.deps.isBotRunSession?.(parent.sessionId) === true
+    ) {
+      try {
+        startAutomatic(row.id)
+      } catch (error) {
+        db.transitionDelegationRequest(row.id, 'pending', 'failed', {
+          failure: error instanceof Error ? error.message : String(error)
+        })
+        throw error
+      }
+      return { requestId: row.id, status: 'starting' }
+    }
     const card = buildDelegationCardContent({
       requestId: row.id,
       title,

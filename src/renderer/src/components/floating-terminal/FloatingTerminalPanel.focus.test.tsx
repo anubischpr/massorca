@@ -358,7 +358,7 @@ describe('FloatingTerminalPanel close behavior', () => {
     runEffects()
 
     // The last-tab close authority (strip close → confirmed close) runs while the panel owns focus.
-    const tabBar = findByTypeName(element, 'TabBar')
+    const tabBar = findByTypeName(element, 'FloatingHostTabBar')
     ;(tabBar.props.onClose as (tabId: string) => void)('tab-1')
     expect(mocks.closeTerminalTab).toHaveBeenCalledWith(
       'tab-1',
@@ -394,7 +394,7 @@ describe('FloatingTerminalPanel close behavior', () => {
     attachRef(findByProp(element, 'data-floating-terminal-panel').props.ref, panelElement)
     runEffects()
 
-    const tabBar = findByTypeName(element, 'TabBar')
+    const tabBar = findByTypeName(element, 'FloatingHostTabBar')
     ;(tabBar.props.onClose as (tabId: string) => void)('tab-1')
 
     // Emptying schedules the reclaim frame (id 42, callback not yet run); unmounting cancels it.
@@ -425,7 +425,7 @@ describe('FloatingTerminalPanel close behavior', () => {
     attachRef(findByProp(element, 'data-floating-terminal-panel').props.ref, panelElement)
     runEffects()
 
-    const tabBar = findByTypeName(element, 'TabBar')
+    const tabBar = findByTypeName(element, 'FloatingHostTabBar')
     ;(tabBar.props.onClose as (tabId: string) => void)('tab-2')
 
     expect(mocks.closeTerminalTab).toHaveBeenCalledWith(
@@ -457,7 +457,7 @@ describe('FloatingTerminalPanel close behavior', () => {
     attachRef(findByProp(element, 'data-floating-terminal-panel').props.ref, panelElement)
     runEffects()
 
-    const tabBar = findByTypeName(element, 'TabBar')
+    const tabBar = findByTypeName(element, 'FloatingHostTabBar')
     ;(tabBar.props.onClose as (tabId: string) => void)('tab-1')
 
     // The panel owned focus and this close would empty it, yet arming rides on the real close via
@@ -484,7 +484,7 @@ describe('FloatingTerminalPanel close behavior', () => {
     attachRef(findByProp(element, 'data-floating-terminal-panel').props.ref, panelElement)
     runEffects()
 
-    const tabBar = findByTypeName(element, 'TabBar')
+    const tabBar = findByTypeName(element, 'FloatingHostTabBar')
     ;(tabBar.props.onClose as (tabId: string) => void)('tab-file-a')
 
     // The close is parked on the save dialog: nothing closed yet, so nothing reclaims focus yet.
@@ -549,7 +549,7 @@ describe('FloatingTerminalPanel close behavior', () => {
     attachRef(findByProp(element, 'data-floating-terminal-panel').props.ref, panelElement)
     runEffects()
 
-    const tabBar = findByTypeName(element, 'TabBar')
+    const tabBar = findByTypeName(element, 'FloatingHostTabBar')
     ;(tabBar.props.onClose as (tabId: string) => void)('tab-file-a')
     requestedEditorCloseReaction()
 

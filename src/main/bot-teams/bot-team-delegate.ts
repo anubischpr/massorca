@@ -39,7 +39,8 @@ export async function delegateToBotTeammate(
     botName,
     text,
     project = null,
-    roomExcerpt = []
+    roomExcerpt = [],
+    clock = null
   }: {
     team: BotTeam
     botName: string
@@ -48,6 +49,8 @@ export async function delegateToBotTeammate(
     project?: BotTeamProject | null
     /** The last room messages, so the teammate sees what the others said. */
     roomExcerpt?: readonly string[]
+    /** The person's clock the caller's request was asked on, so a day the text names is read on it. */
+    clock?: string | null
   }
 ): Promise<BotTeamTask> {
   const teammate = team.bots.find((bot) => bot.name.toLowerCase() === botName.toLowerCase())
@@ -67,7 +70,8 @@ export async function delegateToBotTeammate(
         project: projectForChild(project),
         memory: deps.memoryFor?.(teammate.id),
         roomExcerpt,
-        delegated: true
+        delegated: true,
+        notes: clock
       }
     ),
     agent: teammate.agent,

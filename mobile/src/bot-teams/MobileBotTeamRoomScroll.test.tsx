@@ -11,6 +11,7 @@ vi.mock('react-native', () => ({
   Text: 'Text',
   View: 'View'
 }))
+vi.mock('../components/MobileRepoIcon', () => ({ MobileRepoIcon: () => null }))
 vi.mock('lucide-react-native', () => ({
   ArrowDown: 'ArrowDown',
   Bot: 'Bot',
@@ -22,6 +23,7 @@ vi.mock('lucide-react-native', () => ({
   FileText: 'FileText',
   Folder: 'Folder',
   FolderPlus: 'FolderPlus',
+  Calendar: 'Calendar',
   LayoutGrid: 'LayoutGrid',
   MessageSquare: 'MessageSquare',
   SlidersHorizontal: 'SlidersHorizontal',

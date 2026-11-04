@@ -4,7 +4,7 @@ import { basename } from '@/lib/path'
 import type { RuntimeFilePreviewResult } from '../../../../shared/runtime-file-contracts'
 import { NativeChatVisualFrame } from '../native-chat/NativeChatVisualFrame'
 import { isHtmlPath } from './bot-team-file-kind'
-import { readBotTeamFilePreview } from './bot-team-file-preview-read'
+import { readBotTeamFilePreviewOf } from './bot-team-file-source'
 
 type Loaded =
   | { status: 'loading' }
@@ -22,11 +22,14 @@ function Notice({ children }: { children: string }): React.JSX.Element {
 export function BotTeamFilePreview({
   teamId,
   relativePath,
+  workspaceId = null,
   kind,
   text
 }: {
   teamId: string
   relativePath: string
+  /** The project workspace the file is in; null for the team's own folder. */
+  workspaceId?: string | null
   /** The entry's kind in the team's listing: a binary file is read as a preview, not as text. */
   kind: 'text' | 'binary'
   /** A text file's content once read; null while it loads. */
@@ -40,7 +43,7 @@ export function BotTeamFilePreview({
       return
     }
     let closed = false
-    void readBotTeamFilePreview(teamId, relativePath).then(
+    void readBotTeamFilePreviewOf({ teamId, relativePath, workspaceId }).then(
       (preview) => {
         if (!closed) {
           setLoaded({ status: 'ready', preview })
@@ -55,7 +58,7 @@ export function BotTeamFilePreview({
     return () => {
       closed = true
     }
-  }, [teamId, relativePath, kind])
+  }, [teamId, relativePath, workspaceId, kind])
 
   const unavailable = translate(
     'components.native-chat.fileLinks.viewerUnavailable',
@@ -113,6 +116,8 @@ export function BotTeamFilePreview({
           layout="panel"
           themeScope={frameScope}
           onRetired={() => setRetired(true)}
+          // Why: a bot's page shows as its layout only; its own scripts do not run here.
+          strictScripts
         />
       </div>
     )

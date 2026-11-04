@@ -106,8 +106,8 @@ export function useRepoGhAccountDisplay(repo: Repo | null | undefined): RepoGhAc
     (listener: () => void) => subscribeRepoGhAccountGitConfig(slot, listener),
     [slot]
   )
-  const gitConfigAccount = useSyncExternalStore(subscribe, () =>
-    getRepoGhAccountGitConfigAccount(slot)
-  )
+  const getSnapshot = useCallback(() => getRepoGhAccountGitConfigAccount(slot), [slot])
+  // Why: static/server renders (tests, renderToStaticMarkup) throw without a server snapshot.
+  const gitConfigAccount = useSyncExternalStore(subscribe, getSnapshot, getSnapshot)
   return deriveRepoGhAccountDisplay(repo?.ghAccount, gitConfigAccount)
 }

@@ -4,6 +4,7 @@ import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { AgentSessionStatusEvent } from '../../shared/agent-session-wire'
 import { gitExecFileSync } from '../git/command-runner/git-exec-file'
+import { MAX_FILE_BYTES } from './bot-team-deliverables'
 import { isCopyableFile } from './bot-team-deliverables-copyable'
 import {
   readWorktreeChanges,
@@ -126,13 +127,20 @@ describe('isCopyableFile', () => {
     rmSync(root, { recursive: true, force: true })
   })
 
-  it('copies a text file, and not a binary one or a file that is not there', () => {
+  it('copies a text file and a binary one, but not a file that is not there', () => {
     root = mkdtempSync(path.join(tmpdir(), 'bot-team-copyable-'))
     writeFileSync(path.join(root, 'notes.md'), 'plain text')
-    writeFileSync(path.join(root, 'sheet.xlsx'), 'PK\u0000\u0003binary')
+    writeFileSync(path.join(root, 'deck.pdf'), 'PK\u0000\u0003binary')
 
     expect(isCopyableFile(path.join(root, 'notes.md'))).toBe(true)
-    expect(isCopyableFile(path.join(root, 'sheet.xlsx'))).toBe(false)
+    expect(isCopyableFile(path.join(root, 'deck.pdf'))).toBe(true)
     expect(isCopyableFile(path.join(root, 'absent.md'))).toBe(false)
+  })
+
+  it('refuses a file over the size limit, binary or not', () => {
+    root = mkdtempSync(path.join(tmpdir(), 'bot-team-copyable-'))
+    writeFileSync(path.join(root, 'big.bin'), Buffer.alloc(MAX_FILE_BYTES + 1))
+
+    expect(isCopyableFile(path.join(root, 'big.bin'))).toBe(false)
   })
 })

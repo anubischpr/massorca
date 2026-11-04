@@ -1,41 +1,23 @@
-import {
-  useEffect,
-  useId,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-  type KeyboardEvent
-} from 'react'
+import { useState } from 'react'
 import { ArrowUp, Plus, X } from 'lucide-react'
-import { EditorContent } from '@tiptap/react'
 import { Button } from '@/components/ui/button'
 import { translate } from '@/i18n/i18n'
-import { useImeEnterGestureOwnership } from '@/lib/ime-composition-keyboard-event'
-import { useNativeChatComposerKeyDown } from '../native-chat/use-native-chat-composer-keydown'
-import { promptTextMap, promptTextOffset } from '../native-chat/native-chat-prompt-document'
+import { promptTextMap } from '../native-chat/native-chat-prompt-document'
 import {
-  botTeamComposerMenu,
   BOT_TEAM_ROOM_COMMANDS,
-  botTeamMentionOpen,
-  type BotTeamComposerItem
+  type BotTeamMentionProject
 } from '../../../../shared/bot-team-composer-menu'
-import {
-  removeBotTeamMentionBeforeCaret,
-  type BotTeamMentionName
-} from '../../../../shared/bot-team-mention-text'
 import {
   BOT_TEAM_ROOM_ATTACHMENT_LIMIT,
   type BotTeamRoomAttachment
 } from '../../../../shared/bot-team-room-attachments'
 import type { BotTeam } from '../../../../shared/rpc-contract/bot-team-params'
-import { BotTeamComposerMenu } from './BotTeamComposerMenu'
-import { botTeamComposerChipAttrs } from './bot-team-composer-document'
-import { useBotTeamComposerEditor } from './bot-team-composer-editor'
+import { useBotTeamRoomDraft } from './bot-team-room-draft'
 import { openBotTeamRoomSessions } from './open-bot-team-room-sessions'
-import { useBotTeamFilePaths } from './use-bot-team-files'
+import { useBotTeamMentionField } from './use-bot-team-mention-field'
 
 const NO_TEAMS: readonly BotTeam[] = []
+const NO_PROJECTS: readonly BotTeamMentionProject[] = []
 
 /** The files already picked, then the new ones not yet listed, up to the message's limit. */
 function mergeAttachments(
@@ -55,6 +37,7 @@ function mergeAttachments(
 export function BotTeamRoomComposer({
   team,
   otherTeams = NO_TEAMS,
+  projects = NO_PROJECTS,
   offline,
   onSend,
   onAttachFiles
@@ -62,39 +45,21 @@ export function BotTeamRoomComposer({
   team: BotTeam
   /** `@Name` of one of these sends the request to that team. */
   otherTeams?: readonly BotTeam[]
+  /** The team's projects `@` can name, each with its logo or none. */
+  projects?: readonly BotTeamMentionProject[]
   offline: boolean
   onSend: (text: string, attachments: BotTeamRoomAttachment[]) => Promise<boolean>
   /** Picks files into the team folder; without it the room takes no files and the "+" stays hidden. */
   onAttachFiles?: () => Promise<BotTeamRoomAttachment[]>
 }): React.JSX.Element {
-  // The plain text the room sends (each picked mention as its "@Name") and the caret within it.
-  const [text, setText] = useState('')
-  const [caret, setCaret] = useState(0)
-  const [menuIndex, setMenuIndex] = useState(0)
-  const [menuDismissed, setMenuDismissed] = useState(false)
   const [pending, setPending] = useState<BotTeamRoomAttachment[]>([])
   const [attaching, setAttaching] = useState(false)
-  const menuId = useId()
-  const files = useBotTeamFilePaths(team.id, !offline && botTeamMentionOpen(text, caret))
-  const mentionNames = useMemo<BotTeamMentionName[]>(
-    () => [
-      ...team.bots.map((bot) => ({ name: bot.name, kind: 'bot' as const })),
-      ...otherTeams.map((entry) => ({ name: entry.name, kind: 'team' as const }))
-    ],
-    [team.bots, otherTeams]
-  )
-  const menu =
-    menuDismissed || offline
-      ? null
-      : botTeamComposerMenu({
-          text,
-          caret,
-          bots: team.bots,
-          teams: otherTeams,
-          files,
-          commands: BOT_TEAM_ROOM_COMMANDS
-        })
-  const editor = useBotTeamComposerEditor({
+  const { editor, text, containerRef, menu, field } = useBotTeamMentionField({
+    team,
+    otherTeams,
+    projects,
+    commands: BOT_TEAM_ROOM_COMMANDS,
+    offline,
     ariaLabel: translate('components.botTeams.messageTeam', 'Message the team'),
     placeholder: offline
       ? translate('components.botTeams.writeWhenBack', 'You can write again when this host is back')
@@ -102,73 +67,12 @@ export function BotTeamRoomComposer({
           'components.botTeams.messageTeamHint',
           'Message the team, or type @ to ask one bot'
         ),
-    disabled: offline,
-    onChange: (current) => {
-      setText(promptTextMap(current.state.doc).text)
-      setCaret(promptTextOffset(current.state.doc, current.state.selection.from))
-      setMenuIndex(0)
-      setMenuDismissed(false)
-    },
-    onSelect: (current) =>
-      setCaret(promptTextOffset(current.state.doc, current.state.selection.from))
+    send: () => void send(),
+    onCommand: () => void openBotTeamRoomSessions()
   })
-  const composerRef = useRef<HTMLDivElement | null>(null)
-  const menuOpen = menu !== null
-  // Why: a click anywhere outside the box closes its @ and / menu, as it closes a popover.
-  useEffect(() => {
-    if (!menuOpen) {
-      return
-    }
-    const onPointerDown = (event: PointerEvent): void => {
-      const inside = event.target instanceof Node && composerRef.current?.contains(event.target)
-      if (!inside) {
-        setMenuDismissed(true)
-      }
-    }
-    document.addEventListener('pointerdown', onPointerDown)
-    return () => document.removeEventListener('pointerdown', onPointerDown)
-  }, [menuOpen])
-  // The ARIA links follow the open menu, so a screen reader reads the option the caret is on.
-  useLayoutEffect(() => {
-    const dom = editor?.view.dom
-    if (!dom) {
-      return
-    }
-    dom.setAttribute('aria-expanded', String(menu !== null))
-    if (menu) {
-      dom.setAttribute('aria-controls', menuId)
-      dom.setAttribute('aria-activedescendant', `${menuId}-option-${menuIndex}`)
-    } else {
-      dom.removeAttribute('aria-controls')
-      dom.removeAttribute('aria-activedescendant')
-    }
-  }, [editor, menu, menuId, menuIndex])
-  const chooseMenuItem = (item: BotTeamComposerItem): void => {
-    if (!menu || !editor) {
-      return
-    }
-    if (item.kind === 'command') {
-      editor.commands.clearContent(true)
-      void openBotTeamRoomSessions()
-      return
-    }
-    const chip = botTeamComposerChipAttrs(item)
-    if (!chip) {
-      return
-    }
-    // The typed "@query" is plain text, so the menu's character span maps onto document positions.
-    const { positions } = promptTextMap(editor.state.doc)
-    editor
-      .chain()
-      .focus()
-      .insertContentAt({ from: positions[menu.start], to: positions[menu.end] }, [
-        { type: 'botTeamMention', attrs: chip },
-        { type: 'text', text: ' ' }
-      ])
-      .run()
-    setMenuIndex(0)
-  }
-  const send = async (): Promise<void> => {
+  useBotTeamRoomDraft(editor, team.id)
+  // Hoisted: the field's Enter calls it, after the editor exists.
+  async function send(): Promise<void> {
     if (!editor) {
       return
     }
@@ -202,57 +106,6 @@ export function BotTeamRoomComposer({
       setAttaching(false)
     }
   }
-  // Why: a picked mention is one atom, and a typed "@Name" is removed whole too, so Backspace takes it at once.
-  const removeMentionBeforeCaret = (event: KeyboardEvent<HTMLElement>): boolean => {
-    if (!editor || event.key !== 'Backspace' || event.nativeEvent.isComposing) {
-      return false
-    }
-    const { selection, doc } = editor.state
-    if (!selection.empty) {
-      return false
-    }
-    const map = promptTextMap(doc)
-    const next = removeBotTeamMentionBeforeCaret(
-      map.text,
-      promptTextOffset(doc, selection.from),
-      mentionNames
-    )
-    if (!next) {
-      return false
-    }
-    event.preventDefault()
-    editor.view.dispatch(editor.state.tr.delete(map.positions[next.caret], selection.from))
-    return true
-  }
-  const imeEnterGesture = useImeEnterGestureOwnership()
-  // The Workspaces composer's keys; the room menu rides its mention mode, each item keyed by index.
-  const onKeyDown = useNativeChatComposerKeyDown({
-    autocomplete: menu
-      ? { mode: 'mention', query: '', triggerKey: String(menu.start) }
-      : { mode: 'none' },
-    mentionFiles: {
-      files: menu ? menu.items.map((_item, index) => String(index)) : [],
-      loading: false,
-      failed: false
-    },
-    completeMention: (index) => {
-      const item = menu?.items[Number(index)]
-      if (item) {
-        chooseMenuItem(item)
-      }
-    },
-    activeSuggestion: menuIndex,
-    draft: text,
-    isComposing: imeEnterGesture.isComposing,
-    completePickerItem: () => {},
-    dispatchPickerCommand: () => {},
-    dismissPicker: () => setMenuDismissed(true),
-    interrupt: () => {},
-    send: () => void send(),
-    setActiveSuggestion: setMenuIndex,
-    setDraft: setText,
-    setCaret
-  })
 
   return (
     <div className="shrink-0 px-4 pb-4 pt-2">
@@ -288,17 +141,10 @@ export function BotTeamRoomComposer({
           </ul>
         ) : null}
         <div
-          ref={composerRef}
+          ref={containerRef}
           className="relative flex items-end gap-2 rounded-xl border border-input p-1.5"
         >
-          {menu ? (
-            <BotTeamComposerMenu
-              menu={menu}
-              activeIndex={menuIndex}
-              listboxId={menuId}
-              onChoose={chooseMenuItem}
-            />
-          ) : null}
+          {menu}
           {onAttachFiles ? (
             <Button
               variant="ghost"
@@ -311,28 +157,7 @@ export function BotTeamRoomComposer({
               <Plus className="size-4" />
             </Button>
           ) : null}
-          <EditorContent
-            editor={editor}
-            className="scrollbar-sleek max-h-40 min-h-9 flex-1 overflow-y-auto px-2 py-1.5 text-sm"
-            onKeyDownCapture={(event) => {
-              if (imeEnterGesture.ownsKeyDown(event)) {
-                return
-              }
-              // Shift+Enter is the newline the box takes; a plain Enter sends.
-              if (event.key === 'Enter' && event.shiftKey && !imeEnterGesture.isComposing()) {
-                event.preventDefault()
-                editor?.commands.setHardBreak()
-                return
-              }
-              if (!removeMentionBeforeCaret(event)) {
-                onKeyDown(event)
-              }
-            }}
-            onKeyUp={imeEnterGesture.onKeyUp}
-            onCompositionStart={() => imeEnterGesture.setComposing(true)}
-            onCompositionEnd={imeEnterGesture.onCompositionEnd}
-            onBlur={imeEnterGesture.reset}
-          />
+          {field('scrollbar-sleek max-h-40 min-h-9 flex-1 overflow-y-auto px-2 py-1.5 text-sm')}
           <Button
             size="icon"
             className="rounded-full"

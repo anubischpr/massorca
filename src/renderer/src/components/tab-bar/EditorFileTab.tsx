@@ -90,9 +90,10 @@ export default function EditorFileTab({
   const isConflictReview = file.mode === 'conflict-review'
   const isCheckDetails = file.mode === 'check-details'
   const isMarkdownPreviewTab = file.mode === 'markdown-preview'
+  const isChecklistTab = file.language === 'checklist'
   const HoverIcon = isConflictReview
     ? ShieldAlert
-    : isCheckDetails
+    : isCheckDetails || isChecklistTab
       ? ListChecks
       : isDiff
         ? GitCompareArrows
@@ -279,7 +280,7 @@ export default function EditorFileTab({
         <ShieldAlert
           className={`w-3 h-3 mr-1 shrink-0 ${isActive ? 'text-orange-400' : 'text-orange-400/70'}`}
         />
-      ) : isCheckDetails ? (
+      ) : isCheckDetails || isChecklistTab ? (
         <ListChecks
           className={`w-3 h-3 mr-1 shrink-0 ${isActive ? 'text-foreground' : 'text-muted-foreground'}`}
         />

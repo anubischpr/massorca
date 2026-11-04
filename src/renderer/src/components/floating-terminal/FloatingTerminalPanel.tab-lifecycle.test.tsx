@@ -177,7 +177,7 @@ describe('FloatingTerminalPanel close behavior', () => {
     setFloatingTabs([makeTab({ id: 'tab-1' })])
 
     const element = await renderPanel(true)
-    const tabBar = findByTypeName(element, 'TabBar')
+    const tabBar = findByTypeName(element, 'FloatingHostTabBar')
     ;(tabBar.props.onNewTerminalTab as () => void)()
     await flushAsyncWork()
 
@@ -216,7 +216,7 @@ describe('FloatingTerminalPanel close behavior', () => {
     mocks.createWebRuntimeSessionBrowserTab.mockResolvedValue(true)
 
     const element = await renderPanel(true)
-    const tabBar = findByTypeName(element, 'TabBar')
+    const tabBar = findByTypeName(element, 'FloatingHostTabBar')
     ;(tabBar.props.onNewBrowserTab as () => void)()
     // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: TabBarProps types this callback; the test tree erases it.
     ;(tabBar.props.onDuplicateBrowserTab as (browserTabId: string, unifiedTabId: string) => void)(
@@ -298,7 +298,7 @@ describe('FloatingTerminalPanel close behavior', () => {
     setFloatingTabs([makeTab({ id: 'tab-1' })])
 
     const element = await renderPanel(true, onOpenChange)
-    const tabBar = findByTypeName(element, 'TabBar')
+    const tabBar = findByTypeName(element, 'FloatingHostTabBar')
     ;(tabBar.props.onClose as (tabId: string) => void)('tab-1')
 
     // Terminals route through closeTerminalTab (its own pin guard + F9 force-reenter), not the raw store close.
@@ -318,7 +318,7 @@ describe('FloatingTerminalPanel close behavior', () => {
     ])
 
     const element = await renderPanel(true, onOpenChange)
-    const tabBar = findByTypeName(element, 'TabBar')
+    const tabBar = findByTypeName(element, 'FloatingHostTabBar')
     ;(tabBar.props.onClose as (tabId: string) => void)('tab-2')
 
     expect(mocks.closeTerminalTab).toHaveBeenCalledWith(
@@ -332,7 +332,7 @@ describe('FloatingTerminalPanel close behavior', () => {
     const tab = setFloatingSimulatorTab()
 
     const element = await renderPanel(true)
-    const tabBar = findByTypeName(element, 'TabBar')
+    const tabBar = findByTypeName(element, 'FloatingHostTabBar')
     ;(tabBar.props.onCloseFile as (tabId: string) => void)(tab.id)
 
     expect(tabBar.props.activeTabType).toBe('simulator')
@@ -353,7 +353,7 @@ describe('FloatingTerminalPanel close behavior', () => {
     state.unifiedTabsByWorktree[FLOATING_TERMINAL_WORKTREE_ID] = [tab]
 
     const element = await renderPanel(true)
-    const tabBar = findByTypeName(element, 'TabBar')
+    const tabBar = findByTypeName(element, 'FloatingHostTabBar')
     ;(tabBar.props.onCloseFile as (tabId: string) => void)(tab.id)
 
     expect(mocks.closeUnifiedTab).toHaveBeenCalledWith(tab.id)
@@ -383,7 +383,7 @@ describe('FloatingTerminalPanel close behavior', () => {
     }
 
     const element = await renderPanel(true)
-    const tabBar = findByTypeName(element, 'TabBar')
+    const tabBar = findByTypeName(element, 'FloatingHostTabBar')
     // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the rendered TabBar stub supplies this close callback with a tab id.
     ;(tabBar.props.onCloseBrowserTab as (tabId: string) => void)('tab-browser-1')
 
@@ -447,7 +447,7 @@ describe('FloatingTerminalPanel close behavior', () => {
     }
 
     const element = await renderPanel(true)
-    const tabBar = findByTypeName(element, 'TabBar')
+    const tabBar = findByTypeName(element, 'FloatingHostTabBar')
     ;(tabBar.props.onCloseAllFiles as () => void)()
 
     expect(mocks.closeFile).toHaveBeenCalledWith(file.id)
@@ -462,7 +462,7 @@ describe('FloatingTerminalPanel close behavior', () => {
     mocks.createWebRuntimeSessionTerminal.mockResolvedValue(true)
 
     const element = await renderPanel(true, onOpenChange)
-    const tabBar = findByTypeName(element, 'TabBar')
+    const tabBar = findByTypeName(element, 'FloatingHostTabBar')
     ;(tabBar.props.onNewTerminalTab as () => void)()
     await flushAsyncWork()
 
@@ -495,7 +495,7 @@ describe('FloatingTerminalPanel close behavior', () => {
     ])
 
     const refreshed = await renderPanel(true)
-    const tabBar = findByTypeName(refreshed, 'TabBar')
+    const tabBar = findByTypeName(refreshed, 'FloatingHostTabBar')
     ;(tabBar.props.onCloseOthers as (tabId: string) => void)('new-keep')
     expect(mocks.closeTerminalTab).toHaveBeenCalledWith(
       'new-left',
@@ -515,7 +515,9 @@ describe('FloatingTerminalPanel close behavior', () => {
     ])
     const next = await renderPanel(true)
     // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the rendered TabBar stub supplies this close callback with a tab id.
-    ;(findByTypeName(next, 'TabBar').props.onCloseToRight as (tabId: string) => void)('new-left')
+    ;(findByTypeName(next, 'FloatingHostTabBar').props.onCloseToRight as (tabId: string) => void)(
+      'new-left'
+    )
     expect(mocks.closeTerminalTab).toHaveBeenCalledWith(
       'new-keep',
       expect.objectContaining({ skipRunningProcessConfirm: true })
@@ -541,7 +543,7 @@ describe('FloatingTerminalPanel close behavior', () => {
     ][0].tabOrder = ['tab-c', 'tab-a', 'tab-b']
 
     const element = await renderPanel(true)
-    const tabBar = findByTypeName(element, 'TabBar')
+    const tabBar = findByTypeName(element, 'FloatingHostTabBar')
     ;(tabBar.props.onCloseToRight as (tabId: string) => void)('tab-c')
 
     expect(mocks.closeTerminalTab).toHaveBeenCalledWith(
@@ -573,7 +575,7 @@ describe('FloatingTerminalPanel tab drag wiring', () => {
     expect(dragLayer.props.enabled).toBe(true)
     // The one strip and the group tree live inside the same scope, so a drag can
     // reorder in the strip or split against the tree.
-    expect(findByTypeName(element, 'TabBar')).toBeDefined()
+    expect(findByTypeName(element, 'FloatingHostTabBar')).toBeDefined()
     expect(findByTypeName(element, 'TabGroupSplitNodeTree')).toBeDefined()
   })
 
