@@ -9,17 +9,18 @@ const NO_APPS: readonly MarketplaceAppMention[] = []
 
 /** The connected Marketplace apps an @ menu offers; none where the bridge is missing, as in the web client. */
 export function useConnectedMarketplaceApps(): readonly MarketplaceAppMention[] {
-  const apps = useAppStore((s) => s.marketplaceApps)
-  const refresh = useAppStore((s) => s.refreshMarketplaceApps)
-  const loading = apps.status === 'loading'
+  // Why optional: a store without the Marketplace slice (a partial test store) offers no apps.
+  const apps = useAppStore((s) => s.marketplaceApps) ?? null
+  const refresh = useAppStore((s) => s.refreshMarketplaceApps) ?? null
+  const loading = apps?.status === 'loading'
   useEffect(() => {
     if (loading) {
-      void refresh()
+      void refresh?.()
     }
   }, [loading, refresh])
   return useMemo(
     () =>
-      apps.status === 'ready'
+      apps?.status === 'ready'
         ? apps.apps.filter((app) => app.connected).map((app) => marketplaceAppMention(app.id))
         : NO_APPS,
     [apps]

@@ -12,6 +12,7 @@ import {
   isBareStructuredAgentSessionGoalCommand,
   structuredAgentSessionGoalObjective
 } from '../../../../shared/structured-agent-session-composer'
+import { withMarketplaceAppPromptLines } from '../../../../shared/marketplace-app-mentions'
 
 const GOAL_COMMAND = 'goal'
 
@@ -115,7 +116,7 @@ export function useNativeChatComposerSubmit(args: {
     } else if (!structuredTransport) {
       sendPty()
     } else if ((draft.trim() !== '' || imageAttachments.length > 0) && !disabled) {
-      sendStructured(draft, imageAttachments)
+      sendStructured(withMarketplaceAppPromptLines(draft, draft), imageAttachments)
     }
   }, [
     active,

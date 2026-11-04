@@ -1,5 +1,6 @@
 import { useRef, useState, type ReactNode } from 'react'
 import { useComposerDraft } from '@/lib/composer-draft'
+import { withMarketplaceAppPromptLines } from '../../../../shared/marketplace-app-mentions'
 import { CreateChatAgentChip } from './CreateChatAgentChip'
 import { CreateChatComposer } from './CreateChatComposer'
 import { CreateChatPageFrame } from './CreateChatPageFrame'
@@ -83,7 +84,8 @@ export function CreateChatSession({
     setPending(true)
     setError(null)
     try {
-      const outcome = await onSubmit(draft.trim(), selection)
+      const prompt = draft.trim()
+      const outcome = await onSubmit(withMarketplaceAppPromptLines(prompt, prompt), selection)
       if (outcome.started) {
         clearDraft()
       } else {
