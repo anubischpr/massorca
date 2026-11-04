@@ -517,6 +517,7 @@ import {
   PrototypeRequestTargetParams,
   ReadPrototypeDesignSystemParams,
   ReadPrototypeFileParams,
+  RestorePrototypeVersionParams,
   WriteAttachmentParams
 } from './prototype-params'
 import {
@@ -1273,6 +1274,7 @@ export const RPC_PARAMS_BY_METHOD = {
   'prototypes.list': ListPrototypeSetsParams,
   'prototypes.readDesignSystem': ReadPrototypeDesignSystemParams,
   'prototypes.readFile': ReadPrototypeFileParams,
+  'prototypes.restoreVersion': RestorePrototypeVersionParams,
   'prototypes.unarchive': PrototypeRequestTargetParams,
   'prototypes.writeAttachment': WriteAttachmentParams,
   'repo.add': RepoPath,
