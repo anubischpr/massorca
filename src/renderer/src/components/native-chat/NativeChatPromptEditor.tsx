@@ -17,6 +17,7 @@ import { EditorContent, useEditor } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Placeholder from '@tiptap/extension-placeholder'
 import {
+  NativeChatMention,
   NativeChatSkill,
   promptTextContent,
   promptTextMap,
@@ -73,6 +74,7 @@ export function NativeChatPromptEditor({
           trailingNode: false
         }),
         NativeChatSkill,
+        NativeChatMention,
         Placeholder.configure({
           // The ghost text is the placeholder's slot: shown only while the document is empty.
           placeholder: () => ghostTextRef.current ?? placeholderRef.current
@@ -179,7 +181,9 @@ export function NativeChatPromptEditor({
                 return
               }
               if (!value) {
-                editor.commands.setContent(promptTextContent(''), { emitUpdate: false })
+                editor.commands.setContent(promptTextContent(''), {
+                  emitUpdate: false
+                })
                 return
               }
               let start = 0
@@ -259,6 +263,10 @@ export function NativeChatPromptEditor({
               editor.commands.selectAll()
             },
             setSelectionRange: (from, to) => {
+              // A caret queued for the next frame can land after the box unmounted.
+              if (editor.isDestroyed) {
+                return
+              }
               const { positions } = promptTextMap(editor.state.doc)
               editor.commands.setTextSelection({
                 from: positions[Math.min(from ?? 0, positions.length - 1)],
@@ -272,6 +280,18 @@ export function NativeChatPromptEditor({
                 .chain()
                 .insertContentAt({ from: positions[from], to: positions[to] }, [
                   { type: 'nativeChatSkill', attrs: { token } },
+                  { type: 'text', text: ' ' }
+                ])
+                .run()
+              editor.view.dispatch(closeHistory(editor.state.tr))
+            },
+            insertMention: (from, to, mention) => {
+              const { positions } = promptTextMap(editor.state.doc)
+              editor.view.dispatch(closeHistory(editor.state.tr))
+              editor
+                .chain()
+                .insertContentAt({ from: positions[from], to: positions[to] }, [
+                  { type: 'nativeChatMention', attrs: mention },
                   { type: 'text', text: ' ' }
                 ])
                 .run()

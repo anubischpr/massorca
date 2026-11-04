@@ -6,12 +6,15 @@ import type { BotTeamMessage } from '../../../../shared/rpc-contract/bot-team-ro
 import { BotAgentIcon } from './BotAgentIcon'
 import { BotTeamAllAuthor } from './BotTeamAllAuthor'
 import { BotTeamCharacterIcon } from './BotTeamCharacterIcon'
+import { BotTeamFileChipTeamContext } from './BotTeamFileChipHover'
 import type { BotTeamMentionIcon } from './BotTeamMentionChip'
 import { BotTeamRoomAttachChips } from './BotTeamRoomAttachChips'
 import { BotTeamRoomMessageBody } from './BotTeamRoomMessageBody'
 
 const fromTeamTag = (from: BotTeam): string =>
-  translate('components.botTeams.fromTeam', 'From {{team}}', { team: from.name })
+  translate('components.botTeams.fromTeam', 'From {{team}}', {
+    team: from.name
+  })
 
 /** One line of the room: the person's, a bot's, or a bot of another team reporting a finished request. */
 export function BotTeamRoomMessage({
@@ -56,7 +59,9 @@ export function BotTeamRoomMessage({
         }
       >
         {isBotTeamFilesOnlyText(message.text, message.attachments) ? null : (
-          <BotTeamRoomMessageBody text={message.text} mentions={mentions} />
+          <BotTeamFileChipTeamContext.Provider value={team.id}>
+            <BotTeamRoomMessageBody text={message.text} mentions={mentions} />
+          </BotTeamFileChipTeamContext.Provider>
         )}
         {message.attachments && message.attachments.length > 0 ? (
           <BotTeamRoomAttachChips

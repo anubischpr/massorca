@@ -3,13 +3,14 @@ import type { ExtraProps } from 'react-markdown'
 import { RepoIconGlyph } from '@/components/repo/repo-icon'
 import type { CommentMarkdownExtension } from '@/components/sidebar/CommentMarkdown'
 import { getFileTypeIcon } from '@/lib/file-type-icons'
-import { FilePathTooltip } from '../native-chat/FilePathTooltip'
+import { BotTeamFileChipHover } from './BotTeamFileChipHover'
 import { MarketplaceItemIcon } from '../marketplace/MarketplaceItemIcon'
 import type { MarketplaceAppId } from '../../../../shared/marketplace-apps'
 import type { RepoIcon } from '../../../../shared/repo-icon'
 import type { BotTeam, BotTeamBot } from '../../../../shared/rpc-contract/bot-team-params'
 import { BotAgentIcon } from './BotAgentIcon'
 import { BotTeamCharacterIcon } from './BotTeamCharacterIcon'
+import { BOT_TEAM_MENTION_CHIP_CLASS } from './bot-team-mention-chip-class'
 import {
   BOT_TEAM_MENTION_ATTRIBUTE,
   BOT_TEAM_MENTION_FILE_ATTRIBUTE,
@@ -42,9 +43,7 @@ function mentionIconsByName(
   return icons
 }
 
-/** The chip's look, shared by the sent message and the composer's picked mention. */
-export const BOT_TEAM_MENTION_CHIP_CLASS =
-  'mx-px inline-flex items-center gap-1 rounded-full border border-border bg-muted px-1.5 align-baseline text-[0.92em] font-medium'
+export { BOT_TEAM_MENTION_CHIP_CLASS }
 
 /** The icon a chip shows before its name; a project without a logo or an unknown name shows none. */
 export function BotTeamMentionChipFace({
@@ -98,7 +97,11 @@ function createMentionSpan(icons: ReadonlyMap<string, BotTeamMentionIcon>) {
         <BotTeamMentionChipFace icon={icon}>{icon.name}</BotTeamMentionChipFace>
       </span>
     )
-    return icon.kind === 'file' ? <FilePathTooltip path={icon.name}>{chip}</FilePathTooltip> : chip
+    return icon.kind === 'file' ? (
+      <BotTeamFileChipHover path={icon.name}>{chip}</BotTeamFileChipHover>
+    ) : (
+      chip
+    )
   }
 }
 
@@ -109,7 +112,9 @@ export function createBotTeamMentionExtension(
   const names = mentions.flatMap(({ name, kind }) => (kind === 'file' ? [] : [{ name, kind }]))
   return {
     remarkPlugins: [[remarkBotTeamMentions, names]],
-    sanitizeAttributes: { span: [BOT_TEAM_MENTION_PROPERTY, BOT_TEAM_MENTION_FILE_PROPERTY] },
+    sanitizeAttributes: {
+      span: [BOT_TEAM_MENTION_PROPERTY, BOT_TEAM_MENTION_FILE_PROPERTY]
+    },
     components: { span: createMentionSpan(mentionIconsByName(mentions)) }
   }
 }

@@ -1,8 +1,10 @@
-import { useRef, type KeyboardEvent, type ReactNode, type RefObject } from 'react'
+import { useLayoutEffect, useRef, type KeyboardEvent, type ReactNode, type RefObject } from 'react'
 import { ArrowUp, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { translate } from '@/i18n/i18n'
-import { ImeTextarea } from '@/lib/ime-text-field'
+import { useImeEnterGestureOwnership } from '@/lib/ime-composition-keyboard-event'
+import { NativeChatPromptEditor } from '../native-chat/NativeChatPromptEditor'
+import type { NativeChatComposerInput } from '../native-chat/native-chat-composer-input'
 import { CreateChatChipMenuGroup } from './CreateChatChipMenu'
 import { useCreateChatMention } from './use-create-chat-mention'
 
@@ -65,27 +67,52 @@ export function CreateChatComposer({
       'components.createChat.composerPlaceholder',
       'Describe the task to start the session…'
     )
-  const textareaRef = useRef<HTMLTextAreaElement | null>(null)
+  const inputRef = useRef<NativeChatComposerInput | null>(null)
+  const boxRef = useRef<HTMLDivElement | null>(null)
+  const imeEnterGesture = useImeEnterGestureOwnership()
   const mention = useCreateChatMention({
     worktreeId: editorField ? null : (mentionWorktreeId ?? null),
     draft,
     setDraft: onDraftChange,
-    // ImeTextarea drops composition keys before they reach the handler.
-    isComposing: () => false,
+    isComposing: imeEnterGesture.isComposing,
     send: () => {
       if (canSubmit) {
         onSubmit()
       }
     },
-    textareaRef
+    inputRef,
+    boxRef
   })
-  const handleKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>): void => {
+  // A draft set from outside, such as cleared after the launch, reaches the editor here.
+  useLayoutEffect(() => {
+    const input = inputRef.current
+    if (input && input.value !== draft) {
+      input.value = draft
+    }
+  }, [draft])
+  // The editor fixes its attributes when it is created, so the menu's combobox state is set here.
+  useLayoutEffect(() => {
+    const field = boxRef.current?.querySelector('[role="textbox"]')
+    if (!field) {
+      return
+    }
+    field.removeAttribute('aria-controls')
+    field.removeAttribute('aria-activedescendant')
+    field.setAttribute('aria-label', placeholder)
+    for (const [name, value] of Object.entries(mention.ariaProps)) {
+      field.setAttribute(name, value)
+    }
+  })
+  const handleKeyDown = (event: KeyboardEvent<HTMLElement>): void => {
+    if (imeEnterGesture.ownsKeyDown(event)) {
+      return
+    }
     if (mention.menu) {
       mention.onKeyDown(event)
       return
     }
-    // Why: Shift+Enter keeps the newline; IME composition is filtered by ImeTextarea before this runs.
-    if (event.key !== 'Enter' || event.shiftKey) {
+    // Why: Shift+Enter keeps the editor's newline; a plain Enter creates the session.
+    if (event.key !== 'Enter' || event.shiftKey || imeEnterGesture.isComposing()) {
       return
     }
     event.preventDefault()
@@ -109,7 +136,12 @@ export function CreateChatComposer({
           </fieldset>
         </div>
         <div
-          ref={editorField?.containerRef}
+          ref={(element) => {
+            boxRef.current = element
+            if (editorField) {
+              editorField.containerRef.current = element
+            }
+          }}
           className="relative rounded-xl border border-border bg-card shadow-xs transition-[box-shadow] focus-within:ring-1 focus-within:ring-ring/50"
         >
           {editorField ? editorField.menu : mention.menu}
@@ -118,20 +150,22 @@ export function CreateChatComposer({
               'scrollbar-sleek block max-h-60 min-h-20 w-full overflow-y-auto rounded-xl px-4 pt-3 pb-1 text-sm'
             )
           ) : (
-            <ImeTextarea
-              ref={textareaRef}
-              rows={3}
-              value={draft}
+            <NativeChatPromptEditor
+              inputRef={inputRef}
+              initialValue={draft}
+              disabled={false}
               placeholder={placeholder}
-              aria-label={placeholder}
-              {...mention.ariaProps}
-              onChange={(event) => {
-                onDraftChange(event.target.value)
-                mention.onCaret(event.target.selectionStart ?? event.target.value.length)
+              onChange={(input) => {
+                onDraftChange(input.value)
+                mention.onCaret(input.selectionStart ?? input.value.length)
               }}
-              onSelect={(event) => mention.onCaret(event.currentTarget.selectionStart ?? 0)}
-              onKeyDown={handleKeyDown}
-              className="block max-h-60 min-h-20 w-full resize-none rounded-xl bg-transparent px-4 pt-3 pb-1 text-sm outline-none placeholder:text-muted-foreground/60"
+              onSelect={(input) => mention.onCaret(input.selectionStart ?? 0)}
+              onKeyDownCapture={handleKeyDown}
+              onKeyUp={imeEnterGesture.onKeyUp}
+              onCompositionStart={() => imeEnterGesture.setComposing(true)}
+              onCompositionEnd={imeEnterGesture.onCompositionEnd}
+              onBlur={imeEnterGesture.reset}
+              className="scrollbar-sleek block max-h-60 min-h-20 w-full overflow-y-auto rounded-xl px-4 pt-3 pb-1 text-sm outline-none"
             />
           )}
           <div className="flex items-center justify-between gap-2 px-2 pb-2">

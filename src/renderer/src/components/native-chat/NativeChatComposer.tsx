@@ -5,7 +5,10 @@ import { forwardRef, useCallback, useState } from 'react'
 import { useNativeChatComposerInterrupt } from './use-native-chat-composer-interrupt'
 import { useNativeChatContextUsageSummary } from './use-native-chat-context-usage-summary'
 import { getSettingsForAgentTabRuntimeOwner } from '@/lib/agent-paste-draft'
-import { useNativeChatMentionFilesAndApps } from './use-native-chat-mention-apps'
+import {
+  nativeChatMentionChip,
+  useNativeChatMentionFilesAndApps
+} from './use-native-chat-mention-apps'
 import { useNativeChatDraft } from './use-native-chat-draft'
 import { useNativeChatComposerRecall } from './use-native-chat-composer-recall'
 import { useNativeChatLaunchDraftAdoption } from './use-native-chat-launch-draft-adoption'
@@ -147,6 +150,10 @@ const NativeChatComposerPane = forwardRef<NativeChatComposerHandle, NativeChatCo
       terminalTabId,
       structuredWorktreeId: structuredTransport?.worktreeId
     })
+    const chooseMention = useCallback(
+      (path: string) => completeMention(path, nativeChatMentionChip(path, mentionFiles)),
+      [completeMention, mentionFiles]
+    )
 
     // Resolve the live ptyId for this chat leaf; runtime owner settings route
     // local vs remote (SSH) sends.
@@ -154,7 +161,10 @@ const NativeChatComposerPane = forwardRef<NativeChatComposerHandle, NativeChatCo
       if (!targetPtyId) {
         return null
       }
-      return { ptyId: targetPtyId, settings: getSettingsForAgentTabRuntimeOwner(terminalTabId) }
+      return {
+        ptyId: targetPtyId,
+        settings: getSettingsForAgentTabRuntimeOwner(terminalTabId)
+      }
     }, [targetPtyId, terminalTabId])
 
     // Why inputOwnedByCard: the hidden field can still hold keyboard focus for a frame.
@@ -337,7 +347,7 @@ const NativeChatComposerPane = forwardRef<NativeChatComposerHandle, NativeChatCo
     const handleKeyDown = useNativeChatComposerKeyDown({
       autocomplete,
       mentionFiles,
-      completeMention,
+      completeMention: chooseMention,
       activeSuggestion,
       draft,
       recall: recall.recall,
@@ -410,7 +420,7 @@ const NativeChatComposerPane = forwardRef<NativeChatComposerHandle, NativeChatCo
         onChoosePickerItem={goalMode.interceptPick(completeItem)}
         goalMode={goalMode}
         onRetrySkills={picker.retrySkills}
-        onChooseMentionFile={completeMention}
+        onChooseMentionFile={chooseMention}
         onRemoveImageAttachment={(id) => removeImageAttachment(id)}
         onAttach={pickAttachments}
         onDictationToggle={dictation.toggleDictation}
