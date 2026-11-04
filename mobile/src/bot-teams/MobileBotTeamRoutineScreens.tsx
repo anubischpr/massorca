@@ -3,6 +3,7 @@ import { Pressable, Text } from 'react-native'
 import type { BotTeam } from '../../../src/shared/rpc-contract/bot-team-params'
 import type { BotTeamTask } from '../../../src/shared/rpc-contract/bot-team-room-params'
 import type { RpcClient } from '../transport/rpc-client'
+import { MobileBotTeamRoutineEdit } from './MobileBotTeamRoutineEdit'
 import { MobileBotTeamRoutineNew } from './MobileBotTeamRoutineNew'
 import { MobileBotTeamRoutineRuns } from './MobileBotTeamRoutineRuns'
 import { MobileBotTeamRoutines } from './MobileBotTeamRoutines'
@@ -17,6 +18,7 @@ const MobileBotTeamWebhook = lazy(() =>
 export type BotTeamRoutineScreen = (
   | { name: 'routines'; teamId: string }
   | { name: 'routineNew'; teamId: string }
+  | { name: 'routineEdit'; teamId: string; routineId: string }
   | { name: 'routineRuns'; teamId: string; routineId: string }
   | { name: 'webhook'; teamId: string; webhookId?: string }
 ) & {
@@ -24,7 +26,13 @@ export type BotTeamRoutineScreen = (
   origin?: 'room'
 }
 
-const ROUTINE_SCREEN_NAMES: readonly string[] = ['routines', 'routineNew', 'routineRuns', 'webhook']
+const ROUTINE_SCREEN_NAMES: readonly string[] = [
+  'routines',
+  'routineNew',
+  'routineEdit',
+  'routineRuns',
+  'webhook'
+]
 
 /** True for the screens Routines opens, so the screen file can hand them to this module. */
 export function isBotTeamRoutineScreen(screen: { name: string }): screen is BotTeamRoutineScreen {
@@ -95,6 +103,18 @@ export function MobileBotTeamRoutineScreens({
       />
     )
   }
+  if (screen.name === 'routineEdit') {
+    return (
+      <MobileBotTeamRoutineEdit
+        client={client}
+        team={team}
+        routineId={screen.routineId}
+        offline={offline}
+        onDone={toRoutines}
+        onChangeAccess={() => onScreen({ name: 'settings' })}
+      />
+    )
+  }
   if (screen.name === 'routineRuns') {
     return (
       <MobileBotTeamRoutineRuns
@@ -130,6 +150,9 @@ export function MobileBotTeamRoutineScreens({
         onScreen({ name: 'routineRuns', teamId: team.id, routineId, ...origin })
       }
       onNewRoutine={() => onScreen({ name: 'routineNew', teamId: team.id, ...origin })}
+      onEditRoutine={(routineId) =>
+        onScreen({ name: 'routineEdit', teamId: team.id, routineId, ...origin })
+      }
       onOpenWebhook={(webhookId) =>
         onScreen({
           name: 'webhook',

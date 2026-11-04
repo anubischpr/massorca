@@ -21,13 +21,6 @@ import { translate } from '@/i18n/i18n'
 import { deleteBotTeamRoutine } from '@/runtime/runtime-bot-team-client-routines'
 import type { BotTeamRoutine } from '../../../../shared/rpc-contract/bot-team-routine-params'
 
-/** A routine that finished its schedule: a Once routine that already ran. */
-export function isArchivedBotTeamRoutine(routine: BotTeamRoutine): boolean {
-  return (
-    routine.schedule.frequency === 'once' && routine.nextRun === null && routine.lastRun !== null
-  )
-}
-
 /** Board 57: Delete asks first; the routine stops and its history goes. */
 function DeleteRoutineDialog({
   routine,
