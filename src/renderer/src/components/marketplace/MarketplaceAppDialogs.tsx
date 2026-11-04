@@ -23,7 +23,7 @@ export function MarketplaceAppDialogs({
   }
   switch (dialog.kind) {
     case 'openmetadata-connect':
-      return <OpenMetadataConnectDialog run={ctx.run} onClose={onClose} />
+      return <OpenMetadataConnectDialog run={ctx.run} onClose={onClose} hostLabel={ctx.hostLabel} />
     case 'openmetadata-token':
       return <OpenMetadataTokenDialog run={ctx.run} onClose={onClose} />
     case 'openmetadata-profile':
@@ -34,6 +34,7 @@ export function MarketplaceAppDialogs({
           serverUrl={ctx.status.serverUrl ?? null}
           run={ctx.run}
           onClose={onClose}
+          hostLabel={ctx.hostLabel}
         />
       )
     case 'disconnect':
@@ -63,11 +64,17 @@ function DisconnectDialog({
               'auto.components.marketplace.MarketplaceAppDialogs.githubDescription',
               'This does not sign you out of the GitHub CLI (gh). It only hides GitHub from agents on this computer.'
             )
-          : translate(
-              'auto.components.marketplace.MarketplaceAppDialogs.description',
-              'Removes {{app}} and its skills from MassOrca on this computer. You can connect it again later.',
-              { app: info.name }
-            )
+          : ctx.hostLabel
+            ? translate(
+                'auto.components.marketplace.MarketplaceAppDialogs.descriptionHost',
+                'Removes {{app}} from the agents on {{host}} and deletes the credentials stored there. You can connect it again later.',
+                { app: info.name, host: ctx.hostLabel }
+              )
+            : translate(
+                'auto.components.marketplace.MarketplaceAppDialogs.description',
+                'Removes {{app}} and its skills from MassOrca on this computer. You can connect it again later.',
+                { app: info.name }
+              )
       }
       submitLabel={translate(
         'auto.components.marketplace.MarketplaceAppDialogs.disconnect',

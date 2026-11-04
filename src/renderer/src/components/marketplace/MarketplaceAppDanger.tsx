@@ -27,11 +27,17 @@ export function MarketplaceAppDanger({ ctx }: { ctx: MarketplaceAppContext }): R
                   'auto.components.marketplace.MarketplaceAppDanger.githubDescription',
                   'Removes GitHub from agents on this computer. It does not sign you out of the GitHub CLI (gh).'
                 )
-              : translate(
-                  'auto.components.marketplace.MarketplaceAppDanger.description',
-                  'Removes {{app}} and its skills from MassOrca on this computer. You can connect it again later.',
-                  { app: info.name }
-                )}
+              : ctx.hostLabel
+                ? translate(
+                    'auto.components.marketplace.MarketplaceAppDanger.descriptionHost',
+                    'Removes {{app}} from the agents on {{host}} and deletes the credentials stored there. You can connect it again later.',
+                    { app: info.name, host: ctx.hostLabel }
+                  )
+                : translate(
+                    'auto.components.marketplace.MarketplaceAppDanger.description',
+                    'Removes {{app}} and its skills from MassOrca on this computer. You can connect it again later.',
+                    { app: info.name }
+                  )}
           </CardDescription>
         </CardHeader>
         <CardContent>

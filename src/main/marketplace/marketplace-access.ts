@@ -7,10 +7,13 @@ import {
   type MarketplaceAppAgent,
   type MarketplaceAppId
 } from '../../shared/marketplace-apps'
+import {
+  MAX_ACCESS_PICKS,
+  accessPolicyInputSchema
+} from '../../shared/marketplace/marketplace-access-input-schema'
 
-/** Most agents, bots or teams one policy may name. */
-export const MAX_ACCESS_PICKS = 500
-const MAX_ACCESS_ID_LENGTH = 200
+// Why: the schema lives in shared so a remote host's contract validates with the same rules.
+export { MAX_ACCESS_PICKS, accessPolicyInputSchema }
 
 /** One policy per app; GitHub's only shows in MassOrca and is never written into an agent config. */
 export type MarketplaceAccessByApp = Record<MarketplaceAppId, MarketplaceAppAccessPolicy>
@@ -22,31 +25,6 @@ export function everyoneAccessByApp(): MarketplaceAccessByApp {
     github: everyoneAccessPolicy()
   }
 }
-
-function allDistinct(values: readonly string[]): boolean {
-  return new Set(values).size === values.length
-}
-
-const pickedIds = z
-  .array(z.string().min(1).max(MAX_ACCESS_ID_LENGTH))
-  .max(MAX_ACCESS_PICKS)
-  .refine(allDistinct)
-
-/** A policy a client sends: every field is checked, and an unknown agent is an error. */
-export const accessPolicyInputSchema = z.object({
-  agents: z.object({
-    mode: z.enum(MARKETPLACE_ACCESS_MODES),
-    ids: z
-      .array(z.enum(MARKETPLACE_APP_AGENTS))
-      .max(MARKETPLACE_APP_AGENTS.length)
-      .refine(allDistinct)
-  }),
-  bots: z.object({
-    mode: z.enum(MARKETPLACE_ACCESS_MODES),
-    botIds: pickedIds,
-    teamIds: pickedIds
-  })
-})
 
 function isKnownAgent(value: string): value is MarketplaceAppAgent {
   return MARKETPLACE_APP_AGENTS.some((agent) => agent === value)

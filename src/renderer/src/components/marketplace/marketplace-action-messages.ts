@@ -1,11 +1,18 @@
 import { translate } from '@/i18n/i18n'
 import type { MarketplaceActionResult } from '../../../../shared/marketplace-apps'
 import { marketplaceAgentLabel } from './marketplace-catalog'
+import { vaultHostFailureMessage } from './marketplace-vault-credential-text'
 
 type MarketplaceFailure = Extract<MarketplaceActionResult, { ok: false }>
 
 /** Why a Marketplace change did not complete, in plain words; never the raw error. */
-export function marketplaceFailureMessage(failure: MarketplaceFailure): string {
+export function marketplaceFailureMessage(failure: MarketplaceFailure, hostLabel?: string): string {
+  const host =
+    hostLabel ??
+    translate(
+      'auto.components.marketplace.marketplace-action-messages.thisComputer',
+      'this computer'
+    )
   const agent = failure.agent ? marketplaceAgentLabel(failure.agent) : null
   switch (failure.reason) {
     case 'invalid-input':
@@ -36,10 +43,19 @@ export function marketplaceFailureMessage(failure: MarketplaceFailure): string {
             'A settings file has a format MassOrca does not recognize.'
           )
     case 'vault-unavailable':
-      return translate(
-        'auto.components.marketplace.marketplace-action-messages.vaultUnavailable',
-        'The secure vault on this computer is not available.'
-      )
+      return hostLabel
+        ? translate(
+            'auto.components.marketplace.marketplace-action-messages.vaultUnavailableOnHost',
+            'The secure vault on {{host}} is not available.',
+            { host: hostLabel }
+          )
+        : translate(
+            'auto.components.marketplace.marketplace-action-messages.vaultUnavailable',
+            'The secure vault on this computer is not available.'
+          )
+    case 'host-needs-update':
+    case 'unreachable':
+      return vaultHostFailureMessage(failure.reason, host)
     case 'failed':
       return changeFailedMessage()
   }
