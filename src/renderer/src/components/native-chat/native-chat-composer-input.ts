@@ -1,3 +1,13 @@
+import type { MarketplaceAppId } from '../../../../shared/marketplace-apps'
+
+/** A picked @ item: `token` is the text it sends, `label` what its chip shows. */
+export type NativeChatMentionChip = {
+  token: string
+  label: string
+  kind: 'file' | 'app'
+  appId?: MarketplaceAppId
+}
+
 /** Text coordinates keep transport, attachments, and picker logic independent of the editor. */
 export type NativeChatComposerInput = Pick<
   HTMLTextAreaElement,
@@ -12,6 +22,8 @@ export type NativeChatComposerInput = Pick<
   contains?: (node: Node | null) => boolean
   insertText?: (text: string) => void
   insertSkill?: (from: number, to: number, token: string) => void
+  /** Replaces the text between `from` and `to` with a picked file or app chip and a space. */
+  insertMention?: (from: number, to: number, mention: NativeChatMentionChip) => void
   /** Whether a collapsed caret sits on the first (`start`) or last (`end`) visual line,
    *  counting wrapped lines, so an arrow key there has nowhere left to move it. */
   isCaretOnVisualEdge?: (edge: 'start' | 'end') => boolean
