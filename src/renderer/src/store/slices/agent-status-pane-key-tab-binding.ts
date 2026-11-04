@@ -74,7 +74,11 @@ export function findCompletedOrphanPaneKeysForTabClose(
   if (!worktreeId) {
     return []
   }
-  const openTabIds = new Set((state.tabsByWorktree[worktreeId] ?? []).map((tab) => tab.id))
+  // Why: a chat session's tab lives only in the unified list; missing it there is not an orphan.
+  const openTabIds = new Set([
+    ...(state.tabsByWorktree[worktreeId] ?? []).map((tab) => tab.id),
+    ...(state.unifiedTabsByWorktree?.[worktreeId] ?? []).map((tab) => tab.id)
+  ])
   const paneKeys: string[] = []
   for (const [paneKey, entry] of Object.entries(state.agentStatusByPaneKey)) {
     if (paneKey.startsWith(prefix) || entry.state !== 'done' || entry.worktreeId !== worktreeId) {

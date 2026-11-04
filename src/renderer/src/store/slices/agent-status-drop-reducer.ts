@@ -41,7 +41,10 @@ export type AgentStatusTabPrefixDropState = Pick<
   | 'retentionSuppressedPaneKeys'
   | 'sortEpoch'
   | 'tabsByWorktree'
->
+> & {
+  /** Read by the orphan sweep so a chat session's tab counts as open; optional for callers without it. */
+  unifiedTabsByWorktree?: AppState['unifiedTabsByWorktree']
+}
 
 /** Pure form of the dropAgentStatusByTabPrefix reducer: the paired snapshot
  *  apply folds the same sweep into a patch it assembles itself, so the two
