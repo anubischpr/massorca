@@ -479,4 +479,76 @@ describe('MarketplaceAppPage', () => {
       expect(container.textContent).toContain('For GitHub this only changes what MassOrca shows.')
     })
   })
+
+  it('names each app in its example chip without an @, and keeps the @ in the hint', async () => {
+    const container = await mount('openmetadata')
+    const chips = [...container.querySelectorAll('span')].map((span) => span.textContent?.trim())
+    expect(chips).toContain('OpenMetadata')
+    expect(chips).not.toContain('@OpenMetadata')
+    expect(container.textContent).toContain(
+      'Type @OpenMetadata in any chat or room to ask it directly.'
+    )
+  })
+
+  it('keeps one Connect button, in the header beside Copy link, when OpenMetadata is not connected', async () => {
+    seedApps([
+      engram,
+      {
+        ...openmetadata,
+        connected: false,
+        serverUrl: null,
+        credential: { stored: false },
+        profiles: []
+      },
+      github
+    ])
+    const container = await mount('openmetadata')
+    expect(buttonWithText(headerOf(container), 'Copy link')).toBeDefined()
+    expect(buttonWithText(headerOf(container), 'Connect')).toBeDefined()
+    expect(buttonWithText(sectionOf(container, 'connection'), 'Connect')).toBeUndefined()
+  })
+
+  it('shows the Server address and Token rows with Change and Add token, as on the board', async () => {
+    seedApps([
+      engram,
+      {
+        ...openmetadata,
+        connected: false,
+        serverUrl: null,
+        credential: { stored: false },
+        profiles: []
+      },
+      github
+    ])
+    const container = await mount('openmetadata')
+    const connection = sectionOf(container, 'connection')
+    expect(connection.textContent).toContain('Server address')
+    expect(connection.textContent).toContain('Token')
+    expect(connection.textContent).toContain(
+      'Not set. Kept in the MassOrca vault and never shown once saved.'
+    )
+    expect(buttonWithText(connection, 'Change')).toBeDefined()
+    expect(buttonWithText(connection, 'Add token')).toBeDefined()
+  })
+
+  it('lists how each agent uses OpenMetadata whether or not it is connected', async () => {
+    seedApps([
+      engram,
+      {
+        ...openmetadata,
+        connected: false,
+        serverUrl: null,
+        credential: { stored: false },
+        profiles: []
+      },
+      github
+    ])
+    const container = await mount('openmetadata')
+    const rows = [...sectionOf(container, 'information').querySelectorAll('li')].map(
+      (row) => row.textContent ?? ''
+    )
+    expect(rows).toHaveLength(4)
+    expect(rows[0]).toContain('Claude Code')
+    expect(rows[3]).toContain('Gentle Shell')
+  })
 })
