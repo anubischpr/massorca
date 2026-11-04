@@ -1,5 +1,7 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Label } from '@/components/ui/label'
+import { Switch } from '@/components/ui/switch'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { translate } from '@/i18n/i18n'
 import { ViewOption } from '../create-chat/CreateChatSessionViewSwitch'
@@ -28,11 +30,13 @@ function NavButton({
   )
 }
 
-/** Previous, Today, Next, the range title and the Day/Week/Month switch. */
+/** Previous, Today, Next, the range title, the done-run switch and the Day/Week/Month switch. */
 export function CalendarHeader({
   title,
   view,
   onViewChange,
+  showDoneRuns,
+  onShowDoneRunsChange,
   onPrevious,
   onToday,
   onNext
@@ -40,6 +44,8 @@ export function CalendarHeader({
   title: string
   view: CalendarView
   onViewChange: (view: CalendarView) => void
+  showDoneRuns: boolean
+  onShowDoneRunsChange: (show: boolean) => void
   onPrevious: () => void
   onToday: () => void
   onNext: () => void
@@ -61,6 +67,16 @@ export function CalendarHeader({
         <ChevronRight />
       </NavButton>
       <h2 className="ml-2 min-w-0 flex-1 truncate text-sm font-semibold">{title}</h2>
+      <div className="flex shrink-0 items-center gap-2">
+        <Switch
+          id="calendar-show-done-runs"
+          checked={showDoneRuns}
+          onCheckedChange={onShowDoneRunsChange}
+        />
+        <Label htmlFor="calendar-show-done-runs">
+          {translate('components.calendar.showDone', 'Show done')}
+        </Label>
+      </div>
       <div
         role="radiogroup"
         aria-label={translate('components.calendar.viewAria', 'Calendar view')}

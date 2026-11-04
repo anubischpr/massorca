@@ -17882,6 +17882,7 @@
       "month": "Mes",
       "teamsAria": "Equipos",
       "upcoming": "Próximas ejecuciones",
+      "showDone": "Mostrar hechas",
       "monthly": "Mensual",
       "todayAt": "Hoy a las {{time}}",
       "tomorrowAt": "Mañana a las {{time}}",

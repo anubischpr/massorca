@@ -38,6 +38,7 @@ describe('web UI preload API pairing-local fields', () => {
     agentsShowSearch: false,
     agentsReadFilter: 'unread',
     agentsGroupBy: 'project',
+    calendarShowDoneRuns: true,
     activityClearedAtByPaneKey: { 'tab-1:leaf-1': 123 },
     manuallyUnreadTurnsByPaneKey: { 'tab-1:leaf-1': 321 }
   }
@@ -57,6 +58,7 @@ describe('web UI preload API pairing-local fields', () => {
     agentsShowSearch: true,
     agentsReadFilter: 'all',
     agentsGroupBy: 'status',
+    calendarShowDoneRuns: false,
     activityClearedAtByPaneKey: { 'tab-2:leaf-2': 456 },
     manuallyUnreadTurnsByPaneKey: { 'tab-2:leaf-2': 654 }
   }
