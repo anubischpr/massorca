@@ -4,6 +4,7 @@ import { claudeProviderHandle } from '../../shared/agent-session-provider-handle
 import { resolveClaudeCommand } from '../codex-cli/command'
 import type { ClaudeStructuredAuthPolicy } from '../claude-accounts/claude-structured-auth-policy'
 import { createClaudeStructuredLaunchResolver } from '../claude/claude-structured-launch-resolution'
+import { withClaudeBotRunDenial } from '../claude/claude-structured-bot-run'
 import {
   ClaudeStructuredSessionAdapter,
   type ClaudeStructuredSessionAdapterDeps
@@ -108,29 +109,33 @@ export function createStructuredClaudeRuntimeAdapter(
     atRestCommands: new ClaudeAtRestCommandCatalog({
       resolveWorkspacePath: deps.resolveWorkspacePath
     }),
-    resolveLaunch: createClaudeStructuredLaunchResolver({
-      store,
-      resolveWorkspacePath: deps.resolveWorkspacePath,
-      resolveLaunchArgs: deps.resolveClaudeLaunchArgs,
-      resolveCommand: deps.resolveClaudeCommand ?? resolveClaudeCommand,
-      ...(deps.resolveClaudeLaunchEnv ? { resolveEnv: deps.resolveClaudeLaunchEnv } : {}),
-      ...(deps.resolveClaudeInheritedEnv
-        ? { resolveInheritedEnv: deps.resolveClaudeInheritedEnv }
-        : {}),
-      resolveAuthPolicy: deps.resolveClaudeAuthPolicy,
-      ...(deps.resolveClaudePermissionMode
-        ? { resolvePermissionMode: deps.resolveClaudePermissionMode }
-        : {}),
-      ...(deps.resolveClaudePromptSuggestions
-        ? { resolvePromptSuggestions: deps.resolveClaudePromptSuggestions }
-        : {}),
-      ...(deps.readClaudeManagedAccountGate
-        ? { readManagedAccountGate: deps.readClaudeManagedAccountGate }
-        : {}),
-      ...(deps.attachmentDirectory ? { attachmentDirectory: deps.attachmentDirectory } : {}),
-      ...(deps.claudeCliFlags ? { cliFlags: deps.claudeCliFlags } : {}),
-      ...(deps.prepareVisuals ? { prepareVisuals: deps.prepareVisuals } : {})
-    }),
+    // A bot run keeps the apps its bot is kept out of away from the Claude child.
+    resolveLaunch: withClaudeBotRunDenial(
+      createClaudeStructuredLaunchResolver({
+        store,
+        resolveWorkspacePath: deps.resolveWorkspacePath,
+        resolveLaunchArgs: deps.resolveClaudeLaunchArgs,
+        resolveCommand: deps.resolveClaudeCommand ?? resolveClaudeCommand,
+        ...(deps.resolveClaudeLaunchEnv ? { resolveEnv: deps.resolveClaudeLaunchEnv } : {}),
+        ...(deps.resolveClaudeInheritedEnv
+          ? { resolveInheritedEnv: deps.resolveClaudeInheritedEnv }
+          : {}),
+        resolveAuthPolicy: deps.resolveClaudeAuthPolicy,
+        ...(deps.resolveClaudePermissionMode
+          ? { resolvePermissionMode: deps.resolveClaudePermissionMode }
+          : {}),
+        ...(deps.resolveClaudePromptSuggestions
+          ? { resolvePromptSuggestions: deps.resolveClaudePromptSuggestions }
+          : {}),
+        ...(deps.readClaudeManagedAccountGate
+          ? { readManagedAccountGate: deps.readClaudeManagedAccountGate }
+          : {}),
+        ...(deps.attachmentDirectory ? { attachmentDirectory: deps.attachmentDirectory } : {}),
+        ...(deps.claudeCliFlags ? { cliFlags: deps.claudeCliFlags } : {}),
+        ...(deps.prepareVisuals ? { prepareVisuals: deps.prepareVisuals } : {})
+      }),
+      { store }
+    ),
     persistHandle: async ({ sessionId, providerSessionId, leafUuid, fence }) => {
       const currentFence = store.getRecord(sessionId)?.lease.runtimeFence ?? fence
       const observedAt = Date.now()

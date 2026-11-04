@@ -34,8 +34,12 @@ export function codexStructuredChildEnvironment(
   spawnToken: string,
   sessionId: string
 ): { env: Record<string, string>; envToDelete?: readonly string[] } {
+  const envToDelete = [
+    ...(launch.visuals ? [] : [NATIVE_CHAT_VISUALS_DIR_ENV]),
+    ...(launch.envToDelete ?? [])
+  ]
   return {
     env: buildCodexStructuredChildEnvironment(launch, spawnToken, sessionId),
-    ...(launch.visuals ? {} : { envToDelete: [NATIVE_CHAT_VISUALS_DIR_ENV] })
+    ...(envToDelete.length > 0 ? { envToDelete } : {})
   }
 }

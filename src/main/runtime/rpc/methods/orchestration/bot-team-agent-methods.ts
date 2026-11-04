@@ -19,6 +19,7 @@ import {
   getDelegationAnswerService,
   getDelegationRequestService
 } from '../../../../delegated-session/delegation-runtime'
+import { deniedMarketplaceAppIdsForBot } from '../../../../marketplace/marketplace-bot-run-denial'
 import { defineMethod } from '../../core'
 
 /** The task a calling chat runs, which says which team and bot it speaks for. */
@@ -136,7 +137,12 @@ export const ORCHESTRATION_BOT_TEAM_METHODS = [
             text,
             project,
             roomExcerpt: botTeamRoomExcerpt(db.listBotTeamMessages(team.id), team.bots),
-            clock: botTeamClockNoteIn(db.getBotTeamTaskStartNotes(caller.id))
+            clock: botTeamClockNoteIn(db.getBotTeamTaskStartNotes(caller.id)),
+            deniedMarketplaceApps: await deniedMarketplaceAppIdsForBot({
+              botId:
+                team.bots.find((entry) => entry.name.toLowerCase() === bot.toLowerCase())?.id ?? '',
+              teamId: team.id
+            })
           }
         )
       }

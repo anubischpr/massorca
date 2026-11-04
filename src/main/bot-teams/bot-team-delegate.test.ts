@@ -72,6 +72,19 @@ describe('delegateToBotTeammate', () => {
     expect(prompt).toContain('- Flyers in two colors')
   })
 
+  it('adds no Marketplace line for an app the teammate is kept out of', async () => {
+    const d = deps()
+    await delegateToBotTeammate(d, {
+      team: TEAM,
+      botName: 'Max',
+      text: 'Ask @Engram and @GitHub',
+      deniedMarketplaceApps: ['engram']
+    })
+    const prompt = vi.mocked(d.fileRequest).mock.calls[0][0].prompt
+    expect(prompt).not.toContain('MCP server engram')
+    expect(prompt).toContain('Use GitHub (the gh command) for this request.')
+  })
+
   describe('the folder a child writes in', () => {
     const LINKED: BotTeamProject = {
       id: 'p1',

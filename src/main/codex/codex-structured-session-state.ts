@@ -45,6 +45,8 @@ export type CodexStructuredLaunch = {
   /** The model the session chose; the thread opens on it so its first turn is not a switch. */
   model?: string
   env?: Record<string, string>
+  /** Env vars the child must not inherit from Orca's own process (a bot run kept out of an app). */
+  envToDelete?: readonly string[]
   /** This chat's visuals folder and skill; absent when the chat has no visuals. */
   visuals?: NativeChatVisualsLaunch
   /** Orca's developer-role instructions for the thread, sent apart from the user's AGENTS.md. */

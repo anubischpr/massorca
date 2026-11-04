@@ -20,6 +20,10 @@ import { ensureBotTeamVersionWatcher } from '../../../bot-teams/bot-team-task-ve
 import { botTeamFolderPath, botTeamsParentPath } from '../../../bot-teams/bot-team-version-deps'
 import { readBotTeamMemoryLines } from '../../../bot-teams/bot-team-memory-read'
 import { botSessionOptions } from '../../../bot-teams/bot-team-model-choice'
+import {
+  botRunOptions,
+  deniedMarketplaceAppIdsForBot
+} from '../../../marketplace/marketplace-bot-run-denial'
 import { startBotTeamTask } from '../../../bot-teams/bot-team-task-start'
 import {
   linkedTaskWorkspaceDeps,
@@ -122,7 +126,7 @@ async function startUnclaimedTaskOnHost(ctx: RpcContext, taskId: string): Promis
           taskTitle,
           taskPrompt
         }),
-      createSession: async ({ workspaceId, agent, accessMode, piRuntime, options }) => {
+      createSession: async ({ workspaceId, agent, accessMode, piRuntime, options, botRun }) => {
         const attempt = (seed: typeof options) =>
           createStructuredAgentSessionForWorktree({
             runtime: ctx.runtime,
@@ -138,7 +142,8 @@ async function startUnclaimedTaskOnHost(ctx: RpcContext, taskId: string): Promis
             agent,
             accessMode,
             ...(piRuntime ? { piRuntime } : {}),
-            options: botSessionOptions(seed, accessMode),
+            // The marker lets every launch of this session keep the bot's denied apps away from it.
+            options: { ...botSessionOptions(seed, accessMode), ...botRunOptions(botRun) },
             // A task runs in the background; opening it is up to the person.
             activate: false
           })
@@ -171,7 +176,11 @@ async function startUnclaimedTaskOnHost(ctx: RpcContext, taskId: string): Promis
       project: task.projectId ? db.getBotTeamProject(task.projectId) : null,
       notes: db.getBotTeamTaskStartNotes(task.id),
       memory: readBotTeamMemoryLines(db, team.id, task.ownerBotId),
-      roomExcerpt: botTeamRoomExcerpt(db.listBotTeamMessages(team.id), team.bots)
+      roomExcerpt: botTeamRoomExcerpt(db.listBotTeamMessages(team.id), team.bots),
+      deniedMarketplaceApps: await deniedMarketplaceAppIdsForBot({
+        botId: task.ownerBotId,
+        teamId: team.id
+      })
     }
   )
 }

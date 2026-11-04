@@ -32,6 +32,10 @@ import {
   withNativeChatVisualsEnv,
   type PrepareNativeChatVisuals
 } from '../native-chat/native-chat-visuals-delivery'
+import {
+  botRunChildEnv,
+  type BotRunDenialResolver
+} from '../marketplace/marketplace-bot-run-denial'
 import { piChatVisualsFor } from './pi-chat-visuals'
 import { gentleShellModeForAccess, type GentleShellMode } from './gentle-shell-permission-mode'
 import {
@@ -53,6 +57,8 @@ export type PiRpcLaunchResolverDeps = {
   store: AgentSessionRecordStore
   resolveWorkspacePath: (id: string) => Promise<string>
   resolveEnvironment: () => Promise<NodeJS.ProcessEnv>
+  /** The Marketplace apps a bot run is kept out of; absent reads the host's apps. */
+  resolveBotRunDenial?: BotRunDenialResolver
   /** The user's Pi Command setting, re-read per acquisition; none runs the stock binary. */
   resolveCommandSettings?: () => StructuredAgentCommandSettings
   resolveCommand?: typeof resolveCliCommand
@@ -197,12 +203,12 @@ export function createPiRpcLaunchResolver(
       throw new Error('Pi account home does not match its binary')
     }
     const cwd = await deps.resolveWorkspacePath(record.location.workspaceId)
-    const env: Record<string, string> = {}
-    for (const [key, value] of Object.entries(await deps.resolveEnvironment())) {
-      if (value !== undefined) {
-        env[key] = value
-      }
-    }
+    // A bot run keeps the tokens of the apps its bot is kept out of out of the agent's env.
+    const { env, envToDelete } = await botRunChildEnv(
+      await deps.resolveEnvironment(),
+      record.options,
+      deps.resolveBotRunDenial
+    )
     env.PI_CODING_AGENT_DIR = accountHome.path
     const previous = agentSessionProviderHandleChainHead(record.providerHandleChain)
     let sessionFile: string | undefined
@@ -261,6 +267,7 @@ export function createPiRpcLaunchResolver(
       command,
       cwd,
       env: withNativeChatVisualsEnv(env, visuals?.visuals ?? null),
+      ...(envToDelete ? { envToDelete } : {}),
       piRuntime,
       // Why: Gentle Shell's posture is a mode command sent after start, never a launch flag, so
       // its launch is always allowed; stock Pi has no restricted mode and keeps the full-access rule.

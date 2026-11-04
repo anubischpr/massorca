@@ -623,3 +623,38 @@ describe('Pi host launch resolution', () => {
     expect(h.resolveCommand).not.toHaveBeenCalled()
   })
 })
+
+describe('Marketplace apps for a bot run', () => {
+  it('keeps a denied app token out of a bot run and leaves any other chat alone', async () => {
+    const h = await setup()
+    await installGentleShellStub()
+    const environment = {
+      PATH: root,
+      HOME: '/host/home',
+      OPENMETADATA_TOKEN: 'vault-token',
+      OTHER: 'kept'
+    }
+    const resolver = createPiRpcLaunchResolver({
+      store: h.store,
+      resolveWorkspacePath: async () => h.workspace,
+      resolveEnvironment: async () => ({ ...environment }),
+      resolveCommandSettings: () => h.settings,
+      resolveBotRunDenial: async (options) =>
+        options?.botTeamBotId
+          ? { mcpServers: ['openmetadata'], envNames: ['OPENMETADATA_TOKEN'], envPrefixes: [] }
+          : null
+    })
+    const options = { piRuntime: 'gentle-shell', botTeamBotId: 'bob', botTeamId: 't1' }
+    vi.spyOn(h.store, 'getRecord').mockReturnValue({ ...h.record, options })
+    const bot = await resolver(identity)
+    expect(bot.env).not.toHaveProperty('OPENMETADATA_TOKEN')
+    expect(bot.env?.OTHER).toBe('kept')
+    expect(bot.envToDelete).toEqual(['OPENMETADATA_TOKEN'])
+    expect(buildPiRpcLaunch(bot).envToDelete).toContain('OPENMETADATA_TOKEN')
+    vi.spyOn(h.store, 'getRecord').mockReturnValue({
+      ...h.record,
+      options: { piRuntime: 'gentle-shell' }
+    })
+    expect((await resolver(identity)).env?.OPENMETADATA_TOKEN).toBe('vault-token')
+  })
+})

@@ -30,6 +30,7 @@ import { linkedProjectReadPath } from '../../../bot-teams/bot-team-task-worktree
 import { rankDelegationAgents } from '../../../delegated-session/delegation-agent-ranking'
 import { delegationUsageCandidates } from '../../../delegated-session/delegation-usage-input'
 import { mainI18n } from '../../../i18n/main-i18n'
+import { deniedMarketplaceAppIdsForBot } from '../../../marketplace/marketplace-bot-run-denial'
 import type { RpcContext } from '../core'
 import { engramCli } from './bot-team-engram-methods'
 import { botTeamReplyFailureLine } from './bot-team-reply-failure-line'
@@ -151,6 +152,10 @@ async function askConversationBot(
         )
       : null
   const codeNotRead = args.code && checkout === null
+  const deniedMarketplaceApps = await deniedMarketplaceAppIdsForBot({
+    botId: bot.id,
+    teamId: team.id
+  })
   // With no project named nothing is read, so the query goes out at once.
   const projectContext = project
     ? await projectContextOf(ctx, { team, bot, project, briefOnly: research && !args.code })
@@ -164,6 +169,7 @@ async function askConversationBot(
         messages: db.listBotTeamMessages(team.id).slice(0, -1),
         tasks: db.listBotTeamTasks(team.id),
         text: args.text,
+        deniedMarketplaceApps,
         research,
         canSearch,
         projectContext,

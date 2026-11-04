@@ -63,7 +63,8 @@ export function useBotTeamMentionField(args: {
   const [menuDismissed, setMenuDismissed] = useState(false)
   const menuId = useId()
   const files = useBotTeamFilePaths(team.id, !offline && botTeamMentionOpen(text, caret))
-  const apps = useConnectedMarketplaceApps()
+  // Why: the menu is team-wide while a mention targets one bot, so only an app no bot may use is hidden.
+  const apps = useConnectedMarketplaceApps(team)
   const mentionNames = useMemo<BotTeamMentionName[]>(
     () => [
       ...team.bots.map((bot) => ({ name: bot.name, kind: 'bot' as const })),

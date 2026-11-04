@@ -1,4 +1,5 @@
 import { botAgentPiRuntime } from '../../shared/bot-team-character-art'
+import type { MarketplaceAppId } from '../../shared/marketplace-apps'
 import { botTeamTaskTitle } from '../../shared/bot-team-request-route'
 import type { PiRuntimeSelection } from '../../shared/pi-runtime-selection'
 import type { BotTeam, BotTeamBot } from '../../shared/rpc-contract/bot-team-params'
@@ -40,7 +41,8 @@ export async function delegateToBotTeammate(
     text,
     project = null,
     roomExcerpt = [],
-    clock = null
+    clock = null,
+    deniedMarketplaceApps = []
   }: {
     team: BotTeam
     botName: string
@@ -51,6 +53,8 @@ export async function delegateToBotTeammate(
     roomExcerpt?: readonly string[]
     /** The person's clock the caller's request was asked on, so a day the text names is read on it. */
     clock?: string | null
+    /** Connected Marketplace apps the teammate is kept out of; its request gets no line for them. */
+    deniedMarketplaceApps?: readonly MarketplaceAppId[]
   }
 ): Promise<BotTeamTask> {
   const teammate = team.bots.find((bot) => bot.name.toLowerCase() === botName.toLowerCase())
@@ -71,7 +75,8 @@ export async function delegateToBotTeammate(
         memory: deps.memoryFor?.(teammate.id),
         roomExcerpt,
         delegated: true,
-        notes: clock
+        notes: clock,
+        deniedMarketplaceApps
       }
     ),
     agent: teammate.agent,

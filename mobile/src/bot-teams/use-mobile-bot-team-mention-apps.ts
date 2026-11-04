@@ -14,14 +14,19 @@ function isMarketplaceAppId(id: string): id is MarketplaceAppId {
   return MARKETPLACE_APP_IDS.some((known) => known === id)
 }
 
-/** The host's connected Marketplace apps; none when the host is older, offline or the read fails. */
+/** The host's connected Marketplace apps the team may use; none when the host is older, offline or the read fails. */
 export async function listMobileBotTeamConnectedApps(
-  client: Pick<RpcClient, 'sendRequest'>
+  client: Pick<RpcClient, 'sendRequest'>,
+  teamId: string
 ): Promise<MarketplaceAppMention[]> {
   try {
-    const response = await client.sendRequest('botTeams.connectedApps', undefined, {
-      timeoutMs: READ_TIMEOUT_MS
-    })
+    const response = await client.sendRequest(
+      'botTeams.connectedApps',
+      { teamId },
+      {
+        timeoutMs: READ_TIMEOUT_MS
+      }
+    )
     if (!response.ok) {
       return []
     }
@@ -49,7 +54,7 @@ export function useBotTeamMentionApps(
       return
     }
     let current = true
-    void listMobileBotTeamConnectedApps(client).then((listed) => {
+    void listMobileBotTeamConnectedApps(client, teamId).then((listed) => {
       if (current) {
         setApps(listed)
       }

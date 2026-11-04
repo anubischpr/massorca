@@ -17,6 +17,11 @@ vi.mock('../../../bot-teams/bot-team-request-query', () => ({
   askBotAgentForBotTeamReply: askBot
 }))
 
+const denied = vi.hoisted(() => ({ ids: [] as string[] }))
+vi.mock('../../../marketplace/marketplace-bot-run-denial', () => ({
+  deniedMarketplaceAppIdsForBot: async () => denied.ids
+}))
+
 import { startBotTeamConversationReply } from './bot-team-conversation-reply'
 import { listBotTeamReplying } from './bot-team-reply-in-flight'
 
@@ -26,6 +31,7 @@ describe('startBotTeamConversationReply', () => {
     db?.close()
     db = undefined
     askBot.mockClear()
+    denied.ids = []
   })
 
   function setup(agent: 'pi' | 'claude') {
@@ -88,6 +94,8 @@ describe('startBotTeamConversationReply', () => {
       { botId: team.bots[0].id, since: expect.any(Number) }
     ])
     expect(db?.listBotTeamMessages(team.id)).toEqual([])
+    // The question goes out once the host has read which apps the bot is kept out of.
+    await vi.waitFor(() => expect(askBot).toHaveBeenCalledOnce())
     release('Listo')
     await started?.done
     expect(listBotTeamReplying(team.id)).toEqual([])
@@ -140,6 +148,19 @@ describe('startBotTeamConversationReply', () => {
     const { team, ctx } = setup('claude')
     await startBotTeamConversationReply(ctx, { team, text: 'Hola', subjectBotIds: [] })?.done
     expect(askBot.mock.calls[0][0].research).toBeFalsy()
+  })
+
+  it('adds no line for an app the answering bot is kept out of', async () => {
+    const { team, ctx } = setup('claude')
+    denied.ids = ['engram']
+    await startBotTeamConversationReply(ctx, {
+      team,
+      text: 'Ask @Engram and @GitHub',
+      subjectBotIds: []
+    })?.done
+    const prompt = askBot.mock.calls[0][0].prompt
+    expect(prompt).not.toContain('MCP server engram')
+    expect(prompt).toContain('Use GitHub (the gh command) for this request.')
   })
 })
 

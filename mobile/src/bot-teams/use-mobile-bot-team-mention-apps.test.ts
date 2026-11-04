@@ -33,16 +33,22 @@ const MISSING: RpcResponse = {
 describe('listMobileBotTeamConnectedApps', () => {
   it('lists the connected apps this phone knows, by their mention name', async () => {
     const client = hostReplying(OK)
-    await expect(listMobileBotTeamConnectedApps(client)).resolves.toEqual([
+    await expect(listMobileBotTeamConnectedApps(client, 'team-1')).resolves.toEqual([
       { id: 'engram', name: 'Engram' }
     ])
-    expect(client.sendRequest).toHaveBeenCalledWith('botTeams.connectedApps', undefined, {
-      timeoutMs: 15_000
-    })
+    expect(client.sendRequest).toHaveBeenCalledWith(
+      'botTeams.connectedApps',
+      { teamId: 'team-1' },
+      {
+        timeoutMs: 15_000
+      }
+    )
   })
 
   it('lists none for an older host without the method', async () => {
-    await expect(listMobileBotTeamConnectedApps(hostReplying(MISSING))).resolves.toEqual([])
+    await expect(listMobileBotTeamConnectedApps(hostReplying(MISSING), 'team-1')).resolves.toEqual(
+      []
+    )
   })
 
   it('lists none when the request throws', async () => {
@@ -51,7 +57,7 @@ describe('listMobileBotTeamConnectedApps', () => {
         throw new Error('closed')
       })
     }
-    await expect(listMobileBotTeamConnectedApps(client)).resolves.toEqual([])
+    await expect(listMobileBotTeamConnectedApps(client, 'team-1')).resolves.toEqual([])
   })
 })
 
