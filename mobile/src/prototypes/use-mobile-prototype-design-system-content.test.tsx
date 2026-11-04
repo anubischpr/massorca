@@ -8,9 +8,10 @@ import {
   type MobileDesignSystemContentState
 } from './use-mobile-prototype-design-system-content'
 
-const host = vi.hoisted(() => ({ read: vi.fn() }))
+const host = vi.hoisted(() => ({ read: vi.fn(), readVersion: vi.fn() }))
 vi.mock('../session/mobile-prototype-host-rpc', () => ({
-  readMobilePrototypeDesignSystem: host.read
+  readMobilePrototypeDesignSystem: host.read,
+  readMobilePrototypeDesignSystemVersion: host.readVersion
 }))
 
 // The read is mocked, so the client is only an identity the hook passes along.
@@ -34,11 +35,11 @@ const READY: MobilePrototypeDesignSystem = {
   tokensJson: JSON.stringify({ color: { primary: { $value: '#2563eb' } } })
 }
 
-type Props = { sessionId: string | undefined; reloadKey: string }
+type Props = { sessionId: string | undefined; reloadKey: string; version?: number | null }
 const latest: { state: MobileDesignSystemContentState | null } = { state: null }
 
-function Probe({ sessionId, reloadKey }: Props) {
-  latest.state = useMobilePrototypeDesignSystemContent(CLIENT, sessionId, reloadKey)
+function Probe({ sessionId, reloadKey, version }: Props) {
+  latest.state = useMobilePrototypeDesignSystemContent(CLIENT, sessionId, reloadKey, version)
   return null
 }
 
@@ -62,6 +63,7 @@ async function rerender(tree: ReactTestRenderer, props: Props): Promise<void> {
 beforeEach(() => {
   latest.state = null
   host.read.mockReset()
+  host.readVersion.mockReset()
 })
 
 describe('useMobilePrototypeDesignSystemContent', () => {
@@ -92,6 +94,15 @@ describe('useMobilePrototypeDesignSystemContent', () => {
     const tree = await mount({ sessionId: 'session-1', reloadKey: 'a' })
     await rerender(tree, { sessionId: 'session-1', reloadKey: 'b' })
     expect(host.read).toHaveBeenCalledTimes(2)
+    expect(latest.state?.status).toBe('ready')
+  })
+
+  it('reads an earlier version through the version read, and the current system without one', async () => {
+    host.readVersion.mockResolvedValue(READY)
+    host.read.mockResolvedValue(READY)
+    await mount({ sessionId: 'session-1', reloadKey: 'a', version: 3 })
+    expect(host.readVersion).toHaveBeenCalledWith(CLIENT, { sessionId: 'session-1', version: 3 })
+    expect(host.read).not.toHaveBeenCalled()
     expect(latest.state?.status).toBe('ready')
   })
 })
