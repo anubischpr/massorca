@@ -20,7 +20,9 @@ export const BotTeamTaskSchema = z.object({
   // The host's time the task was made; a host from before it sends none.
   createdAt: z.number().nullable().optional(),
   // The terminal status the host kept for its session; null while the session works or has none yet.
-  lastStatus: z.enum(BOT_TEAM_TASK_LAST_STATUSES).nullable().optional()
+  lastStatus: z.enum(BOT_TEAM_TASK_LAST_STATUSES).nullable().optional(),
+  // A routine run started it, so the room shows it at the time it ran; SQLite reads back 0 or 1.
+  fromRoutine: z.coerce.boolean().optional()
 })
 
 /** Where a project's code comes from: a repository that exists, or a new folder set up with git. */

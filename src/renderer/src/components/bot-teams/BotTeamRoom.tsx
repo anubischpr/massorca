@@ -342,6 +342,7 @@ export function BotTeamRoom({
                   </p>
                 </div>
               ) : null}
+              {placement.leading.map(taskCard)}
               {messages.map((message) => (
                 <BotTeamRoomMessage
                   key={message.id}
