@@ -58,6 +58,23 @@ export const PrototypeRequestTargetParams = z
 
 export type PrototypeRequestTargetParams = z.infer<typeof PrototypeRequestTargetParams>
 
+/** One design system's saved versions, addressed by a chat as `prototypes.readDesignSystem` is. */
+export const ListDesignSystemVersionsParams = z.object({ sessionId: SessionId }).strict()
+
+export type ListDesignSystemVersionsParams = z.infer<typeof ListDesignSystemVersionsParams>
+
+export const ReadDesignSystemVersionParams = z
+  .object({ sessionId: SessionId, version: z.int().min(1).max(10_000) })
+  .strict()
+
+export type ReadDesignSystemVersionParams = z.infer<typeof ReadDesignSystemVersionParams>
+
+export const RestoreDesignSystemVersionParams = z
+  .object({ sessionId: SessionId, version: z.int().min(1).max(10_000) })
+  .strict()
+
+export type RestoreDesignSystemVersionParams = z.infer<typeof RestoreDesignSystemVersionParams>
+
 export const ReadPrototypeFileParams = z
   .object({
     sessionId: SessionId,
@@ -90,6 +107,42 @@ export const PROTOTYPE_RESTORE_VERSION_ERRORS = ['not_found', 'conflict', 'unwri
 export type RestorePrototypeVersionResult =
   | { ok: true; fileName: string; version: number }
   | { ok: false; error: (typeof PROTOTYPE_RESTORE_VERSION_ERRORS)[number] }
+
+/**
+ * One version of a design system a host can list: the history of its tokens.json, the current version and every
+ * version the host saved a copy of. `saved: false` is an earlier version listed from history, which cannot be opened.
+ */
+export type DesignSystemVersionListed = {
+  version: number
+  /** When the version was made, as the agent or the restore wrote it. */
+  at?: string
+  saved: boolean
+  current: boolean
+}
+
+/** `not_found`: no such chat on this host, or it is not local. */
+export type ListDesignSystemVersionsResult =
+  | { ok: true; versions: DesignSystemVersionListed[] }
+  | { ok: false; error: 'not_found' }
+
+/** The files of one saved version, the same shape a read of the current system answers with. */
+export type ReadDesignSystemVersionResult = ReadPrototypeDesignSystemResult
+
+/**
+ * Why a version is not restored. `not_found`: no such chat, no design system, a version never saved, or a caller
+ * that may not act; `current`: the version is already the current one; `unwritable`: the host could not write the
+ * design system or its new version. A restore keeps the current version first, then makes the three known design
+ * system files match the restored version, removing those it lacks. It never deletes a saved version.
+ */
+export const PROTOTYPE_RESTORE_DESIGN_SYSTEM_VERSION_ERRORS = [
+  'not_found',
+  'current',
+  'unwritable'
+] as const
+
+export type RestoreDesignSystemVersionResult =
+  | { ok: true; version: number }
+  | { ok: false; error: (typeof PROTOTYPE_RESTORE_DESIGN_SYSTEM_VERSION_ERRORS)[number] }
 
 /**
  * Why a request folder is not made. `unsupported`: the chat has no record on this host, or is not
@@ -334,6 +387,28 @@ export const ReadPrototypeFileReplySchema = z.union([
 export const RestorePrototypeVersionReplySchema = z.union([
   z.object({ ok: z.literal(true), fileName: z.string().min(1), version: z.int().min(2) }),
   z.object({ ok: z.literal(false), error: z.enum(PROTOTYPE_RESTORE_VERSION_ERRORS) })
+])
+
+export const DesignSystemVersionListedSchema = z.object({
+  version: z.int().min(1),
+  at: z.string().min(1).max(40).optional(),
+  saved: z.boolean(),
+  current: z.boolean()
+})
+
+export const ListDesignSystemVersionsReplySchema = z.union([
+  z.object({ ok: z.literal(true), versions: z.array(DesignSystemVersionListedSchema) }),
+  z.object({ ok: z.literal(false), error: z.literal('not_found') })
+])
+
+export const ReadDesignSystemVersionReplySchema = ReadPrototypeDesignSystemReplySchema
+
+export const RestoreDesignSystemVersionReplySchema = z.union([
+  z.object({ ok: z.literal(true), version: z.int().min(2) }),
+  z.object({
+    ok: z.literal(false),
+    error: z.enum(PROTOTYPE_RESTORE_DESIGN_SYSTEM_VERSION_ERRORS)
+  })
 ])
 
 export const WriteAttachmentReplySchema = z.union([

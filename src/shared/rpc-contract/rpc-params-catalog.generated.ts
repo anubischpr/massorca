@@ -513,10 +513,13 @@ import {
 } from './project-runtime-params'
 import {
   CreatePrototypeRequestParams,
+  ListDesignSystemVersionsParams,
   ListPrototypeSetsParams,
   PrototypeRequestTargetParams,
+  ReadDesignSystemVersionParams,
   ReadPrototypeDesignSystemParams,
   ReadPrototypeFileParams,
+  RestoreDesignSystemVersionParams,
   RestorePrototypeVersionParams,
   WriteAttachmentParams
 } from './prototype-params'
@@ -1272,8 +1275,11 @@ export const RPC_PARAMS_BY_METHOD = {
   'prototypes.createRequest': CreatePrototypeRequestParams,
   'prototypes.delete': PrototypeRequestTargetParams,
   'prototypes.list': ListPrototypeSetsParams,
+  'prototypes.listDesignSystemVersions': ListDesignSystemVersionsParams,
   'prototypes.readDesignSystem': ReadPrototypeDesignSystemParams,
+  'prototypes.readDesignSystemVersion': ReadDesignSystemVersionParams,
   'prototypes.readFile': ReadPrototypeFileParams,
+  'prototypes.restoreDesignSystemVersion': RestoreDesignSystemVersionParams,
   'prototypes.restoreVersion': RestorePrototypeVersionParams,
   'prototypes.unarchive': PrototypeRequestTargetParams,
   'prototypes.writeAttachment': WriteAttachmentParams,

@@ -3,22 +3,31 @@ import {
   ArchivePrototypeRequestReplySchema,
   CreatePrototypeRequestReplySchema,
   DeletePrototypeRequestReplySchema,
+  ListDesignSystemVersionsReplySchema,
   ListPrototypeSetsReplySchema,
+  ReadDesignSystemVersionReplySchema,
   ReadPrototypeDesignSystemReplySchema,
   ReadPrototypeFileReplySchema,
+  RestoreDesignSystemVersionReplySchema,
   RestorePrototypeVersionReplySchema,
   WriteAttachmentReplySchema,
   type ArchivePrototypeRequestResult,
   type CreatePrototypeRequestParams,
   type CreatePrototypeRequestResult,
   type DeletePrototypeRequestResult,
+  type ListDesignSystemVersionsParams,
+  type ListDesignSystemVersionsResult,
   type ListPrototypeSetsParams,
   type ListPrototypeSetsResult,
   type PrototypeRequestTargetParams,
+  type ReadDesignSystemVersionParams,
+  type ReadDesignSystemVersionResult,
   type ReadPrototypeDesignSystemParams,
   type ReadPrototypeDesignSystemResult,
   type ReadPrototypeFileParams,
   type ReadPrototypeFileResult,
+  type RestoreDesignSystemVersionParams,
+  type RestoreDesignSystemVersionResult,
   type RestorePrototypeVersionParams,
   type RestorePrototypeVersionResult,
   type WriteAttachmentParams,
@@ -98,6 +107,45 @@ export function readDesignSystemOnHost(
     'prototypes.readDesignSystem',
     params,
     ReadPrototypeDesignSystemReplySchema
+  )
+}
+
+/** Every saved and listed version of the chat's design system, newest first; an older host answers `method_not_found`. */
+export function listDesignSystemVersionsOnHost(
+  target: RuntimeClientTarget,
+  params: ListDesignSystemVersionsParams
+): Promise<ListDesignSystemVersionsResult> {
+  return callPrototypeHost(
+    target,
+    'prototypes.listDesignSystemVersions',
+    params,
+    ListDesignSystemVersionsReplySchema
+  )
+}
+
+/** The files of one saved design system version; `not_found` for a version the host never saved. */
+export function readDesignSystemVersionOnHost(
+  target: RuntimeClientTarget,
+  params: ReadDesignSystemVersionParams
+): Promise<ReadDesignSystemVersionResult> {
+  return callPrototypeHost(
+    target,
+    'prototypes.readDesignSystemVersion',
+    params,
+    ReadDesignSystemVersionReplySchema
+  )
+}
+
+/** Copies a saved design system version into a new current version on the host; nothing is deleted. */
+export function restoreDesignSystemVersionOnHost(
+  target: RuntimeClientTarget,
+  params: RestoreDesignSystemVersionParams
+): Promise<RestoreDesignSystemVersionResult> {
+  return callPrototypeHost(
+    target,
+    'prototypes.restoreDesignSystemVersion',
+    params,
+    RestoreDesignSystemVersionReplySchema
   )
 }
 

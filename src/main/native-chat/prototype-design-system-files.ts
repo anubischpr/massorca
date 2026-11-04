@@ -26,7 +26,7 @@ import {
   type DesignSystemProject
 } from './prototype-design-system-project'
 
-const MAX_DESIGN_SYSTEM_FILE_BYTES = 512 * 1024
+export const MAX_DESIGN_SYSTEM_FILE_BYTES = 512 * 1024
 // The reader's message for an unexpected filesystem fault names only the error code, never a path.
 const READ_FAULT_PREFIX = 'visual_read_failed:'
 
@@ -43,13 +43,16 @@ export type DesignSystemFilesRead = {
 }
 
 /** What one file under `<root>/design/system/` came to. */
-type DesignSystemFileRead =
+export type DesignSystemFileRead =
   | { kind: 'text'; text: string }
   | { kind: 'absent' }
   | { kind: 'unreadable'; reason: string }
 
 /** The text of a file under `<root>/design/system/`, absent when there is none, or unreadable with its reason. */
-async function readDesignSystemFile(root: string, file: string): Promise<DesignSystemFileRead> {
+export async function readDesignSystemFile(
+  root: string,
+  file: string
+): Promise<DesignSystemFileRead> {
   const folder = join(root, ...DESIGN_SYSTEM_FOLDER.split('/'))
   try {
     const result = await readNativeChatContainedTextFile(folder, file, undefined, {
