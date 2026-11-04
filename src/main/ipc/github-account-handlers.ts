@@ -15,6 +15,12 @@ import { getRateLimit } from '../github/rate-limit'
 import { inferRepoGhAccount } from '../github/gh-account-repo-inference'
 import { listGhAccountOrgs } from '../github/gh-account-orgs'
 import { switchGhActiveAccount } from '../github/gh-account-switch'
+import {
+  cancelGhSignIn,
+  GH_SIGN_IN_EVENT_CHANNEL,
+  readGhSignInStartArgs,
+  startGhSignIn
+} from '../github/gh-auth-sign-in'
 import type { Store } from '../persistence'
 import { getCohortAtEmit } from '../telemetry/cohort-classifier'
 import { track } from '../telemetry/client'
@@ -120,5 +126,25 @@ export function registerGitHubAccountHandlers(store: Store): void {
   ipcMain.handle('gh:inferRepoAccount', (_event, args: { repoPath: string; repoId?: string }) => {
     const repo = assertRegisteredGitHubRepo(args, store)
     return inferRepoGhAccount(repo, getGitHubLocalGitOptionArgs(store, repo)[0] ?? {})
+  })
+
+  // Why: progress goes back only to the window that started the sign-in; the renderer filters by signInId.
+  ipcMain.handle('gh:startSignIn', (event, args: unknown) => {
+    const parsed = readGhSignInStartArgs(args)
+    if (!parsed) {
+      return { ok: false, reason: 'invalid_host' }
+    }
+    return startGhSignIn(parsed, (signInEvent) => {
+      if (!event.sender.isDestroyed()) {
+        event.sender.send(GH_SIGN_IN_EVENT_CHANNEL, signInEvent)
+      }
+    })
+  })
+
+  ipcMain.handle('gh:cancelSignIn', (_event, args: unknown) => {
+    const signInId = args && typeof args === 'object' && 'signInId' in args ? args.signInId : null
+    if (typeof signInId === 'string') {
+      cancelGhSignIn(signInId)
+    }
   })
 }

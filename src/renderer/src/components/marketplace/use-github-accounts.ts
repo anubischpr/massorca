@@ -19,6 +19,9 @@ export type GitHubAccounts = {
   switchError: string | null
   reload: () => Promise<void>
   makeActive: (account: GhAuthAccount) => Promise<void>
+  signInOpen: boolean
+  openSignIn: () => void
+  closeSignIn: () => void
 }
 
 export function gitHubAccountKey(account: GhAuthAccount): string {
@@ -31,6 +34,9 @@ export function useGitHubAccounts(enabled: boolean): GitHubAccounts {
   const [inventory, setInventory] = useState<GitHubInventory>({ kind: 'loading' })
   const [pendingKey, setPendingKey] = useState<string | null>(null)
   const [switchError, setSwitchError] = useState<string | null>(null)
+  const [signInOpen, setSignInOpen] = useState(false)
+  const openSignIn = useCallback(() => setSignInOpen(true), [])
+  const closeSignIn = useCallback(() => setSignInOpen(false), [])
 
   const reload = useCallback(async (): Promise<void> => {
     try {
@@ -93,5 +99,15 @@ export function useGitHubAccounts(enabled: boolean): GitHubAccounts {
     [reload]
   )
 
-  return { inventory, localRepos, pendingKey, switchError, reload, makeActive }
+  return {
+    inventory,
+    localRepos,
+    pendingKey,
+    switchError,
+    reload,
+    makeActive,
+    signInOpen,
+    openSignIn,
+    closeSignIn
+  }
 }
