@@ -1,5 +1,6 @@
 import type { UISlice, UISliceGet, UISliceSet } from './ui-slice-contract'
 import { createAgentsViewPreferenceActions } from './ui-slice-agents-view-preference-actions'
+import { createCalendarViewPreferenceActions } from './ui-slice-calendar-preference-actions'
 import {
   DEFAULT_AGENT_ACTIVITY_DISPLAY_MODE,
   DEFAULT_SHOW_SLEEPING_WORKSPACES,
@@ -161,6 +162,7 @@ export function createUiPreferenceActions(set: UISliceSet, get: UISliceGet): Par
     setFilterRepoIds: (ids) => set({ filterRepoIds: ids }),
 
     ...createAgentsViewPreferenceActions(set),
+    ...createCalendarViewPreferenceActions(set),
 
     collapsedGroups: new Set<string>(),
     toggleCollapsedGroup: (key) =>

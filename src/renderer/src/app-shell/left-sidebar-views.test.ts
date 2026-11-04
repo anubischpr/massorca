@@ -6,17 +6,16 @@ import {
 } from './left-sidebar-views'
 
 describe('where the left sidebar exists', () => {
-  it('is only on the home views, the ones the Workspaces / Bot Teams rail button opens', () => {
-    for (const view of ['terminal', 'create-chat', 'bot-teams'] as const) {
+  it('is on the home views, the ones the Workspaces / Bot Teams rail button opens, and on Prototypes', () => {
+    for (const view of ['terminal', 'create-chat', 'bot-teams', 'prototypes', 'marketplace'] as const) {
       expect(isLeftSidebarView(view), view).toBe(true)
     }
   })
 
-  it('is on no other page: Tasks, Settings, Prototypes, Artifacts, Skills, Automations, Mobile', () => {
+  it('is on no other page: Tasks, Settings, Artifacts, Skills, Automations, Mobile', () => {
     for (const view of [
       'tasks',
       'settings',
-      'prototypes',
       'artifacts',
       'skills',
       'automations',
@@ -31,7 +30,7 @@ describe('where the left sidebar exists', () => {
 
 describe('where the sidebar toggle shows', () => {
   it('is on the home views and on Prototypes, whose list is its left sidebar', () => {
-    for (const view of ['terminal', 'create-chat', 'bot-teams', 'prototypes'] as const) {
+    for (const view of ['terminal', 'create-chat', 'bot-teams', 'prototypes', 'marketplace'] as const) {
       expect(hasLeftSidebarToggle(view), view).toBe(true)
     }
   })

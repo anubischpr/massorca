@@ -41,6 +41,9 @@ import { cliApi } from './api/cli-bridge'
 import { codexConfigSyncApi } from './api/codex-config-sync-bridge'
 import { preflightApi } from './api/preflight-bridge'
 import { marketplaceApi } from './api/marketplace-bridge'
+import { marketplaceInstallApi } from './api/marketplace-install-bridge'
+import { marketplaceEngramOpsApi } from './api/marketplace-engram-ops-bridge'
+import { marketplaceCustomApi } from './api/marketplace-custom-bridge'
 import { marketplaceAppsApi } from './api/marketplace-apps-bridge'
 import { notificationsApi } from './api/notifications-bridge'
 import { onboardingApi } from './api/onboarding-bridge'
@@ -147,6 +150,9 @@ const api = {
   codexConfigSync: codexConfigSyncApi,
   preflight: preflightApi,
   marketplace: marketplaceApi,
+  marketplaceInstall: marketplaceInstallApi,
+  marketplaceEngramOps: marketplaceEngramOpsApi,
+  marketplaceCustom: marketplaceCustomApi,
   marketplaceApps: marketplaceAppsApi,
   notifications: notificationsApi,
   onboarding: onboardingApi,

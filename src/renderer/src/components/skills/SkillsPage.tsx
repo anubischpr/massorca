@@ -68,6 +68,15 @@ type SkillScanState = {
 
 export default function SkillsPage(): React.JSX.Element {
   const closeSkillsPage = useAppStore((s) => s.closeSkillsPage)
+  return (
+    <main className="flex min-h-0 flex-1 flex-col bg-background">
+      <SkillsPageContent onClose={closeSkillsPage} />
+    </main>
+  )
+}
+
+/** The Skills page without its page frame, so the Marketplace's Skills section can mount it on its own canvas. */
+export function SkillsPageContent({ onClose }: { onClose: () => void }): React.JSX.Element {
   const pendingSkillShareId = useAppStore((s) => s.pendingSkillShareId)
   const clearPendingSkillShare = useAppStore((s) => s.clearPendingSkillShare)
   const pendingSkillsSharedView = useAppStore((s) => s.pendingSkillsSharedView)
@@ -200,7 +209,7 @@ export default function SkillsPage(): React.JSX.Element {
   }, [])
 
   useSkillsPageKeyboardNavigation({
-    closeSkillsPage,
+    closeSkillsPage: onClose,
     exitSelection,
     exitSharedLinks,
     selectionMode,
@@ -235,7 +244,7 @@ export default function SkillsPage(): React.JSX.Element {
   }
 
   return (
-    <main className="flex min-h-0 flex-1 flex-col bg-background">
+    <>
       {selectionMode ? (
         <SkillsSelectionHeader
           title={
@@ -284,7 +293,7 @@ export default function SkillsPage(): React.JSX.Element {
           sourceEntries={sourceEntries}
           scannedSourceCount={scannedSkillSourceCount(sourceEntries)}
           hostLabel={hostLabel}
-          onClose={closeSkillsPage}
+          onClose={onClose}
           onStartShare={() => {
             setSelectionMode('share')
             setSelectedSkillIds(new Set())
@@ -407,6 +416,6 @@ export default function SkillsPage(): React.JSX.Element {
         }}
       />
       <SkillInstallManagementDialog open={managementOpen} onOpenChange={setManagementOpen} />
-    </main>
+    </>
   )
 }

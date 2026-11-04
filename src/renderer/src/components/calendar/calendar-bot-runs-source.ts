@@ -18,12 +18,20 @@ export function botScheduledRunToCalendarRun(run: BotTeamScheduledRun): Calendar
   }
 }
 
-/** Bot team routine runs in the window, or 'unavailable' when the host cannot list them. */
-export async function loadBotRuns(range: CalendarRange): Promise<CalendarRun[] | 'unavailable'> {
+/**
+ * Bot team routine runs in the window, or 'unavailable' when the host cannot list them. Runs that
+ * already started come back only with `includePast`; a host from before that flag omits them.
+ */
+export async function loadBotRuns(
+  range: CalendarRange,
+  options: { includePast?: boolean } = {}
+): Promise<CalendarRun[] | 'unavailable'> {
   const runs: CalendarRun[] = []
   for (let from = range.from; from < range.to; from += BOT_RUNS_MAX_WINDOW_MS) {
     const to = Math.min(range.to, from + BOT_RUNS_MAX_WINDOW_MS)
-    const result = await listBotTeamScheduledRuns({ from, to })
+    const result = await listBotTeamScheduledRuns(
+      options.includePast === true ? { from, to, includePast: true } : { from, to }
+    )
     if (result === 'unavailable') {
       return 'unavailable'
     }

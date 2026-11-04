@@ -1,16 +1,23 @@
-import { mkdirSync, readFileSync, rmSync } from 'node:fs'
-import { homedir } from 'node:os'
-import { join } from 'node:path'
+import { mkdirSync, readFileSync, readdirSync, rmSync, statSync } from 'node:fs'
+import { homedir, hostname } from 'node:os'
+import { dirname, isAbsolute, join, relative } from 'node:path'
 import { z } from 'zod'
 import {
   ENGRAM_CLOUD_SERVER_ENV,
   ENGRAM_CLOUD_TOKEN_ENV,
   MARKETPLACE_APP_AGENTS,
   OPENMETADATA_TOKEN_ENV,
-  openMetadataProfileTokenEnv
+  isMarketplaceAppAllowedForAgent,
+  openMetadataProfileTokenEnv,
+  type MarketplaceAppAgent,
+  type MarketplaceCredentialLocation,
+  type MarketplaceCredentialStatus
 } from '../../shared/marketplace-apps'
-import { getSecretStore } from '../../shared/secret-store'
+import { getSecretStore, hasSecretStore } from '../../shared/secret-store'
 import { credentialFileHasContent, writeCredentialFileAtomic } from '../integration-credential-file'
+import { everyoneAccessByApp, storedAccessSchema } from './marketplace-access'
+import { isSealedV2, openSecret, sealSecret, sealedUpdatedAt } from './marketplace-vault-crypto'
+import { createMasterKeyProvider, type KeychainSealer } from './marketplace-vault-master-key'
 
 export type VaultSlot =
   | { kind: 'openmetadata' }
@@ -30,6 +37,8 @@ const stateSchema = z.object({
   engram: z.object({ connected: z.boolean(), serverUrl: z.string().nullable() }),
   // Why: Disconnect hides GitHub from MassOrca only; gh keeps its accounts.
   github: z.object({ hidden: z.boolean() }).default({ hidden: false }),
+  // Why: a state file from before access policies still parses, and reads as Everyone.
+  access: storedAccessSchema,
   written: z.object({ engram: writtenSchema, openmetadata: writtenSchema })
 })
 
@@ -42,9 +51,14 @@ export function emptyMarketplaceState(): MarketplaceState {
     openMetadata: { url: null, profiles: [] },
     engram: { connected: false, serverUrl: null },
     github: { hidden: false },
+    access: everyoneAccessByApp(),
     written: { engram: {}, openmetadata: {} }
   }
 }
+
+/** The apps whose tokens reach agents as env vars. */
+const ENV_APPS = ['engram', 'openmetadata'] as const
+type EnvApp = (typeof ENV_APPS)[number]
 
 export function defaultMarketplaceVaultDir(): string {
   return join(homedir(), '.orca', 'marketplace')
@@ -61,18 +75,49 @@ function slotFileName(slot: VaultSlot): string {
   }
 }
 
-/** Tokens sealed by the OS keyring plus a small settings file, in one folder on this computer. */
+export type MarketplaceVaultOptions = {
+  /** Where the master key lives; never inside the ciphertext folder. Default: `keys` beside it. */
+  keyDir?: string
+  /** The OS keychain wrapper; none on a plain Node host, which then uses the key file. */
+  sealer?: () => KeychainSealer | null
+  hostLabel?: string
+}
+
+function desktopKeychain(): KeychainSealer | null {
+  return hasSecretStore() ? getSecretStore() : null
+}
+
+/**
+ * Tokens sealed with AES-256-GCM plus a small settings file, in one folder on one host. The master
+ * key is wrapped by the OS keychain when there is one, otherwise it is a separate 0600 key file.
+ */
 export class MarketplaceVault {
-  private envCache: Record<string, string> | null = null
+  private envCache: Record<EnvApp, Record<string, string>> | null = null
+  private readonly keys: ReturnType<typeof createMasterKeyProvider>
+  private readonly sealer: () => KeychainSealer | null
+  private readonly hostLabel: string
 
-  constructor(private readonly dir: string = defaultMarketplaceVaultDir()) {}
-
-  encryptionAvailable(): boolean {
-    try {
-      return getSecretStore().isEncryptionAvailable()
-    } catch {
-      return false
+  constructor(
+    private readonly dir: string = defaultMarketplaceVaultDir(),
+    options: MarketplaceVaultOptions = {}
+  ) {
+    const keyDir = options.keyDir ?? join(dirname(dir), 'keys')
+    const rel = relative(dir, keyDir)
+    if (rel === '' || (!rel.startsWith('..') && !isAbsolute(rel))) {
+      throw new Error('The vault key must not live beside the ciphertext')
     }
+    this.sealer = options.sealer ?? desktopKeychain
+    this.hostLabel = options.hostLabel ?? hostname()
+    this.keys = createMasterKeyProvider({ keyDir, sealer: this.sealer })
+  }
+
+  /** Whether this host can seal a token right now (the master key exists or can be created). */
+  encryptionAvailable(): boolean {
+    return this.keys.resolve() !== null
+  }
+
+  location(): MarketplaceCredentialLocation {
+    return { hostLabel: this.hostLabel, store: this.keys.store() }
   }
 
   private pathFor(slot: VaultSlot): string {
@@ -87,29 +132,93 @@ export class MarketplaceVault {
     return credentialFileHasContent(this.pathFor(slot))
   }
 
-  /** Never falls back to reading plaintext: the vault only holds sealed tokens. */
-  readToken(slot: VaultSlot): string | null {
-    if (!this.encryptionAvailable()) {
-      return null
-    }
+  /** Set or not, when it last changed and where it lives; never the value. */
+  credentialStatus(slot: VaultSlot): MarketplaceCredentialStatus {
+    const path = this.pathFor(slot)
     try {
-      const raw = readFileSync(this.pathFor(slot))
-      const token = raw.length > 0 ? getSecretStore().decryptString(raw) : ''
-      return token.length > 0 ? token : null
+      if (statSync(path).size === 0) {
+        return { stored: false }
+      }
+      const updatedAt = sealedUpdatedAt(readFileSync(path)) ?? Math.floor(statSync(path).mtimeMs)
+      return { stored: true, updatedAt, location: this.location() }
     } catch {
-      return null
+      return { stored: false }
     }
   }
 
-  /** False, with nothing written, when the OS cannot seal the token. */
-  writeToken(slot: VaultSlot, token: string): boolean {
-    if (!this.encryptionAvailable()) {
+  /** True when no token and no settings were ever written, so a launch can skip the vault entirely. */
+  isEmpty(): boolean {
+    try {
+      return !readdirSync(this.dir).some((name) => name === 'state.json' || name.endsWith('.enc'))
+    } catch {
+      return true
+    }
+  }
+
+  /** Never falls back to reading plaintext: the vault only holds sealed tokens. */
+  readToken(slot: VaultSlot): string | null {
+    let blob: Buffer
+    try {
+      blob = readFileSync(this.pathFor(slot))
+    } catch {
+      return null
+    }
+    if (blob.length === 0) {
+      return null
+    }
+    if (isSealedV2(blob)) {
+      const master = this.keys.resolve()
+      const token = master ? openSecret(master.key, slotFileName(slot), blob) : null
+      return token !== null && token.length > 0 ? token : null
+    }
+    return this.migrateV1(slot, blob)
+  }
+
+  /** A v1 file was sealed by the OS keychain alone; open it once and re-seal it as v2. */
+  private migrateV1(slot: VaultSlot, blob: Buffer): string | null {
+    let token: string
+    try {
+      const keychain = this.sealer()
+      if (!keychain?.isEncryptionAvailable()) {
+        return null
+      }
+      token = keychain.decryptString(blob)
+    } catch {
+      return null
+    }
+    if (token.length === 0) {
+      return null
+    }
+    try {
+      const updatedAt = Math.floor(statSync(this.pathFor(slot)).mtimeMs)
+      this.writeSealed(slot, token, updatedAt)
+    } catch {
+      // The v1 file stays readable; the next read tries again.
+    }
+    return token
+  }
+
+  private writeSealed(slot: VaultSlot, token: string, updatedAt: number): boolean {
+    const master = this.keys.resolve()
+    if (!master) {
       return false
     }
     this.ensureDir()
-    writeCredentialFileAtomic(this.pathFor(slot), getSecretStore().encryptString(token))
+    writeCredentialFileAtomic(
+      this.pathFor(slot),
+      sealSecret(master.key, slotFileName(slot), token, updatedAt)
+    )
     this.envCache = null
     return true
+  }
+
+  /** False, with nothing written, when this host cannot get a master key. */
+  writeToken(slot: VaultSlot, token: string): boolean {
+    try {
+      return this.writeSealed(slot, token, Date.now())
+    } catch {
+      return false
+    }
   }
 
   deleteToken(slot: VaultSlot): void {
@@ -142,32 +251,49 @@ export class MarketplaceVault {
     this.envCache = null
   }
 
-  /** Env vars for agents MassOrca launches; names and values only for what is stored. */
-  buildAgentEnv(): Record<string, string> {
+  /** Env vars per app, read once until the state or a token changes; never handed out as is. */
+  private readAppEnvs(): Record<EnvApp, Record<string, string>> {
     if (this.envCache) {
-      return { ...this.envCache }
+      return this.envCache
     }
-    const env: Record<string, string> = {}
     const state = this.readState()
-    const add = (name: string, slot: VaultSlot): void => {
+    const envs: Record<EnvApp, Record<string, string>> = { engram: {}, openmetadata: {} }
+    const add = (env: Record<string, string>, name: string, slot: VaultSlot): void => {
       const token = this.readToken(slot)
       if (token) {
         env[name] = token
       }
     }
-    add(OPENMETADATA_TOKEN_ENV, { kind: 'openmetadata' })
+    add(envs.openmetadata, OPENMETADATA_TOKEN_ENV, { kind: 'openmetadata' })
     for (const profile of state.openMetadata.profiles) {
-      add(openMetadataProfileTokenEnv(profile.name), {
+      add(envs.openmetadata, openMetadataProfileTokenEnv(profile.name), {
         kind: 'openmetadata-profile',
         name: profile.name
       })
     }
-    add(ENGRAM_CLOUD_TOKEN_ENV, { kind: 'engram-cloud' })
+    add(envs.engram, ENGRAM_CLOUD_TOKEN_ENV, { kind: 'engram-cloud' })
     if (state.engram.serverUrl) {
-      env[ENGRAM_CLOUD_SERVER_ENV] = state.engram.serverUrl
+      envs.engram[ENGRAM_CLOUD_SERVER_ENV] = state.engram.serverUrl
     }
-    this.envCache = env
-    return { ...env }
+    this.envCache = envs
+    return envs
+  }
+
+  /**
+   * Env vars for agents MassOrca launches. With an agent, an app whose policy keeps that agent out
+   * adds none of its vars; without one, every stored var is returned.
+   */
+  buildAgentEnv(agent?: MarketplaceAppAgent): Record<string, string> {
+    const envs = this.readAppEnvs()
+    const access = this.readState().access
+    const env: Record<string, string> = {}
+    for (const app of ENV_APPS) {
+      if (agent !== undefined && !isMarketplaceAppAllowedForAgent(access[app], agent)) {
+        continue
+      }
+      Object.assign(env, envs[app])
+    }
+    return env
   }
 }
 

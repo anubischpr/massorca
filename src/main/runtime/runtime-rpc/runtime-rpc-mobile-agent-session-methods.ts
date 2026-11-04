@@ -39,6 +39,8 @@ export const MOBILE_AGENT_SESSION_RPC_METHODS = [
   'prototypes.archive',
   'prototypes.unarchive',
   'prototypes.delete',
+  // Copies an earlier version of one direction into its next version; nothing is overwritten or removed.
+  'prototypes.restoreVersion',
   // The screenshot an iteration send attaches, written under the chat's prototype request folder.
   'prototypes.writeAttachment',
   // No-ops on a current host; kept until MIN_COMPATIBLE_RUNTIME_CLIENT_VERSION passes the

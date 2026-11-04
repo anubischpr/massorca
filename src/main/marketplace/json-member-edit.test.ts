@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { editJsonContainerMember } from './json-member-edit'
+import { editJsonContainerMember, parseJsonObject } from './json-member-edit'
+
+const BOM = String.fromCharCode(0xfeff)
 
 const entry = { command: 'engram', args: ['mcp'] }
 
@@ -24,6 +26,15 @@ describe('editJsonContainerMember', () => {
     [
       'big numbers untouched',
       '{\n  "n": 12345678901234567890,\n  "mcpServers": {\n    "x": 1.50\n  }\n}\n'
+    ],
+    [
+      'byte order mark kept',
+      `${BOM}{
+  "mcpServers": {
+    "x": 1
+  }
+}
+`
     ]
   ])('adds then removes an entry byte for byte (%s)', (_label, original) => {
     expect(roundTrip(original)).toBe(original)
@@ -78,6 +89,16 @@ describe('editJsonContainerMember', () => {
   it('does not match a key that only appears nested', () => {
     const text = '{"other":{"mcpServers":{"engram":1}},"mcpServers":{}}'
     expect(editJsonContainerMember(text, 'mcpServers', 'engram', undefined)).toBe(text)
+  })
+
+  it('reads and edits JSON saved with a byte order mark, and keeps the mark', () => {
+    const saved = `${BOM}{"mcpServers":{"x":1}}`
+    expect(parseJsonObject(saved)).toEqual({ mcpServers: { x: 1 } })
+    const added = editJsonContainerMember(saved, 'mcpServers', 'engram', entry)
+    expect(added?.startsWith(BOM)).toBe(true)
+    expect(JSON.parse(added?.slice(BOM.length) ?? '')).toEqual({
+      mcpServers: { x: 1, engram: entry }
+    })
   })
 
   it.each([

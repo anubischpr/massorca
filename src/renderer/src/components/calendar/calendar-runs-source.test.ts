@@ -12,7 +12,7 @@ import {
   botScheduledRunToCalendarRun,
   loadBotRuns
 } from './calendar-bot-runs-source'
-import { loadCalendarRuns } from './calendar-runs-source'
+import { dropDoneRuns, loadCalendarRuns, nextRunStartAfter } from './calendar-runs-source'
 import type { CalendarRun } from './calendar-types'
 
 const mocks = vi.hoisted(() => ({ listScheduledRuns: vi.fn() }))
@@ -92,10 +92,10 @@ describe('automation runs on the calendar', () => {
   })
 
   it('caps how many runs one automation adds', () => {
-    const runs = expandAutomationRuns(
-      [automation({ rrule: 'FREQ=HOURLY;BYMINUTE=0' })],
-      { from: WEEK.from, to: WEEK.from + 31 * 24 * 60 * 60 * 1000 }
-    )
+    const runs = expandAutomationRuns([automation({ rrule: 'FREQ=HOURLY;BYMINUTE=0' })], {
+      from: WEEK.from,
+      to: WEEK.from + 31 * 24 * 60 * 60 * 1000
+    })
     expect(runs[0].frequency).toBe('hourly')
     expect(runs).toHaveLength(MAX_RUNS_PER_AUTOMATION)
   })
@@ -144,6 +144,14 @@ describe('bot routine runs', () => {
       botScheduledRunToCalendarRun(scheduledRun),
       botScheduledRunToCalendarRun(scheduledRun)
     ])
+  })
+
+  it('asks for past runs only when the calendar shows done runs', async () => {
+    mocks.listScheduledRuns.mockResolvedValue({ runs: [], truncated: false })
+    await loadBotRuns(WEEK, { includePast: true })
+    expect(mocks.listScheduledRuns).toHaveBeenLastCalledWith({ ...WEEK, includePast: true })
+    await loadBotRuns(WEEK)
+    expect(mocks.listScheduledRuns).toHaveBeenLastCalledWith(WEEK)
   })
 
   it('reports unavailable for a host from before scheduled runs', async () => {
@@ -208,5 +216,44 @@ describe('merging both sources', () => {
       throw new Error('host down')
     }
     expect(await loadCalendarRuns(day, [automation()], failing)).toHaveLength(1)
+  })
+})
+
+describe('runs that are done or still to come', () => {
+  const now = local(2026, 10, 31, 14, 24)
+  const botRun = (id: string, at: number): CalendarRun => ({
+    id,
+    name: 'Launch brief',
+    at,
+    frequency: 'daily',
+    source: 'bot',
+    botName: 'Nora',
+    teamId: 't1',
+    teamName: 'Marketing'
+  })
+  const triage: CalendarRun = {
+    id: 'automation:a1:9',
+    name: 'Nightly triage',
+    at: local(2026, 10, 31, 9),
+    frequency: 'daily',
+    source: 'automation',
+    agentId: 'claude'
+  }
+
+  it('hides every run whose time has passed, from either source', () => {
+    const started = botRun('bot:r1:14', local(2026, 10, 31, 14))
+    const later = botRun('bot:r1:15', local(2026, 10, 31, 15))
+    expect(dropDoneRuns([triage, started, later], now)).toEqual([later])
+  })
+
+  it('names the next run to start across bot and automation runs, or null', () => {
+    const later = botRun('bot:r1:15', local(2026, 10, 31, 15))
+    const tomorrow: CalendarRun = {
+      ...triage,
+      id: 'automation:a1:tomorrow',
+      at: local(2026, 11, 1, 9)
+    }
+    expect(nextRunStartAfter([triage, tomorrow, later], now)).toBe(later.at)
+    expect(nextRunStartAfter([triage], now)).toBeNull()
   })
 })

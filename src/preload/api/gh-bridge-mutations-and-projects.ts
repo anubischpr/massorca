@@ -7,6 +7,7 @@ import type {
   GhAccountBindingValidationResult,
   GhAuthDiagnostic
 } from '../../shared/github/auth-types'
+import type { GhSignInEvent, GhSignInStartResult } from './github-account-api'
 import type {
   GhAccountGitConfigResult,
   GhAccountGitConfigState
@@ -191,6 +192,7 @@ export const ghMutationsAndProjectsApi = {
   listHostBindableAccounts: (args?: { wslDistro?: string }): Promise<GhAccountBindingInventory> =>
     ipcRenderer.invoke('gh:listHostBindableAccounts', args),
   switchActiveAccount: (args) => ipcRenderer.invoke('gh:switchActiveAccount', args),
+  removeAccount: (args) => ipcRenderer.invoke('gh:removeAccount', args),
   listAccountOrgs: (args: {
     accounts: { host: string; user: string }[]
     wslDistro?: string
@@ -243,5 +245,15 @@ export const ghMutationsAndProjectsApi = {
   listIssueTypesBySlug: (args: ListIssueTypesBySlugArgs): Promise<ListIssueTypesBySlugResult> =>
     ipcRenderer.invoke('gh:listIssueTypesBySlug', args),
   updateIssueTypeBySlug: (args: UpdateIssueTypeBySlugArgs): Promise<GitHubProjectMutationResult> =>
-    ipcRenderer.invoke('gh:updateIssueTypeBySlug', args)
+    ipcRenderer.invoke('gh:updateIssueTypeBySlug', args),
+  startSignIn: (args: { signInId: string; host: string }): Promise<GhSignInStartResult> =>
+    ipcRenderer.invoke('gh:startSignIn', args),
+  cancelSignIn: (args: { signInId: string }): Promise<void> =>
+    ipcRenderer.invoke('gh:cancelSignIn', args),
+  onSignInEvent: (callback: (event: GhSignInEvent) => void): (() => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, payload: GhSignInEvent): void =>
+      callback(payload)
+    ipcRenderer.on('gh:signInEvent', listener)
+    return () => ipcRenderer.removeListener('gh:signInEvent', listener)
+  }
 } satisfies Partial<PreloadApi['gh']>

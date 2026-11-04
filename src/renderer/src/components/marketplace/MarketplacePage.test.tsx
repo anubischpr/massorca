@@ -2,12 +2,19 @@
 
 import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
 import type { MarketplaceAppStatus } from '../../../../shared/marketplace-apps'
+import type { DiscoveredSkill } from '../../../../shared/skills'
+import { getDefaultSettings } from '../../../../shared/constants'
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true
 
-const mocks = vi.hoisted((): { agents: string[] | null } => ({ agents: [] }))
+const mocks = vi.hoisted(
+  (): { detected: string[] | null; discover: Mock<(...args: unknown[]) => unknown> } => ({
+    detected: [],
+    discover: vi.fn()
+  })
+)
 
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 vi.mock('react-i18next', () => ({ useTranslation: () => ({}) }))
@@ -19,20 +26,42 @@ vi.mock('@/lib/local-preflight-context', () => ({
   getLocalPreflightContext: () => ({}),
   localPreflightContextKey: () => 'local'
 }))
-vi.mock('@/lib/agent-catalog', () => ({
-  AgentIcon: () => null,
-  getAgentLabel: (agent: string) => {
-    const labels: Record<string, string> = {
-      claude: 'Claude Code',
-      codex: 'Codex',
-      antigravity: 'Antigravity'
-    }
-    return labels[agent] ?? agent
+vi.mock('@/lib/agent-catalog', () => {
+  const entries = [
+    { id: 'claude', label: 'Claude Code' },
+    { id: 'codex', label: 'Codex' }
+  ]
+  const labelFor = (agent: string): string =>
+    entries.find((entry) => entry.id === agent)?.label ?? agent
+  return {
+    AgentIcon: () => null,
+    getAgentCatalog: () => entries,
+    getAgentLabel: labelFor,
+    getAgentDisplayLabel: labelFor
   }
-}))
+})
 vi.mock('@/lib/agent-icon-gentle-shell', () => ({ GentleShellIcon: () => null }))
 vi.mock('@/lib/pi-agent-display', () => ({ piRuntimeLabel: () => 'Gentle Shell' }))
-vi.mock('./use-marketplace-agents', () => ({ useMarketplaceAgents: () => mocks.agents }))
+vi.mock('@/lib/use-pi-runtime', () => ({ usePiDisplayRuntime: () => 'unknown' }))
+vi.mock('@/hooks/useDetectedAgents', () => ({
+  useDetectedAgents: () => ({
+    detectedIds: mocks.detected,
+    isLoading: false,
+    detectionFailed: false,
+    isRefreshing: false,
+    refresh: vi.fn()
+  })
+}))
+vi.mock('@/hooks/use-active-skill-discovery-runtime-target', () => ({
+  useActiveSkillDiscoveryRuntimeTarget: () => ({ kind: 'local' })
+}))
+vi.mock('@/runtime/runtime-skills-client', () => ({
+  discoverSkillsForRuntimeTarget: (...args: unknown[]) => mocks.discover(...args)
+}))
+vi.mock('../skills/SkillInstallDialog', () => ({
+  SkillInstallDialog: (props: { open: boolean; initialLink: string }) =>
+    props.open ? <div data-testid="skill-install">{props.initialLink}</div> : null
+}))
 
 const { createTestStore, seedStore } = await import('../../store/slices/store-test-helpers')
 const store = createTestStore()
@@ -40,6 +69,7 @@ vi.mock('@/store', () => ({ useAppStore: store }))
 
 const { TooltipProvider } = await import('@/components/ui/tooltip')
 const { default: MarketplacePage } = await import('./MarketplacePage')
+const { resetMarketplaceInstalledSkillsForTests } = await import('./MarketplaceCatalogSkills')
 
 const roots: { container: HTMLDivElement; root: Root }[] = []
 
@@ -58,13 +88,12 @@ async function renderPage(): Promise<HTMLDivElement> {
   return container
 }
 
-// Why: badges also carry font-medium, so the row name is matched by its block layout class.
-const NAME_SELECTOR = 'span.block.font-medium'
-
-function rowFor(container: ParentNode, name: string): HTMLButtonElement | undefined {
-  return Array.from(container.querySelectorAll<HTMLButtonElement>('li button')).find(
-    (button) => button.querySelector(NAME_SELECTOR)?.textContent === name
-  )
+async function flush(): Promise<void> {
+  await act(async () => {
+    for (let tick = 0; tick < 8; tick += 1) {
+      await Promise.resolve()
+    }
+  })
 }
 
 function buttonWithText(container: ParentNode, text: string): HTMLButtonElement | undefined {
@@ -73,20 +102,68 @@ function buttonWithText(container: ParentNode, text: string): HTMLButtonElement 
   )
 }
 
-function clickButtonWithText(container: ParentNode, text: string): Promise<void> {
+async function clickButtonWithText(container: ParentNode, text: string): Promise<void> {
   const button = buttonWithText(container, text)
   if (!button) {
     throw new Error(`Button not found: ${text}`)
   }
-  return act(async () => {
+  await act(async () => {
     button.click()
   })
 }
 
-function listedNames(container: ParentNode): string[] {
-  return Array.from(container.querySelectorAll(`li ${NAME_SELECTOR}`)).map(
-    (name) => name.textContent ?? ''
+function sectionHeading(container: ParentNode, name: string): HTMLElement | undefined {
+  return Array.from(container.querySelectorAll<HTMLElement>('h2')).find(
+    (heading) => heading.textContent === name
   )
+}
+
+/** The grid (or the placeholder line) that follows a section heading. */
+function sectionBody(container: ParentNode, name: string): Element | null {
+  return sectionHeading(container, name)?.parentElement?.nextElementSibling ?? null
+}
+
+function itemRow(container: ParentNode, name: string): HTMLElement | undefined {
+  const label = Array.from(container.querySelectorAll('span.block.truncate.font-medium')).find(
+    (span) => span.textContent === name
+  )
+  const row = label?.closest('.grid > div')
+  return row instanceof HTMLElement ? row : undefined
+}
+
+function statusOf(container: ParentNode, name: string): string | undefined {
+  const buttons = itemRow(container, name)?.querySelectorAll('button')
+  return buttons?.item(buttons.length - 1)?.textContent?.trim()
+}
+
+function namesIn(body: Element | null): string[] {
+  return Array.from(body?.querySelectorAll('span.block.truncate.font-medium') ?? []).map(
+    (span) => span.textContent ?? ''
+  )
+}
+
+function yourAppRow(container: ParentNode, name: string): HTMLElement | undefined {
+  const label = Array.from(container.querySelectorAll('span.block.truncate.font-medium')).find(
+    (span) => span.textContent === name
+  )
+  const row = label?.closest('.px-4.py-3')
+  return row instanceof HTMLElement ? row : undefined
+}
+
+function skill(name: string): DiscoveredSkill {
+  return {
+    id: `skill-${name}`,
+    name,
+    description: null,
+    providers: ['agent-skills'],
+    sourceKind: 'home',
+    sourceLabel: 'Agent skills home',
+    rootPath: '/home/dev/.agents/skills',
+    directoryPath: `/home/dev/.agents/skills/${name}`,
+    skillFilePath: `/home/dev/.agents/skills/${name}/SKILL.md`,
+    installed: true,
+    updatedAt: null
+  }
 }
 
 const connectedEngram: MarketplaceAppStatus = { id: 'engram', connected: true, agents: [] }
@@ -100,13 +177,16 @@ describe('MarketplacePage', () => {
   beforeEach(() => {
     globalThis.IS_REACT_ACT_ENVIRONMENT = true
     vi.clearAllMocks()
-    mocks.agents = ['claude', 'gentle-shell']
+    resetMarketplaceInstalledSkillsForTests()
+    mocks.detected = ['claude']
+    mocks.discover.mockResolvedValue({ skills: [], sources: [], scannedAt: 1 })
     // Why: the web client has no marketplace bridge; the page must still render.
     Object.assign(window, { api: undefined })
     seedStore(store, {
       activeView: 'marketplace',
       marketplaceSection: 'all',
       marketplaceSelectedItemId: null,
+      settings: getDefaultSettings('/tmp'),
       preflightStatus: { git: { installed: true }, gh: { installed: true, authenticated: false } },
       preflightStatusChecked: true,
       preflightStatusContextKey: 'local'
@@ -121,29 +201,51 @@ describe('MarketplacePage', () => {
     document.body.replaceChildren()
   })
 
-  it('lists the four items with the status known on this computer', async () => {
+  it('shows the title, the host picker and Add custom, with no close button beside the title', async () => {
     const container = await renderPage()
 
-    const badgeFor = (name: string): string | null | undefined =>
-      rowFor(container, name)?.querySelector('[data-slot="badge"]')?.textContent
+    expect(container.querySelector('h1')?.textContent).toBe('Marketplace')
+    expect(container.querySelector('button[aria-label="Close marketplace"]')).toBeNull()
+    expect(buttonWithText(container, 'Add custom')).toBeDefined()
+    const hostPicker = Array.from(container.querySelectorAll('button')).find((button) =>
+      button.textContent?.includes('This computer')
+    )
+    expect(hostPicker?.textContent).toContain('Connected')
+    expect(container.textContent).not.toContain('Only this computer for now')
+  })
 
-    expect(listedNames(container)).toEqual(['Git', 'GitHub', 'Engram', 'OpenMetadata'])
-    expect(badgeFor('Git')).toBe('Installed')
-    expect(badgeFor('GitHub')).toBe('Not signed in')
-    expect(badgeFor('Engram')).toBe('Available in the desktop app')
-    expect(badgeFor('OpenMetadata')).toBe('Available in the desktop app')
-    expect(buttonWithText(container, 'Tools')).toBeUndefined()
+  it('shows the board subtitle under the title on the catalog', async () => {
+    const container = await renderPage()
     expect(container.textContent).toContain(
-      'Only this computer for now. SSH and WSL hosts come later.'
+      'Install the tools, agents and skills MassOrca uses on each host, and connect the services your agents and teams work with.'
     )
   })
 
-  it('paints the page root with the Bot teams main background', async () => {
+  it('lists Tools, Agents, Skills and Services in order, each with its note', async () => {
     const container = await renderPage()
-    expect(container.firstElementChild?.classList.contains('bg-chat-canvas')).toBe(true)
+
+    expect(
+      Array.from(container.querySelectorAll('h2')).map((heading) => heading.textContent)
+    ).toEqual(['Tools', 'Agents', 'Skills', 'Services'])
+    expect(container.textContent).toContain('On This computer')
+    expect(container.textContent).toContain('On This computer. Each host has its own.')
+    expect(container.textContent).toContain('For the agents on This computer')
+    expect(container.textContent).toContain('Accounts are kept on each host')
   })
 
-  it('shows Connected or Not connected for the apps the desktop lists', async () => {
+  it('puts each section in a two-column grid and shows the status at the right of each item', async () => {
+    const container = await renderPage()
+
+    expect(sectionBody(container, 'Tools')?.className).toContain('grid-cols-2')
+    expect(namesIn(sectionBody(container, 'Tools'))).toEqual(['Git', 'Engram'])
+    expect(statusOf(container, 'Git')).toBe('Installed')
+    expect(statusOf(container, 'Engram')).toBe('Available in the desktop app')
+    expect(namesIn(sectionBody(container, 'Services'))).toEqual(['GitHub', 'OpenMetadata'])
+    expect(statusOf(container, 'GitHub')).toBe('Connect')
+    expect(statusOf(container, 'OpenMetadata')).toBe('Available in the desktop app')
+  })
+
+  it('shows Installed and Connected once the desktop reports the apps', async () => {
     Object.assign(window, {
       api: {
         marketplaceApps: {
@@ -152,75 +254,154 @@ describe('MarketplacePage', () => {
       }
     })
     const container = await renderPage()
-    await act(async () => {})
+    await flush()
 
-    const badgeFor = (name: string): string | null | undefined =>
-      rowFor(container, name)?.querySelector('[data-slot="badge"]')?.textContent
-    expect(badgeFor('Engram')).toBe('Connected')
-    expect(badgeFor('OpenMetadata')).toBe('Not connected')
+    expect(statusOf(container, 'Engram')).toBe('Installed')
+    expect(statusOf(container, 'OpenMetadata')).toBe('Connect')
   })
 
-  it('lists the rows of the section the sidebar picked', async () => {
-    seedStore(store, { marketplaceSection: 'tools' })
-    const tools = await renderPage()
-    expect(listedNames(tools)).toEqual(['Git', 'Engram'])
+  it('lists every known agent, found ones first, with Found or Install', async () => {
+    const container = await renderPage()
 
-    seedStore(store, { marketplaceSection: 'services' })
-    const services = await renderPage()
-    expect(listedNames(services)).toEqual(['GitHub', 'OpenMetadata'])
+    expect(namesIn(sectionBody(container, 'Agents'))).toEqual(['Claude Code', 'Codex'])
+    expect(statusOf(container, 'Claude Code')).toBe('Found')
+    expect(statusOf(container, 'Codex')).toBe('Install')
+  })
+
+  it('lists the skills found on this computer, each as Installed', async () => {
+    mocks.discover.mockResolvedValue({
+      skills: [skill('alpha'), skill('beta')],
+      sources: [],
+      scannedAt: 1
+    })
+    const container = await renderPage()
+    await flush()
+
+    expect(namesIn(sectionBody(container, 'Skills'))).toEqual(['alpha', 'beta'])
+    expect(statusOf(container, 'alpha')).toBe('Installed')
+  })
+
+  it('shows Your apps with the installed apps and the connected services', async () => {
+    seedStore(store, { marketplaceSection: 'your-apps' })
+    const container = await renderPage()
+
+    expect(container.querySelector('h1')?.textContent).toBe('Your apps')
+    expect(buttonWithText(container, 'Add custom')).toBeUndefined()
+    expect(
+      Array.from(container.querySelectorAll('h2')).map((heading) => heading.textContent)
+    ).toEqual(['Installed', 'Connected'])
+    const git = yourAppRow(container, 'Git')
+    expect(git?.querySelector('[data-slot="badge"]')?.textContent).toBe('Installed')
+    expect(git?.textContent).toContain('Open')
+    const claude = yourAppRow(container, 'Claude Code')
+    expect(claude?.querySelector('[data-slot="badge"]')?.textContent).toBe('Found')
+    expect(claude?.textContent).toContain('Manage with MassOrca')
+    expect(container.textContent).toContain('No services are connected yet.')
   })
 
   it('opens Git from its row and returns to the catalog with Back', async () => {
     const container = await renderPage()
+    const gitOpen = itemRow(container, 'Git')?.querySelector('button')
 
     await act(async () => {
-      rowFor(container, 'Git')?.click()
+      gitOpen?.click()
     })
     expect(container.textContent).toContain('Git is installed on this computer.')
 
     await clickButtonWithText(container, 'Back')
-
-    expect(listedNames(container)).toEqual(['Git', 'GitHub', 'Engram', 'OpenMetadata'])
+    expect(container.querySelector('h1')?.textContent).toBe('Marketplace')
   })
 
-  it('opens the standard app page for an app row', async () => {
+  it('opens the Add custom dialog with the board fields for a tool', async () => {
+    const container = await renderPage()
+    await clickButtonWithText(container, 'Add custom')
+
+    const dialog = document.querySelector('[role="dialog"]')
+    expect(dialog?.textContent).toContain('Add custom')
+    for (const label of ['Tool', 'Agent', 'Skill', 'Name', 'How to tell it is installed']) {
+      expect(dialog?.textContent).toContain(label)
+    }
+    for (const label of ['How to install it', 'Windows', 'macOS', 'Linux']) {
+      expect(dialog?.textContent).toContain(label)
+    }
+    expect(dialog?.textContent).toContain('Leave a system empty if the app does not run there.')
+    expect(dialog?.querySelector('input[placeholder="[app name]"]')).not.toBeNull()
+    expect(dialog?.querySelector('input[placeholder="mytool --version"]')).not.toBeNull()
+    expect(
+      dialog?.querySelector('input[placeholder="winget install --id [package id] -e"]')
+    ).not.toBeNull()
+    expect(dialog?.querySelector('input[placeholder="brew install [package]"]')).not.toBeNull()
+    expect(
+      dialog?.querySelector('input[placeholder="sudo apt-get install -y [package]"]')
+    ).not.toBeNull()
+    expect(buttonWithText(dialog ?? document.body, 'Cancel')).toBeDefined()
+    expect(buttonWithText(dialog ?? document.body, 'Add')).toBeDefined()
+  })
+
+  it('adds a tool through the desktop bridge with its name and check command', async () => {
+    const add = vi.fn(async () => ({ ok: false as const, reason: 'failed' as const }))
     Object.assign(window, {
       api: {
-        marketplaceApps: {
-          listApps: vi.fn(async () => [connectedEngram, disconnectedOpenMetadata])
+        marketplaceCustom: {
+          list: vi.fn(async () => []),
+          add,
+          remove: vi.fn(),
+          install: vi.fn(),
+          onInstallEvent: () => () => undefined
         }
       }
     })
     const container = await renderPage()
-    await act(async () => {})
+    await clickButtonWithText(container, 'Add custom')
 
+    const dialog = document.querySelector('[role="dialog"]')
+    const name = dialog?.querySelector<HTMLInputElement>('input[placeholder="[app name]"]')
+    const check = dialog?.querySelector<HTMLInputElement>('input[placeholder="mytool --version"]')
+    if (!name || !check) {
+      throw new Error('Add custom fields missing')
+    }
+    setInputValue(name, 'Mytool')
+    setInputValue(check, 'mytool --version')
+    await clickButtonWithText(dialog ?? document.body, 'Add')
+
+    expect(add).toHaveBeenCalledWith(
+      expect.objectContaining({ kind: 'tool', name: 'Mytool', checkCommand: 'mytool --version' })
+    )
+  })
+
+  it('hands a skill link to the existing install-from-link flow', async () => {
+    const container = await renderPage()
+    await clickButtonWithText(container, 'Add custom')
+
+    const dialog = document.querySelector('[role="dialog"]')
+    const skillTab = Array.from(dialog?.querySelectorAll('[role="tab"]') ?? []).find(
+      (tab) => tab.textContent === 'Skill'
+    )
+    if (!(skillTab instanceof HTMLElement)) {
+      throw new Error('Skill tab missing')
+    }
     await act(async () => {
-      rowFor(container, 'Engram')?.click()
+      skillTab.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 0 }))
     })
+    expect(document.querySelector('[role="dialog"]')?.textContent).toContain('Link to the skill')
 
-    expect(container.querySelector('[data-marketplace-section="connection"]')).not.toBeNull()
-    expect(container.textContent).toContain('Engram on this computer')
-  })
+    const link = document.querySelector<HTMLInputElement>(
+      'input[placeholder="https://github.com/[owner]/[repo]"]'
+    )
+    if (!link) {
+      throw new Error('Skill link field missing')
+    }
+    setInputValue(link, 'https://github.com/acme/skill')
+    await clickButtonWithText(document.querySelector('[role="dialog"]') ?? document.body, 'Add')
 
-  it('lists the detected agents in the Agents section, with a link to Settings', async () => {
-    seedStore(store, { marketplaceSection: 'agents' })
-    const container = await renderPage()
-
-    expect(container.textContent).toContain('Claude Code')
-    expect(container.textContent).toContain('Gentle Shell')
-
-    await clickButtonWithText(container, 'Open Agents in Settings')
-
-    expect(store.getState().activeView).toBe('settings')
-    expect(store.getState().settingsNavigationTarget?.pane).toBe('agents')
-  })
-
-  it('links the Skills section to the Skills page', async () => {
-    seedStore(store, { marketplaceSection: 'skills' })
-    const container = await renderPage()
-
-    await clickButtonWithText(container, 'Open Skills')
-
-    expect(store.getState().activeView).toBe('skills')
+    expect(document.querySelector('[data-testid="skill-install"]')?.textContent).toBe(
+      'https://github.com/acme/skill'
+    )
   })
 })
+
+function setInputValue(input: HTMLInputElement, value: string): void {
+  const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set
+  setter?.call(input, value)
+  input.dispatchEvent(new Event('input', { bubbles: true }))
+}

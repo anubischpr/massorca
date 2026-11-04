@@ -19,6 +19,11 @@ export type GitHubAccounts = {
   switchError: string | null
   reload: () => Promise<void>
   makeActive: (account: GhAuthAccount) => Promise<void>
+  /** Resolves to the reason to show, or null once gh has removed the login. */
+  removeAccount: (account: GhAuthAccount) => Promise<string | null>
+  signInOpen: boolean
+  openSignIn: () => void
+  closeSignIn: () => void
 }
 
 export function gitHubAccountKey(account: GhAuthAccount): string {
@@ -31,6 +36,9 @@ export function useGitHubAccounts(enabled: boolean): GitHubAccounts {
   const [inventory, setInventory] = useState<GitHubInventory>({ kind: 'loading' })
   const [pendingKey, setPendingKey] = useState<string | null>(null)
   const [switchError, setSwitchError] = useState<string | null>(null)
+  const [signInOpen, setSignInOpen] = useState(false)
+  const openSignIn = useCallback(() => setSignInOpen(true), [])
+  const closeSignIn = useCallback(() => setSignInOpen(false), [])
 
   const reload = useCallback(async (): Promise<void> => {
     try {
@@ -93,5 +101,50 @@ export function useGitHubAccounts(enabled: boolean): GitHubAccounts {
     [reload]
   )
 
-  return { inventory, localRepos, pendingKey, switchError, reload, makeActive }
+  const removeAccount = useCallback(
+    async (account: GhAuthAccount): Promise<string | null> => {
+      let failure: string | null = null
+      try {
+        const result = await window.api.gh.removeAccount({
+          host: account.host,
+          user: account.user
+        })
+        if (!result.ok) {
+          failure =
+            result.reason === 'unsupported'
+              ? translate(
+                  'auto.components.marketplace.GitHubAccountsCard.removeUnsupported',
+                  'Update the GitHub CLI to remove accounts from here.'
+                )
+              : translate(
+                  'auto.components.marketplace.GitHubAccountsCard.removeFailed',
+                  'Could not remove {{user}}.',
+                  { user: account.user }
+                )
+        }
+      } catch {
+        failure = translate(
+          'auto.components.marketplace.GitHubAccountsCard.removeFailed',
+          'Could not remove {{user}}.',
+          { user: account.user }
+        )
+      }
+      await reload()
+      return failure
+    },
+    [reload]
+  )
+
+  return {
+    inventory,
+    localRepos,
+    pendingKey,
+    switchError,
+    reload,
+    makeActive,
+    removeAccount,
+    signInOpen,
+    openSignIn,
+    closeSignIn
+  }
 }

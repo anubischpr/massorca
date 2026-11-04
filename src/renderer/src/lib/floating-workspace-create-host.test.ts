@@ -3,7 +3,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const mocks = vi.hoisted(() => ({
   launchAgentInNewTab: vi.fn(),
   markUsed: vi.fn(),
-  showSessionInFloatingWorkspace: vi.fn()
+  showSessionInFloatingWorkspace: vi.fn(),
+  toastError: vi.fn()
 }))
 
 vi.mock('./launch-agent-in-new-tab', () => ({ launchAgentInNewTab: mocks.launchAgentInNewTab }))
@@ -15,7 +16,10 @@ vi.mock('./show-session-in-floating-workspace', () => ({
   awaitNewSessionTab: vi.fn(() => Promise.resolve(null))
 }))
 vi.mock('./focus-terminal-tab-surface', () => ({ focusTerminalTabSurface: vi.fn() }))
-vi.mock('sonner', () => ({ toast: { error: vi.fn() } }))
+vi.mock('sonner', () => ({ toast: { error: mocks.toastError } }))
+vi.mock('../runtime/web-runtime-terminal-creation', () => ({
+  createWebRuntimeSessionTerminal: vi.fn()
+}))
 vi.mock('@/store', () => ({
   useAppStore: { getState: () => ({ unifiedTabsByWorktree: {} }) }
 }))
@@ -45,7 +49,16 @@ describe('the floating "+" menu host', () => {
     expect(mocks.markUsed).toHaveBeenCalledWith('vps-env')
     expect(mocks.showSessionInFloatingWorkspace).toHaveBeenCalledWith(
       { worktreeId: 'vps-worktree', tabId: 'vps-tab' },
-      expect.anything()
+      expect.anything(),
+      {}
     )
+  })
+
+  it('follows a paired host that has no workspace yet, and says so when an agent is picked', () => {
+    const host = floatingCreateHost('vps-env', null)
+    expect(host).toMatchObject({ environmentId: 'vps-env', worktreeId: null })
+    host?.launchAgent('claude', 'Claude')
+    expect(mocks.launchAgentInNewTab).not.toHaveBeenCalled()
+    expect(mocks.toastError).toHaveBeenCalledWith('This host has no workspace yet.')
   })
 })

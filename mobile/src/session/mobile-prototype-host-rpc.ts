@@ -6,6 +6,7 @@ import {
   PROTOTYPE_WRITE_ATTACHMENT_ERRORS,
   ReadPrototypeDesignSystemReplySchema,
   ReadPrototypeFileReplySchema,
+  RestorePrototypeVersionReplySchema,
   WriteAttachmentReplySchema,
   type CreatePrototypeRequestParams,
   type ListPrototypeSetsParams,
@@ -15,6 +16,7 @@ import {
   type PrototypeRequestTargetParams,
   type ReadPrototypeDesignSystemParams,
   type ReadPrototypeFileParams,
+  type RestorePrototypeVersionParams,
   type WriteAttachmentParams
 } from '../../../src/shared/rpc-contract/prototype-params'
 import { isMobileMethodUnavailableError } from '../transport/mobile-method-unavailable'
@@ -205,6 +207,46 @@ export async function writeMobilePrototypeAttachment(
   }
   return reply.data.ok
     ? { kind: 'ready', path: reply.data.path }
+    : { kind: 'refused', error: reply.data.error }
+}
+
+export type MobilePrototypeRestore =
+  /** The host wrote the restored copy as the new current version. */
+  | { kind: 'restored'; fileName: string; version: number }
+  | { kind: 'refused'; error: 'not_found' | 'conflict' | 'unwritable' }
+  | { kind: 'unsupported-host' }
+  | { kind: 'unreachable' }
+
+// Hosts that answered a restore as a method they lack: their sets are offered no restore.
+const hostsWithoutPrototypeRestore = new WeakSet<object>()
+
+/** Whether a restore showed this host to predate restoring versions; true until one does. */
+export function hostMayRestorePrototypeVersions(client: HostClient): boolean {
+  return !hostsWithoutPrototypeRestore.has(client)
+}
+
+/** Copies one earlier version of a direction into a new current version on the host that lists it. */
+export async function restoreMobilePrototypeVersion(
+  client: HostClient,
+  params: RestorePrototypeVersionParams
+): Promise<MobilePrototypeRestore> {
+  const response = await sendHostRequest(client, 'prototypes.restoreVersion', params)
+  if (response === null) {
+    return { kind: 'unreachable' }
+  }
+  if (!response.ok) {
+    if (!isUnsupportedHost(response)) {
+      return { kind: 'unreachable' }
+    }
+    hostsWithoutPrototypeRestore.add(client)
+    return { kind: 'unsupported-host' }
+  }
+  const reply = RestorePrototypeVersionReplySchema.safeParse(response.result)
+  if (!reply.success) {
+    return { kind: 'unreachable' }
+  }
+  return reply.data.ok
+    ? { kind: 'restored', fileName: reply.data.fileName, version: reply.data.version }
     : { kind: 'refused', error: reply.data.error }
 }
 

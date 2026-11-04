@@ -61,8 +61,7 @@ describe('SidePanelTabStrip', () => {
     const handlers = {
       onActivate: vi.fn(),
       onClose: vi.fn(),
-      onCreate: vi.fn(),
-      onClosePanel: vi.fn()
+      onCreate: vi.fn()
     }
     const container = mount(
       <SidePanelTabStrip
@@ -108,10 +107,9 @@ describe('SidePanelTabStrip', () => {
     expect(rows.map((row) => row.getAttribute('data-active'))).toEqual(['true', 'false'])
   })
 
-  it('closes the whole panel from Close panel', () => {
-    const { container, handlers } = render()
-    act(() => labelled(container, 'Close panel').click())
-    expect(handlers.onClosePanel).toHaveBeenCalledTimes(1)
+  it('has no Close panel button: the bar toggle hides the panel and each tab has its own X', () => {
+    const { container } = render()
+    expect(container.querySelector('button[aria-label="Close panel"]')).toBeNull()
   })
 
   it('lists exactly the four creatable kinds in the + menu and creates the chosen one', () => {

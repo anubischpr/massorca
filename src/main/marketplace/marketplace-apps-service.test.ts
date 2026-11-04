@@ -171,8 +171,12 @@ describe('Engram', () => {
 })
 
 describe('OpenMetadata', () => {
-  it('refuses to store anything when the vault cannot encrypt', async () => {
-    installFakeSecretStore(false)
+  it('refuses to store anything when the vault cannot get a master key', async () => {
+    // Why: a file where the key folder should be makes the key impossible to create.
+    writeFileSync(join(home, 'blocked'), 'x')
+    vault = new MarketplaceVault(join(home, '.orca', 'marketplace'), {
+      keyDir: join(home, 'blocked', 'keys')
+    })
     const before = snapshot(home)
     expect(await service().connect({ id: 'openmetadata', url: URL_, token: TOKEN })).toEqual({
       ok: false,
@@ -289,6 +293,10 @@ describe('OpenMetadata', () => {
       await api.connect({ id: 'openmetadata', url: 'https://u:p@x.example', token: TOKEN })
     ).toEqual(bad)
     expect(await api.connect({ id: 'other' })).toEqual(bad)
+    expect(
+      await api.connect({ id: 'openmetadata', url: `${URL_}?token=abc`, token: TOKEN })
+    ).toEqual(bad)
+    expect(await api.connect({ id: 'openmetadata', url: `${URL_}#t`, token: TOKEN })).toEqual(bad)
     expect(await api.setOpenMetadataToken({ token: TOKEN })).toEqual(bad)
     expect(await api.removeOpenMetadataProfile({ name: 'ghost' })).toEqual(bad)
     expect(await api.setEngramServer({ url: 'not a url' })).toEqual(bad)

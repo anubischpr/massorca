@@ -2,6 +2,7 @@ import { EventEmitter } from 'node:events'
 import { vi } from 'vitest'
 import type { MethodHandler, RequestContext } from './dispatcher'
 import { AgentExecHandler } from './agent-exec-handler'
+import { relayMarketplaceEnv } from './relay-marketplace-vault'
 
 export function withPlatform<T>(platform: NodeJS.Platform, fn: () => T): T {
   const original = process.platform
@@ -32,6 +33,8 @@ export function createFakeChild(): FakeChild {
 }
 
 export function createHandlers(): Map<string, MethodHandler> {
+  // Why: the default reads this host's real vault, which a test must never do.
+  relayMarketplaceEnv.build = () => ({})
   const handlers = new Map<string, MethodHandler>()
   new AgentExecHandler({
     onRequest: (method: string, handler: MethodHandler): void => {

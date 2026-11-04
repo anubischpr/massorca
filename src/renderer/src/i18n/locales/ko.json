@@ -17902,18 +17902,9 @@
       "fieldWidth": "너비",
       "fillHex": "배경 16진수",
       "fillLabel": "배경",
-      "filter": {
-        "all": "전체",
-        "claude": "Claude",
-        "codex": "Codex",
-        "gentleShell": "Gentle Shell",
-        "stitch": "Stitch"
-      },
-      "filterGroup": "에이전트별 필터",
       "fontSizeLabel": "글자 크기",
       "frameError": "이 프로토타입을 열 수 없습니다",
       "frameTitle": "프로토타입",
-      "heading": "프로토타입",
       "heightLabel": "높이",
       "heightUnit": "높이 단위",
       "heightValue": "높이 값",
@@ -17984,12 +17975,32 @@
       "toolBrowse": "둘러보기",
       "toolGroup": "도구",
       "unstarLabel": "병합용 {{letter}} 별표 해제",
+      "versionBackToCurrent": "현재 버전으로",
+      "versionCurrent": "현재 · v{{version}}",
+      "versionEarlier": "v{{version}}",
+      "versionPreview": "미리 보기",
+      "versionPreviewTag": "{{letter}} · v{{version}} · 이전 버전, 읽기 전용",
+      "versionRestore": "복원",
+      "versionRestoreAction": "v{{version}} 복원",
+      "versionRestoreCancel": "취소",
+      "versionRestored": "버전을 복원했습니다",
+      "versionRestoreFailed": "이 버전을 복원하지 못했습니다. 다시 시도하세요.",
+      "versionRestoreHelp": "v{{version}}의 내용으로 새 버전 {{next}}(현재 버전)이 됩니다. 버전 1부터 {{latest}}까지는 목록에 남습니다.",
+      "versionRestoreOutdated": "이 호스트는 아직 버전 복원을 지원하지 않습니다.",
+      "versionRestoreTitle": "{{letter}}의 버전 {{version}}을(를) 복원할까요?",
+      "versionsButton": "버전",
+      "versionsNote": "복원하면 해당 버전이 새 버전으로 복사됩니다. 어떤 버전도 삭제되지 않습니다.",
+      "versionsTitle": "{{letter}}의 버전",
       "viewportDesktop": "데스크톱",
       "viewportGroup": "뷰포트",
       "viewportPhone": "휴대폰",
       "widthLabel": "너비",
       "widthUnit": "너비 단위",
-      "widthValue": "너비 값"
+      "widthValue": "너비 값",
+      "tree": {
+        "expand": "프로토타입 펼치기",
+        "collapse": "프로토타입 접기"
+      }
     },
     "onboarding": {
       "flow": {

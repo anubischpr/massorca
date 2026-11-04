@@ -1,12 +1,11 @@
 import { mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import {
   installFakeSecretStore,
   makeTempHome,
   resetFakeSecretStore
 } from './marketplace-apps-test-fixtures'
-import { getSecretStore } from '../../shared/secret-store'
 import { MarketplaceVault, emptyMarketplaceState } from './marketplace-vault'
 
 let dir: string
@@ -28,12 +27,12 @@ describe('MarketplaceVault tokens', () => {
     expect(readFileSync(join(dir, 'openmetadata-token.enc'), 'utf8')).not.toContain('tok-123')
   })
 
-  it('refuses to write when encryption is unavailable and leaves nothing on disk', () => {
+  it('seals with a key file when the OS keychain is unavailable', () => {
     installFakeSecretStore(false)
     const vault = new MarketplaceVault(dir)
-    expect(vault.writeToken({ kind: 'engram-cloud' }, 'tok-123')).toBe(false)
-    expect(vault.hasToken({ kind: 'engram-cloud' })).toBe(false)
-    expect(() => readdirSync(dir)).toThrow()
+    expect(vault.writeToken({ kind: 'engram-cloud' }, 'tok-123')).toBe(true)
+    expect(vault.readToken({ kind: 'engram-cloud' })).toBe('tok-123')
+    expect(vault.location().store).toBe('key-file')
   })
 
   it('never reads a plaintext file as a token', () => {
@@ -101,14 +100,14 @@ describe('MarketplaceVault agent env', () => {
     })
   })
 
-  it('decrypts once until something is written', () => {
+  it('reads the files once until something is written', () => {
     const vault = new MarketplaceVault(dir)
     vault.writeToken({ kind: 'openmetadata' }, 'one')
-    const store = getSecretStore()
-    const decrypt = vi.spyOn(store, 'decryptString')
     expect(vault.buildAgentEnv()).toEqual({ OPENMETADATA_TOKEN: 'one' })
     expect(vault.buildAgentEnv()).toEqual({ OPENMETADATA_TOKEN: 'one' })
-    expect(decrypt).toHaveBeenCalledTimes(1)
+    // Why: garbage on disk proves the second call came from the cache, not a re-read.
+    writeFileSync(join(dir, 'openmetadata-token.enc'), 'garbage')
+    expect(vault.buildAgentEnv()).toEqual({ OPENMETADATA_TOKEN: 'one' })
     vault.writeToken({ kind: 'openmetadata' }, 'two')
     expect(vault.buildAgentEnv()).toEqual({ OPENMETADATA_TOKEN: 'two' })
     vault.deleteToken({ kind: 'openmetadata' })

@@ -53,6 +53,9 @@ import type { PluginsApi } from './api/plugin-host-api'
 import type { PreflightApi } from './api/preflight-api'
 import type { MarketplaceAppsApi } from '../shared/marketplace-apps'
 import type { MarketplaceApi } from '../shared/marketplace-types'
+import type { MarketplaceInstallApi } from '../shared/marketplace-install'
+import type { MarketplaceEngramOpsApi } from '../shared/marketplace-engram-ops'
+import type { MarketplaceCustomApi } from '../shared/marketplace-custom'
 import type { PtyApi } from './api/pty-api'
 import type { ProjectGroupsApi, ProjectsApi, RepositoryApi } from './api/repository-api'
 import type { RuntimeApi } from './api/runtime-api'
@@ -120,6 +123,9 @@ export type PreloadApi = {
   codexConfigSync: CodexConfigSyncApi
   preflight: PreflightApi
   marketplace: MarketplaceApi
+  marketplaceInstall: MarketplaceInstallApi
+  marketplaceEngramOps: MarketplaceEngramOpsApi
+  marketplaceCustom: MarketplaceCustomApi
   marketplaceApps: MarketplaceAppsApi
   notifications: NotificationsApi
   onboarding: OnboardingApi

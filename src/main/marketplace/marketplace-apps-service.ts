@@ -1,5 +1,7 @@
 import {
   OPENMETADATA_TOKEN_ENV,
+  isMarketplaceAppAllowedForAgent,
+  isUnrestrictedAccessPolicy,
   openMetadataProfileTokenEnv,
   type MarketplaceActionResult,
   type MarketplaceAppId,
@@ -8,6 +10,7 @@ import {
 } from '../../shared/marketplace-apps'
 import type { McpEntryEdit } from './marketplace-agent-config'
 import {
+  parseAccessPolicyArgs,
   parseAddProfileArgs,
   parseConnectArgs,
   parseDisconnectArgs,
@@ -31,6 +34,11 @@ export type MarketplaceAppsServiceDeps = MarketplaceStatusDeps
 const INVALID: MarketplaceActionResult = { ok: false, reason: 'invalid-input' }
 const VAULT_UNAVAILABLE: MarketplaceActionResult = { ok: false, reason: 'vault-unavailable' }
 
+/** Whether the app's entries are on this computer, so a policy change may write or remove them. */
+function isConnectedHere(state: MarketplaceState, app: WrittenApp): boolean {
+  return app === 'engram' ? state.engram.connected : state.openMetadata.url !== null
+}
+
 /** Every entry MassOrca writes for one app, given what the state says about the apps' profiles. */
 function setPlan(
   app: WrittenApp,
@@ -40,6 +48,7 @@ function setPlan(
   return {
     app,
     instructions,
+    keepOut: (agent) => !isMarketplaceAppAllowedForAgent(state.access[app], agent),
     entries: (agent, owned) => {
       if (app === 'engram') {
         return [
@@ -89,7 +98,7 @@ function removePlan(
 export type MarketplaceAppsService = {
   listApps: () => Promise<MarketplaceAppStatus[]>
 } & Record<
-  Exclude<keyof MarketplaceAppsApi, 'listApps'>,
+  Exclude<keyof MarketplaceAppsApi, 'listApps' | 'remoteVault' | 'remote'>,
   (args: unknown) => Promise<MarketplaceActionResult>
 >
 
@@ -198,7 +207,8 @@ export function createMarketplaceAppsService(
           !state.engram.connected &&
           state.openMetadata.url === null &&
           state.openMetadata.profiles.length === 0 &&
-          !state.github.hidden
+          !state.github.hidden &&
+          Object.values(state.access).every(isUnrestrictedAccessPolicy)
         if (nothingLeft) {
           vault.clearState()
         } else {
@@ -274,6 +284,22 @@ export function createMarketplaceAppsService(
         state.engram.serverUrl = args.url
         vault.writeState(state)
         return statusOf('engram')
+      }),
+
+    setAccessPolicy: (rawArgs) =>
+      guarded(async () => {
+        const args = parseAccessPolicyArgs(rawArgs)
+        if (!args) {
+          return INVALID
+        }
+        const state = vault.readState()
+        state.access[args.id] = args.policy
+        if (args.id === 'github' || !isConnectedHere(state, args.id)) {
+          // Why: a policy on an app that is not connected is only stored; nothing is written for it.
+          vault.writeState(state)
+          return statusOf(args.id)
+        }
+        return finish(state, args.id, runAppWrites(state, setPlan(args.id, state, 'add'), paths))
       })
   }
 }

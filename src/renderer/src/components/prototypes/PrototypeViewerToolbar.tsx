@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import {
+  History,
   LayoutGrid,
   MessageCircle,
   Monitor,
@@ -63,7 +64,18 @@ function NamedTooltip({
   )
 }
 
-/** The viewer's header: the set's title and chat, Merge, the Layout, Viewport and Tool groups, the panel toggle. */
+/** The Versions button and the preview controls beside it; the viewer decides what each one does. */
+export type PrototypeVersionToolbarControls = {
+  panelOpen: boolean
+  onTogglePanel: () => void
+  /** The earlier version on screen, or null while the current one is. */
+  previewVersion: number | null
+  canRestore: boolean
+  onBackToCurrent: () => void
+  onRestorePreview: () => void
+}
+
+/** The viewer's header: the set's title and chat, Merge, the Layout, Viewport and Tool groups, Versions, the panel toggle. */
 export function PrototypeViewerToolbar({
   set,
   state,
@@ -71,7 +83,8 @@ export function PrototypeViewerToolbar({
   single,
   mergeEnabled,
   onMerge,
-  onOpenDesignSystem
+  onOpenDesignSystem,
+  versions
 }: {
   set: PrototypeListedSet
   state: PrototypeSetState
@@ -81,6 +94,7 @@ export function PrototypeViewerToolbar({
   mergeEnabled: boolean
   onMerge: () => void
   onOpenDesignSystem: (projectKey: string) => void
+  versions: PrototypeVersionToolbarControls
 }): React.JSX.Element {
   const layout = single ? 'focus' : state.layout
   const status = prototypeStatus(set, state.active)
@@ -95,12 +109,7 @@ export function PrototypeViewerToolbar({
   // Why: a merge under way hides the draft panel, so its toggle waits until the merge ends.
   const mergeUnderWay = state.merge !== null
   const topBandTarget = usePageTopBandActionsTarget()
-  const draftShown = prototypePanelsShown({
-    sidePanelHidden,
-    listPanelHidden,
-    mergeUnderWay,
-    sidebarOpen: true
-  }).draft
+  const draftShown = prototypePanelsShown({ sidePanelHidden, listPanelHidden, mergeUnderWay }).draft
   const agentLabel = prototypeAgentLabel(set.agent)
   const chatTitle = set.chatTitle?.trim() ?? ''
   const openChat = (): void => {
@@ -159,6 +168,21 @@ export function PrototypeViewerToolbar({
   )
   // Why the tooltip at every count: a narrow header hides the visible name.
   const mergeControl = <NamedTooltip name={mergeName}>{mergeButton}</NamedTooltip>
+  const previewControls =
+    versions.previewVersion === null ? null : (
+      <div className="flex items-center gap-2">
+        <Button type="button" variant="outline" size="sm" onClick={versions.onBackToCurrent}>
+          {translate('components.prototypes.versionBackToCurrent', 'Back to current')}
+        </Button>
+        {versions.canRestore ? (
+          <Button type="button" size="sm" onClick={versions.onRestorePreview}>
+            {translate('components.prototypes.versionRestoreAction', 'Restore v{{version}}', {
+              version: versions.previewVersion
+            })}
+          </Button>
+        ) : null}
+      </div>
+    )
   const panelToggle = (
     <BarToggle
       label={panelName}
@@ -224,6 +248,7 @@ export function PrototypeViewerToolbar({
         </div>
       </div>
       <div role="toolbar" className="flex max-w-full shrink-0 flex-wrap items-center gap-2">
+        {previewControls}
         {single ? null : mergeControl}
         {single ? null : (
           <div
@@ -283,6 +308,16 @@ export function PrototypeViewerToolbar({
             </button>
           </NamedTooltip>
         </div>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          aria-pressed={versions.panelOpen}
+          onClick={versions.onTogglePanel}
+        >
+          <History aria-hidden="true" className="size-4" />
+          {translate('components.prototypes.versionsButton', 'Versions')}
+        </Button>
         <div className="flex items-center gap-2">
           <div
             role="group"

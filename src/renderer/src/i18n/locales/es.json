@@ -17882,6 +17882,7 @@
       "month": "Mes",
       "teamsAria": "Equipos",
       "upcoming": "Próximas ejecuciones",
+      "showDone": "Mostrar hechas",
       "monthly": "Mensual",
       "todayAt": "Hoy a las {{time}}",
       "tomorrowAt": "Mañana a las {{time}}",
@@ -17896,7 +17897,6 @@
       "workspaces": "Espacios de trabajo"
     },
     "side-panel": {
-      "close": "Cerrar panel",
       "label": "Panel lateral",
       "new-tab": "Nueva pestaña"
     },
@@ -17988,18 +17988,9 @@
       "fieldWidth": "ancho",
       "fillHex": "Relleno en hex",
       "fillLabel": "Relleno",
-      "filter": {
-        "all": "Todos",
-        "claude": "Claude",
-        "codex": "Codex",
-        "gentleShell": "Gentle Shell",
-        "stitch": "Stitch"
-      },
-      "filterGroup": "Filtrar por agente",
       "fontSizeLabel": "Tamaño de fuente",
       "frameError": "No se pudo abrir el prototipo",
       "frameTitle": "Prototipo",
-      "heading": "Prototipos",
       "heightLabel": "Alto",
       "heightUnit": "Unidad de alto",
       "heightValue": "Valor del alto",
@@ -18071,12 +18062,32 @@
       "toolBrowse": "Navegar",
       "toolGroup": "Herramienta",
       "unstarLabel": "Desmarcar {{letter}} para fusionar",
+      "versionBackToCurrent": "Volver a la actual",
+      "versionCurrent": "Actual · v{{version}}",
+      "versionEarlier": "v{{version}}",
+      "versionPreview": "Vista previa",
+      "versionPreviewTag": "{{letter}} · v{{version}} · versión anterior, solo lectura",
+      "versionRestore": "Restaurar",
+      "versionRestoreAction": "Restaurar v{{version}}",
+      "versionRestoreCancel": "Cancelar",
+      "versionRestored": "Versión restaurada",
+      "versionRestoreFailed": "No se pudo restaurar esta versión. Inténtalo de nuevo.",
+      "versionRestoreHelp": "Pasa a ser la versión {{next}}, la actual, con el contenido de la v{{version}}. Las versiones 1 a {{latest}} siguen en la lista.",
+      "versionRestoreOutdated": "Este host todavía no admite restaurar versiones.",
+      "versionRestoreTitle": "¿Restaurar la versión {{version}} de {{letter}}?",
+      "versionsButton": "Versiones",
+      "versionsNote": "Restaurar copia esa versión en una nueva. No se borra ninguna versión.",
+      "versionsTitle": "Versiones de {{letter}}",
       "viewportDesktop": "Vista escritorio",
       "viewportGroup": "Vista",
       "viewportPhone": "Vista teléfono",
       "widthLabel": "Ancho",
       "widthUnit": "Unidad de ancho",
-      "widthValue": "Valor del ancho"
+      "widthValue": "Valor del ancho",
+      "tree": {
+        "expand": "Expandir prototipos",
+        "collapse": "Contraer prototipos"
+      }
     },
     "createChat": {
       "errorWorktreeGone": "Este worktree ya no está disponible. Elige otro.",

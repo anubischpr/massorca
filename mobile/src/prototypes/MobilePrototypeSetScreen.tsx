@@ -17,6 +17,7 @@ import {
   toggleStar,
   type PrototypeSetState
 } from '../../../src/shared/prototype-set-state'
+import { ActionSheetModal } from '../components/ActionSheetModal'
 import { KeyedBottomDrawer } from '../components/keyed-bottom-drawer'
 import type { PrototypeListedSet } from '../../../src/shared/rpc-contract/prototype-params'
 import { useHostClient } from '../transport/host-client-hooks'
@@ -27,7 +28,9 @@ import { MobilePrototypeHeader } from './MobilePrototypeHeader'
 import { MobilePrototypeMergeButton } from './MobilePrototypeMergeButton'
 import { MobilePrototypeMergeSheet } from './MobilePrototypeMergeSheet'
 import { MobilePrototypeMergeSkeleton } from './MobilePrototypeMergeSkeleton'
+import { MobilePrototypeVersionsSheet } from './MobilePrototypeVersionsSheet'
 import { directionTag, mainFirst } from './mobile-prototype-directions-model'
+import type { MobilePrototypeVersionRow } from './mobile-prototype-versions-model'
 import { mobilePrototypeAgentLabel } from './mobile-prototype-list-model'
 import { originChipOf } from './mobile-prototype-origin'
 import { sendMobilePrototypeMerge, startMobilePrototypeMerge } from './mobile-prototype-merge-flow'
@@ -47,12 +50,15 @@ export function MobilePrototypeSetScreen({
   hostId,
   requestId,
   onBack,
-  onOpenDirection
+  onOpenDirection,
+  onOpenVersion
 }: {
   hostId: string
   requestId: string
   onBack: () => void
   onOpenDirection: () => void
+  /** Opens an earlier version of a direction, read-only. */
+  onOpenVersion: (version: number) => void
 }) {
   const { client } = useHostClient(hostId)
   const listed = useMobilePrototypeSets(hostId)
@@ -109,6 +115,35 @@ export function MobilePrototypeSetScreen({
   const review = state?.merge?.phase === 'review' ? state.merge : null
   // Why: a merge waiting for its plan opens the sheet as a skeleton, so the wait is not a blank screen.
   const mergeUnderWay = (state?.merge ?? null) !== null
+  // The letters stay once picked, so the menu and the Versions sheet keep their content while they close.
+  const [menuLetter, setMenuLetter] = useState<string | null>(null)
+  const [menuOpen, setMenuOpen] = useState(false)
+  const [versionsLetter, setVersionsLetter] = useState<string | null>(null)
+  const [versionsOpen, setVersionsOpen] = useState(false)
+  // Why: iOS cannot present the viewer over a Versions sheet still closing, so the pick waits for it.
+  const pendingVersionPick = useRef<MobilePrototypeVersionRow | null>(null)
+  const versionsDirection = set?.directions.find((direction) => direction.letter === versionsLetter)
+  const openVersions = (letter: string): void => {
+    setVersionsLetter(letter)
+    setVersionsOpen(true)
+  }
+  const pickVersion = (letter: string, row: MobilePrototypeVersionRow): void => {
+    update((current) => openDirection(current, letter))
+    pendingVersionPick.current = row
+    setVersionsOpen(false)
+  }
+  const openPickedVersion = (): void => {
+    const row = pendingVersionPick.current
+    pendingVersionPick.current = null
+    if (row === null) {
+      return
+    }
+    if (row.current) {
+      onOpenDirection()
+    } else {
+      onOpenVersion(row.version)
+    }
+  }
 
   return (
     <SafeAreaView style={styles.screen} edges={['top', 'bottom']}>
@@ -170,6 +205,10 @@ export function MobilePrototypeSetScreen({
                   onOpenDirection()
                 }}
                 onToggleStar={() => update((current) => toggleStar(current, direction.letter))}
+                onMore={() => {
+                  setMenuLetter(direction.letter)
+                  setMenuOpen(true)
+                }}
               />
             ))}
       </ScrollView>
@@ -199,6 +238,39 @@ export function MobilePrototypeSetScreen({
               sendFailed={state?.mergeSendFailed ?? false}
               update={update}
               onSend={() => void sendMobilePrototypeMerge(mergeFlow(set))}
+            />
+          )
+        }
+      </KeyedBottomDrawer>
+      <ActionSheetModal
+        visible={menuOpen}
+        title={menuLetter === null ? undefined : `Direction ${menuLetter}`}
+        actions={
+          menuLetter === null
+            ? []
+            : [
+                {
+                  label: 'Versions',
+                  // Why: the Versions sheet opens only after this menu has closed on iOS.
+                  closeBeforePress: true,
+                  onPress: () => openVersions(menuLetter)
+                }
+              ]
+        }
+        onClose={() => setMenuOpen(false)}
+      />
+      <KeyedBottomDrawer<'versions'>
+        sheet={versionsOpen && set !== null && versionsLetter !== null ? 'versions' : null}
+        sheetKey={(presented) => presented}
+        onClose={() => setVersionsOpen(false)}
+        onAfterClose={openPickedVersion}
+      >
+        {() =>
+          set === null || versionsLetter === null ? null : (
+            <MobilePrototypeVersionsSheet
+              letter={versionsLetter}
+              direction={versionsDirection}
+              onPick={(row) => pickVersion(versionsLetter, row)}
             />
           )
         }

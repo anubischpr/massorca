@@ -6,7 +6,8 @@ import { getAgentCatalog, AgentIcon } from '@/lib/agent-catalog'
 import { agentBrandRowAttribute, piRuntimeLabel } from '@/lib/pi-agent-display'
 import { usePiDisplayRuntime } from '@/lib/use-pi-runtime'
 import { useAppStore } from '@/store'
-import { useAgentDetectionTargetForWorktree } from '@/hooks/useAgentDetectionTarget'
+import { useMenuAgentDetectionTarget } from './tab-bar-host-agent-launch'
+import type { TabBarProps } from './tab-bar-props'
 import { useDetectedAgents } from '@/hooks/useDetectedAgents'
 import { useOptionalShortcutLabel } from '@/hooks/useShortcutLabel'
 import { launchAgentInNewTab } from '@/lib/launch-agent-in-new-tab'
@@ -23,6 +24,8 @@ import { activeAgentNotesSendFailureMessage } from '@/lib/active-agent-note-send
 
 export type QuickLaunchAgentMenuItemsProps = {
   worktreeId: string
+  /** The paired host the menu follows: its own agents are listed and started there. */
+  host?: TabBarProps['createHost']
   groupId: string
   /** Called after the tab is created so keyboard focus lands in the new xterm.
    *  Reuses the TabBar's existing double-rAF handoff — this component does
@@ -105,6 +108,7 @@ async function waitForTerminalPty(tabId: string, timeoutMs: number): Promise<boo
 
 function QuickLaunchAgentMenuItemsInner({
   worktreeId,
+  host,
   groupId,
   onFocusTerminal,
   prompt,
@@ -118,7 +122,7 @@ function QuickLaunchAgentMenuItemsInner({
   // worktrees fall back to LOCAL detection, listing the client's agents
   // instead of the remote server's. Use the same ssh/runtime/local owner
   // resolution as the rest of the tab bar.
-  const agentDetectionTarget = useAgentDetectionTargetForWorktree(worktreeId)
+  const agentDetectionTarget = useMenuAgentDetectionTarget(worktreeId, host?.environmentId)
   const { detectedIds } = useDetectedAgents(agentDetectionTarget)
   const defaultAgent = useAppStore((s) => s.settings?.defaultTuiAgent)
   const disabledAgents = useAppStore(
@@ -126,7 +130,8 @@ function QuickLaunchAgentMenuItemsInner({
   )
   const openSettingsPage = useAppStore((s) => s.openSettingsPage)
   const openSettingsTarget = useAppStore((s) => s.openSettingsTarget)
-  const piRuntime = usePiDisplayRuntime({ worktreeId })
+  // Why: a host with no workspace yet asks no workspace; the label then stays neutral, never plain Pi.
+  const piRuntime = usePiDisplayRuntime({ worktreeId: host ? host.worktreeId : worktreeId })
   const newAgentShortcut = useOptionalShortcutLabel('tab.newAgent')
 
   const openAgentSettings = useCallback(() => {
@@ -141,6 +146,10 @@ function QuickLaunchAgentMenuItemsInner({
       }
       const entry = getCatalogEntry(agent)
       const label = entry?.label ?? agent
+      if (host) {
+        host.launchAgent(agent, agent === 'pi' ? piRuntimeLabel(piRuntime) : label)
+        return
+      }
       const result = launchAgentInNewTab({
         requestId: newAgentLaunchRequestId(),
         agent,
@@ -211,6 +220,8 @@ function QuickLaunchAgentMenuItemsInner({
     },
     [
       worktreeId,
+      host,
+      piRuntime,
       groupId,
       onFocusTerminal,
       prompt,

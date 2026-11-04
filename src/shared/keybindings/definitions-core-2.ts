@@ -124,6 +124,24 @@ export const KEYBINDING_DEFINITION_CORE_2: readonly KeybindingDefinition[] = [
     defaultBindings: platformBindings(['Mod+Shift+O'])
   },
   {
+    id: 'tab.newChecklist',
+    title: 'New checklist tab',
+    group: 'Tabs',
+    scope: 'tabs',
+    searchKeywords: ['shortcut', 'tab', 'checklist', 'list', 'todo', 'new'],
+    // Why: H is unused by Orca, Monaco and the rich editor; K and L would shadow Monaco's delete-line and select-highlights.
+    defaultBindings: platformBindings(['Mod+Shift+H'])
+  },
+  {
+    id: 'tab.openSession',
+    title: 'Open a session',
+    group: 'Tabs',
+    scope: 'tabs',
+    searchKeywords: ['shortcut', 'tab', 'session', 'open', 'agent', 'picker', 'floating'],
+    // Why: Y is unused by Orca, Monaco and the rich editor; J and E are taken, and S and X are rich-editor strikethrough.
+    defaultBindings: platformBindings(['Mod+Shift+Y'])
+  },
+  {
     id: 'tab.close',
     title: 'Close active tab',
     group: 'Tabs',

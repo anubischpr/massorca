@@ -431,6 +431,16 @@ import {
   ManagedServerSelector,
   ManagedServerUpdate
 } from './managed-server-params'
+import {
+  MarketplaceAppsAddOpenMetadataProfile,
+  MarketplaceAppsConnect,
+  MarketplaceAppsDisconnect,
+  MarketplaceAppsRemoveOpenMetadataProfile,
+  MarketplaceAppsSetAccessPolicy,
+  MarketplaceAppsSetEngramServer,
+  MarketplaceAppsSetOpenMetadataToken
+} from './marketplace-apps-params'
+import { MarketplaceVaultClear, MarketplaceVaultSet } from './marketplace-vault-params'
 import { NativeChatSession, NativeChatUnsubscribe } from './native-chat-params'
 import {
   NotificationGetMissedSinceParams,
@@ -516,6 +526,7 @@ import {
   PrototypeRequestTargetParams,
   ReadPrototypeDesignSystemParams,
   ReadPrototypeFileParams,
+  RestorePrototypeVersionParams,
   WriteAttachmentParams
 } from './prototype-params'
 import {
@@ -1165,6 +1176,17 @@ export const RPC_PARAMS_BY_METHOD = {
   'managedServer.update': ManagedServerUpdate,
   'markdown.readTab': ActivateTab,
   'markdown.saveTab': SaveMarkdownTab,
+  'marketplace.apps.addOpenMetadataProfile': MarketplaceAppsAddOpenMetadataProfile,
+  'marketplace.apps.connect': MarketplaceAppsConnect,
+  'marketplace.apps.disconnect': MarketplaceAppsDisconnect,
+  'marketplace.apps.list': null,
+  'marketplace.apps.removeOpenMetadataProfile': MarketplaceAppsRemoveOpenMetadataProfile,
+  'marketplace.apps.setAccessPolicy': MarketplaceAppsSetAccessPolicy,
+  'marketplace.apps.setEngramServer': MarketplaceAppsSetEngramServer,
+  'marketplace.apps.setOpenMetadataToken': MarketplaceAppsSetOpenMetadataToken,
+  'marketplace.vault.clear': MarketplaceVaultClear,
+  'marketplace.vault.set': MarketplaceVaultSet,
+  'marketplace.vault.status': null,
   'mobileWeb.bundle.chunk': MobileWebBundleChunkParamsSchema,
   'mobileWeb.bundle.manifest': null,
   'mobileWeb.bundle.range': MobileWebBundleChunkParamsSchema,
@@ -1270,6 +1292,7 @@ export const RPC_PARAMS_BY_METHOD = {
   'prototypes.list': ListPrototypeSetsParams,
   'prototypes.readDesignSystem': ReadPrototypeDesignSystemParams,
   'prototypes.readFile': ReadPrototypeFileParams,
+  'prototypes.restoreVersion': RestorePrototypeVersionParams,
   'prototypes.unarchive': PrototypeRequestTargetParams,
   'prototypes.writeAttachment': WriteAttachmentParams,
   'repo.add': RepoPath,

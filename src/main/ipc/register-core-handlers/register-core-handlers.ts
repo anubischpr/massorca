@@ -1,6 +1,9 @@
 import { registerMarketplaceHandlers } from '../marketplace'
 import { createDefaultMarketplaceAppsService } from '../../marketplace/marketplace-apps-defaults'
 import { registerMarketplaceAppsHandlers } from '../marketplace-apps'
+import { registerMarketplaceEngramOpsHandlers } from '../marketplace-engram-ops'
+import { registerMarketplaceInstallHandlers } from '../marketplace-install'
+import { registerMarketplaceCustomHandlers } from '../marketplace-custom'
 import { app } from 'electron'
 import { registerAppHandlers } from '../app'
 import { registerCliHandlers } from '../cli'
@@ -155,6 +158,9 @@ export function registerCoreHandlers(
   registerPreflightHandlers()
   registerMarketplaceHandlers()
   registerMarketplaceAppsHandlers(createDefaultMarketplaceAppsService())
+  registerMarketplaceEngramOpsHandlers()
+  registerMarketplaceInstallHandlers()
+  registerMarketplaceCustomHandlers()
   registerUsageProviderHandlers({ claudeUsage, codexUsage, openCodeUsage, museUsage })
   registerCodexAccountHandlers(codexAccounts, () => store.getSettings())
   registerAgentHookHandlers(runtime, { getPtyIdForPaneKey })

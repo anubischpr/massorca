@@ -1,16 +1,23 @@
 import type { TopLevelView } from '../../../shared/ui-chrome-types'
 
 /**
- * The views the left sidebar belongs to: the ones the Workspaces / Bot Teams rail button opens.
- * Every other page uses the whole space beside the rail, as the approved canvas draws it.
+ * The views the left sidebar belongs to: the ones the Workspaces / Bot Teams rail button opens, and
+ * Prototypes, whose sets are a tree under its row in that sidebar, and the Marketplace's own sidebar. Every
+ * other page uses the whole space beside the rail.
  */
 export function isLeftSidebarView(view: TopLevelView): boolean {
-  return view === 'terminal' || view === 'create-chat' || view === 'bot-teams'
+  return (
+    view === 'terminal' ||
+    view === 'create-chat' ||
+    view === 'bot-teams' ||
+    view === 'prototypes' ||
+    view === 'marketplace'
+  )
 }
 
-/** Views whose left column follows the sidebar toggle: the home views, plus the Prototypes list. */
+/** Views whose left column follows the sidebar toggle: the views that show the left sidebar. */
 export function hasLeftSidebarToggle(view: TopLevelView): boolean {
-  return isLeftSidebarView(view) || view === 'prototypes'
+  return isLeftSidebarView(view)
 }
 
 /** The shortcut and the menu item toggle the sidebar only where it exists, so it is never left toggled out of sight. */

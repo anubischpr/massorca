@@ -10,9 +10,20 @@ import type { GlobalSettings } from '../../../../shared/global-settings-types'
 import type { Repo } from '../../../../shared/repo-types'
 import { i18n } from '../../i18n/i18n'
 import { PSEUDO_LOCALIZATION_LOCALE } from '../../i18n/pseudo-localization'
+import type {
+  PrototypeListedDesignSystem,
+  PrototypeListedSet
+} from '../../../../shared/rpc-contract/prototype-params'
+import { usePrototypeViewStore } from '../prototypes/prototype-view-store'
 
 const mocks = vi.hoisted(() => ({
   state: {} as Record<string, unknown>,
+  listing: {
+    status: 'ready' as const,
+    sets: new Array<PrototypeListedSet>(),
+    designSystems: new Array<PrototypeListedDesignSystem>(),
+    reload: vi.fn()
+  },
   openTaskPage: vi.fn(),
   openAutomationsPage: vi.fn(),
   openActivityPage: vi.fn(),
@@ -27,7 +38,9 @@ const mocks = vi.hoisted(() => ({
   agentBucketCounts: { attention: 0, working: 0, done: 0, idle: 0 },
   getAgentBucketCounts: vi.fn(),
   dismissMobileOnboardingBadge: vi.fn(),
-  setSetupGuideSidebarDismissed: vi.fn()
+  setSetupGuideSidebarDismissed: vi.fn(),
+  openPrototypesPage: vi.fn(),
+  toggleCollapsedGroup: vi.fn()
 }))
 
 vi.mock('@/store', () => ({
@@ -45,9 +58,14 @@ vi.mock('@/components/activity/useActivityUnreadCount', () => ({
   useActivityUnreadCount: () => 0
 }))
 
-// Why: the real hook calls the store's getState, which this file's store mock does not provide.
-vi.mock('../prototypes/use-prototype-set-count', () => ({
-  usePrototypeSetCount: () => 0
+// Why: the real hook lists sets from the hosts over RPC; this file lists from a fixture instead.
+vi.mock('../prototypes/use-prototype-sets', () => ({
+  usePrototypeSets: () => mocks.listing
+}))
+
+vi.mock('../prototypes/prototype-set-actions', () => ({
+  prototypeHostKey: () => 'local',
+  runPrototypeSetAction: vi.fn()
 }))
 
 vi.mock('@/components/dashboard/useAgentBucketCounts', () => ({
@@ -151,8 +169,47 @@ function setSidebarState({
     persistedUIReady: true,
     activeModal: null,
     setupGuideSidebarDismissed: true,
-    setSetupGuideSidebarDismissed: mocks.setSetupGuideSidebarDismissed
+    setSetupGuideSidebarDismissed: mocks.setSetupGuideSidebarDismissed,
+    openPrototypesPage: mocks.openPrototypesPage,
+    collapsedGroups: new Set<string>(),
+    toggleCollapsedGroup: mocks.toggleCollapsedGroup
   }
+}
+
+function prototypeSet(requestId: string, chatTitle: string): PrototypeListedSet {
+  return {
+    requestId,
+    sessionId: 'session-alpha-0001',
+    agent: 'codex',
+    worktreeId: null,
+    chatTitle,
+    originalPrompt: 'a checkout page',
+    createdAt: '2026-10-28T20:15:00.000Z',
+    count: 1,
+    directions: [
+      {
+        letter: 'A',
+        versions: [{ version: 1, fileName: `prototypes/${requestId}/A.html`, mtime: 1 }]
+      }
+    ],
+    projectKey: 'nexus',
+    projectName: 'nexuscare'
+  }
+}
+
+function requireButton(button: HTMLButtonElement | null): HTMLButtonElement {
+  if (button === null) {
+    throw new Error('Button not found')
+  }
+  return button
+}
+
+function queryButtonByPrefix(container: ParentNode, prefix: string): HTMLButtonElement | null {
+  return (
+    Array.from(container.querySelectorAll<HTMLButtonElement>('button')).find((button) =>
+      button.textContent?.trim().startsWith(prefix)
+    ) ?? null
+  )
 }
 
 const mountedRoots: Root[] = []
@@ -220,7 +277,80 @@ describe('SidebarNav', () => {
     await i18n.changeLanguage('en')
     mocks.hasPairedMobileDevice = false
     mocks.agentBucketCounts = { attention: 0, working: 0, done: 0, idle: 0 }
+    mocks.listing = { status: 'ready', sets: [], designSystems: [], reload: vi.fn() }
+    usePrototypeViewStore.setState({ selectedRequestId: null, selectedProjectKey: null })
     setSidebarState()
+  })
+
+  it('lists each project of the Prototypes row, expanded by default', async () => {
+    mocks.listing = {
+      status: 'ready',
+      sets: [prototypeSet('r1', 'Checkout')],
+      designSystems: [
+        {
+          projectKey: 'nexus',
+          projectName: 'nexuscare',
+          status: 'detected',
+          version: 2,
+          tokenCount: 24,
+          swatches: []
+        }
+      ],
+      reload: vi.fn()
+    }
+    const container = await renderSidebarNav()
+
+    expect(container.querySelector('button[aria-label="Collapse prototypes"]')).not.toBeNull()
+    expect(getButtonByText(container, 'nexuscare')).not.toBeNull()
+    expect(
+      queryButtonByPrefix(container, 'Design system')?.querySelector('svg.lucide-palette')
+    ).not.toBeNull()
+    expect(
+      queryButtonByPrefix(container, 'Checkout')?.querySelector('svg.lucide-layout-template')
+    ).not.toBeNull()
+  })
+
+  it('collapses the tree from the Prototypes chevron, and the row still opens Prototypes', async () => {
+    mocks.listing = {
+      status: 'ready',
+      sets: [prototypeSet('r1', 'Checkout')],
+      designSystems: [],
+      reload: vi.fn()
+    }
+    const container = await renderSidebarNav()
+
+    await clickButton(
+      requireButton(
+        container.querySelector<HTMLButtonElement>('button[aria-label="Collapse prototypes"]')
+      )
+    )
+    expect(mocks.toggleCollapsedGroup).toHaveBeenCalledWith('prototypes-tree')
+    expect(mocks.openPrototypesPage).not.toHaveBeenCalled()
+
+    // Why: the collapsed state lives in the app store, so a fresh mount reads it back.
+    mocks.state.collapsedGroups = new Set(['prototypes-tree'])
+    const collapsed = await renderSidebarNav()
+    const chevron = collapsed.querySelector('button[aria-label="Expand prototypes"]')
+    expect(chevron?.getAttribute('aria-expanded')).toBe('false')
+    expect(queryButtonByPrefix(collapsed, 'Checkout')).toBeNull()
+
+    await clickButton(requireButton(queryButtonByPrefix(collapsed, 'Prototypes')))
+    expect(mocks.openPrototypesPage).toHaveBeenCalledOnce()
+  })
+
+  it('opens the Prototypes view on the set a tree row names', async () => {
+    mocks.listing = {
+      status: 'ready',
+      sets: [prototypeSet('r1', 'Checkout')],
+      designSystems: [],
+      reload: vi.fn()
+    }
+    const container = await renderSidebarNav()
+
+    await clickButton(requireButton(queryButtonByPrefix(container, 'Checkout')))
+
+    expect(mocks.openPrototypesPage).toHaveBeenCalledOnce()
+    expect(usePrototypeViewStore.getState().selectedRequestId).toBe('r1')
   })
 
   it('has no Workspaces and Bot teams switch: the rail button owns the mode', async () => {

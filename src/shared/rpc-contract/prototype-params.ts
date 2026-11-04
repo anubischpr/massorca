@@ -68,6 +68,29 @@ export const ReadPrototypeFileParams = z
 
 export type ReadPrototypeFileParams = z.infer<typeof ReadPrototypeFileParams>
 
+/** Copies one direction's earlier version into its next version; an older host answers `method_not_found`. */
+export const RestorePrototypeVersionParams = z
+  .object({
+    sessionId: SessionId,
+    requestId: z.string().regex(REQUEST_ID_PATTERN),
+    letter: z.string().regex(/^[A-Z]$/),
+    version: z.int().min(1).max(10_000)
+  })
+  .strict()
+
+export type RestorePrototypeVersionParams = z.infer<typeof RestorePrototypeVersionParams>
+
+/**
+ * Why a version is not restored. `not_found`: no such request, direction or version this caller may
+ * touch; `conflict`: another write took the next version number first; `unwritable`: the host could
+ * not read the version or write the new one. Nothing is ever overwritten or removed.
+ */
+export const PROTOTYPE_RESTORE_VERSION_ERRORS = ['not_found', 'conflict', 'unwritable'] as const
+
+export type RestorePrototypeVersionResult =
+  | { ok: true; fileName: string; version: number }
+  | { ok: false; error: (typeof PROTOTYPE_RESTORE_VERSION_ERRORS)[number] }
+
 /**
  * Why a request folder is not made. `unsupported`: the chat has no record on this host, or is not
  * local to it, so it has no visuals folder here. `unwritable`: the host could not write the folder,
@@ -306,6 +329,11 @@ export const ReadPrototypeDesignSystemReplySchema = z.union([
 export const ReadPrototypeFileReplySchema = z.union([
   z.object({ ok: z.literal(true), html: z.string() }),
   z.object({ ok: z.literal(false), error: z.enum(PROTOTYPE_READ_FILE_ERRORS) })
+])
+
+export const RestorePrototypeVersionReplySchema = z.union([
+  z.object({ ok: z.literal(true), fileName: z.string().min(1), version: z.int().min(2) }),
+  z.object({ ok: z.literal(false), error: z.enum(PROTOTYPE_RESTORE_VERSION_ERRORS) })
 ])
 
 export const WriteAttachmentReplySchema = z.union([

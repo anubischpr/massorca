@@ -23,7 +23,8 @@ export type ShowSessionInFloatingResult =
  */
 export function showSessionInFloatingWorkspace(
   ref: { worktreeId: string; tabId: string },
-  store: FloatingSessionStore
+  store: FloatingSessionStore,
+  options: { endsSessionOnClose?: boolean } = {}
 ): ShowSessionInFloatingResult {
   if (ref.worktreeId === FLOATING_TERMINAL_WORKTREE_ID) {
     return { ok: false, reason: 'floating-workspace' }
@@ -43,7 +44,11 @@ export function showSessionInFloatingWorkspace(
     entityId: ref.tabId,
     label: target.label,
     ...(target.agentSessionAgent ? { agentSessionAgent: target.agentSessionAgent } : {}),
-    sessionRef: { worktreeId: ref.worktreeId, tabId: ref.tabId },
+    sessionRef: {
+      worktreeId: ref.worktreeId,
+      tabId: ref.tabId,
+      ...(options.endsSessionOnClose ? { endsSessionOnClose: true as const } : {})
+    },
     targetGroupId: groupId,
     activate: true
   })
@@ -59,10 +64,24 @@ export function awaitNewSessionTab(
   args: { worktreeId: string; knownTabIds: ReadonlySet<string>; timeoutMs: number },
   store: FloatingSessionStore
 ): Promise<string | null> {
-  const findNew = (): string | null =>
-    (store.getState().unifiedTabsByWorktree[args.worktreeId] ?? []).find(
-      (tab) => !args.knownTabIds.has(tab.id) && isSessionTab(tab)
-    )?.id ?? null
+  const findNew = (): string | null => {
+    const state = store.getState()
+    // Why: a launch the host declines as a chat falls back to a terminal that has no view mode yet;
+    // its terminal row's launch agent is what names it a session, as the side-panel normalizer reads it.
+    const launchedAgentRowIds = new Set(
+      (state.tabsByWorktree[args.worktreeId] ?? []).flatMap((row) =>
+        row.launchAgent ? [row.id] : []
+      )
+    )
+    return (
+      (state.unifiedTabsByWorktree[args.worktreeId] ?? []).find(
+        (tab) =>
+          !args.knownTabIds.has(tab.id) &&
+          (isSessionTab(tab) ||
+            (tab.contentType === 'terminal' && launchedAgentRowIds.has(tab.entityId)))
+      )?.id ?? null
+    )
+  }
   const immediate = findNew()
   if (immediate) {
     return Promise.resolve(immediate)

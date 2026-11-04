@@ -280,6 +280,7 @@ export function renderTabBarSurface({
               <DropdownMenuSeparator />
               <QuickLaunchAgentMenuItems
                 worktreeId={worktreeId}
+                host={props.createHost}
                 groupId={resolvedGroupId}
                 onFocusTerminal={queueTerminalTabFocusAfterNewTabMenuClose}
               />

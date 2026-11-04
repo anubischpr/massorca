@@ -65,6 +65,8 @@ export type KeybindingActionId =
   | 'tab.newSimulator'
   | 'tab.newMarkdown'
   | 'tab.openMarkdown'
+  | 'tab.newChecklist'
+  | 'tab.openSession'
   | 'tab.close'
   | 'tab.closeAll'
   | 'tab.rename'

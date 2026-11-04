@@ -1,6 +1,7 @@
 import {
   MARKETPLACE_APP_AGENTS,
   MARKETPLACE_INTEGRATION_LEVELS,
+  isMarketplaceAppAllowedForAgent,
   type MarketplaceAgentEntryState,
   type MarketplaceAppAgent,
   type MarketplaceAppAgentStatus,
@@ -50,7 +51,8 @@ function agentStatuses(
     // Why: Gentle Shell ships some apps itself; an entry MassOrca did not write there is its own.
     const entry: MarketplaceAgentEntryState =
       raw === 'set' && agent === 'gentle-shell' && !writtenByUs ? 'built-in' : raw
-    return { agent, level: levelFor(id, agent), entry }
+    const allowed = isMarketplaceAppAllowedForAgent(state.access[id], agent)
+    return { agent, level: levelFor(id, agent), entry, allowed }
   })
 }
 
@@ -70,32 +72,35 @@ export async function readAppStatuses(
   ])
   const engramAgents = agentStatuses('engram', state, paths)
   const openMetadataAgents = agentStatuses('openmetadata', state, paths)
-  const openMetadataStored = vault.hasToken({ kind: 'openmetadata' })
+  const openMetadata = vault.credentialStatus({ kind: 'openmetadata' })
   return [
     {
       id: 'engram',
       connected: program.found && usable(engramAgents),
       program,
-      credential: { stored: vault.hasToken({ kind: 'engram-cloud' }) },
+      credential: vault.credentialStatus({ kind: 'engram-cloud' }),
       serverUrl: state.engram.serverUrl,
-      agents: engramAgents
+      agents: engramAgents,
+      access: state.access.engram
     },
     {
       id: 'openmetadata',
-      connected: openMetadataStored && usable(openMetadataAgents),
-      credential: { stored: openMetadataStored },
+      connected: openMetadata.stored && usable(openMetadataAgents),
+      credential: openMetadata,
       serverUrl: state.openMetadata.url,
       profiles: state.openMetadata.profiles.map((profile) => ({
         name: profile.name,
         url: profile.url,
         hasToken: vault.hasToken({ kind: 'openmetadata-profile', name: profile.name })
       })),
-      agents: openMetadataAgents
+      agents: openMetadataAgents,
+      access: state.access.openmetadata
     },
     {
       id: 'github',
       connected: githubConnected && !state.github.hidden,
-      agents: agentStatuses('github', state, paths)
+      agents: agentStatuses('github', state, paths),
+      access: state.access.github
     }
   ]
 }

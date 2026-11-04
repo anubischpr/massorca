@@ -8,11 +8,13 @@ export const BOT_TEAM_SCHEDULED_RUNS_LIMIT = 500
 
 export const BotTeamScheduledRunsQuery = z
   .object({
-    /** Epoch ms. Runs before the host's now are never listed, since only future runs are scheduled. */
+    /** Epoch ms. Without includePast, runs before the host's now are never listed. */
     from: z.number().int().nonnegative(),
     to: z.number().int().nonnegative(),
     /** Omit for every team on the host. */
-    teamId: z.string().min(1).optional()
+    teamId: z.string().min(1).optional(),
+    /** Also list runs that already started, from the host's record of claimed runs. A host from before this flag ignores it. */
+    includePast: z.boolean().optional()
   })
   .refine(({ from, to }) => to > from, { message: 'The window must end after it starts' })
   .refine(({ from, to }) => to - from <= BOT_TEAM_SCHEDULED_RUNS_MAX_DAYS * 86_400_000, {

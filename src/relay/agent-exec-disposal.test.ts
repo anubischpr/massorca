@@ -8,6 +8,7 @@ import {
 } from './relay-agent-process-lifetime'
 import { createFakeChild, requestContext } from './agent-exec-handler-test-harness'
 import type { MethodHandler, RelayDispatcher } from './dispatcher'
+import { relayMarketplaceEnv } from './relay-marketplace-vault'
 
 // Why an untyped mock: the fake child stubs only what AgentExecHandler reads from a ChildProcess.
 const { spawnMock, loginShellMock } = vi.hoisted(() => ({
@@ -24,6 +25,7 @@ vi.mock('child_process', async (importOriginal) => ({
 }))
 
 function fixture() {
+  relayMarketplaceEnv.build = () => ({})
   const methods = new Map<string, MethodHandler>()
   const handler = new AgentExecHandler(
     // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the handler only registers request methods.
