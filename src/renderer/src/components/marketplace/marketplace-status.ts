@@ -1,11 +1,7 @@
 import type { PreflightStatus } from '../../../../preload/api-types'
-import {
-  MARKETPLACE_MCP_AGENTS,
-  type MarketplaceDetection,
-  type MarketplaceMcpEntryState
-} from '../../../../shared/marketplace-types'
+import type { MarketplaceAppId, MarketplaceAppStatus } from '../../../../shared/marketplace-apps'
+import type { MarketplaceAppsState } from '@/store/slices/ui/ui-slice-contract-core'
 import type { MarketplaceItemId } from './marketplace-catalog'
-import type { MarketplaceDetectionState } from './use-marketplace-detection'
 
 export type MarketplaceBadgeState =
   | 'checking'
@@ -14,19 +10,15 @@ export type MarketplaceBadgeState =
   | 'not-installed'
   | 'signed-in'
   | 'not-signed-in'
-  | 'set'
-  | 'partly-set'
-  | 'not-set'
-  | 'unreadable'
+  | 'connected'
+  | 'not-connected'
   | 'desktop-only'
-  | 'coming-soon'
-  | 'not-supported'
 
 export type MarketplaceStatusInputs = {
   // Null when the preflight result is not for this computer or the check failed.
   preflight: PreflightStatus | null
   preflightChecked: boolean
-  detection: MarketplaceDetectionState
+  apps: MarketplaceAppsState
 }
 
 export function marketplaceBadgeState(
@@ -39,21 +31,16 @@ export function marketplaceBadgeState(
     case 'github':
       return githubBadgeState(inputs)
     case 'engram':
-      return engramBadgeState(inputs.detection)
     case 'openmetadata':
-      return openMetadataBadgeState(inputs.detection)
+      return appBadgeState(itemId, inputs.apps)
   }
 }
 
-export function mcpEntryBadgeState(state: MarketplaceMcpEntryState): MarketplaceBadgeState {
-  switch (state) {
-    case 'set':
-      return 'set'
-    case 'missing':
-      return 'not-set'
-    case 'unreadable':
-      return 'unreadable'
-  }
+export function appStatusFor(
+  apps: MarketplaceAppsState,
+  id: MarketplaceAppId
+): MarketplaceAppStatus | undefined {
+  return apps.status === 'ready' ? apps.apps.find((app) => app.id === id) : undefined
 }
 
 function gitBadgeState({
@@ -85,8 +72,8 @@ function githubBadgeState({
   return preflight.gh.authenticated ? 'signed-in' : 'not-signed-in'
 }
 
-function engramBadgeState(detection: MarketplaceDetectionState): MarketplaceBadgeState {
-  switch (detection.status) {
+function appBadgeState(id: MarketplaceAppId, apps: MarketplaceAppsState): MarketplaceBadgeState {
+  switch (apps.status) {
     case 'loading':
       return 'checking'
     case 'unavailable':
@@ -94,34 +81,6 @@ function engramBadgeState(detection: MarketplaceDetectionState): MarketplaceBadg
     case 'failed':
       return 'unknown'
     case 'ready':
-      return detection.detection.engram.cli === 'found' ? 'installed' : 'not-installed'
+      return appStatusFor(apps, id)?.connected ? 'connected' : 'not-connected'
   }
-}
-
-function openMetadataBadgeState(detection: MarketplaceDetectionState): MarketplaceBadgeState {
-  switch (detection.status) {
-    case 'loading':
-      return 'checking'
-    case 'unavailable':
-      return 'desktop-only'
-    case 'failed':
-      return 'unknown'
-    case 'ready':
-      return openMetadataSummary(detection.detection)
-  }
-}
-
-// Why: one row-level summary; the detail page still shows each entry separately.
-function openMetadataSummary(detection: MarketplaceDetection): MarketplaceBadgeState {
-  const entries = MARKETPLACE_MCP_AGENTS.flatMap((agent) => {
-    const { reader, writer } = detection.openMetadata.agents[agent]
-    return [reader, writer]
-  })
-  if (entries.includes('unreadable')) {
-    return 'unreadable'
-  }
-  if (entries.every((entry) => entry === 'set')) {
-    return 'set'
-  }
-  return entries.includes('set') ? 'partly-set' : 'not-set'
 }

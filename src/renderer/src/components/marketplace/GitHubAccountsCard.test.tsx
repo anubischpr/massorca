@@ -18,6 +18,12 @@ vi.mock('@/store', () => ({
 }))
 
 const { GitHubAccountsCard } = await import('./GitHubAccountsCard')
+const { useGitHubAccounts } = await import('./use-github-accounts')
+
+function Harness(): React.JSX.Element {
+  const accounts = useGitHubAccounts(true)
+  return <GitHubAccountsCard accounts={accounts} />
+}
 
 const roots: Root[] = []
 
@@ -39,7 +45,7 @@ async function renderCard(): Promise<HTMLDivElement> {
   const root = createRoot(container)
   roots.push(root)
   await act(async () => {
-    root.render(<GitHubAccountsCard />)
+    root.render(<Harness />)
   })
   return container
 }
@@ -133,14 +139,5 @@ describe('GitHubAccountsCard', () => {
     expect(container.textContent).toContain(
       'client is set to gone on github.com, which is not signed in here.'
     )
-  })
-
-  it('shows the existing sign-in command to add another account', async () => {
-    const container = await renderCard()
-    expect(container.querySelector('code')?.textContent).toBe('gh auth login')
-    await act(async () => {
-      buttonByText(container, 'Refresh')?.click()
-    })
-    expect(mocks.listHostBindableAccounts).toHaveBeenCalledTimes(2)
   })
 })

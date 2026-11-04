@@ -1,6 +1,9 @@
-import type { MarketplaceMcpAgent } from '../../../../shared/marketplace-types'
+import { getAgentLabel } from '@/lib/agent-catalog'
+import { piRuntimeLabel } from '@/lib/pi-agent-display'
+import type { MarketplaceItemId } from '@/store/slices/ui/ui-slice-contract-core'
+import type { MarketplaceAppAgent } from '../../../../shared/marketplace-apps'
 
-export type MarketplaceItemId = 'git' | 'github' | 'engram' | 'openmetadata'
+export type { MarketplaceItemId }
 export type MarketplaceItemKind = 'tool' | 'service'
 
 export type MarketplaceCatalogItem = {
@@ -50,9 +53,9 @@ export const MARKETPLACE_CATALOG: readonly MarketplaceCatalogItem[] = [
   }
 ]
 
-export const MARKETPLACE_AGENT_LABELS: Record<MarketplaceMcpAgent, string> = {
-  claude: 'Claude Code',
-  codex: 'Codex'
+/** The name an agent goes by in the Marketplace; Gentle Shell is never called Pi. */
+export function marketplaceAgentLabel(agent: MarketplaceAppAgent): string {
+  return agent === 'gentle-shell' ? piRuntimeLabel('gentle-shell') : getAgentLabel(agent)
 }
 
 // Why: the same install pages the existing setup checks already link to.

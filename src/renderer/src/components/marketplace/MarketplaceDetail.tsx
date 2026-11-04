@@ -3,28 +3,21 @@ import { Button } from '@/components/ui/button'
 import { translate } from '@/i18n/i18n'
 import { cn } from '@/lib/utils'
 import { SKILLS_PAGE_COLUMN } from '../skills/skills-page-column'
-import { EngramDetail } from './EngramDetail'
 import { GitDetail } from './GitDetail'
-import { GitHubDetail } from './GitHubDetail'
 import { MarketplaceItemIcon } from './MarketplaceItemIcon'
 import { MarketplaceStatusBadge } from './MarketplaceStatusBadge'
-import { OpenMetadataDetail } from './OpenMetadataDetail'
 import type { MarketplaceCatalogItem } from './marketplace-catalog'
 import type { MarketplaceBadgeState } from './marketplace-status'
-import type { MarketplaceDetectionState } from './use-marketplace-detection'
 
+/** Git's own detail page; the other catalog items open the standard app page instead. */
 export function MarketplaceDetail({
   item,
   badgeState,
-  detection,
-  onBack,
-  onDetectionChanged
+  onBack
 }: {
   item: MarketplaceCatalogItem
   badgeState: MarketplaceBadgeState
-  detection: MarketplaceDetectionState
   onBack: () => void
-  onDetectionChanged: () => Promise<void>
 }): React.JSX.Element {
   return (
     <div className={cn(SKILLS_PAGE_COLUMN, 'flex flex-col gap-5 py-4')}>
@@ -44,80 +37,7 @@ export function MarketplaceDetail({
         </div>
         <MarketplaceStatusBadge state={badgeState} />
       </div>
-      <MarketplaceDetailBody
-        item={item}
-        badgeState={badgeState}
-        detection={detection}
-        onDetectionChanged={onDetectionChanged}
-      />
-    </div>
-  )
-}
-
-function MarketplaceDetailBody({
-  item,
-  badgeState,
-  detection,
-  onDetectionChanged
-}: {
-  item: MarketplaceCatalogItem
-  badgeState: MarketplaceBadgeState
-  detection: MarketplaceDetectionState
-  onDetectionChanged: () => Promise<void>
-}): React.JSX.Element {
-  if (item.id === 'git') {
-    return <GitDetail state={badgeState} />
-  }
-  if (item.id === 'github') {
-    return <GitHubDetail state={badgeState} />
-  }
-  if (detection.status !== 'ready') {
-    return <DetectionNotice status={detection.status} onRetry={onDetectionChanged} />
-  }
-  if (item.id === 'engram') {
-    return <EngramDetail detection={detection.detection} onChanged={onDetectionChanged} />
-  }
-  return <OpenMetadataDetail detection={detection.detection} />
-}
-
-function DetectionNotice({
-  status,
-  onRetry
-}: {
-  status: 'loading' | 'unavailable' | 'failed'
-  onRetry: () => Promise<void>
-}): React.JSX.Element {
-  if (status === 'loading') {
-    return (
-      <p className="text-sm text-muted-foreground">
-        {translate(
-          'auto.components.marketplace.MarketplaceDetail.checking',
-          'Checking this computer…'
-        )}
-      </p>
-    )
-  }
-  if (status === 'unavailable') {
-    return (
-      <p className="text-sm text-muted-foreground">
-        {translate(
-          'auto.components.marketplace.MarketplaceDetail.desktopOnly',
-          'Available in the desktop app'
-        )}
-      </p>
-    )
-  }
-  return (
-    <div className="flex flex-col items-start gap-3">
-      <p className="text-sm text-muted-foreground">
-        {translate(
-          'auto.components.marketplace.MarketplaceDetail.failed',
-          'Could not check this computer.'
-        )}
-      </p>
-      <Button type="button" variant="outline" size="sm" onClick={() => void onRetry()}>
-        {translate('auto.components.marketplace.MarketplaceDetail.retry', 'Try again')}
-      </Button>
+      <GitDetail state={badgeState} />
     </div>
   )
 }

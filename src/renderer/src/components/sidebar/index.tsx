@@ -5,6 +5,7 @@ import { useSidebarResize } from '@/hooks/useSidebarResize'
 import SidebarHeader from './SidebarHeader'
 import SidebarNav from './SidebarNav'
 import { BotTeamsSidebar } from './BotTeamsSidebar'
+import { MarketplaceSidebar } from './MarketplaceSidebar'
 import SetupScriptPromptCard from './SetupScriptPromptCard'
 import WorktreeList from './WorktreeList'
 import SidebarToolbar from './SidebarToolbar'
@@ -58,6 +59,9 @@ function Sidebar({
   const settings = useAppStore((s) => s.settings)
   const sidebarBody = useAppStore((s) => s.sidebarBody ?? 'workspaces')
   const botTeamsMode = useAppStore((s) => s.railMode === 'bot-teams')
+  const marketplaceMode = useAppStore((s) => s.activeView === 'marketplace')
+  // Why: Bot teams and Marketplace each replace the workspace body, so the workspace controls hide for both.
+  const replacesBody = botTeamsMode || marketplaceMode
   const showAgentDashboard = settings?.experimentalAgentDashboardPopout === true
   const agentDashboardDrawerOpen = useAppStore((s) => s.agentDashboardDrawerOpen)
   const setAgentDashboardDrawerOpen = useAppStore((s) => s.setAgentDashboardDrawerOpen)
@@ -169,17 +173,17 @@ function Sidebar({
       >
         {sidebarOpen && (
           <>
-            {/* Why: Bot teams mode replaces the whole workspace body; the footer toolbar stays. */}
-            {botTeamsMode ? <BotTeamsSidebar /> : null}
+            {marketplaceMode ? <MarketplaceSidebar /> : null}
+            {botTeamsMode && !marketplaceMode ? <BotTeamsSidebar /> : null}
             {/* Fixed controls */}
-            {botTeamsMode ? null : <SidebarNav />}
-            {botTeamsMode ? null : (
+            {replacesBody ? null : <SidebarNav />}
+            {replacesBody ? null : (
               <SidebarHeader
                 onWorkspaceBoardMenuOpenChange={setWorkspaceBoardMenuOpen}
                 activityOptionsTarget={setAgentOptionsTarget}
               />
             )}
-            {botTeamsMode ? null : sidebarBody === 'agents' ? (
+            {replacesBody ? null : sidebarBody === 'agents' ? (
               <React.Suspense fallback={<div className="min-h-0 flex-1" />}>
                 <ActivityThreadCollapseContext.Provider value={agentsCollapseState}>
                   <SidebarAgentsList
@@ -210,7 +214,7 @@ function Sidebar({
             )}
 
             <div className="relative shrink-0">
-              {botTeamsMode ? null : <SetupScriptPromptCard />}
+              {replacesBody ? null : <SetupScriptPromptCard />}
 
               {/* Fixed bottom toolbar */}
               <SidebarToolbar

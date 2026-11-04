@@ -54,53 +54,27 @@ function badgeCopy(state: MarketplaceBadgeState): BadgeCopy {
         ),
         variant: 'outline'
       }
-    case 'set':
-      return {
-        label: translate('auto.components.marketplace.MarketplaceStatusBadge.set', 'Set'),
-        variant: 'secondary'
-      }
-    case 'partly-set':
+    case 'connected':
       return {
         label: translate(
-          'auto.components.marketplace.MarketplaceStatusBadge.partlySet',
-          'Partly set'
+          'auto.components.marketplace.MarketplaceStatusBadge.connected',
+          'Connected'
         ),
         variant: 'secondary'
       }
-    case 'not-set':
+    case 'not-connected':
       return {
-        label: translate('auto.components.marketplace.MarketplaceStatusBadge.notSet', 'Not set'),
+        label: translate(
+          'auto.components.marketplace.MarketplaceStatusBadge.notConnected',
+          'Not connected'
+        ),
         variant: 'outline'
-      }
-    case 'unreadable':
-      return {
-        label: translate(
-          'auto.components.marketplace.MarketplaceStatusBadge.unreadable',
-          'Settings file could not be read'
-        ),
-        variant: 'destructive'
       }
     case 'desktop-only':
       return {
         label: translate(
           'auto.components.marketplace.MarketplaceStatusBadge.desktopOnly',
           'Available in the desktop app'
-        ),
-        variant: 'outline'
-      }
-    case 'coming-soon':
-      return {
-        label: translate(
-          'auto.components.marketplace.MarketplaceStatusBadge.comingSoon',
-          'Coming soon'
-        ),
-        variant: 'outline'
-      }
-    case 'not-supported':
-      return {
-        label: translate(
-          'auto.components.marketplace.MarketplaceStatusBadge.notSupported',
-          'Not supported yet'
         ),
         variant: 'outline'
       }
