@@ -28,6 +28,7 @@ import { useConnectedMarketplaceApps } from '../marketplace/use-connected-market
 import { BotTeamComposerMenu } from './BotTeamComposerMenu'
 import { botTeamComposerChipAttrs } from './bot-team-composer-document'
 import { useBotTeamComposerEditor } from './bot-team-composer-editor'
+import { whenBotTeamEditorMounted } from './bot-team-editor-mount'
 import { useBotTeamFilePaths } from './use-bot-team-files'
 
 /**
@@ -116,18 +117,19 @@ export function useBotTeamMentionField(args: {
   }, [menuOpen])
   // The ARIA links follow the open menu, so a screen reader reads the option the caret is on.
   useLayoutEffect(() => {
-    const dom = editor?.view.dom
-    if (!dom) {
+    if (!editor) {
       return
     }
-    dom.setAttribute('aria-expanded', String(menu !== null))
-    if (menu) {
-      dom.setAttribute('aria-controls', menuId)
-      dom.setAttribute('aria-activedescendant', `${menuId}-option-${menuIndex}`)
-    } else {
-      dom.removeAttribute('aria-controls')
-      dom.removeAttribute('aria-activedescendant')
-    }
+    return whenBotTeamEditorMounted(editor, (dom) => {
+      dom.setAttribute('aria-expanded', String(menu !== null))
+      if (menu) {
+        dom.setAttribute('aria-controls', menuId)
+        dom.setAttribute('aria-activedescendant', `${menuId}-option-${menuIndex}`)
+      } else {
+        dom.removeAttribute('aria-controls')
+        dom.removeAttribute('aria-activedescendant')
+      }
+    })
   }, [editor, menu, menuId, menuIndex])
   const chooseMenuItem = (item: BotTeamComposerItem): void => {
     if (!menu || !editor) {
