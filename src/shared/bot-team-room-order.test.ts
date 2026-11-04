@@ -79,6 +79,35 @@ describe('placeBotTeamRoomTasks', () => {
     expect(placed.trailing).toEqual([card('t', 'Something else')])
   })
 
+  it('keeps a routine run at the time it ran, after any message, not at the end (pv84 QA)', () => {
+    const run = { ...card('t', 'Daily hello', 250), fromRoutine: true }
+    const placed = placeBotTeamRoomTasks(
+      [person('a', 'Make the report', 100), bot('r', 'Done', 200), bot('s', 'Later news', 300)],
+      [run]
+    )
+
+    expect(placed.cardsByMessageId.get('r')).toEqual([run])
+    expect(placed.trailing).toEqual([])
+  })
+
+  it('puts a routine run made before every message before the conversation', () => {
+    const run = { ...card('t', 'Daily hello', 50), fromRoutine: true }
+    const placed = placeBotTeamRoomTasks([person('a', 'Make the report', 100)], [run])
+
+    expect(placed.leading).toEqual([run])
+    expect(placed.trailing).toEqual([])
+  })
+
+  it('keeps a routine run whose prompt someone also typed at its own time', () => {
+    const run = { ...card('t', 'Daily hello', 250), fromRoutine: true }
+    const placed = placeBotTeamRoomTasks(
+      [person('a', 'Daily hello', 100), bot('r', 'Hi', 200)],
+      [run]
+    )
+
+    expect(placed.cardsByMessageId.get('r')).toEqual([run])
+  })
+
   it('keeps several cards under one request in the order they were made', () => {
     const placed = placeBotTeamRoomTasks(
       [person('a', 'Make the report', 100)],

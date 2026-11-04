@@ -18,6 +18,8 @@ import { botTeamScheduledReply } from '../../../bot-teams/bot-team-filed-reply'
 import { replyToBotTeamGreeting } from '../../../bot-teams/bot-team-greeting-reply'
 import { decideBotTeamRequest } from '../../../bot-teams/bot-team-request-flow'
 import { askDefaultAgentForBotTeamRequest } from '../../../bot-teams/bot-team-request-query'
+import type { BotTeamPrototypeChoice } from '../../../../shared/bot-team-prototype-choice'
+import { keepBotTeamPrototypeChoice } from '../../../bot-teams/bot-team-task-prototype'
 import { isKnownTimeZone } from '../../../../shared/bot-team-routine-zone'
 import { createBotTeamRoutine } from '../../orchestration/db/bot-teams/bot-team-routine-store'
 import type { OrchestrationDb } from '../../orchestration/db/orchestration-db'
@@ -65,7 +67,8 @@ export async function postBotTeamRequestOnHost(
     start,
     askProject = false,
     attachments = [],
-    timeZone
+    timeZone,
+    prototypeChoice
   }: {
     teamId: string
     text: string
@@ -73,10 +76,14 @@ export async function postBotTeamRequestOnHost(
     askProject?: boolean
     attachments?: BotTeamRoomAttachment[]
     timeZone?: string
+    /** The count the person chose on the prototype card; the task that starts reads it from its notes. */
+    prototypeChoice?: BotTeamPrototypeChoice
   },
-  startTask: (taskId: string) => Promise<BotTeamTask>
+  startTaskAsFiled: (taskId: string) => Promise<BotTeamTask>
 ): Promise<BotTeamPostResult> {
   const db = ctx.runtime.getOrchestrationDb()
+  const { keep: keepChoice, startKept } = keepBotTeamPrototypeChoice(db, prototypeChoice)
+  const startTask = startKept(startTaskAsFiled)
   // Files with no words are filed as a request that names them, in the language the person wrote before.
   const text =
     typed.trim() === '' && attachments.length > 0
@@ -129,6 +136,7 @@ export async function postBotTeamRequestOnHost(
       },
       startTask
     )
+    keepChoice(filed.task)
     return { message, ...filed, sentTo }
   }
   if (decision.type === 'choice') {
@@ -201,6 +209,7 @@ export async function postBotTeamRequestOnHost(
     },
     startTask
   )
+  keepChoice(filed.task)
   return {
     message,
     ...filed,

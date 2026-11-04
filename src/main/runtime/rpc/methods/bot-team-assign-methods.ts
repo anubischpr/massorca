@@ -4,6 +4,7 @@ import {
 } from '../../../../shared/rpc-contract/bot-team-room-params'
 import type { BotTeamTask } from '../../../../shared/rpc-contract/bot-team-room-params'
 import { fileBotTeamRequest } from '../../../bot-teams/bot-team-assign-request'
+import { keepBotTeamPrototypeChoice } from '../../../bot-teams/bot-team-task-prototype'
 import { reassignBotTeamTask } from '../../../bot-teams/bot-team-reassign'
 import { defineMethod, type RpcContext } from '../core'
 
@@ -15,9 +16,15 @@ export function botTeamAssignRequestMethod(startTask: StartTask) {
     name: 'botTeams.assignRequest',
     permission: 'workspace',
     params: BotTeamRequestAssign,
-    handler: (request, ctx) =>
-      fileBotTeamRequest(
-        ctx.runtime.getOrchestrationDb(),
+    handler: async (request, ctx) => {
+      const db = ctx.runtime.getOrchestrationDb()
+      // An answer that sends the request to another team leaves it as typed.
+      const { keep, startKept } = keepBotTeamPrototypeChoice(
+        db,
+        request.toTeamId === undefined ? request.prototypeChoice : undefined
+      )
+      const filed = await fileBotTeamRequest(
+        db,
         {
           teamId: request.teamId,
           text: request.text,
@@ -31,8 +38,11 @@ export function botTeamAssignRequestMethod(startTask: StartTask) {
           askProject: request.askProject === true,
           timeZone: request.timeZone ?? null
         },
-        (taskId) => startTask(ctx, taskId)
+        startKept((taskId) => startTask(ctx, taskId))
       )
+      keep(filed.task)
+      return filed
+    }
   })
 }
 

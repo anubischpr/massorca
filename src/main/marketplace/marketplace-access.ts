@@ -46,6 +46,15 @@ const storedPolicySchema = z.object({
 // Why: an unreadable record falls back to Everyone for its app alone, so the rest of the state survives.
 const storedPolicy = storedPolicySchema.catch(() => everyoneAccessPolicy())
 
+/** The access records for a bot run's denial: absent reads as Everyone, an unreadable record throws. */
+export const storedAccessStrictSchema = z
+  .object({
+    engram: storedPolicySchema,
+    openmetadata: storedPolicySchema,
+    github: storedPolicySchema
+  })
+  .optional()
+
 /** The access records in state.json; a state file from before access policies reads as Everyone. */
 export const storedAccessSchema = z
   .object({ engram: storedPolicy, openmetadata: storedPolicy, github: storedPolicy })

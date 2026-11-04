@@ -253,6 +253,17 @@ describe('buildBotTeamConversationPrompt for research', () => {
       )
     }
   })
+
+  it('adds no line for an app the answering bot is kept out of', () => {
+    const text = 'Qué recuerda @Engram del RAG? Mira @GitHub'
+    const prompt = buildBotTeamConversationPrompt({
+      ...args,
+      text,
+      deniedMarketplaceApps: ['engram']
+    })
+    expect(prompt).not.toContain('MCP server engram')
+    expect(prompt).toContain('Use GitHub (the gh command) for this request.')
+  })
 })
 
 describe('cleanConversationReply', () => {

@@ -17,6 +17,8 @@ export type PiRpcLaunchOptions = {
   fullAccess: boolean
   extraArgs?: readonly string[]
   env?: Record<string, string>
+  /** Env vars to strip beside the built-in ones (a bot run kept out of an app). */
+  envToDelete?: readonly string[]
   sessionFile?: string
   forkFile?: string
   structuredSession?: { id: string; spawnToken: string }
@@ -121,6 +123,7 @@ export function buildPiRpcLaunch(options: PiRpcLaunchOptions): ProviderProcessLa
     env: childEnv,
     envToDelete: [
       ...CHILD_ENV_TO_DELETE,
+      ...(options.envToDelete ?? []),
       ...(options.structuredSession
         ? Object.hasOwn(childEnv, 'ORCA_TERMINAL_HANDLE')
           ? []

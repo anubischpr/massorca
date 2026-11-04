@@ -3,6 +3,7 @@ export const MOBILE_BOT_TEAM_RPC_METHODS = [
   'botTeams.addBot',
   'botTeams.archiveProject',
   'botTeams.assignRequest',
+  'botTeams.connectedApps',
   'botTeams.create',
   'botTeams.delete',
   'botTeams.deleteMemory',

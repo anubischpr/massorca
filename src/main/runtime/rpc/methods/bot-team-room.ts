@@ -20,6 +20,10 @@ import { ensureBotTeamVersionWatcher } from '../../../bot-teams/bot-team-task-ve
 import { botTeamFolderPath, botTeamsParentPath } from '../../../bot-teams/bot-team-version-deps'
 import { readBotTeamMemoryLines } from '../../../bot-teams/bot-team-memory-read'
 import { botSessionOptions } from '../../../bot-teams/bot-team-model-choice'
+import {
+  botRunOptions,
+  deniedMarketplaceAppIdsForBot
+} from '../../../marketplace/marketplace-bot-run-denial'
 import { startBotTeamTask } from '../../../bot-teams/bot-team-task-start'
 import {
   linkedTaskWorkspaceDeps,
@@ -30,6 +34,7 @@ import { defineMethod, type RpcContext } from '../core'
 import { botTeamAssignMethods } from './bot-team-assign-methods'
 import { BOT_TEAM_MEMORY_METHODS } from './bot-team-memory-methods'
 import { BOT_TEAM_PROJECT_METHODS, roomProjectsFor } from './bot-team-project-methods'
+import { botTeamPrototypeFirstPrompt } from '../../../bot-teams/bot-team-task-prototype'
 import { postBotTeamRequestOnHost } from './bot-team-post-request'
 import { listBotTeamReplying, rememberBotTeamPost } from './bot-team-reply-in-flight'
 import { BOT_TEAM_VERSION_METHODS } from './bot-team-versions'
@@ -121,7 +126,7 @@ async function startUnclaimedTaskOnHost(ctx: RpcContext, taskId: string): Promis
           taskTitle,
           taskPrompt
         }),
-      createSession: async ({ workspaceId, agent, accessMode, piRuntime, options }) => {
+      createSession: async ({ workspaceId, agent, accessMode, piRuntime, options, botRun }) => {
         const attempt = (seed: typeof options) =>
           createStructuredAgentSessionForWorktree({
             runtime: ctx.runtime,
@@ -137,7 +142,8 @@ async function startUnclaimedTaskOnHost(ctx: RpcContext, taskId: string): Promis
             agent,
             accessMode,
             ...(piRuntime ? { piRuntime } : {}),
-            options: botSessionOptions(seed, accessMode),
+            // The marker lets every launch of this session keep the bot's denied apps away from it.
+            options: { ...botSessionOptions(seed, accessMode), ...botRunOptions(botRun) },
             // A task runs in the background; opening it is up to the person.
             activate: false
           })
@@ -160,7 +166,8 @@ async function startUnclaimedTaskOnHost(ctx: RpcContext, taskId: string): Promis
           fence,
           text
         })) !== null,
-      linkSession: (id, sessionId) => db.setBotTeamTaskSession(id, sessionId)
+      linkSession: (id, sessionId) => db.setBotTeamTaskSession(id, sessionId),
+      prototypeFirstPrompt: botTeamPrototypeFirstPrompt(ctx.runtime)
     },
     {
       team,
@@ -169,7 +176,11 @@ async function startUnclaimedTaskOnHost(ctx: RpcContext, taskId: string): Promis
       project: task.projectId ? db.getBotTeamProject(task.projectId) : null,
       notes: db.getBotTeamTaskStartNotes(task.id),
       memory: readBotTeamMemoryLines(db, team.id, task.ownerBotId),
-      roomExcerpt: botTeamRoomExcerpt(db.listBotTeamMessages(team.id), team.bots)
+      roomExcerpt: botTeamRoomExcerpt(db.listBotTeamMessages(team.id), team.bots),
+      deniedMarketplaceApps: await deniedMarketplaceAppIdsForBot({
+        botId: task.ownerBotId,
+        teamId: team.id
+      })
     }
   )
 }

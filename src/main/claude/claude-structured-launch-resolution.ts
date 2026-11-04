@@ -128,6 +128,8 @@ export type ClaudeStructuredLaunch = {
   /** Lineage: the record's chain already heads this provider session, so the child continues it
    *  even when no transcript exists to `--resume`. Never derived from the launch mode. */
   continuesChain: boolean
+  /** Env vars the child must not inherit from Orca's own process (a bot run kept out of an app). */
+  envToDelete?: readonly string[]
 }
 
 export type ClaudeStructuredLaunchResolverDeps = {

@@ -29,6 +29,7 @@ import { BotTeamComposerMenu } from './BotTeamComposerMenu'
 import { BotTeamFileChipTeamContext } from './BotTeamFileChipHover'
 import { botTeamComposerChipAttrs } from './bot-team-composer-document'
 import { useBotTeamComposerEditor } from './bot-team-composer-editor'
+import { whenBotTeamEditorMounted } from './bot-team-editor-mount'
 import { useBotTeamFilePaths } from './use-bot-team-files'
 
 /**
@@ -63,7 +64,8 @@ export function useBotTeamMentionField(args: {
   const [menuDismissed, setMenuDismissed] = useState(false)
   const menuId = useId()
   const files = useBotTeamFilePaths(team.id, !offline && botTeamMentionOpen(text, caret))
-  const apps = useConnectedMarketplaceApps()
+  // Why: the menu is team-wide while a mention targets one bot, so only an app no bot may use is hidden.
+  const apps = useConnectedMarketplaceApps(team)
   const mentionNames = useMemo<BotTeamMentionName[]>(
     () => [
       ...team.bots.map((bot) => ({ name: bot.name, kind: 'bot' as const })),
@@ -123,18 +125,19 @@ export function useBotTeamMentionField(args: {
   }, [menuOpen])
   // The ARIA links follow the open menu, so a screen reader reads the option the caret is on.
   useLayoutEffect(() => {
-    const dom = editor?.view.dom
-    if (!dom) {
+    if (!editor) {
       return
     }
-    dom.setAttribute('aria-expanded', String(menu !== null))
-    if (menu) {
-      dom.setAttribute('aria-controls', menuId)
-      dom.setAttribute('aria-activedescendant', `${menuId}-option-${menuIndex}`)
-    } else {
-      dom.removeAttribute('aria-controls')
-      dom.removeAttribute('aria-activedescendant')
-    }
+    return whenBotTeamEditorMounted(editor, (dom) => {
+      dom.setAttribute('aria-expanded', String(menu !== null))
+      if (menu) {
+        dom.setAttribute('aria-controls', menuId)
+        dom.setAttribute('aria-activedescendant', `${menuId}-option-${menuIndex}`)
+      } else {
+        dom.removeAttribute('aria-controls')
+        dom.removeAttribute('aria-activedescendant')
+      }
+    })
   }, [editor, menu, menuId, menuIndex])
   const chooseMenuItem = (item: BotTeamComposerItem): void => {
     if (!menu || !editor) {

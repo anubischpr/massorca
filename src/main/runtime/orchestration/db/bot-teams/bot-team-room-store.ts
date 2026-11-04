@@ -24,8 +24,9 @@ import {
 } from './bot-team-tracker-store'
 import type { OrchestrationDb } from '../orchestration-db'
 
-const TASK_SELECT =
-  'SELECT id, team_id AS teamId, title, prompt, owner_bot_id AS ownerBotId, session_id AS sessionId, project_id AS projectId, created_at AS createdAt, last_status AS lastStatus FROM bot_team_tasks'
+const TASK_SELECT = `SELECT id, team_id AS teamId, title, prompt, owner_bot_id AS ownerBotId, session_id AS sessionId, project_id AS projectId, created_at AS createdAt, last_status AS lastStatus,
+  EXISTS (SELECT 1 FROM bot_team_routine_runs r WHERE r.task_id = bot_team_tasks.id) AS fromRoutine
+  FROM bot_team_tasks`
 // The greeting line has no bot row to point at, so it reads back as the All author.
 const MESSAGE_SELECT = `SELECT id, team_id AS teamId, text, created_at AS createdAt,
   CASE WHEN author_kind = '${BOT_TEAM_ALL_AUTHOR}' THEN '${BOT_TEAM_ALL_AUTHOR}' ELSE author_bot_id END AS authorBotId

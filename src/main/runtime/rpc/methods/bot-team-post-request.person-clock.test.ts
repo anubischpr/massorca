@@ -91,6 +91,28 @@ describe("a room request read on the sender's clock, across the host's date boun
     expect(listBotTeamRoutines(database, web.id)[0]?.schedule.timeZone).toBe('America/Lima')
   })
 
+  // The VPS host runs on UTC and a laptop on its own zone; neither may move the person's "mañana".
+  it.each([
+    { host: 'UTC', at: LIMA_NIGHT, day: '2026-11-04' },
+    { host: 'Asia/Tokyo', at: LIMA_NIGHT, day: '2026-11-04' },
+    // 05:15 UTC on the 4th is 00:15 on the 4th in Lima: past midnight, "mañana" is the 5th.
+    { host: 'UTC', at: Date.UTC(2026, 10, 4, 5, 15), day: '2026-11-05' },
+    { host: 'Asia/Tokyo', at: Date.UTC(2026, 10, 4, 5, 15), day: '2026-11-05' }
+  ])('reads "mañana" as $day on a $host host either side of Lima midnight', async (row) => {
+    const hostZone = process.env.TZ
+    process.env.TZ = row.host
+    try {
+      vi.setSystemTime(row.at)
+      classify.mockResolvedValue('{"kind":"bot","bots":["Ana"]}')
+      const { result } = await post('programen para mañana a las 9 una revisión del front', {
+        timeZone: 'America/Lima'
+      })
+      expect(result.scheduled).toMatchObject({ date: row.day, time: '09:00' })
+    } finally {
+      process.env.TZ = hostZone
+    }
+  })
+
   it("files a request that names a day with the sender's clock in its start notes", async () => {
     classify.mockResolvedValue('{"kind":"bot","bots":["Ana"]}')
     const { db: database, result } = await post('Escribe el informe del front para mañana', {

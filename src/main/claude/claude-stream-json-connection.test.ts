@@ -243,6 +243,20 @@ describe('Claude stream-json connection', () => {
     expect(childEnv().CLAUDE_CONFIG_DIR).toBe('/accounts/managed/home')
   })
 
+  it("drops the env vars a launch names from Orca's own process env, and only those", async () => {
+    vi.stubEnv('OPENMETADATA_TOKEN', 'inherited-token')
+    vi.stubEnv('ORCA_CONNECTION_MARKER', 'inherited')
+    const scenario = scriptScenario([HOLD_OPEN])
+    await open({ ...launchFor(scenario), envToDelete: ['OPENMETADATA_TOKEN'] })
+
+    await until(() => readReportSafely(scenario), 'the scripted CLI report')
+    expect(childEnv().OPENMETADATA_TOKEN).toBeUndefined()
+    expect(childEnv().ORCA_CONNECTION_MARKER).toBe('inherited')
+
+    await open(launchFor(scenario))
+    expect(childEnv().OPENMETADATA_TOKEN).toBe('inherited-token')
+  })
+
   it('settles a send only once the frame reached the child, and replays reach onMessage', async () => {
     const replay = {
       type: 'user',

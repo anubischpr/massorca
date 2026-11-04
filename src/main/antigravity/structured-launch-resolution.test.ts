@@ -469,3 +469,28 @@ describe('chat visuals', () => {
     expect(launch.env).not.toHaveProperty('ORCA_CHAT_VISUALS_DIR')
   })
 })
+
+describe('Marketplace apps for a bot run', () => {
+  const denial = { mcpServers: ['engram'], envNames: ['ENGRAM_CLOUD_TOKEN'], envPrefixes: [] }
+
+  it('keeps a denied app token out of a bot run and leaves any other chat alone', async () => {
+    const h = await setup()
+    const env = { HOME: '/host/home', ENGRAM_CLOUD_TOKEN: 'cloud-token', OTHER: 'kept' }
+    const deps = {
+      ...h.deps,
+      resolveEnvironment: async () => ({ ...env }),
+      resolveBotRunDenial: async (options?: Readonly<Record<string, string>>) =>
+        options?.botTeamBotId ? denial : null
+    }
+    const botRecord = { ...h.record, options: { botTeamBotId: 'bob', botTeamId: 't1' } }
+    vi.spyOn(h.store, 'getRecord').mockReturnValue(botRecord)
+    const bot = await createAntigravityLaunchResolver(deps)(identity)
+    expect(bot.env).not.toHaveProperty('ENGRAM_CLOUD_TOKEN')
+    expect(bot.env?.OTHER).toBe('kept')
+    expect(bot.envToDelete).toEqual(['ENGRAM_CLOUD_TOKEN'])
+    vi.spyOn(h.store, 'getRecord').mockReturnValue(h.record)
+    const plain = await createAntigravityLaunchResolver(deps)(identity)
+    expect(plain.env?.ENGRAM_CLOUD_TOKEN).toBe('cloud-token')
+    expect(plain).not.toHaveProperty('envToDelete')
+  })
+})
