@@ -14,6 +14,7 @@ import StatusIndicator from '@/components/sidebar/StatusIndicator'
 import { translate } from '@/i18n/i18n'
 import { AgentIcon } from '@/lib/agent-catalog'
 import { agentTypeToIconAgent } from '@/lib/agent-status'
+import { FloatingSessionCandidateLabel } from './FloatingSessionCandidateLabel'
 import type { RuntimeHostConnectionState } from '@/runtime/runtime-host-connection-state'
 import type {
   FloatingSessionCandidate,
@@ -105,7 +106,7 @@ export function FloatingSessionPicker({
                       <span className="inline-flex size-3.5 shrink-0 items-center justify-center">
                         <AgentIcon agent={agentTypeToIconAgent(candidate.agent)} size={14} />
                       </span>
-                      <span className="min-w-0 flex-1 truncate">{candidate.label}</span>
+                      <FloatingSessionCandidateLabel candidate={candidate} />
                       {trailing ? (
                         <span className="shrink-0 text-xs text-muted-foreground">
                           {trailing(candidate)}
