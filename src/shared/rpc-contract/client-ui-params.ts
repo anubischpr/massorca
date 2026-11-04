@@ -159,6 +159,7 @@ export const UiUpdateFields = z
     agentsShowSearch: z.boolean().optional(),
     agentsReadFilter: z.enum(THREAD_READ_FILTER_VALUES).optional(),
     agentsGroupBy: z.enum(ACTIVITY_GROUP_BY_VALUES).optional(),
+    calendarShowDoneRuns: z.boolean().optional(),
     workspaceHostOrder: z.array(z.string()).optional(),
     automationHostFilter: z
       .union([

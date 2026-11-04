@@ -166,6 +166,7 @@ export function createUiHydrationActions(set: UISliceSet, _get: UISliceGet): Par
           agentsShowSearch: ui.agentsShowSearch !== false,
           agentsReadFilter: normalizeThreadReadFilter(ui.agentsReadFilter),
           agentsGroupBy: normalizeActivityGroupBy(ui.agentsGroupBy),
+          calendarShowDoneRuns: ui.calendarShowDoneRuns === true,
           collapsedGroups: new Set(ui.collapsedGroups ?? []),
           uiZoomLevel: ui.uiZoomLevel ?? 0,
           editorFontZoomLevel: ui.editorFontZoomLevel ?? 0,

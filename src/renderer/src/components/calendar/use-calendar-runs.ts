@@ -5,7 +5,7 @@ import { installWindowVisibilityInterval } from '@/lib/window-visibility-interva
 import type { Automation } from '../../../../shared/automations-types'
 import { calendarAutomationTargets, listCalendarAutomations } from './calendar-automation-runs'
 import { loadBotRuns } from './calendar-bot-runs-source'
-import { loadCalendarRuns, nextRunStartAfter } from './calendar-runs-source'
+import { loadCalendarRuns, nextRunStartAfter, type LoadBotRuns } from './calendar-runs-source'
 import type { CalendarRange, CalendarRun } from './calendar-types'
 
 const MINUTE_MS = 60 * 1000
@@ -54,14 +54,15 @@ const NO_RUNS: RunSnapshot = { runs: [], upcomingRuns: [] }
 
 /**
  * Runs in the visible and upcoming windows, loaded together so both views change in one render.
- * `onRunStart` fires the moment the next run starts, so a started run leaves on time.
+ * `onRunStart` fires the moment the next run starts, so a started run turns over on time. Only the
+ * visible window asks for runs that already started, since Upcoming never shows them.
  */
 export function useCalendarRuns(
   visible: CalendarRange,
   upcoming: CalendarRange | null,
-  now: number,
-  onRunStart?: () => void
+  options: { now: number; includeDoneRuns: boolean; onRunStart?: () => void }
 ): RunSnapshot {
+  const { now, includeDoneRuns, onRunStart } = options
   const automations = useCalendarAutomations()
   const [snapshot, setSnapshot] = useState<RunSnapshot>(NO_RUNS)
   const visibleFrom = visible.from
@@ -70,12 +71,14 @@ export function useCalendarRuns(
   const upcomingTo = upcoming?.to
   useEffect(() => {
     let current = true
+    const loadVisibleRuns: LoadBotRuns = (range) =>
+      loadBotRuns(range, { includePast: includeDoneRuns })
     const upcomingWindow =
       upcomingFrom === undefined || upcomingTo === undefined
         ? null
         : { from: upcomingFrom, to: upcomingTo }
     void Promise.all([
-      loadCalendarRuns({ from: visibleFrom, to: visibleTo }, automations, loadBotRuns),
+      loadCalendarRuns({ from: visibleFrom, to: visibleTo }, automations, loadVisibleRuns),
       upcomingWindow ? loadCalendarRuns(upcomingWindow, automations, loadBotRuns) : []
     ]).then(([runs, upcomingRuns]) => {
       if (current) {
@@ -85,7 +88,7 @@ export function useCalendarRuns(
     return () => {
       current = false
     }
-  }, [visibleFrom, visibleTo, upcomingFrom, upcomingTo, automations])
+  }, [visibleFrom, visibleTo, upcomingFrom, upcomingTo, automations, includeDoneRuns])
 
   const nextStartAt = nextRunStartAfter([...snapshot.runs, ...snapshot.upcomingRuns], now)
   useEffect(() => {

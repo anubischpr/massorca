@@ -25,6 +25,8 @@ export const PAIRING_LOCAL_UI_FIELDS = [
   'agentsShowSearch',
   'agentsReadFilter',
   'agentsGroupBy',
+  // Each client chooses whether its own Calendar shows done runs, and old hosts reject the unknown key.
+  'calendarShowDoneRuns',
   'activityClearedAtByPaneKey',
   'manuallyUnreadTurnsByPaneKey'
 ] as const satisfies readonly (keyof PersistedUIState)[]

@@ -52,6 +52,7 @@ export function listBotTeamScheduledRuns(query: {
   from: number
   to: number
   teamId?: string
+  includePast?: boolean
 }): Promise<BotTeamScheduledRunsResult | 'unavailable'> {
   return orUnavailable(() => call<BotTeamScheduledRunsResult>('botTeams.listScheduledRuns', query))
 }

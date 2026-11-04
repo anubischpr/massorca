@@ -18090,6 +18090,7 @@
       "month": "Month",
       "teamsAria": "Teams",
       "upcoming": "Upcoming runs",
+      "showDone": "Show done",
       "monthly": "Monthly",
       "todayAt": "Today at {{time}}",
       "tomorrowAt": "Tomorrow at {{time}}",

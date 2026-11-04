@@ -21,6 +21,7 @@ describe('pairing-local UI fields', () => {
       'agentsShowSearch',
       'agentsReadFilter',
       'agentsGroupBy',
+      'calendarShowDoneRuns',
       'activityClearedAtByPaneKey',
       'manuallyUnreadTurnsByPaneKey'
     ])

@@ -253,6 +253,7 @@ export function getDefaultUIState(): PersistedUIState {
     agentsShowSearch: true,
     agentsReadFilter: DEFAULT_AGENTS_READ_FILTER,
     agentsGroupBy: DEFAULT_AGENTS_GROUP_BY,
+    calendarShowDoneRuns: false,
     collapsedGroups: [],
     uiZoomLevel: 0,
     editorFontZoomLevel: 0,

@@ -165,6 +165,25 @@ export function listBotTeamRoutineRuns(
     .map(toRun)
 }
 
+/** The scheduled times of a routine's claimed runs in [from, to), earliest first. */
+export function listBotTeamRoutineRunTimes(
+  db: OrchestrationDb,
+  routineId: string,
+  from: number,
+  to: number
+): number[] {
+  return z
+    .array(z.object({ scheduled_for: z.number() }))
+    .parse(
+      db.db
+        .prepare(
+          'SELECT scheduled_for FROM bot_team_routine_runs WHERE routine_id = ? AND scheduled_for >= ? AND scheduled_for < ? ORDER BY scheduled_for'
+        )
+        .all(routineId, from, to)
+    )
+    .map((row) => row.scheduled_for)
+}
+
 /** Resuming starts from now: what was due while it was paused is not run. */
 export function setBotTeamRoutinePaused(
   db: OrchestrationDb,

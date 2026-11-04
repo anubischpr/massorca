@@ -18,9 +18,9 @@ export async function loadCalendarRuns(
   return runs.sort((a, b) => a.at - b.at)
 }
 
-/** The host lists bot runs only while they are to come, so a started one has left the calendar. */
-export function dropStartedBotRuns(runs: readonly CalendarRun[], now: number): CalendarRun[] {
-  return runs.filter((run) => run.source !== 'bot' || run.at >= now)
+/** A run whose time has passed is done; the grid hides it unless the filter shows done runs. */
+export function dropDoneRuns(runs: readonly CalendarRun[], now: number): CalendarRun[] {
+  return runs.filter((run) => run.at >= now)
 }
 
 /** The start of the first run at or after `now`, from either source; null when none is left. */

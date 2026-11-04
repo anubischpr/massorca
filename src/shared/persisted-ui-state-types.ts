@@ -106,6 +106,8 @@ export type PersistedUIState = {
   agentsReadFilter?: ThreadReadFilter
   /** Agents-view thread grouping. Absent means 'status'. */
   agentsGroupBy?: ActivityGroupBy
+  /** Calendar: runs that already happened stay visible, greyed. Absent means hidden. */
+  calendarShowDoneRuns?: boolean
   collapsedGroups: string[]
   uiZoomLevel: number
   editorFontZoomLevel: number
