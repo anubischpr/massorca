@@ -109,3 +109,29 @@ it('says a restart that carried the notes could not be confirmed, never that it 
     code: 'runtime-unverifiable'
   })
 })
+
+it('sends images with the text, and an image alone, to a structured chat', async () => {
+  mocks.send.mockReturnValue({ clientMessageId: 'm', outcome: Promise.resolve('recorded') })
+  const attachments = [{ path: '/shots/a.png', previewUri: '/shots/a.png' }]
+  await expect(
+    sendMessageToAgent({
+      worktreeId: 'wt-1',
+      target: { kind: 'structured-session', sessionId: 'session-1' },
+      prompt: '',
+      attachments
+    })
+  ).resolves.toEqual({ status: 'sent' })
+  expect(mocks.send).toHaveBeenCalledWith(expect.objectContaining({ text: '', attachments }))
+})
+
+it('refuses images for a terminal agent, which cannot take them', async () => {
+  await expect(
+    sendMessageToAgent({
+      worktreeId: 'wt-1',
+      target: { kind: 'terminal', tabId: 'tab-1', leafId: 'leaf-1' },
+      prompt: 'the notes',
+      attachments: [{ path: '/shots/a.png', previewUri: '/shots/a.png' }]
+    })
+  ).resolves.toEqual({ status: 'not-writable', code: 'session-send-refused' })
+  expect(mocks.send).not.toHaveBeenCalled()
+})

@@ -10,6 +10,7 @@ import {
   sendAccepted,
   sendBegun,
   sendRefused,
+  sendableDraftImages,
   type DesignSystemSendKind,
   type DesignSystemViewState
 } from '../../../../shared/prototype-design-system-view-state'
@@ -22,6 +23,7 @@ import { PrototypeDesignSystemView } from './PrototypeDesignSystemView'
 import type { DesignSystemPanelProps } from './prototype-design-system-props'
 import { usePrototypeViewStore } from './prototype-view-store'
 import { useDesignSystemContent } from './use-prototype-design-system-content'
+import { usePrototypeDesignSystemImages } from './use-prototype-design-system-images'
 
 // One shared empty state, so a project with no state yet hands the same object to every render.
 const NO_VIEW_STATE = emptyDesignSystemViewState()
@@ -37,8 +39,12 @@ export function PrototypeDesignSystemScreen({
 }: {
   system: PrototypeListedDesignSystem
   sets: readonly PrototypeListedSet[]
-  /** Sends text to a chat; true only when the chat took it. */
-  sendText: (chat: DesignSystemChat, text: string) => Promise<boolean>
+  /** Sends text, with the draft's images, to a chat; true only when the chat took it. */
+  sendText: (
+    chat: DesignSystemChat,
+    text: string,
+    images: readonly { path: string; connectionId?: string }[]
+  ) => Promise<boolean>
 }): React.JSX.Element {
   const { projectKey } = system
   const target = designSystemChatOf(sets, system)
@@ -57,6 +63,12 @@ export function PrototypeDesignSystemScreen({
     },
     [updateView, projectKey]
   )
+  const images = usePrototypeDesignSystemImages({
+    projectKey,
+    target,
+    disabled: state.sending,
+    update
+  })
   const runSend = async (
     kind: DesignSystemSendKind,
     text: string,
@@ -67,7 +79,9 @@ export function PrototypeDesignSystemScreen({
       return
     }
     update(sendBegun)
-    const accepted = await sendText(chat, text).catch(() => false)
+    // Only the draft carries the images; a re-detect or a palette approval sends its text alone.
+    const images = kind === 'draft' ? sendableDraftImages(current ?? NO_VIEW_STATE) : []
+    const accepted = await sendText(chat, text, images).catch(() => false)
     update((latest) => (accepted ? sendAccepted(latest, kind) : sendRefused(latest, kind)))
   }
   if (content.status === 'loading') {
@@ -94,7 +108,8 @@ export function PrototypeDesignSystemScreen({
     update,
     target,
     rebuildSets,
-    runSend
+    runSend,
+    images
   }
   return (
     <>

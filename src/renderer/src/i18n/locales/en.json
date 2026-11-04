@@ -18410,7 +18410,11 @@
         "moreTokens": "+{{count}} more",
         "bold": "Bold",
         "italic": "Italic",
-        "underline": "Underline"
+        "underline": "Underline",
+        "images": "Attached images",
+        "imageUploading": "{{name}} (uploading…)",
+        "removeImage": "Remove {{name}}",
+        "imagesOnly": "Only images can be attached here."
       },
       "tree": {
         "expand": "Expand prototypes",

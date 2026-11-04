@@ -6,6 +6,7 @@ import { getStructuredAgentSessionLaunchLifecycle } from './structured-agent-ses
 import { sendStructuredAgentSessionMessage } from '@/components/native-chat/structured-agent-session-message-sender'
 import { structuredAgentSessionTargetForTab } from '@/runtime/structured-agent-session-owner'
 import { useAppStore } from '@/store'
+import type { StructuredAgentSessionAttachment } from '../../../shared/structured-agent-session-send-mutation'
 
 export type { AgentMessageTarget } from './agent-message-target'
 
@@ -14,13 +15,19 @@ export async function sendMessageToAgent(args: {
   worktreeId: string
   target: AgentMessageTarget
   prompt: string
+  /** Images sent with the text; only a structured chat takes them. */
+  attachments?: readonly StructuredAgentSessionAttachment[]
 }): Promise<ActiveAgentNotesSendResult> {
   const { target, worktreeId } = args
+  const attachments = args.attachments ?? []
   const prompt = args.prompt.trim()
-  if (!prompt) {
+  if (!prompt && attachments.length === 0) {
     return { status: 'empty', code: 'empty' }
   }
   if (target.kind === 'terminal') {
+    if (attachments.length > 0) {
+      return { status: 'not-writable', code: 'session-send-refused' }
+    }
     return sendNotesToActiveAgentSession({
       worktreeId,
       prompt,
@@ -41,13 +48,13 @@ export async function sendMessageToAgent(args: {
   if (lifecycle === 'pending' || lifecycle === 'visibility-unknown') {
     return { status: 'not-ready', code: 'session-send-refused' }
   }
-  // A failed start restarts, with the notes as its first message.
-  const relaunched = relaunchFailedStructuredAgentSessionWithMessage(
-    worktreeId,
-    target.sessionId,
-    prompt,
-    { callerKeepsText: true }
-  )
+  // A failed start restarts, with the notes as its first message; a restart carries text only.
+  const relaunched =
+    attachments.length > 0
+      ? null
+      : relaunchFailedStructuredAgentSessionWithMessage(worktreeId, target.sessionId, prompt, {
+          callerKeepsText: true
+        })
   if (relaunched) {
     const result = await relaunched
     return result.delivered
@@ -61,6 +68,7 @@ export async function sendMessageToAgent(args: {
     sessionId: target.sessionId,
     target: runtime,
     text: prompt,
+    ...(attachments.length > 0 ? { attachments } : {}),
     callerKeepsText: true
   })
   // The chat's own send is still out: the notes wait, as its composer would.

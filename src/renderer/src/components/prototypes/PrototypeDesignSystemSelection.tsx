@@ -20,6 +20,7 @@ import { PrototypeColorPicker } from './PrototypeColorPicker'
 import { PrototypeDesignSystemElement } from './PrototypeDesignSystemElement'
 import { TokenChipRow } from './PrototypeDesignSystemRows'
 import type { DesignSystemPanelProps } from './prototype-design-system-props'
+import { PrototypeDesignSystemAttachButton } from './PrototypeDesignSystemImages'
 
 /** The aside's selection block: the chosen token's value, or the chosen component's edits. */
 export function PrototypeDesignSystemSelection(
@@ -62,7 +63,10 @@ function TokenEditor({
 }: DesignSystemPanelProps & { token: DesignToken }): React.JSX.Element {
   const value = draftTokenValue(state.draft, token)
   const setValue = (text: string): void => {
-    update((latest) => ({ ...latest, draft: setDraftTokenValue(latest.draft, token, text) }))
+    update((latest) => ({
+      ...latest,
+      draft: setDraftTokenValue(latest.draft, token, text)
+    }))
   }
   return (
     <div className="flex flex-col gap-2.5 border-b border-border p-3">
@@ -206,7 +210,8 @@ function ComponentEditor({
   content,
   state,
   update,
-  rebuildSets
+  rebuildSets,
+  images
 }: DesignSystemPanelProps & { section: ComponentSection }): React.JSX.Element {
   const drafted = draftComponentState(state.draft, section)
   const removed = state.draft.removed[section.name] === true
@@ -217,7 +222,10 @@ function ComponentEditor({
       const next = current.includes(variant)
         ? current.filter((entry) => entry !== variant)
         : [...current, variant]
-      return { ...latest, draft: setDraftVariants(latest.draft, section, next) }
+      return {
+        ...latest,
+        draft: setDraftVariants(latest.draft, section, next)
+      }
     })
   }
   return (
@@ -288,12 +296,19 @@ function ComponentEditor({
           })}
         </>
       )}
-      <label
-        htmlFor="design-system-component-note"
-        className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase"
-      >
-        {translate('components.prototypes.designSystem.noteLabel', 'Note — anything Edit can’t do')}
-      </label>
+      <div className="flex items-center justify-between">
+        <label
+          htmlFor="design-system-component-note"
+          className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase"
+        >
+          {translate(
+            'components.prototypes.designSystem.noteLabel',
+            'Note — anything Edit can’t do'
+          )}
+        </label>
+        {/* Why: a note's images join the one draft, listed under its "Anything else". */}
+        <PrototypeDesignSystemAttachButton controls={images} />
+      </div>
       <textarea
         id="design-system-component-note"
         rows={2}

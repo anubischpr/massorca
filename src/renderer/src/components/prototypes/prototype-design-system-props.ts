@@ -15,6 +15,14 @@ export type DesignSystemUpdate = (
   transform: (state: DesignSystemViewState) => DesignSystemViewState
 ) => void
 
+/** The draft's image attach: the chat composer's picker, and what it last could not attach. */
+export type DesignSystemImageControls = {
+  pick: () => void
+  disabled: boolean
+  notice: string | null
+  remove: (id: string) => void
+}
+
 /** What the Design system panels share: the system, its files, the view's state and the sends. */
 export type DesignSystemPanelProps = {
   system: PrototypeListedDesignSystem
@@ -27,4 +35,5 @@ export type DesignSystemPanelProps = {
   rebuildSets: readonly PrototypeListedSet[]
   /** Sends one message as the given kind, to the target chat unless another chat is given; a refusal keeps the draft. */
   runSend: (kind: DesignSystemSendKind, text: string, chat?: DesignSystemChat) => Promise<void>
+  images: DesignSystemImageControls
 }
