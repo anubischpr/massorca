@@ -79,6 +79,21 @@ function removeTable(source: string, name: string): string | null {
     : result
 }
 
+// Why: the line scanner does not validate TOML, so a broken header must stop the edit, not be appended to.
+function hasMalformedTableHeader(source: string): boolean {
+  let state = createTomlLineScanState()
+  for (const line of source.split('\n')) {
+    if (isTomlStructuralLine(state) && line.trimStart().startsWith('[')) {
+      const header = getTomlTableHeader(line)
+      if (!header || !parseTomlTableHeaderPath(header)) {
+        return true
+      }
+    }
+    state = updateTomlLineScanState(state, line)
+  }
+  return false
+}
+
 /**
  * Adds `[mcp_servers.<name>]` with the given body lines, or (body null) removes the table and its
  * subtables, leaving every other byte of config.toml as it was. Returns the same text when nothing
@@ -91,7 +106,7 @@ export function withCodexMcpEntry(
 ): string | null {
   const source = text ?? ''
   const { names, ownsRoot } = readMcpServerTomlOwnership(source)
-  if (ownsRoot) {
+  if (ownsRoot || hasMalformedTableHeader(source)) {
     return null
   }
   if (body) {

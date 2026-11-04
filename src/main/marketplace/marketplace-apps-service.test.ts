@@ -293,6 +293,10 @@ describe('OpenMetadata', () => {
       await api.connect({ id: 'openmetadata', url: 'https://u:p@x.example', token: TOKEN })
     ).toEqual(bad)
     expect(await api.connect({ id: 'other' })).toEqual(bad)
+    expect(
+      await api.connect({ id: 'openmetadata', url: `${URL_}?token=abc`, token: TOKEN })
+    ).toEqual(bad)
+    expect(await api.connect({ id: 'openmetadata', url: `${URL_}#t`, token: TOKEN })).toEqual(bad)
     expect(await api.setOpenMetadataToken({ token: TOKEN })).toEqual(bad)
     expect(await api.removeOpenMetadataProfile({ name: 'ghost' })).toEqual(bad)
     expect(await api.setEngramServer({ url: 'not a url' })).toEqual(bad)

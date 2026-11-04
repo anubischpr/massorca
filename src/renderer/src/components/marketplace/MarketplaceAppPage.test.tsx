@@ -210,7 +210,10 @@ describe('MarketplaceAppPage', () => {
         shell: { openUrl: mocks.openUrl },
         gh: {
           listHostBindableAccounts: mocks.listHostBindableAccounts,
-          switchActiveAccount: vi.fn()
+          switchActiveAccount: vi.fn(),
+          startSignIn: vi.fn(async () => ({ ok: true })),
+          cancelSignIn: vi.fn(async () => {}),
+          onSignInEvent: vi.fn(() => () => {})
         }
       }
     })
@@ -352,13 +355,14 @@ describe('MarketplaceAppPage', () => {
     )
   })
 
-  it('copies the gh login command for a new GitHub account, with no Connect button', async () => {
+  it('opens the in-app GitHub sign-in for a new account, with no Connect button while connected', async () => {
     const container = await mount('github')
 
     expect(buttonWithText(headerOf(container), 'Connect')).toBeUndefined()
     await clickButton(sectionOf(container, 'connection'), 'Add account')
 
-    expect(mocks.writeClipboardText).toHaveBeenCalledWith('gh auth login')
+    expect(document.body.querySelector('[role="dialog"]')).not.toBeNull()
+    expect(mocks.writeClipboardText).not.toHaveBeenCalledWith('gh auth login')
   })
 
   it('shows the active GitHub account for new projects in Advanced options', async () => {

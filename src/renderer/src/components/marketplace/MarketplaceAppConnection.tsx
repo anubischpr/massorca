@@ -5,7 +5,6 @@ import { translate } from '@/i18n/i18n'
 import { GitHubAccountsCard } from './GitHubAccountsCard'
 import { GITHUB_CLI_URL } from './marketplace-catalog'
 import type { MarketplaceAppContext } from './marketplace-app-context'
-import { copyMarketplaceText } from './marketplace-clipboard'
 import { MarketplaceAppSection } from './MarketplaceAppSection'
 import { MarketplaceInfoRow } from './MarketplaceInfoRow'
 import { credentialSummary } from './marketplace-vault-credential-text'
@@ -215,12 +214,7 @@ function GitHubConnection({ ctx }: { ctx: MarketplaceAppContext }): React.JSX.El
 function GitHubAddAccount({ ctx }: { ctx: MarketplaceAppContext }): React.JSX.Element {
   return (
     <div className="flex items-center gap-1">
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        onClick={() => void copyMarketplaceText(GH_LOGIN_COMMAND)}
-      >
+      <Button type="button" variant="outline" size="sm" onClick={() => ctx.github.openSignIn()}>
         <Plus />
         {translate(
           'auto.components.marketplace.MarketplaceAppConnection.addAccount',

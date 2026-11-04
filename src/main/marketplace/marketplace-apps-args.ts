@@ -42,7 +42,10 @@ export function parseServerUrl(value: unknown): string | null {
   try {
     const parsed = new URL(url)
     const web = parsed.protocol === 'https:' || parsed.protocol === 'http:'
-    return web && !parsed.username && !parsed.password ? url : null
+    // Why: a query or fragment can carry a pasted token into state.json and agent configs.
+    return web && !parsed.username && !parsed.password && !parsed.search && !parsed.hash
+      ? url
+      : null
   } catch {
     return null
   }
