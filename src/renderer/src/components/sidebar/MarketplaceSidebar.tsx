@@ -26,7 +26,6 @@ export function MarketplaceSidebar(): React.JSX.Element {
   const setSection = useAppStore((s) => s.setMarketplaceSection)
   const selectedId = useAppStore((s) => s.marketplaceSelectedItemId)
   const selectItem = useAppStore((s) => s.selectMarketplaceItem)
-  const openSkillsPage = useAppStore((s) => s.openSkillsPage)
   const apps = useAppStore((s) => s.marketplaceApps)
   // Why: the sidebar always lists this computer; a remote host is picked on the page itself.
   const catalog = useMarketplaceCatalog({
@@ -50,11 +49,7 @@ export function MarketplaceSidebar(): React.JSX.Element {
       selectItem(target.id)
       return
     }
-    if (target?.kind === 'skill') {
-      openSkillsPage()
-      return
-    }
-    // Why: an agent opens its section here; its page is opened from the list itself.
+    // Why: an agent or a skill opens its section here; its page is opened from the list itself.
     showSection(row.section)
   }
 
@@ -156,5 +151,7 @@ function SidebarRowIcon({ icon }: { icon: CatalogRowIcon }): React.JSX.Element {
       ) : (
         <Wrench className={ROW_ICON_CLASS} aria-hidden />
       )
+    case 'glyph':
+      return <icon.glyph className={ROW_ICON_CLASS} aria-hidden />
   }
 }

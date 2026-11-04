@@ -41,6 +41,7 @@ function inputs(overrides: Partial<CatalogBuildInputs> = {}): CatalogBuildInputs
     skills: { kind: 'ready', items: [] },
     custom: { kind: 'ready', items: [] },
     installingCustomIds: new Set(),
+    cli: { gh: 'not-installed', gitlab: 'not-installed' },
     ...overrides
   }
 }
@@ -109,13 +110,117 @@ describe('the catalog sections', () => {
     ])
   })
 
-  it('puts Git and Engram under Tools and GitHub and OpenMetadata under Services', () => {
+  it('puts Git, GitHub CLI, Node.js and Engram under Tools, in the board order', () => {
     const sections = buildCatalogSections(inputs())
-    expect(sectionNamed(sections, 'Tools').rows.map((row) => row.name)).toEqual(['Git', 'Engram'])
-    expect(sectionNamed(sections, 'Services').rows.map((row) => row.name)).toEqual([
-      'GitHub',
-      'OpenMetadata'
+    expect(sectionNamed(sections, 'Tools').rows.map((row) => row.name)).toEqual([
+      'Git',
+      'GitHub CLI',
+      'Node.js',
+      'Engram'
     ])
+  })
+
+  it('puts OpenMetadata, GitHub, GitLab, Email, Calendar, Shared drive and [CRM] under Services, in the board order', () => {
+    const sections = buildCatalogSections(inputs())
+    expect(sectionNamed(sections, 'Services').rows.map((row) => row.name)).toEqual([
+      'OpenMetadata',
+      'GitHub',
+      'GitLab',
+      'Email',
+      'Calendar',
+      'Shared drive',
+      '[CRM]'
+    ])
+  })
+})
+
+describe('the board-only rows, the CLI rows and skill rows', () => {
+  it('shows Node.js and the bot-team services with a disabled action and no status', () => {
+    const sections = buildCatalogSections(inputs())
+    const expected: [string, string, string][] = [
+      ['Node.js', 'Install', 'Runs the JavaScript tools some agents call.'],
+      ['Email', 'Connect', 'Bot teams read and send mail.'],
+      ['Calendar', 'Connect', 'Bot teams read and add events.'],
+      ['Shared drive', 'Connect', 'Bot teams read and save shared files.'],
+      ['[CRM]', 'Connect', 'Bot teams read customers and deals.']
+    ]
+    for (const [name, label, description] of expected) {
+      const row = rowNamed(sections, name)
+      expect(row.status).toEqual({ kind: 'action', label })
+      expect(row.description).toBe(description)
+      expect(row.owned).toBe(false)
+      expect(row.target).toBeNull()
+      expect(row.customId).toBeNull()
+    }
+  })
+
+  it('keeps the board-only rows out of Your apps, while the real rows that are owned stay in', () => {
+    const owned = ownedRows(
+      buildCatalogSections(
+        inputs({
+          badgeFor: badges({
+            git: 'installed',
+            engram: 'connected',
+            github: 'signed-in',
+            openmetadata: 'connected'
+          }),
+          cli: { gh: 'installed', gitlab: 'signed-in' }
+        })
+      )
+    )
+    expect(owned.map((row) => row.name)).toEqual([
+      'Git',
+      'GitHub CLI',
+      'Engram',
+      'Codex',
+      'OpenMetadata',
+      'GitHub',
+      'GitLab'
+    ])
+  })
+
+  it('shows GitHub CLI from the computer check, and Could not check while that check is unknown', () => {
+    const installed = rowNamed(
+      buildCatalogSections(inputs({ cli: { gh: 'installed', gitlab: 'not-installed' } })),
+      'GitHub CLI'
+    )
+    expect(installed.status).toEqual({ kind: 'done', label: 'Installed' })
+    expect(installed.owned).toBe(true)
+    expect(installed.target).toBeNull()
+    expect(rowNamed(buildCatalogSections(inputs()), 'GitHub CLI').status).toEqual({
+      kind: 'action',
+      label: 'Install'
+    })
+    const unknown = rowNamed(
+      buildCatalogSections(inputs({ cli: { gh: 'unknown', gitlab: 'unknown' } })),
+      'GitHub CLI'
+    )
+    expect(unknown.status).toEqual({ kind: 'pending', label: 'Could not check' })
+  })
+
+  it('shows GitLab as Connected and owned only when glab is signed in, and Connect otherwise', () => {
+    const signedIn = rowNamed(
+      buildCatalogSections(inputs({ cli: { gh: 'not-installed', gitlab: 'signed-in' } })),
+      'GitLab'
+    )
+    expect(signedIn.status).toEqual({ kind: 'done', label: 'Connected' })
+    expect(signedIn.owned).toBe(true)
+    expect(signedIn.service).toBe(true)
+    const notSigned = rowNamed(
+      buildCatalogSections(inputs({ cli: { gh: 'not-installed', gitlab: 'not-signed-in' } })),
+      'GitLab'
+    )
+    expect(notSigned.status).toEqual({ kind: 'action', label: 'Connect' })
+    expect(notSigned.owned).toBe(false)
+  })
+
+  it('opens a skill row with the skill it lists', () => {
+    const listed = skill('alpha')
+    const row = rowNamed(
+      buildCatalogSections(inputs({ skills: { kind: 'ready', items: [listed] } })),
+      'alpha'
+    )
+    expect(row.target).toEqual({ kind: 'skill', skill: listed })
   })
 })
 

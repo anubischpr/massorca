@@ -78,6 +78,8 @@ function TileGlyph({ icon }: { icon: CatalogRowIcon }): React.JSX.Element {
       ) : (
         <Wrench className="size-5" aria-hidden />
       )
+    case 'glyph':
+      return <icon.glyph className="size-5" aria-hidden />
   }
 }
 
