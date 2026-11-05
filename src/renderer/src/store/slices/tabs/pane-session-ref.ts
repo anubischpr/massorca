@@ -196,6 +196,17 @@ export function selectFloatingReferenceOwnerWorktreeIds(state: RefState): string
  * session only while it is its group's active tab; the other tabs keep it running and unseen. The
  * floating panel sits over every workspace, so it is on screen whenever it is open.
  */
+/** A floating tab holds its session only while the panel is open and the tab is active; otherwise the owner shows it. */
+export function isFloatingReferenceDormant(
+  shown: ReferencedSession,
+  isFloatingPanelOpen: boolean
+): boolean {
+  return (
+    shown.layoutWorktreeId === FLOATING_TERMINAL_WORKTREE_ID &&
+    (!isFloatingPanelOpen || shown.isSessionTabActive === false)
+  )
+}
+
 export function referencedPlacement(
   referenced: ReadonlyMap<string, ReferencedSession>,
   tabId: string,
@@ -204,7 +215,7 @@ export function referencedPlacement(
   isFloatingPanelOpen = false
 ): ReferencedPlacement | null {
   const shown = referenced.get(tabId)
-  if (!shown) {
+  if (!shown || isFloatingReferenceDormant(shown, isFloatingPanelOpen)) {
     return null
   }
   const isLayoutOnScreen =

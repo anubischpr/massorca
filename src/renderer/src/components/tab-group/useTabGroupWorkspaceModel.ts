@@ -8,7 +8,10 @@ import { useTabGroupTabCloseCommands } from './useTabGroupTabCloseCommands'
 import { useTabGroupCloseScopeCommands } from './useTabGroupCloseScopeCommands'
 import { useTabGroupActivationCommands } from './useTabGroupActivationCommands'
 import { useTabGroupCreationCommands } from './useTabGroupCreationCommands'
-import { selectReferencedSessions } from '../../store/slices/tabs/pane-session-ref'
+import {
+  isFloatingReferenceDormant,
+  selectReferencedSessions
+} from '../../store/slices/tabs/pane-session-ref'
 
 const EMPTY_GROUPS: readonly TabGroup[] = []
 const EMPTY_UNIFIED_TABS: readonly Tab[] = []
@@ -81,7 +84,11 @@ export function useTabGroupWorkspaceModel({
 
   // Why: a session that another workspace's pane shows is not shown here too, so this pane offers the picker in its place.
   const referenced = useAppStore(selectReferencedSessions)
-  const shownElsewhere = Boolean(activeTab && referenced.has(activeTab.id))
+  const isFloatingPanelOpen = useAppStore((state) => state.floatingWorkspacePanelOpen)
+  const shownRef = activeTab ? referenced.get(activeTab.id) : undefined
+  const shownElsewhere = Boolean(
+    shownRef && !isFloatingReferenceDormant(shownRef, isFloatingPanelOpen)
+  )
   const showsReference = Boolean(
     group?.sessionRef && referenced.get(group.sessionRef.tabId)?.groupId === groupId
   )
