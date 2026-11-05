@@ -22,7 +22,8 @@ export function useBotTeamRoomDraft(editor: Editor | null, teamId: string): void
 export function useBotTeamComposerDraft(editor: Editor | null, key: string): void {
   const scopeKey = composerDraftScopeKey(key)
   useLayoutEffect(() => {
-    if (!editor) {
+    // Why isDestroyed: a recreated field can hand over its old, destroyed editor for one commit.
+    if (!editor || editor.isDestroyed) {
       return
     }
     const text = readNativeChatDraftCache(scopeKey)
