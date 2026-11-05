@@ -31,14 +31,15 @@ type ScannedFile = { relative: string; mtimeMs: number; size: number }
 
 /**
  * The regular files under a workspace folder written since a task began, newest first, leaving out
- * `excluded` (the names git tracks, whose changes git lists itself). Dot entries, links, build output
- * and secret-looking names are skipped; the walk reads at most MAX_ENTRIES entries and the result holds
- * at most the attachment limit.
+ * `excluded` (the names git tracks, whose changes git lists itself) and any name `included` refuses.
+ * Dot entries, links, build output and secret-looking names are skipped; the walk reads at most
+ * MAX_ENTRIES entries and the result holds at most the attachment limit, counted after `included`.
  */
 export function listRecentWorkspaceFiles(
   folder: string,
   sinceMs: number,
-  excluded: ReadonlySet<string> = new Set()
+  excluded: ReadonlySet<string> = new Set(),
+  included: (relative: string) => boolean = () => true
 ): string[] {
   const found: ScannedFile[] = []
   const pending: { directory: string; depth: number }[] = [{ directory: folder, depth: 0 }]
@@ -63,7 +64,7 @@ export function listRecentWorkspaceFiles(
         }
       } else if (entry.isFile()) {
         const file = recentFile(folder, full, sinceMs)
-        if (file !== null && !excluded.has(file.relative)) {
+        if (file !== null && !excluded.has(file.relative) && included(file.relative)) {
           found.push(file)
         }
       }

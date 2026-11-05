@@ -20,6 +20,17 @@ const MAX_NAMED_PATHS = 20
  * its root skips, is refused.
  */
 export function namedFilesIn(text: string, roots: readonly NamedFileRoot[]): DeliverableFile[] {
+  const candidates = new Set(
+    [...text.matchAll(ABSOLUTE_PATH)].map((match) => match[0].replace(TRAILING_PUNCTUATION, ''))
+  )
+  return namedFilesAmong([...candidates], roots)
+}
+
+/** The same rules for paths already split out, such as the files a finished task listed. */
+export function namedFilesAmong(
+  candidates: readonly string[],
+  roots: readonly NamedFileRoot[]
+): DeliverableFile[] {
   const resolved = roots.flatMap((root): ResolvedRoot[] => {
     try {
       return [{ ...root, real: realpathSync(root.path) }]
@@ -27,11 +38,8 @@ export function namedFilesIn(text: string, roots: readonly NamedFileRoot[]): Del
       return []
     }
   })
-  const candidates = new Set(
-    [...text.matchAll(ABSOLUTE_PATH)].map((match) => match[0].replace(TRAILING_PUNCTUATION, ''))
-  )
   const named: DeliverableFile[] = []
-  for (const candidate of [...candidates].slice(0, MAX_NAMED_PATHS)) {
+  for (const candidate of candidates.slice(0, MAX_NAMED_PATHS)) {
     const file = namedFileIn(candidate, resolved)
     if (file !== null) {
       named.push(file)

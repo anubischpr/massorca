@@ -135,6 +135,22 @@ export function listDelegationRequestsByStatus(
     .all(status) as DelegationRequestRow[]
 }
 
+/** A parent session's requests in any of `statuses`, oldest first. */
+export function listDelegationRequestsByParentStatus(
+  this: OrchestrationDb,
+  parentSessionId: string,
+  statuses: readonly DelegationRequestStatus[]
+): DelegationRequestRow[] {
+  // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: delegation_requests rows are written only by this store, with the DelegationRequestRow columns.
+  return this.db
+    .prepare(
+      `SELECT * FROM delegation_requests
+       WHERE parent_session_id = ? AND status IN (${statuses.map(() => '?').join(', ')})
+       ORDER BY created_at, id`
+    )
+    .all(parentSessionId, ...statuses) as DelegationRequestRow[]
+}
+
 /**
  * Moves a request from `from` to `to` in one statement, so two callers racing for the same step
  * cannot both win it. `patch` is written with the move. Returns the row after, or null when the
@@ -238,6 +254,7 @@ export type DelegationRequestStoreMethods = {
   getDelegationRequest: typeof getDelegationRequest
   getDelegationRequestByDispatch: typeof getDelegationRequestByDispatch
   listDelegationRequestsByStatus: typeof listDelegationRequestsByStatus
+  listDelegationRequestsByParentStatus: typeof listDelegationRequestsByParentStatus
   transitionDelegationRequest: typeof transitionDelegationRequest
   patchDelegationRequest: typeof patchDelegationRequest
   listDelegatedChildLinks: typeof listDelegatedChildLinks
@@ -249,6 +266,7 @@ export function attachDelegationRequestStore(ctor: { prototype: object }): void 
     getDelegationRequest,
     getDelegationRequestByDispatch,
     listDelegationRequestsByStatus,
+    listDelegationRequestsByParentStatus,
     transitionDelegationRequest,
     patchDelegationRequest,
     listDelegatedChildLinks
