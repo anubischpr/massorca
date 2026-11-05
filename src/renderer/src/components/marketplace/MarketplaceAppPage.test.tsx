@@ -397,6 +397,37 @@ describe('MarketplaceAppPage', () => {
     })
   })
 
+  it('renames an OpenMetadata profile by adding the new name, then removing the old one', async () => {
+    const container = await mount('openmetadata')
+
+    await clickButton(sectionOf(container, 'advanced'), 'Edit')
+    await typeInto(inputById('marketplace-profile-name'), 'production')
+    await typeInto(inputById('marketplace-profile-token'), 'prod-token')
+    await submitDialog()
+
+    expect(mocks.addOpenMetadataProfile).toHaveBeenCalledWith({
+      name: 'production',
+      url: 'https://prod.example.com',
+      token: 'prod-token'
+    })
+    expect(mocks.removeOpenMetadataProfile).toHaveBeenCalledWith({ name: 'prod' })
+    expect(mocks.addOpenMetadataProfile.mock.invocationCallOrder[0]).toBeLessThan(
+      mocks.removeOpenMetadataProfile.mock.invocationCallOrder[0] ?? 0
+    )
+  })
+
+  it('keeps the old profile when adding the renamed one fails', async () => {
+    mocks.addOpenMetadataProfile.mockResolvedValueOnce({ ok: false, reason: 'invalid-input' })
+    const container = await mount('openmetadata')
+
+    await clickButton(sectionOf(container, 'advanced'), 'Edit')
+    await typeInto(inputById('marketplace-profile-name'), 'production')
+    await typeInto(inputById('marketplace-profile-token'), 'prod-token')
+    await submitDialog()
+
+    expect(mocks.removeOpenMetadataProfile).not.toHaveBeenCalled()
+  })
+
   it('copies the deep link and an example prompt with its @ mention', async () => {
     const container = await mount('engram')
 

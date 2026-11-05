@@ -149,9 +149,17 @@ export function OpenMetadataProfileDialog({
       pending={form.pending}
       error={form.error}
       onSubmit={() =>
-        void form.submit((api) =>
-          api.addOpenMetadataProfile({ name: profileName, url: address, token: secret })
-        )
+        void form.submit(async (api) => {
+          const added = await api.addOpenMetadataProfile({
+            name: profileName,
+            url: address,
+            token: secret
+          })
+          // Why: a rename is the new profile added first, so a failed add never loses the old one.
+          return added.ok && profile && profile.name !== profileName
+            ? api.removeOpenMetadataProfile({ name: profile.name })
+            : added
+        })
       }
       onClose={onClose}
     >
@@ -160,7 +168,6 @@ export function OpenMetadataProfileDialog({
         label={translate('auto.components.marketplace.MarketplaceServerDialogs.name', 'Name')}
         value={name}
         onChange={setName}
-        disabled={profile !== null}
       />
       <TextField
         id="marketplace-profile-address"
