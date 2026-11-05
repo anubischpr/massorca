@@ -6,7 +6,7 @@ import { useImeEnterGestureOwnership } from '@/lib/ime-composition-keyboard-even
 import { NativeChatPromptEditor } from '../native-chat/NativeChatPromptEditor'
 import type { NativeChatComposerInput } from '../native-chat/native-chat-composer-input'
 import { CreateChatChipMenuGroup } from './CreateChatChipMenu'
-import { useCreateChatMention } from './use-create-chat-mention'
+import { useCreateChatMention, type CreateChatMentionTarget } from './use-create-chat-mention'
 
 /** Wording that differs when another page, such as the Tasks home's Bot Team mode, reuses the box. */
 export type CreateChatComposerCopy = {
@@ -35,8 +35,8 @@ type CreateChatComposerProps = {
   rightChips: ReactNode
   /** Defaults to the session wording. */
   copy?: CreateChatComposerCopy
-  /** The worktree whose files `@` lists, as the workspace chat does; null or absent offers none. */
-  mentionWorktreeId?: string | null
+  /** Where `@` lists files, as the workspace chat does; null or absent offers none. */
+  mentionTarget?: CreateChatMentionTarget | null
   /** A field that replaces the textarea, with its own `@` menu (the Tasks home's Bot Team mode). */
   editorField?: {
     render: (className: string) => ReactNode
@@ -58,7 +58,7 @@ export function CreateChatComposer({
   notice,
   rightChips,
   copy,
-  mentionWorktreeId,
+  mentionTarget,
   editorField
 }: CreateChatComposerProps): React.JSX.Element {
   const placeholder =
@@ -71,7 +71,7 @@ export function CreateChatComposer({
   const boxRef = useRef<HTMLDivElement | null>(null)
   const imeEnterGesture = useImeEnterGestureOwnership()
   const mention = useCreateChatMention({
-    worktreeId: editorField ? null : (mentionWorktreeId ?? null),
+    target: editorField ? null : (mentionTarget ?? null),
     draft,
     setDraft: onDraftChange,
     isComposing: imeEnterGesture.isComposing,

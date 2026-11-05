@@ -1,5 +1,14 @@
-import { useId, useState, type KeyboardEventHandler, type ReactNode, type RefObject } from 'react'
+import {
+  useId,
+  useMemo,
+  useState,
+  type KeyboardEventHandler,
+  type ReactNode,
+  type RefObject
+} from 'react'
 import { useAppStore } from '@/store'
+import type { ExecutionHostId } from '../../../../shared/execution-host'
+import { createChatPrimaryWorktree } from './create-chat-primary-worktree'
 import { NativeChatMentionMenu } from '../native-chat/NativeChatMentionMenu'
 import type { NativeChatComposerInput } from '../native-chat/native-chat-composer-input'
 import {
@@ -27,24 +36,53 @@ export function createChatMentionPlacement(
   return roomBelow < MENU_ROOM && box.top > roomBelow ? 'above' : 'below'
 }
 
-/** The worktree whose files @ lists: the picked one, else the project's main checkout; null with no project. */
-export function useCreateChatMentionWorktreeId(selection: CreateChatSelection): string | null {
-  const project = selection.project
-  const mainWorktreeId = useAppStore((state) =>
-    project.kind === 'repo'
-      ? (state.worktreesByRepo[project.repoId]?.find((worktree) => worktree.isMainWorktree)?.id ??
-        null)
-      : null
+/** Where @ lists files: a worktree on the host the user picked, and its folder when known. */
+export type CreateChatMentionTarget = {
+  worktreeId: string
+  executionHostId: ExecutionHostId
+  rootPath: string | null
+}
+
+/** The picked worktree, else the project's primary checkout as the submit resolves it; null with no project. */
+export function useCreateChatMentionTarget(
+  selection: CreateChatSelection
+): CreateChatMentionTarget | null {
+  const { project, executionHostId } = selection
+  const repoId = project.kind === 'repo' ? project.repoId : null
+  const repo = useAppStore((state) =>
+    repoId === null ? null : (state.repos.find((entry) => entry.id === repoId) ?? null)
   )
-  if (selection.workspaceMode === 'existing-worktree' && selection.existingWorktreeId) {
-    return selection.existingWorktreeId
-  }
-  return mainWorktreeId
+  const worktrees = useAppStore((state) =>
+    repoId === null ? null : (state.worktreesByRepo[repoId] ?? null)
+  )
+  return useMemo(() => {
+    if (repoId === null) {
+      return null
+    }
+    const picked =
+      selection.workspaceMode === 'existing-worktree' ? selection.existingWorktreeId : undefined
+    if (picked) {
+      const row = worktrees?.find((worktree) => worktree.id === picked)
+      return { worktreeId: picked, executionHostId, rootPath: row?.path ?? null }
+    }
+    if (!repo) {
+      return null
+    }
+    const primary = createChatPrimaryWorktree({ repoId, path: repo.path }, worktrees ?? [])
+    return { worktreeId: primary.id, executionHostId, rootPath: primary.path }
+  }, [
+    executionHostId,
+    repo,
+    repoId,
+    selection.existingWorktreeId,
+    selection.workspaceMode,
+    worktrees
+  ])
 }
 
 /** The workspace chat's @ menu for the first-message box: its files and apps, menu, keys and chips. */
 export function useCreateChatMention(args: {
-  worktreeId: string | null
+  target: CreateChatMentionTarget | null
   draft: string
   setDraft: (draft: string) => void
   isComposing: () => boolean
@@ -60,20 +98,22 @@ export function useCreateChatMention(args: {
   /** The combobox attributes the box's text field carries while the menu is open. */
   ariaProps: Record<string, string>
 } {
-  const { worktreeId, draft, setDraft, isComposing, send, inputRef, boxRef } = args
+  const { target, draft, setDraft, isComposing, send, inputRef, boxRef } = args
   const [caret, setCaret] = useState(0)
   const [active, setActive] = useState(0)
   const [dismissed, setDismissed] = useState<string | null>(null)
   const [placement, setPlacement] = useState<'above' | 'below'>('below')
   const listboxId = useId()
   const derived =
-    worktreeId === null ? CLOSED : deriveComposerAutocomplete(draft, caret, [], [], null, undefined)
+    target === null ? CLOSED : deriveComposerAutocomplete(draft, caret, [], [], null, undefined)
   const autocomplete: ComposerAutocomplete =
     derived.mode === 'mention' && derived.triggerKey !== dismissed ? derived : CLOSED
   const mentionFiles = useNativeChatMentionFilesAndApps({
     query: autocomplete.mode === 'mention' ? autocomplete.query : null,
     terminalTabId: '',
-    structuredWorktreeId: worktreeId ?? undefined
+    structuredWorktreeId: target?.worktreeId,
+    executionHostId: target?.executionHostId,
+    rootPath: target?.rootPath
   })
   const completeMention = (path: string): void => {
     const next = applyMentionSuggestion(draft, caret, path)

@@ -11,7 +11,7 @@ import { activateAndRevealWorkspace } from '@/lib/worktree-activation'
 import { runBackgroundWorktreeCreation } from '@/lib/worktree-creation-flow'
 import { LOCAL_EXECUTION_HOST_ID, type ExecutionHostId } from '../../../../shared/execution-host'
 import type { Repo } from '../../../../shared/repo-types'
-import { getRepoMainWorktreeId } from '../../../../shared/worktree/id'
+import { createChatPrimaryWorktree } from './create-chat-primary-worktree'
 import type { CreateChatNamingOverride } from '../../../../shared/create-chat-session-naming'
 import type { ProjectlessChatWorkspaceErrorCode } from '../../../../shared/projectless-chat-folder'
 import {
@@ -104,11 +104,8 @@ function projectlessErrorMessage(code: ProjectlessChatWorkspaceErrorCode): strin
 
 /** The repo's primary checkout; creates nothing. */
 function primaryWorkspaceId(repo: CreateChatRepoOption): string {
-  const worktrees = useAppStore.getState().worktreesByRepo[repo.repoId] ?? []
-  return (
-    worktrees.find((worktree) => worktree.isMainWorktree)?.id ??
-    getRepoMainWorktreeId({ id: repo.repoId, path: repo.path })
-  )
+  return createChatPrimaryWorktree(repo, useAppStore.getState().worktreesByRepo[repo.repoId] ?? [])
+    .id
 }
 
 /** Starts the session the view picked in this workspace: the structured chat, or the agent's terminal. */

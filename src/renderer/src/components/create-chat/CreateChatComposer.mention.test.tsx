@@ -8,16 +8,31 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true
 
-const mentionQueries = vi.hoisted(() => [] as { query: string | null; worktreeId?: string }[])
+const mentionQueries = vi.hoisted(
+  () =>
+    [] as {
+      query: string | null
+      worktreeId?: string
+      executionHostId?: string
+      rootPath?: string | null
+    }[]
+)
 vi.mock('@/i18n/i18n', async (importOriginal) => ({
   ...(await importOriginal<typeof I18nModule>()),
   translate: (_key: string, fallback: string) => fallback
 }))
 vi.mock('../native-chat/use-native-chat-mention-files', () => ({
-  useNativeChatMentionFiles: (args: { query: string | null; structuredWorktreeId?: string }) => {
+  useNativeChatMentionFiles: (args: {
+    query: string | null
+    structuredWorktreeId?: string
+    executionHostId?: string
+    rootPath?: string | null
+  }) => {
     mentionQueries.push({
       query: args.query,
-      worktreeId: args.structuredWorktreeId
+      worktreeId: args.structuredWorktreeId,
+      executionHostId: args.executionHostId,
+      rootPath: args.rootPath
     })
     return {
       files: args.query === null ? [] : ['src/shared/routine.ts', 'docs/brief.md'],
@@ -28,7 +43,8 @@ vi.mock('../native-chat/use-native-chat-mention-files', () => ({
 }))
 
 const { CreateChatComposer } = await import('./CreateChatComposer')
-const { createChatMentionPlacement } = await import('./use-create-chat-mention')
+const { createChatMentionPlacement, useCreateChatMentionTarget } =
+  await import('./use-create-chat-mention')
 const { promptTextContent } = await import('../native-chat/native-chat-prompt-document')
 const { promptEditor, promptValue } =
   await import('../native-chat/native-chat-prompt-editor.test-support')
@@ -36,7 +52,9 @@ const { useAppStore } = await import('@/store')
 
 const mounted: { container: HTMLDivElement; root: Root }[] = []
 
-function Harness({ worktreeId }: { worktreeId: string | null }): React.JSX.Element {
+type MentionTarget = Parameters<typeof CreateChatComposer>[0]['mentionTarget']
+
+function Harness({ target }: { target: MentionTarget }): React.JSX.Element {
   const [draft, setDraft] = useState('')
   return (
     <CreateChatComposer
@@ -46,7 +64,7 @@ function Harness({ worktreeId }: { worktreeId: string | null }): React.JSX.Eleme
       pending={false}
       error={null}
       onSubmit={() => {}}
-      mentionWorktreeId={worktreeId}
+      mentionTarget={target}
       placeChips={null}
       footerChips={null}
       notice={null}
@@ -56,11 +74,17 @@ function Harness({ worktreeId }: { worktreeId: string | null }): React.JSX.Eleme
 }
 
 function mount(worktreeId: string | null): HTMLDivElement {
+  return mountTarget(
+    worktreeId === null ? null : { worktreeId, executionHostId: 'local', rootPath: null }
+  )
+}
+
+function mountTarget(target: MentionTarget): HTMLDivElement {
   const container = document.createElement('div')
   document.body.appendChild(container)
   const root = createRoot(container)
   mounted.push({ container, root })
-  act(() => root.render(<Harness worktreeId={worktreeId} />))
+  act(() => root.render(<Harness target={target} />))
   return container
 }
 
@@ -90,7 +114,7 @@ afterEach(() => {
     container.remove()
   }
   mentionQueries.length = 0
-  useAppStore.setState({ marketplaceApps: { status: 'loading' } })
+  useAppStore.setState({ marketplaceApps: { status: 'loading' }, repos: [], worktreesByRepo: {} })
 })
 
 describe('CreateChatComposer @ files', () => {
@@ -101,7 +125,7 @@ describe('CreateChatComposer @ files', () => {
     expect(options).toHaveLength(2)
     expect(options[0]?.querySelector('svg.lucide-file-code')).not.toBeNull()
     expect(options[1]?.querySelector('svg.lucide-file-text')).not.toBeNull()
-    expect(mentionQueries.at(-1)).toEqual({ query: 'rou', worktreeId: 'wt-1' })
+    expect(mentionQueries.at(-1)).toMatchObject({ query: 'rou', worktreeId: 'wt-1' })
   })
 
   it('shows a file row’s full path as its tooltip', async () => {
@@ -180,5 +204,47 @@ describe('CreateChatComposer @ files', () => {
     const container = mount(null)
     type(container, 'Fix @rou')
     expect(container.querySelector('[role="listbox"]')).toBeNull()
+  })
+
+  it('lists a Local Windows project’s files on the picked host, before its worktrees load', () => {
+    const repoPath = 'C:\\code\\app'
+    useAppStore.setState({
+      // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the target reads only id and path.
+      repos: [{ id: 'repo-1', path: repoPath }] as never,
+      worktreesByRepo: {}
+    })
+    const targets: MentionTarget[] = []
+    function Probe(): null {
+      targets.push(
+        useCreateChatMentionTarget({
+          executionHostId: 'local',
+          project: { kind: 'repo', repoId: 'repo-1' },
+          workspaceMode: 'new-worktree',
+          agent: 'claude',
+          accessMode: 'default'
+        })
+      )
+      return null
+    }
+    const probe = document.createElement('div')
+    const root = createRoot(probe)
+    mounted.push({ container: probe, root })
+    act(() => root.render(<Probe />))
+    const target = targets.at(-1) ?? null
+    expect(target).toEqual({
+      worktreeId: `repo-1::${repoPath}`,
+      executionHostId: 'local',
+      rootPath: repoPath
+    })
+
+    const container = mountTarget(target)
+    type(container, 'Fix @rou')
+    expect(container.querySelectorAll('[role="option"]')).toHaveLength(2)
+    expect(mentionQueries.at(-1)).toEqual({
+      query: 'rou',
+      worktreeId: `repo-1::${repoPath}`,
+      executionHostId: 'local',
+      rootPath: repoPath
+    })
   })
 })
