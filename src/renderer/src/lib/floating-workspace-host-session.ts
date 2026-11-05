@@ -6,6 +6,7 @@ import {
   FLOATING_HOST_THIS_COMPUTER
 } from './floating-workspace-host'
 import type { TuiAgent } from '../../../shared/tui-agent'
+import type { Tab } from '../../../shared/tab-types'
 import { newAgentLaunchRequestId } from './agent-launch-request-id'
 import { useFloatingWorkspaceHostStore } from './floating-workspace-host-store'
 import { launchAgentInNewTab } from './launch-agent-in-new-tab'
@@ -83,15 +84,22 @@ export function knownSessionTabIds(worktreeId: string): Set<string> {
 export function showWhenHostPublishes(
   worktreeId: string,
   knownTabIds: ReadonlySet<string>,
-  options: { endsSessionOnClose?: boolean } = {}
+  options: { endsSessionOnClose?: boolean; contentType?: Tab['contentType'] } = {}
 ): void {
   void awaitNewSessionTab(
-    { worktreeId, knownTabIds, timeoutMs: HOST_SESSION_WAIT_MS },
+    {
+      worktreeId,
+      knownTabIds,
+      timeoutMs: HOST_SESSION_WAIT_MS,
+      ...(options.contentType ? { contentType: options.contentType } : {})
+    },
     useAppStore
   ).then((tabId) => {
     if (tabId) {
       markAgentTerminalAsSession(worktreeId, tabId)
-      showHostSessionInFloating(worktreeId, tabId, options)
+      showHostSessionInFloating(worktreeId, tabId, {
+        endsSessionOnClose: options.endsSessionOnClose
+      })
       return
     }
     toast.error(
@@ -136,7 +144,11 @@ export async function startTerminalOnHostWorkspace(
   useFloatingWorkspaceHostStore.getState().markUsed(environmentId)
   // Why: a terminal opened from the floating panel belongs to it; left behind on close, it would
   // pile up in the host workspace.
-  showWhenHostPublishes(worktreeId, knownTabIds, { endsSessionOnClose: true })
+  // Why: only a terminal is this create's own tab; a chat that appears meanwhile belongs to another launch.
+  showWhenHostPublishes(worktreeId, knownTabIds, {
+    endsSessionOnClose: true,
+    contentType: 'terminal'
+  })
 }
 
 /** The "+" menu's host while a paired host is selected: it lists that host's agents and shells, and starts agents there. */

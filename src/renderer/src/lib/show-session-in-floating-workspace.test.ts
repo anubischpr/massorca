@@ -117,11 +117,12 @@ describe('showing another workspace session in the floating workspace', () => {
     expect(state.groupsByWorktree[FLOATING]?.[0]?.tabOrder).toHaveLength(3)
     expect(state.groupsByWorktree[FLOATING]?.[0]?.tabOrder).toContain(sessionTab?.id)
     expect(selectReferencedSessions(state).has('owner-chat')).toBe(true)
+    // Why: while another floating tab is active, the owner keeps showing its session.
     expect(
       referencedPlacement(selectReferencedSessions(state), 'owner-chat', FLOATING, {
         [FLOATING]: 'float-main'
-      })?.isVisible
-    ).toBe(false)
+      })
+    ).toBeNull()
   })
 
   it('refuses a session that the floating workspace already shows', () => {

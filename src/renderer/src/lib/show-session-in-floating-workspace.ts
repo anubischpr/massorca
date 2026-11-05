@@ -88,9 +88,15 @@ export function showSessionInFloatingWorkspace(
 /**
  * The session tab a host-published launch opens in `worktreeId`: the first session tab that is not
  * in `knownTabIds`, once the host publishes it. Resolves null when it does not appear in time.
+ * `contentType` narrows it to one kind, so a terminal's wait cannot take a chat another launch opens.
  */
 export function awaitNewSessionTab(
-  args: { worktreeId: string; knownTabIds: ReadonlySet<string>; timeoutMs: number },
+  args: {
+    worktreeId: string
+    knownTabIds: ReadonlySet<string>
+    timeoutMs: number
+    contentType?: Tab['contentType']
+  },
   store: FloatingSessionStore
 ): Promise<string | null> {
   const findNew = (): string | null => {
@@ -102,10 +108,14 @@ export function awaitNewSessionTab(
         row.launchAgent ? [row.id] : []
       )
     )
+    // Why: a session some floating tab already shows belongs to that launch, not to this wait.
+    const referenced = selectReferencedSessions(state)
     return (
       (state.unifiedTabsByWorktree[args.worktreeId] ?? []).find(
         (tab) =>
           !args.knownTabIds.has(tab.id) &&
+          !referenced.has(tab.id) &&
+          (args.contentType === undefined || tab.contentType === args.contentType) &&
           (isSessionTab(tab) ||
             (tab.contentType === 'terminal' && launchedAgentRowIds.has(tab.entityId)))
       )?.id ?? null

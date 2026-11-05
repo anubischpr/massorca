@@ -3,6 +3,7 @@ import { FLOATING_TERMINAL_WORKTREE_ID } from '../../../../../shared/constants'
 import { createTestStore, makeTabGroup, makeUnifiedTab, seedStore } from '../store-test-helpers'
 import { installSidePanelNormalizer } from './side-panel-normalizer'
 import {
+  isFloatingReferenceDormant,
   referencedPlacement,
   selectFloatingReferenceOwnerWorktreeIds,
   selectReferencedSessions
@@ -245,26 +246,25 @@ describe('a session shown by a floating session tab', () => {
     }
   })
 
-  it('is hidden while its tab is not the active tab of its group', () => {
+  it('gives the session back to its owner while its tab is not the active tab of its group', () => {
+    // Why: another floating tab (a new terminal) took the focus; the owner's view must not turn into the picker.
     showAsTab(false)
     const inactive = selectReferencedSessions(store.getState())
-    expect(referencedPlacement(inactive, 'b-chat', A, { [FLOAT]: 'float-main' }, true)).toEqual({
-      groupId: 'float-main',
-      isVisible: false,
-      isFocusedGroup: false,
-      focusWorktreeId: FLOAT
-    })
+    const shown = inactive.get('b-chat')
+    expect(shown && isFloatingReferenceDormant(shown, true)).toBe(true)
+    expect(referencedPlacement(inactive, 'b-chat', A, { [FLOAT]: 'float-main' }, true)).toBeNull()
   })
 
-  it('is hidden while the floating panel is closed', () => {
+  it('gives the session back to its owner while the floating panel is closed', () => {
     showAsTab(true)
     const referenced = selectReferencedSessions(store.getState())
+    const shown = referenced.get('b-chat')
+    expect(shown && isFloatingReferenceDormant(shown, false)).toBe(true)
+    expect(shown && isFloatingReferenceDormant(shown, true)).toBe(false)
     expect(
-      referencedPlacement(referenced, 'b-chat', A, { [FLOAT]: 'float-main' }, false)?.isVisible
-    ).toBe(false)
-    expect(referencedPlacement(referenced, 'b-chat', A, { [FLOAT]: 'float-main' })?.isVisible).toBe(
-      false
-    )
+      referencedPlacement(referenced, 'b-chat', A, { [FLOAT]: 'float-main' }, false)
+    ).toBeNull()
+    expect(referencedPlacement(referenced, 'b-chat', A, { [FLOAT]: 'float-main' })).toBeNull()
   })
 
   it('names the owner workspace of a session the floating panel shows, for mounting', () => {
