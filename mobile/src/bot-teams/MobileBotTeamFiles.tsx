@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Pressable, ScrollView, Text, View, useWindowDimensions } from 'react-native'
-import { FileText } from 'lucide-react-native'
+import { FileText, Share2 } from 'lucide-react-native'
 import { MobileFilePreviewBody } from '../files/MobileFilePreviewBody'
 import {
   loadMobileFilePreview,
@@ -8,6 +8,7 @@ import {
   type MobileFilePreviewResult
 } from '../files/mobile-file-preview-request'
 import { displayNameFromPreviewPath } from '../files/mobile-file-preview-route'
+import { shareMobileFile } from '../files/mobile-file-share'
 import { colors, spacing } from '../theme/mobile-theme'
 import type { RpcClient } from '../transport/rpc-client'
 import { listMobileBotTeamFiles, type MobileBotTeamFilesResult } from './mobile-bot-team-files'
@@ -104,6 +105,8 @@ export function MobileBotTeamFile({
 }) {
   const [preview, setPreview] = useState<MobileFilePreviewResult>(LOADING)
   const [attempt, setAttempt] = useState(0)
+  const [sharing, setSharing] = useState(false)
+  const [shareNote, setShareNote] = useState('')
   const { width, height } = useWindowDimensions()
 
   useEffect(() => {
@@ -133,6 +136,28 @@ export function MobileBotTeamFile({
           ? 'Check the connection to this host and try again.'
           : null
 
+  async function share() {
+    if (workspaceId === null) {
+      return
+    }
+    setSharing(true)
+    setShareNote('')
+    try {
+      const outcome = await shareMobileFile(
+        client,
+        { worktreeId: workspaceId, relativePath: path },
+        displayNameFromPreviewPath(path)
+      )
+      if (outcome === 'unavailable') {
+        setShareNote('Sharing is not available on this device.')
+      }
+    } catch (error) {
+      setShareNote(error instanceof Error ? error.message : 'Unable to share this file')
+    } finally {
+      setSharing(false)
+    }
+  }
+
   return (
     <View style={styles.grow}>
       <MobileBotTeamWorkBar title={path} onBack={onBack} />
@@ -141,21 +166,38 @@ export function MobileBotTeamFile({
           <Text style={styles.message}>{notice}</Text>
         </ScrollView>
       ) : (
-        <MobileFilePreviewBody
-          preview={preview}
-          client={client}
-          relativePath={path}
-          title={displayNameFromPreviewPath(path)}
-          editable={false}
-          draftContent=""
-          saveError=""
-          lineColumn={null}
-          imageWidth={Math.max(1, width - spacing.md * 2)}
-          imageHeight={Math.max(240, height - 160)}
-          onDraftChange={() => undefined}
-          onImageError={() => setPreview(previewError('Unable to load preview'))}
-          onRetry={() => setAttempt((count) => count + 1)}
-        />
+        <>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Share file"
+            disabled={workspaceId === null || offline || sharing}
+            onPress={() => void share()}
+            style={[
+              styles.secondary,
+              styles.fileShare,
+              (workspaceId === null || offline || sharing) && styles.disabledAction
+            ]}
+          >
+            <Share2 size={18} color={colors.textSecondary} />
+            <Text style={styles.rowTitle}>Share</Text>
+          </Pressable>
+          {shareNote ? <Text style={styles.rowMeta}>{shareNote}</Text> : null}
+          <MobileFilePreviewBody
+            preview={preview}
+            client={client}
+            relativePath={path}
+            title={displayNameFromPreviewPath(path)}
+            editable={false}
+            draftContent=""
+            saveError=""
+            lineColumn={null}
+            imageWidth={Math.max(1, width - spacing.md * 2)}
+            imageHeight={Math.max(240, height - 160)}
+            onDraftChange={() => undefined}
+            onImageError={() => setPreview(previewError('Unable to load preview'))}
+            onRetry={() => setAttempt((count) => count + 1)}
+          />
+        </>
       )}
     </View>
   )

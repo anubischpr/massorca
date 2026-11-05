@@ -1,8 +1,25 @@
 import { createElement } from 'react'
 import { act, create, type ReactTestRenderer } from 'react-test-renderer'
-import { describe, expect, it, vi } from 'vitest'
+import * as Sharing from 'expo-sharing'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { RpcClient } from '../transport/rpc-client'
 import { MobileBotTeamFile, MobileBotTeamFiles } from './MobileBotTeamFiles'
+
+vi.mock('expo-sharing', () => ({
+  isAvailableAsync: vi.fn(async () => true),
+  shareAsync: vi.fn(async () => undefined)
+}))
+const sink = vi.hoisted(() => ({
+  append: vi.fn(),
+  finish: vi.fn(() => 'file:///cache/flyer.pdf'),
+  dispose: vi.fn()
+}))
+// Why: the download sink writes a cache file through expo-file-system, which this runner cannot load.
+vi.mock('../files/mobile-media-preview-cache', () => ({ createMobileMediaSink: () => sink }))
+
+beforeEach(() => {
+  vi.clearAllMocks()
+})
 
 vi.mock('react-native', () => ({
   ActivityIndicator: 'ActivityIndicator',
@@ -14,7 +31,11 @@ vi.mock('react-native', () => ({
   View: 'View',
   useWindowDimensions: () => ({ width: 390, height: 844 })
 }))
-vi.mock('lucide-react-native', () => ({ ChevronLeft: 'ChevronLeft', FileText: 'FileText' }))
+vi.mock('lucide-react-native', () => ({
+  ChevronLeft: 'ChevronLeft',
+  FileText: 'FileText',
+  Share2: 'Share2'
+}))
 // Why: the media preview loads expo-file-system, which needs the app's __DEV__ global to import.
 vi.mock('../files/MobileFileMediaPreview', () => ({ MobileFileMediaPreview: () => null }))
 // Why: the real markdown view imports React Native internals this runner cannot parse; its text stands in.
@@ -92,6 +113,39 @@ const press = async (renderer: ReactTestRenderer, label: string) => {
         node.findAll((child) => child.children.includes(label)).length > 0)
   )[0]
   await act(async () => target.props.onPress())
+}
+
+/** Answers each method by name; the preview read gets an unsupported reply it can show. */
+function hostByMethod(replies: Record<string, RpcResponse>) {
+  const sendRequest = vi.fn(async (method: string, _params?: unknown, _options?: unknown) => ({
+    ...(replies[method] ?? {
+      id: '1',
+      ok: false,
+      error: { code: 'unsupported', message: 'Binary preview unavailable' }
+    }),
+    _meta: { runtimeId: 'r' }
+  }))
+  // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: The file screen only calls sendRequest.
+  return { sendRequest, client: { sendRequest } as never as RpcClient }
+}
+
+const statReply = (): RpcResponse => ({
+  id: '1',
+  ok: true,
+  result: { size: 3, mtime: 1, isDirectory: false },
+  _meta: { runtimeId: 'r' }
+})
+const chunkReply = (): RpcResponse => ({
+  id: '1',
+  ok: true,
+  result: { contentBase64: 'AQID', bytesRead: 3, eof: true },
+  _meta: { runtimeId: 'r' }
+})
+
+async function flushShare() {
+  await act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 0))
+  })
 }
 
 describe('MobileBotTeamFiles', () => {
@@ -189,5 +243,31 @@ describe('MobileBotTeamFile', () => {
     const renderer = await renderFile({ client, workspaceId: null, folderKnown: true })
     expect(sendRequest).not.toHaveBeenCalled()
     expect(text(renderer)).toContain('This team has no folder yet.')
+  })
+
+  it('shares any room file, previewable or not, through the download path', async () => {
+    const { client, sendRequest } = hostByMethod({
+      'files.stat': statReply(),
+      'files.readChunk': chunkReply()
+    })
+    const renderer = await renderFile({ client, path: 'reports/flyer.pdf' })
+    await press(renderer, 'Share')
+    await flushShare()
+    expect(sendRequest.mock.calls.map((call) => call[0])).toContain('files.readChunk')
+    expect(Sharing.shareAsync).toHaveBeenCalledWith('file:///cache/flyer.pdf', {
+      mimeType: 'application/octet-stream',
+      dialogTitle: 'flyer.pdf'
+    })
+  })
+
+  it('says sharing is not available on this device, without downloading', async () => {
+    vi.mocked(Sharing.isAvailableAsync).mockResolvedValueOnce(false)
+    const { client, sendRequest } = hostByMethod({})
+    const renderer = await renderFile({ client, path: 'reports/flyer.pdf' })
+    await press(renderer, 'Share')
+    await flushShare()
+    expect(text(renderer)).toContain('Sharing is not available on this device.')
+    expect(sendRequest.mock.calls.map((call) => call[0])).not.toContain('files.stat')
+    expect(Sharing.shareAsync).not.toHaveBeenCalled()
   })
 })
