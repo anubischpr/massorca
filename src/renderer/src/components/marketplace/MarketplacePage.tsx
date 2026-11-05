@@ -49,6 +49,7 @@ export default function MarketplacePage(): React.JSX.Element {
   const catalog = useMarketplaceCatalog({
     hostLabel,
     local: host.selectedKey === null,
+    remoteTarget: pickedTarget ?? null,
     apps: host.apps,
     refreshPreflight: true
   })

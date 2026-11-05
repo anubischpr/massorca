@@ -326,8 +326,32 @@ describe('MarketplacePage', () => {
     const container = await renderPage()
     await flush()
 
-    expect(namesIn(sectionBody(container, 'Skills'))).toEqual(['alpha', 'beta'])
+    expect(namesIn(sectionBody(container, 'Skills'))).toEqual([
+      'alpha',
+      'beta',
+      'Browser use',
+      'Computer use',
+      'Linear',
+      'Orchestration',
+      'Price check'
+    ])
     expect(statusOf(container, 'alpha')).toBe('Installed')
+    expect(statusOf(container, 'Browser use')).toBe('Install')
+  })
+
+  it('keeps the board skills listed when this computer finds no skill', async () => {
+    mocks.discover.mockResolvedValue({ skills: [], sources: [], scannedAt: 1 })
+    const container = await renderPage()
+    await flush()
+
+    expect(namesIn(sectionBody(container, 'Skills'))).toEqual([
+      'Browser use',
+      'Computer use',
+      'Linear',
+      'Orchestration',
+      'Price check'
+    ])
+    expect(container.textContent).not.toContain('No skills found')
   })
 
   it('shows Your apps with the installed apps and the connected services', async () => {

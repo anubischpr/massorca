@@ -1,4 +1,5 @@
 import {
+  BookOpen,
   Calendar,
   Folder,
   Gitlab,
@@ -9,10 +10,14 @@ import {
   type LucideIcon
 } from 'lucide-react'
 import { translate } from '@/i18n/i18n'
-import type { DiscoveredSkill } from '../../../../shared/skills'
-import type { CatalogListState, CatalogRow, CatalogRowStatus } from './MarketplaceCatalogRows'
 import type { MarketplaceItemKind } from './marketplace-catalog'
-import type { MarketplaceBadgeState } from './marketplace-status'
+import type {
+  CatalogBadge,
+  CatalogRow,
+  CatalogRowStatus,
+  HostUnanswered,
+  MarketplaceCatalogSectionId
+} from './MarketplaceCatalogRows'
 import {
   checkingLabel,
   connectLabel,
@@ -20,19 +25,36 @@ import {
   couldNotCheckLabel,
   desktopOnlyLabel,
   installLabel,
-  installedLabel
+  installedLabel,
+  updateOnHostLabel
 } from './MarketplaceCatalogStatusCopy'
 
 /** Board rows without an item page. GitHub CLI and GitLab read the CLI check; the rest have nothing behind them yet. */
-type BoardRowId = 'gh' | 'node' | 'gitlab' | 'email' | 'calendar' | 'drive' | 'crm'
+type BoardRowId =
+  | 'gh'
+  | 'node'
+  | 'gitlab'
+  | 'email'
+  | 'calendar'
+  | 'drive'
+  | 'crm'
+  | 'browser'
+  | 'computer'
+  | 'linear'
+  | 'orch'
+  | 'price'
+
+type BoardRowKind = MarketplaceItemKind | 'skill'
 
 type BoardRow = {
   id: BoardRowId
-  kind: MarketplaceItemKind
+  kind: BoardRowKind
   name: string
   description: { key: string; fallback: string }
   glyph: LucideIcon
 }
+
+const BOARD_COPY = 'auto.components.marketplace.MarketplaceCatalogPlaceholders'
 
 /** Names, lines and icons as the approved Catalog board shows them. */
 const BOARD_ROWS: readonly BoardRow[] = [
@@ -41,7 +63,7 @@ const BOARD_ROWS: readonly BoardRow[] = [
     kind: 'tool',
     name: 'GitHub CLI',
     description: {
-      key: 'auto.components.marketplace.MarketplaceCatalogPlaceholders.githubCliDescription',
+      key: `${BOARD_COPY}.githubCliDescription`,
       fallback: 'Signs in to GitHub; agents open pull requests with it.'
     },
     glyph: SquareTerminal
@@ -51,7 +73,7 @@ const BOARD_ROWS: readonly BoardRow[] = [
     kind: 'tool',
     name: 'Node.js',
     description: {
-      key: 'auto.components.marketplace.MarketplaceCatalogPlaceholders.nodeDescription',
+      key: `${BOARD_COPY}.nodeDescription`,
       fallback: 'Runs the JavaScript tools some agents call.'
     },
     glyph: Hexagon
@@ -61,7 +83,7 @@ const BOARD_ROWS: readonly BoardRow[] = [
     kind: 'service',
     name: 'GitLab',
     description: {
-      key: 'auto.components.marketplace.MarketplaceCatalogPlaceholders.gitlabDescription',
+      key: `${BOARD_COPY}.gitlabDescription`,
       fallback: 'Repositories, merge requests and issues.'
     },
     glyph: Gitlab
@@ -71,7 +93,7 @@ const BOARD_ROWS: readonly BoardRow[] = [
     kind: 'service',
     name: 'Email',
     description: {
-      key: 'auto.components.marketplace.MarketplaceCatalogPlaceholders.emailDescription',
+      key: `${BOARD_COPY}.emailDescription`,
       fallback: 'Bot teams read and send mail.'
     },
     glyph: Mail
@@ -81,7 +103,7 @@ const BOARD_ROWS: readonly BoardRow[] = [
     kind: 'service',
     name: 'Calendar',
     description: {
-      key: 'auto.components.marketplace.MarketplaceCatalogPlaceholders.calendarDescription',
+      key: `${BOARD_COPY}.calendarDescription`,
       fallback: 'Bot teams read and add events.'
     },
     glyph: Calendar
@@ -91,7 +113,7 @@ const BOARD_ROWS: readonly BoardRow[] = [
     kind: 'service',
     name: 'Shared drive',
     description: {
-      key: 'auto.components.marketplace.MarketplaceCatalogPlaceholders.sharedDriveDescription',
+      key: `${BOARD_COPY}.sharedDriveDescription`,
       fallback: 'Bot teams read and save shared files.'
     },
     glyph: Folder
@@ -101,25 +123,99 @@ const BOARD_ROWS: readonly BoardRow[] = [
     kind: 'service',
     name: '[CRM]',
     description: {
-      key: 'auto.components.marketplace.MarketplaceCatalogPlaceholders.crmDescription',
+      key: `${BOARD_COPY}.crmDescription`,
       fallback: 'Bot teams read customers and deals.'
     },
     glyph: Users
+  },
+  {
+    id: 'browser',
+    kind: 'skill',
+    name: 'Browser use',
+    description: {
+      key: `${BOARD_COPY}.browserUseDescription`,
+      fallback: 'Agents use the browser pane.'
+    },
+    glyph: BookOpen
+  },
+  {
+    id: 'computer',
+    kind: 'skill',
+    name: 'Computer use',
+    description: {
+      key: `${BOARD_COPY}.computerUseDescription`,
+      fallback: 'Agents see and control your screen.'
+    },
+    glyph: BookOpen
+  },
+  {
+    id: 'linear',
+    kind: 'skill',
+    name: 'Linear',
+    description: {
+      key: `${BOARD_COPY}.linearDescription`,
+      fallback: 'Agents update Linear issues.'
+    },
+    glyph: BookOpen
+  },
+  {
+    id: 'orch',
+    kind: 'skill',
+    name: 'Orchestration',
+    description: {
+      key: `${BOARD_COPY}.orchestrationDescription`,
+      fallback: 'Agents hand work to agents.'
+    },
+    glyph: BookOpen
+  },
+  {
+    id: 'price',
+    kind: 'skill',
+    name: 'Price check',
+    description: { key: `${BOARD_COPY}.priceCheckDescription`, fallback: 'Made by Development.' },
+    glyph: BookOpen
   }
 ]
 
+/** Skill names compare without case, spaces or punctuation, so "Browser use" matches "browser-use". */
+export function normalizeSkillName(name: string): string {
+  return name.toLowerCase().replace(/[^\p{L}\p{N}]/gu, '')
+}
+
+/** The pending control a host check shows while it has no answer this host can give. */
+export function unansweredStatus(check: HostUnanswered, host: string): CatalogRowStatus {
+  switch (check.kind) {
+    case 'loading':
+      return { kind: 'pending', label: checkingLabel() }
+    case 'failed':
+      return { kind: 'pending', label: couldNotCheckLabel() }
+    case 'update-required':
+      return { kind: 'pending', label: updateOnHostLabel(host) }
+  }
+}
+
 /** A status the page cannot decide yet, shown as a disabled control. */
-export function pendingStatus(badge: MarketplaceBadgeState): CatalogRowStatus | null {
+export function pendingStatus(badge: CatalogBadge, host: string): CatalogRowStatus | null {
   if (badge === 'checking') {
     return { kind: 'pending', label: checkingLabel() }
   }
   if (badge === 'unknown') {
     return { kind: 'pending', label: couldNotCheckLabel() }
   }
+  if (badge === 'update-required') {
+    return { kind: 'pending', label: updateOnHostLabel(host) }
+  }
   if (badge === 'desktop-only') {
     return { kind: 'pending', label: desktopOnlyLabel() }
   }
   return null
+}
+
+function sectionOf(kind: BoardRowKind): MarketplaceCatalogSectionId {
+  if (kind === 'tool') {
+    return 'tools'
+  }
+  return kind === 'skill' ? 'skills' : 'services'
 }
 
 function boardRow(id: BoardRowId, status: CatalogRowStatus, owned: boolean): CatalogRow {
@@ -129,7 +225,7 @@ function boardRow(id: BoardRowId, status: CatalogRowStatus, owned: boolean): Cat
   }
   return {
     key: `board-${id}`,
-    section: meta.kind === 'tool' ? 'tools' : 'services',
+    section: sectionOf(meta.kind),
     name: meta.name,
     description: translate(meta.description.key, meta.description.fallback),
     icon: { kind: 'glyph', glyph: meta.glyph },
@@ -150,9 +246,19 @@ export function unsetBoardRows(...ids: readonly BoardRowId[]): CatalogRow[] {
   })
 }
 
-/** GitHub CLI and GitLab rows: the computer check decides them, and they are owned once installed or signed in. */
-export function cliRow(id: 'gh' | 'gitlab', badge: MarketplaceBadgeState): CatalogRow {
-  const pending = pendingStatus(badge)
+/** The board skills the host does not list: each shows the pending control, else Install with no page to open. */
+export function boardSkillRows(
+  listedNames: ReadonlySet<string>,
+  pending: CatalogRowStatus | null
+): CatalogRow[] {
+  return BOARD_ROWS.filter(
+    (row) => row.kind === 'skill' && !listedNames.has(normalizeSkillName(row.name))
+  ).map((row) => boardRow(row.id, pending ?? { kind: 'action', label: installLabel() }, false))
+}
+
+/** GitHub CLI and GitLab rows: the host check decides them, and they are owned once installed or signed in. */
+export function cliRow(id: 'gh' | 'gitlab', badge: CatalogBadge, host: string): CatalogRow {
+  const pending = pendingStatus(badge, host)
   if (pending !== null) {
     return boardRow(id, pending, false)
   }
@@ -168,37 +274,4 @@ export function cliRow(id: 'gh' | 'gitlab', badge: MarketplaceBadgeState): Catal
     ? { kind: 'done', label: connectedLabel() }
     : { kind: 'action', label: connectLabel() }
   return boardRow(id, status, connected)
-}
-
-/** The line a catalog section shows in place of its rows while the list is unknown or empty. */
-export function listPlaceholder<T>(list: CatalogListState<T>, host: string): string | null {
-  switch (list.kind) {
-    case 'loading':
-      return translate(
-        'auto.components.marketplace.MarketplaceCatalogRows.checkingThisComputer',
-        'Checking this computer…'
-      )
-    case 'unavailable':
-      return translate(
-        'auto.components.marketplace.MarketplaceCatalogRows.notCheckedOnHost',
-        'Not checked on {{host}} yet.',
-        { host }
-      )
-    case 'ready':
-      return null
-  }
-}
-
-export function skillsPlaceholder(
-  list: CatalogListState<DiscoveredSkill>,
-  host: string
-): string | null {
-  if (list.kind === 'ready' && list.items.length === 0) {
-    return translate(
-      'auto.components.marketplace.MarketplaceCatalogRows.noSkills',
-      'No skills found on {{host}}.',
-      { host }
-    )
-  }
-  return listPlaceholder(list, host)
 }
