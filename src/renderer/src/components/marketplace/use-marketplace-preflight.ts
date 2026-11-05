@@ -9,11 +9,16 @@ export type MarketplacePreflight = {
   checked: boolean
 }
 
-/** The local preflight result Git and GitHub read; refreshes it once when the page asks. */
+/**
+ * The local preflight result Git and GitHub read; refreshes it once when the page asks.
+ * `forceOnMount` skips the cache, for pages whose cached result can show a stale state.
+ */
 export function useMarketplacePreflight({
-  refreshOnMount
+  refreshOnMount,
+  forceOnMount = false
 }: {
   refreshOnMount: boolean
+  forceOnMount?: boolean
 }): MarketplacePreflight {
   const preflightStatus = useAppStore((s) => s.preflightStatus)
   const preflightStatusChecked = useAppStore((s) => s.preflightStatusChecked)
@@ -30,6 +35,13 @@ export function useMarketplacePreflight({
       void refreshPreflightStatus()
     }
   }, [current, preflightStatusChecked, refreshOnMount, refreshPreflightStatus])
+
+  useEffect(() => {
+    // Why: a cached result can still say GitHub is disconnected; the page opening asks for a fresh read once.
+    if (forceOnMount) {
+      void refreshPreflightStatus({ force: true })
+    }
+  }, [forceOnMount, refreshPreflightStatus])
 
   return {
     preflight: current ? preflightStatus : null,

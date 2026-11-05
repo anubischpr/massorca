@@ -1,4 +1,12 @@
-import { mkdtempSync, readFileSync, rmSync, writeFileSync, existsSync } from 'node:fs'
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -155,5 +163,41 @@ describe('writeAgentEngramMcp', () => {
     })
     expect(readFileSync(path, 'utf8')).toBe('{"mcpServers":"x"}')
     expect(existsSync(`${path}.massorca-backup`)).toBe(false)
+  })
+})
+
+describe('writeAgentEngramMcp outside the home', () => {
+  it('refuses a Claude file reached through a folder link that leaves the home (as unreadable: this older result type has no reason of its own)', () => {
+    const home = join(dir, 'home')
+    const real = join(dir, 'real')
+    mkdirSync(home)
+    mkdirSync(real)
+    writeFileSync(join(real, '.claude.json'), '{}')
+    symlinkSync(real, join(home, 'linked'), 'junction')
+
+    expect(writeAgentEngramMcp('claude', join(home, 'linked', '.claude.json'), true, home)).toEqual(
+      {
+        ok: false,
+        reason: 'unreadable'
+      }
+    )
+    expect(readFileSync(join(real, '.claude.json'), 'utf8')).toBe('{}')
+  })
+
+  it('keeps the first Claude original across two writes', () => {
+    const path = join(dir, '.claude.json')
+    writeFileSync(path, '{"theme":"dark"}')
+    writeAgentEngramMcp('claude', path, true, dir)
+    writeAgentEngramMcp('claude', path, false, dir)
+    expect(readFileSync(`${path}.massorca-original`, 'utf8')).toBe('{"theme":"dark"}')
+  })
+
+  it('treats an empty Claude file as having no servers', () => {
+    const path = join(dir, '.claude.json')
+    writeFileSync(path, '')
+    expect(writeAgentEngramMcp('claude', path, true, dir)).toEqual({ ok: true, state: 'set' })
+    expect(JSON.parse(readFileSync(path, 'utf8'))).toMatchObject({
+      mcpServers: { engram: { command: 'engram' } }
+    })
   })
 })

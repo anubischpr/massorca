@@ -1,7 +1,7 @@
 import type { MarketplaceAppAgent } from '../../shared/marketplace-apps'
 import { readMcpServerTomlOwnership } from '../codex/config-toml-mcp-servers'
 import { readConfigText, type AgentMcpNamesRead } from './agent-mcp-config'
-import { editTextFileWithBackup } from './agent-file-write'
+import { editTextFileWithBackup, type AgentWriteFailureReason } from './agent-file-write'
 import { withCodexMcpEntry } from './codex-mcp-entry-edit'
 import { editJsonContainerMember, parseJsonObject } from './json-member-edit'
 import { isAgentPresent, type MarketplaceAgentPaths } from './marketplace-agent-paths'
@@ -30,7 +30,7 @@ export type McpEntryOutcome =
 
 export type McpBatchResult =
   | { ok: true; outcomes: Record<string, McpEntryOutcome>; skipped: 'not-installed' | null }
-  | { ok: false; reason: 'unreadable-config' | 'unsupported-shape' | 'failed' }
+  | { ok: false; reason: AgentWriteFailureReason }
 
 function jsonContainerKey(agent: MarketplaceAppAgent, text: string | null): string {
   const parsed = text === null ? null : parseJsonObject(text)
@@ -41,6 +41,10 @@ function jsonContainerKey(agent: MarketplaceAppAgent, text: string | null): stri
 }
 
 function jsonNames(text: string): ReadonlySet<string> | null {
+  // Why: an agent may leave an empty file behind; it holds no entries, and is not an unknown shape.
+  if (text.trim() === '') {
+    return new Set()
+  }
   const parsed = parseJsonObject(text)
   if (!parsed) {
     return null
@@ -148,7 +152,8 @@ export function applyAgentMcpEdits(
   const result = editTextFileWithBackup(
     path,
     applyEdits(agent, edits, outcomes),
-    agent === 'codex' ? 'toml' : 'text'
+    agent === 'codex' ? 'toml' : 'text',
+    paths.home?.()
   )
   return result.kind === 'failed'
     ? { ok: false, reason: result.reason }

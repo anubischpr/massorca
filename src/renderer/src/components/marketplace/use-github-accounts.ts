@@ -15,6 +15,8 @@ export type GitHubAccounts = {
   inventory: GitHubInventory
   /** Repos resolved on this computer; SSH and runtime repos use their own host's login. */
   localRepos: GitHubRepos
+  /** Organizations per login, keyed by `ghAccountKey`; a login with none is absent. */
+  orgsByKey: Record<string, string[]>
   pendingKey: string | null
   switchError: string | null
   reload: () => Promise<void>
@@ -34,19 +36,39 @@ export function gitHubAccountKey(account: GhAuthAccount): string {
 export function useGitHubAccounts(enabled: boolean): GitHubAccounts {
   const repos = useAppStore((s) => s.repos)
   const [inventory, setInventory] = useState<GitHubInventory>({ kind: 'loading' })
+  const [orgsByKey, setOrgsByKey] = useState<Record<string, string[]>>({})
   const [pendingKey, setPendingKey] = useState<string | null>(null)
   const [switchError, setSwitchError] = useState<string | null>(null)
   const [signInOpen, setSignInOpen] = useState(false)
   const openSignIn = useCallback(() => setSignInOpen(true), [])
   const closeSignIn = useCallback(() => setSignInOpen(false), [])
 
+  // Why: one batched lookup for every login; a failed lookup shows no organizations rather than an error.
+  const loadOrgs = useCallback(async (accounts: GhAuthAccount[]): Promise<void> => {
+    if (accounts.length === 0) {
+      setOrgsByKey({})
+      return
+    }
+    try {
+      setOrgsByKey(
+        await window.api.gh.listAccountOrgs({
+          accounts: accounts.map(({ host, user }) => ({ host, user }))
+        })
+      )
+    } catch {
+      setOrgsByKey({})
+    }
+  }, [])
+
   const reload = useCallback(async (): Promise<void> => {
     try {
-      setInventory({ kind: 'loaded', value: await window.api.gh.listHostBindableAccounts() })
+      const value = await window.api.gh.listHostBindableAccounts()
+      setInventory({ kind: 'loaded', value })
+      void loadOrgs(value.accounts)
     } catch {
       setInventory({ kind: 'failed' })
     }
-  }, [])
+  }, [loadOrgs])
 
   useEffect(() => {
     if (enabled) {
@@ -138,6 +160,7 @@ export function useGitHubAccounts(enabled: boolean): GitHubAccounts {
   return {
     inventory,
     localRepos,
+    orgsByKey,
     pendingKey,
     switchError,
     reload,

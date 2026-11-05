@@ -1,4 +1,4 @@
-import { resolveAgentSessionFullAccess } from '../../shared/agent-session-access-mode'
+import { antigravityAccessArgs } from './structured-access-args'
 import { randomUUID } from 'node:crypto'
 import { LOCAL_EXECUTION_HOST_ID } from '../../shared/execution-host'
 import {
@@ -28,10 +28,12 @@ import { antigravityModelIdAtEffort } from '../../shared/antigravity-model-varia
 import { readAntigravityAccountBinding } from './structured-account-binding'
 import { prepareAntigravityAccountForLaunch } from './native-account-launch'
 import type { StructuredAgentSessionLogger } from '../native-chat/agent-session-wire/structured-agent-session-logger'
+import { buildMarketplaceAgentEnv } from '../marketplace/marketplace-agent-env'
 import { structuredSessionChildIdentityEnv } from '../runtime/structured-session-child-identity-env'
 import { delegationInstructionsForEnv } from '../delegated-session/delegation-agent-instructions'
 import {
   botRunChildEnv,
+  deleteBotRunDeniedEnv,
   type BotRunDenialResolver
 } from '../marketplace/marketplace-bot-run-denial'
 import {
@@ -158,7 +160,7 @@ export function createAntigravityLaunchResolver(deps: AntigravityLaunchDeps) {
       throw new Error('Antigravity session does not belong to this execution host')
     }
     // A bot run keeps the tokens of the apps its bot is kept out of out of the agent's env.
-    const { env, envToDelete } = await botRunChildEnv(
+    const { env, envToDelete, denial } = await botRunChildEnv(
       await deps.resolveEnvironment(),
       record.options,
       deps.resolveBotRunDenial
@@ -214,7 +216,15 @@ export function createAntigravityLaunchResolver(deps: AntigravityLaunchDeps) {
     return {
       command,
       cwd,
-      env: withNativeChatVisualsEnv(identityEnv, visuals),
+      // Why: Marketplace apps reach agy as env vars named in its MCP config, never as values; a bot
+      // run's denial is applied after them, so a denied app's token never comes back.
+      env: withNativeChatVisualsEnv(
+        deleteBotRunDeniedEnv(
+          { ...identityEnv, ...buildMarketplaceAgentEnv('antigravity') },
+          denial
+        ),
+        visuals
+      ),
       ...(envToDelete ? { envToDelete } : {}),
       previous,
       args: [
@@ -271,26 +281,6 @@ function antigravitySavedLaunchArgs(
     ]),
     switches: new Set(ANTIGRAVITY_OWNED_SWITCHES)
   })
-}
-
-const ANTIGRAVITY_MODE_FLAGS = {
-  auto: 'auto',
-  'accept-edits': 'accept-edits',
-  plan: 'plan'
-} as const
-
-/** `--mode` for a preset (agy 1.3.5: accept-edits, auto, plan), the skip flag for full access, and
- *  nothing for the CLI's own approving default. */
-export function antigravityAccessArgs(
-  accessMode: string | undefined,
-  inheritedFullAccess: boolean
-): string[] {
-  if (accessMode === 'auto' || accessMode === 'accept-edits' || accessMode === 'plan') {
-    return ['--mode', ANTIGRAVITY_MODE_FLAGS[accessMode]]
-  }
-  return resolveAgentSessionFullAccess(accessMode, inheritedFullAccess)
-    ? ['--dangerously-skip-permissions']
-    : []
 }
 
 export function antigravityProviderLink(

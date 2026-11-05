@@ -132,7 +132,12 @@ export async function botRunChildEnv(
   environment: NodeJS.ProcessEnv,
   options: Readonly<Record<string, string>> | undefined,
   resolve: BotRunDenialResolver = resolveBotRunDenial
-): Promise<{ env: Record<string, string>; envToDelete?: string[] }> {
+): Promise<{
+  env: Record<string, string>
+  envToDelete?: string[]
+  /** For env added after this call, such as Marketplace tokens, which must go through it too. */
+  denial: BotRunDenial | null
+}> {
   const env: Record<string, string> = {}
   for (const [key, value] of Object.entries(environment)) {
     if (value !== undefined) {
@@ -141,8 +146,12 @@ export async function botRunChildEnv(
   }
   const denial = await resolve(options)
   return denial
-    ? { env: deleteBotRunDeniedEnv(env, denial), envToDelete: botRunEnvKeysToDelete(denial) }
-    : { env }
+    ? {
+        env: deleteBotRunDeniedEnv(env, denial),
+        envToDelete: botRunEnvKeysToDelete(denial),
+        denial
+      }
+    : { env, denial }
 }
 
 /**

@@ -13,6 +13,7 @@ export const MOBILE_RPC_METHOD_ALLOWLIST = new Set([
   'marketplace.apps.connect',
   'marketplace.apps.setOpenMetadataToken',
   'marketplace.apps.setEngramServer',
+  'marketplace.apps.setAccessPolicy',
   'marketplace.vault.status',
   'marketplace.vault.set',
   'marketplace.vault.clear',

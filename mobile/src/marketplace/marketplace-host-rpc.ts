@@ -2,6 +2,8 @@ import { z } from 'zod'
 import type { RpcResponse } from '../transport/types'
 import type {
   MarketplaceActionResult,
+  MarketplaceAppAccessPolicy,
+  MarketplaceAppId,
   MarketplaceAppsListResult
 } from '../../../src/shared/marketplace-apps'
 import {
@@ -85,6 +87,17 @@ export async function setEngramServer(
     await settle(
       client.sendRequest('marketplace.apps.setEngramServer', { url: args.url, token: args.token })
     )
+  )
+}
+
+/** Saves who may use an app on the host; build the policy with src/shared/marketplace-access-edit. */
+export async function setMarketplaceAppAccess(
+  client: MarketplaceHostRpc,
+  appId: MarketplaceAppId,
+  policy: MarketplaceAppAccessPolicy
+): Promise<MarketplaceActionResult> {
+  return actionAnswer(
+    await settle(client.sendRequest('marketplace.apps.setAccessPolicy', { id: appId, policy }))
   )
 }
 

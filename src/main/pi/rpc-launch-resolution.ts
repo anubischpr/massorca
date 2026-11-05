@@ -8,6 +8,7 @@ import {
   agentSessionProviderHandleKey,
   type AgentSessionProviderHandleLink
 } from '../../shared/agent-session-provider-handle'
+import { buildMarketplaceAgentEnv } from '../marketplace/marketplace-agent-env'
 import { probeGentleShellPiOutcome } from './gentle-shell-version-probe'
 import { isLegacyAgentSessionAccountHome } from '../../shared/agent-session-account-home'
 import type { AgentSessionJournalIdentity } from '../../shared/agent-session-journal-types'
@@ -34,6 +35,7 @@ import {
 } from '../native-chat/native-chat-visuals-delivery'
 import {
   botRunChildEnv,
+  deleteBotRunDeniedEnv,
   type BotRunDenialResolver
 } from '../marketplace/marketplace-bot-run-denial'
 import { piChatVisualsFor } from './pi-chat-visuals'
@@ -204,7 +206,7 @@ export function createPiRpcLaunchResolver(
     }
     const cwd = await deps.resolveWorkspacePath(record.location.workspaceId)
     // A bot run keeps the tokens of the apps its bot is kept out of out of the agent's env.
-    const { env, envToDelete } = await botRunChildEnv(
+    const { env, envToDelete, denial } = await botRunChildEnv(
       await deps.resolveEnvironment(),
       record.options,
       deps.resolveBotRunDenial
@@ -263,10 +265,15 @@ export function createPiRpcLaunchResolver(
     }
     // Why: the visuals folder is named only beside its skill text, so a chat without that text gets neither.
     const visuals = await piChatVisualsFor(deps, identity.sessionId)
+    // Why: Marketplace apps reach Gentle Shell as env vars named in its MCP config, never as values;
+    // stock Pi is not a Marketplace agent. Added after the version probe, which has no use for them.
+    // A bot run's denial runs after them, so a denied app's token never comes back.
+    const appEnv = piRuntime === 'gentle-shell' ? buildMarketplaceAgentEnv('gentle-shell') : {}
+    const launchEnv = deleteBotRunDeniedEnv({ ...env, ...appEnv }, denial)
     return {
       command,
       cwd,
-      env: withNativeChatVisualsEnv(env, visuals?.visuals ?? null),
+      env: withNativeChatVisualsEnv(launchEnv, visuals?.visuals ?? null),
       ...(envToDelete ? { envToDelete } : {}),
       piRuntime,
       // Why: Gentle Shell's posture is a mode command sent after start, never a launch flag, so
