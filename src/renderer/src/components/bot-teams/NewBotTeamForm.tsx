@@ -5,6 +5,14 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@/components/ui/select'
+import { MarketplaceTeamAccessDialog } from '@/components/marketplace/MarketplaceTeamAccessDialog'
 import { translate } from '@/i18n/i18n'
 import { botAgentLabel } from '../../../../shared/bot-team-character-art'
 import {
@@ -32,7 +40,10 @@ export function NewBotTeamForm({
     team: BotTeam
     onSave: (
       input: Required<
-        Pick<BotTeamUpdateInput, 'name' | 'purpose' | 'character' | 'workspacesEnabled'>
+        Pick<
+          BotTeamUpdateInput,
+          'name' | 'purpose' | 'character' | 'workspacesEnabled' | 'accessMode'
+        >
       >
     ) => void
     onAddBot: (bot: BotDraftInput) => void
@@ -50,6 +61,8 @@ export function NewBotTeamForm({
     () => team?.character ?? firstUnusedBotTeamCharacter(usedCharacters)
   )
   const [workspacesEnabled, setWorkspacesEnabled] = useState(team?.workspacesEnabled ?? false)
+  const [accessMode, setAccessMode] = useState<BotTeam['accessMode']>(team?.accessMode ?? 'default')
+  const [marketplaceOpen, setMarketplaceOpen] = useState(false)
   const [draftBots, setBots] = useState<BotDraftInput[]>([])
   const bots: readonly BotDraftInput[] = team?.bots ?? draftBots
   const [addingBot, setAddingBot] = useState(false)
@@ -100,6 +113,55 @@ export function NewBotTeamForm({
           onChange={(event) => setPurpose(event.target.value)}
         />
       </div>
+      {team ? (
+        <>
+          <div className="flex items-center gap-3 rounded-lg border border-border p-3">
+            <div className="min-w-0 flex-1">
+              <div className="text-sm font-medium">
+                {translate('components.botTeams.settings.access', 'Access')}
+              </div>
+              <div className="text-xs text-muted-foreground">
+                {translate(
+                  'components.botTeams.accessHelp',
+                  'What this team can do without asking.'
+                )}
+              </div>
+            </div>
+            <Select
+              value={accessMode}
+              onValueChange={(next) =>
+                setAccessMode(next === 'default' ? 'default' : 'full-access')
+              }
+            >
+              <SelectTrigger
+                size="sm"
+                aria-label={translate('components.botTeams.settings.access', 'Access')}
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="full-access">
+                  {translate('components.botTeams.settings.fullAccess', 'Full access')}
+                </SelectItem>
+                <SelectItem value="default">
+                  {translate('components.botTeams.settings.askFirst', 'Ask first')}
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex items-center gap-3 rounded-lg border border-border p-3">
+            <div className="min-w-0 flex-1 text-xs text-muted-foreground">
+              {translate(
+                'components.botTeams.marketplaceAppsHelp',
+                'Connected apps this team’s bots can use.'
+              )}
+            </div>
+            <Button variant="outline" size="sm" onClick={() => setMarketplaceOpen(true)}>
+              {translate('components.botTeams.settings.marketplaceApps', 'Marketplace apps…')}
+            </Button>
+          </div>
+        </>
+      ) : null}
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-medium">{translate('components.botTeams.bots', 'Bots')}</h2>
@@ -173,7 +235,8 @@ export function NewBotTeamForm({
                   name: trimmedName,
                   purpose: purpose.trim(),
                   character,
-                  workspacesEnabled
+                  workspacesEnabled,
+                  accessMode
                 })
               : onCreate({
                   name: trimmedName,
@@ -203,6 +266,13 @@ export function NewBotTeamForm({
             }
             setEditingBotIndex(null)
           }}
+        />
+      ) : null}
+      {team ? (
+        <MarketplaceTeamAccessDialog
+          team={team}
+          open={marketplaceOpen}
+          onOpenChange={setMarketplaceOpen}
         />
       ) : null}
       {addingBot ? (

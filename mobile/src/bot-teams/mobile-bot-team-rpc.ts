@@ -67,6 +67,20 @@ export function updateMobileBotTeam(client: HostClient, input: BotTeamUpdateInpu
   return changeTeam(client, 'botTeams.update', input)
 }
 
+/** Whether the host deleted the team; false when it refused or could not be reached. */
+export async function deleteMobileBotTeam(client: HostClient, teamId: string): Promise<boolean> {
+  try {
+    const response = await client.sendRequest(
+      'botTeams.delete',
+      { teamId },
+      { timeoutMs: REQUEST_TIMEOUT_MS }
+    )
+    return response.ok
+  } catch {
+    return false
+  }
+}
+
 export function updateMobileBot(
   client: HostClient,
   teamId: string,

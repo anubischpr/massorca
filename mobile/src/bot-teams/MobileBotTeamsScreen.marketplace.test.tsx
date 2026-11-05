@@ -75,6 +75,8 @@ vi.mock('lucide-react-native', () => ({
   ChevronRight: 'ChevronRight',
   Layers: 'Layers',
   Calendar: 'Calendar',
+  Pencil: 'Pencil',
+  Trash2: 'Trash2',
   FolderOpen: 'FolderOpen',
   Mail: 'Mail',
   Plug: 'Plug',
@@ -111,6 +113,15 @@ function labelsOf(renderer: ReactTestRenderer, type: string): string[] {
     .map((node) => node.props.accessibilityLabel)
 }
 
+function longPress(renderer: ReactTestRenderer, label: string) {
+  const target = renderer.root.findAll(
+    (node) =>
+      node.props.accessibilityLabel === label && typeof node.props.onLongPress === 'function'
+  )
+  expect(target).toHaveLength(1)
+  act(() => target[0].props.onLongPress())
+}
+
 function press(renderer: ReactTestRenderer, label: string) {
   const target = renderer.root.findAll(
     (node) => node.props.accessibilityLabel === label && typeof node.props.onPress === 'function'
@@ -120,7 +131,7 @@ function press(renderer: ReactTestRenderer, label: string) {
 }
 
 describe('MobileBotTeamsScreen Marketplace apps', () => {
-  it('reaches a team Marketplace apps from Bot teams settings, and back out again', async () => {
+  it('reaches a team Marketplace apps from its Edit team screen, and back out again', async () => {
     let renderer!: ReactTestRenderer
     await act(async () => {
       renderer = create(
@@ -133,13 +144,15 @@ describe('MobileBotTeamsScreen Marketplace apps', () => {
     })
     await flush()
 
-    press(renderer, 'Bot teams settings')
-    press(renderer, 'Ops Marketplace apps')
+    longPress(renderer, 'Ops')
+    press(renderer, 'Edit team')
+    await flush()
+    press(renderer, 'Marketplace apps')
     await flush()
     expect(labelsOf(renderer, 'Switch')).toEqual(['Let Ops use Engram'])
 
     press(renderer, 'Back')
-    expect(labelsOf(renderer, 'Pressable')).toContain('Ops Marketplace apps')
+    expect(labelsOf(renderer, 'Pressable')).toContain('Marketplace apps')
 
     press(renderer, 'Back')
     expect(labelsOf(renderer, 'Pressable')).toContain('Bot teams settings')
