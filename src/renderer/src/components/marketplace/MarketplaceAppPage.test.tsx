@@ -437,6 +437,35 @@ describe('MarketplaceAppPage', () => {
     expect(mocks.setEngramServer).toHaveBeenCalledWith({ url: 'https://engram.example.com' })
   })
 
+  it('offers Add, not Replace, for the Engram sign-in once its token is cleared', async () => {
+    seedApps([
+      { ...engram, serverUrl: 'https://engram.example.com', credential: { stored: false } },
+      openmetadata,
+      github
+    ])
+    const container = await mount('engram')
+    const labels = [...sectionOf(container, 'advanced').querySelectorAll('button')].map((button) =>
+      button.textContent?.trim()
+    )
+
+    expect(labels).toContain('Add')
+    expect(labels).not.toContain('Replace')
+  })
+
+  it('offers Replace for the Engram sign-in while a token is stored', async () => {
+    seedApps([
+      { ...engram, serverUrl: 'https://engram.example.com', credential: { stored: true } },
+      openmetadata,
+      github
+    ])
+    const container = await mount('engram')
+    const labels = [...sectionOf(container, 'advanced').querySelectorAll('button')].map((button) =>
+      button.textContent?.trim()
+    )
+
+    expect(labels).toContain('Replace')
+  })
+
   it('shows the desktop-only notice and no sections without the desktop bridge', async () => {
     Object.assign(window, { api: undefined })
     seedStore(store, { marketplaceApps: { status: 'unavailable' } })

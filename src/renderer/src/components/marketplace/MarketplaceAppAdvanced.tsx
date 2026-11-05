@@ -94,7 +94,9 @@ function EngramAdvanced({ ctx }: { ctx: MarketplaceAppContext }): React.JSX.Elem
               size="sm"
               onClick={() => ctx.openDialog({ kind: 'engram-server' })}
             >
-              {translate('auto.components.marketplace.MarketplaceAppAdvanced.replace', 'Replace')}
+              {stored
+                ? translate('auto.components.marketplace.MarketplaceAppAdvanced.replace', 'Replace')
+                : translate('auto.components.marketplace.MarketplaceAppAdvanced.add', 'Add')}
             </Button>
           ) : null}
         </MarketplaceInfoRow>
