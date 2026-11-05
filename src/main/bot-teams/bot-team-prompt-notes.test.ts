@@ -38,7 +38,7 @@ describe('the notes bots read', () => {
     expect(BOT_TEAM_HISTORY_SOURCES_NOTE).toContain('mcp__engram__mem_context')
     expect(BOT_TEAM_HISTORY_SOURCES_NOTE).not.toContain('plugin_engram')
     expect(BOT_TEAM_HISTORY_SOURCES_NOTE).toContain('"openmetadata"')
-    expect(BOT_TEAM_HISTORY_SOURCES_NOTE).toContain('never "openmetadata-escritura"')
+    expect(BOT_TEAM_HISTORY_SOURCES_NOTE).toContain('never another OpenMetadata server')
   })
 
   it('say every bot can make option cards and artifacts, and speak in the first person', () => {
