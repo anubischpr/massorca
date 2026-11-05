@@ -26,6 +26,8 @@ const STAR = 'M0-6l1.6 4.4L6 0 1.6 1.6 0 6-1.6 1.6-6 0-1.6-1.6Z'
 const BOLT = 'M3-9L-4 1h4l-3 8L6-2H2Z'
 const BOLT_COLOR = '#fde047'
 const ORBITS: Record<string, number> = { rainbow: 3, electrons: 2, bands: 2, dashes: 2 }
+/** Put on a row or card: hovering it moves the team character inside. */
+export const BOT_CHARACTER_ZONE_ATTR = 'data-bot-character-zone'
 
 type Layer = 'back' | 'front'
 
@@ -137,6 +139,7 @@ export function BotTeamCharacterIcon({
   const enabled = useAppStore((state) => state.settings?.botTeamCharacterAnimations !== false)
   const animated = enabled && !unreachable && !still
   const id = useId().replace(/:/g, '')
+  const svgRef = useRef<SVGSVGElement>(null)
   const reduceMotion = usePrefersReducedMotion()
   const [move, setMove] = useState<BotCharacterMove | null>(null)
   const workingRef = useRef(working)
@@ -176,12 +179,25 @@ export function BotTeamCharacterIcon({
   }, [animated, character])
 
   // Why: a hover is the user's gesture, so it moves even a still character; touch is not hover.
-  const onPointerEnter = (event: React.PointerEvent<SVGSVGElement>): void => {
-    if (!enabled || reduceMotion || event.pointerType === 'touch' || move !== null) {
+  const playHover = (pointerType: string): void => {
+    if (!enabled || reduceMotion || pointerType === 'touch' || move !== null) {
       return
     }
     setMove(pickBotCharacterMove(character, working, Math.random()))
   }
+  const playHoverRef = useRef(playHover)
+  playHoverRef.current = playHover
+
+  // Why: the row or card that holds the character is its hover target too, so entering it moves the character.
+  useEffect(() => {
+    const zone = svgRef.current?.closest<HTMLElement>(`[${BOT_CHARACTER_ZONE_ATTR}]`)
+    if (!zone) {
+      return
+    }
+    const onZoneEnter = (event: PointerEvent): void => playHoverRef.current(event.pointerType)
+    zone.addEventListener('pointerenter', onZoneEnter)
+    return () => zone.removeEventListener('pointerenter', onZoneEnter)
+  }, [])
 
   const effect = botCharacterEffect({
     character,
@@ -194,12 +210,13 @@ export function BotTeamCharacterIcon({
   const orbiting = effect !== null && effect !== 'aura'
   return (
     <svg
+      ref={svgRef}
       width={size}
       height={size}
       viewBox="0 0 64 64"
       aria-hidden="true"
       data-effect={effect ?? undefined}
-      onPointerEnter={onPointerEnter}
+      onPointerEnter={(event) => playHover(event.pointerType)}
       className={[
         'bc-root shrink-0 overflow-visible',
         animated || move ? '' : 'bc-still',

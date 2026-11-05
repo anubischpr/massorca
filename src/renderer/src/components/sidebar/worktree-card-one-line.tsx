@@ -24,7 +24,11 @@ export function WorktreeCardOneLineContent({
   return (
     <div className="flex w-full min-w-0 flex-col" data-worktree-card-parent-content="">
       <WorktreeCardIdentityHover card={card} presentation={presentation}>
-        <div className="group/worktree-card w-full min-w-0" data-worktree-card-hover-trigger="">
+        <div
+          className="group/worktree-card w-full min-w-0"
+          data-worktree-card-hover-trigger=""
+          data-bot-character-zone=""
+        >
           <OneLineBranchRow
             card={card}
             presentation={presentation}
