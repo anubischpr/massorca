@@ -7,7 +7,6 @@ import { AgentIcon } from '@/lib/agent-catalog'
 import { agentTypeToIconAgent, formatAgentRowTypeLabel } from '@/lib/agent-status'
 import { usePiDisplayRuntime } from '@/lib/use-pi-runtime'
 import { cn } from '@/lib/utils'
-import { useAppStore } from '@/store'
 import { piRuntimeForSessionFilePath } from '../../../../shared/pi-runtime-selection'
 import { getCompactAgentPrimary } from './worktree-card-compact-agent-row'
 import { SessionStatusGlyphIcon } from './SessionStatusGlyphIcon'
@@ -15,6 +14,7 @@ import { OneLineSessionHover } from './worktree-card-one-line-session-hover'
 import { getAgentDotState } from './worktree-card-agent-summary'
 import { sessionStatusGlyph } from './worktree-session-status'
 import { OneLineSessionMenu } from './worktree-card-one-line-session-menu'
+import { renameOneLineSession } from './worktree-card-one-line-session-rename'
 import { CrossWorktreeBranchIcon } from './worktree-card-one-line-cross-worktree-branch'
 import { WorktreeTitleInlineRename } from './WorktreeTitleInlineRename'
 import {
@@ -119,7 +119,6 @@ export const OneLineSessionRow = React.memo(function OneLineSessionRow({
   // Why: a subagent child carries its own name in agentType, which is not an iconable agent.
   const hideIcon = agent.rowSource === 'subagent'
   const shownGlyph = dimmed && glyph !== null ? 'unconfirmed' : glyph
-  const setTabCustomTitle = useAppStore((s) => s.setTabCustomTitle)
   // Why three steps: the editor takes a one-shot "begin" request, then reports when it closes.
   const [renameStep, setRenameStep] = useState<'off' | 'requested' | 'editing'>('off')
 
@@ -232,7 +231,7 @@ export const OneLineSessionRow = React.memo(function OneLineSessionRow({
               setRenameStep('off')
             }
           }}
-          onRename={(name) => setTabCustomTitle(agent.tab.id, name)}
+          onRename={(name) => renameOneLineSession(agent.tab, name)}
         />
       )}
       {hasChildDisclosure ? (

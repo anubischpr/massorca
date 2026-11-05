@@ -167,6 +167,10 @@ User QA verbatim: "La sesión hija sigue mostrando su propio worktree"; "3. No f
 - Delete with Descendants now takes the worktrees of delegated child sessions (6323413e09e). It sees them only while their session rows exist on the client.
 - A folded parent session could not be unfolded: the one-line row lacked `agent-disclosure-row`, so the stylesheet kept the folded chevron at opacity 0 forever. Fixed with a test that fails without it.
 
+### pv85 QA (2026-11-05)
+
+- User report: "No funciona el renombrado de las sesiones". The row's Rename called `setTabCustomTitle`, which only renames terminal tabs; a chat session's name is its chat tab's `customLabel` (what `/rename` sets, kept across host snapshots on local and paired hosts). Chat rows now rename through `setTabCustomLabel`; terminal rows are unchanged. Covered by a test that fails with the old path.
+
 ### Overnight decisions 2026-11-03
 
 - A folded parent's "+N" moves into the chevron's own slot. At rest it shows "+N"; on hover or focus the chevron replaces it, as in the dashboard rows. Clicking the count unfolds the parent, since it is the chevron's hit target. Taken by the parent session while the user slept; the user can revert it.
