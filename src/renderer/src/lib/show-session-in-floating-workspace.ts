@@ -1,4 +1,5 @@
 import type { AppState } from '@/store/types'
+import type { Tab } from '../../../shared/tab-types'
 import { FLOATING_TERMINAL_WORKTREE_ID } from '../../../shared/constants'
 import {
   resolveSessionRefTab,
@@ -15,16 +16,34 @@ export type FloatingSessionStore = {
 
 export type ShowSessionInFloatingResult =
   | { ok: true; groupId: string }
-  | { ok: false; reason: 'floating-workspace' | 'already-shown' | 'no-session' | 'no-pane' }
+  | {
+      ok: false
+      reason:
+        | 'floating-workspace'
+        | 'already-shown'
+        | 'no-session'
+        | 'no-pane'
+        | 'create-tab-closed'
+    }
+
+function findNewSessionTab(
+  state: Pick<AppState, 'unifiedTabsByWorktree'>,
+  tabId: string
+): Tab | undefined {
+  return (state.unifiedTabsByWorktree[FLOATING_TERMINAL_WORKTREE_ID] ?? []).find(
+    (tab) => tab.id === tabId && tab.contentType === 'create-session'
+  )
+}
 
 /**
  * Shows a session of another workspace in the floating workspace by reference: the owner keeps the
  * session, and a new tab of the focused floating group shows it, beside that group's other tabs.
+ * A New Session tab named in `replaceTabId` gives its place to the session and closes.
  */
 export function showSessionInFloatingWorkspace(
   ref: { worktreeId: string; tabId: string },
   store: FloatingSessionStore,
-  options: { endsSessionOnClose?: boolean } = {}
+  options: { endsSessionOnClose?: boolean; replaceTabId?: string | null } = {}
 ): ShowSessionInFloatingResult {
   if (ref.worktreeId === FLOATING_TERMINAL_WORKTREE_ID) {
     return { ok: false, reason: 'floating-workspace' }
@@ -37,7 +56,13 @@ export function showSessionInFloatingWorkspace(
   if (!target) {
     return { ok: false, reason: 'no-session' }
   }
+  const replaced = options.replaceTabId ? findNewSessionTab(state, options.replaceTabId) : undefined
+  if (options.replaceTabId && !replaced) {
+    // Why: the person closed the New Session tab while its session started; the session stays in its workspace.
+    return { ok: false, reason: 'create-tab-closed' }
+  }
   const groupId =
+    replaced?.groupId ??
     resolveNewTabTargetGroupId(store.getState(), FLOATING_TERMINAL_WORKTREE_ID) ??
     store.getState().ensureWorktreeRootGroup(FLOATING_TERMINAL_WORKTREE_ID)
   store.getState().createUnifiedTab(FLOATING_TERMINAL_WORKTREE_ID, 'session-ref', {
@@ -50,8 +75,12 @@ export function showSessionInFloatingWorkspace(
       ...(options.endsSessionOnClose ? { endsSessionOnClose: true as const } : {})
     },
     targetGroupId: groupId,
+    ...(replaced ? { afterTabId: replaced.id } : {}),
     activate: true
   })
+  if (replaced) {
+    store.getState().closeUnifiedTab(replaced.id)
+  }
   store.getState().focusGroup(FLOATING_TERMINAL_WORKTREE_ID, groupId)
   return { ok: true, groupId }
 }

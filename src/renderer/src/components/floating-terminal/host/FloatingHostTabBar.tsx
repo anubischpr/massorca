@@ -1,12 +1,13 @@
 import { useMemo } from 'react'
 import TabBar from '@/components/tab-bar/TabBar'
 import type { TabBarProps } from '@/components/tab-bar/tab-bar-props'
+import { translate } from '@/i18n/i18n'
 import { floatingCreateHost } from '@/lib/floating-workspace-host-session'
-import { useFloatingCreateSessionStore } from '../create-session/floating-create-session-store'
+import { openFloatingCreateSessionTab } from '../create-session/floating-create-session-tab'
 import { useFloatingHostSelection } from './use-floating-host-selection'
 
 function openFloatingCreateSession(): void {
-  useFloatingCreateSessionStore.getState().setOpen(true)
+  openFloatingCreateSessionTab(translate('components.tabBar.newSession', 'New Session'))
 }
 
 /** The floating strip, whose "+" menu follows the host selected in the header. */

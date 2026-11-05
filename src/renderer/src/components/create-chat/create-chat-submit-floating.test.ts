@@ -21,9 +21,9 @@ const mocks = vi.hoisted(() => {
     beginStructuredAgentSessionProvisionalLaunch: vi.fn(),
     holdStructuredAgentSessionLaunchPicks: vi.fn(),
     launchAgentInNewTab: vi.fn(),
-    showHostSessionInFloating: vi.fn(),
-    showWhenHostPublishes: vi.fn(),
-    toastInfo: vi.fn()
+    showFloatingCreateLaunch: vi.fn(),
+    showFloatingNewWorktreeLaunch: vi.fn(),
+    clearFloatingCreateLaunch: vi.fn()
   }
 })
 
@@ -44,17 +44,15 @@ vi.mock('@/lib/structured-agent-session-launch-options', () => ({
 vi.mock('@/lib/launch-agent-in-new-tab', () => ({
   launchAgentInNewTab: mocks.launchAgentInNewTab
 }))
-vi.mock('@/lib/floating-workspace-host-session', () => ({
-  showHostSessionInFloating: mocks.showHostSessionInFloating,
-  showWhenHostPublishes: mocks.showWhenHostPublishes,
-  knownSessionTabIds: (worktreeId: string) =>
-    new Set((mocks.store.unifiedTabsByWorktree[worktreeId] ?? []).map((tab) => tab.id))
+vi.mock('@/lib/floating-workspace-create-launch', () => ({
+  showFloatingCreateLaunch: mocks.showFloatingCreateLaunch,
+  showFloatingNewWorktreeLaunch: mocks.showFloatingNewWorktreeLaunch,
+  clearFloatingCreateLaunch: mocks.clearFloatingCreateLaunch
 }))
 vi.mock('@/lib/agent-session-launch-plan', () => ({
   // Why: the verdict is the plan's data; the launch itself is mocked at its own boundary.
   adoptAgentSessionLaunchVerdict: <T>(verdict: T): T => verdict
 }))
-vi.mock('sonner', () => ({ toast: { info: mocks.toastInfo } }))
 
 import { submitCreateChatDraft } from './create-chat-submit'
 import { EMPTY_RETIRED_NAME_REGISTRY } from '../../../../shared/worktree/retired-name-registry'
@@ -70,6 +68,11 @@ function selection(overrides: Partial<CreateChatSelection> = {}): CreateChatSele
     accessMode: 'default',
     ...overrides
   }
+}
+
+/** The floating placement, naming the New Session tab the session replaces, if one waits on it. */
+function floating(createTabId: string | null = null) {
+  return { kind: 'floating-workspace' as const, createTabId }
 }
 
 function expectMainWindowUntouched(): void {
@@ -101,7 +104,12 @@ beforeEach(() => {
   mocks.beginStructuredAgentSessionProvisionalLaunch.mockImplementation(
     (args: { onOpened?: (sessionId: string) => void }) => {
       args.onOpened?.('session-1')
-      return { sessionId: 'session-1' }
+      return {
+        sessionId: 'session-1',
+        tab: null,
+        settlement: new Promise(() => undefined),
+        cancel: () => undefined
+      }
     }
   )
   Object.defineProperty(window, 'api', {
@@ -112,7 +120,7 @@ beforeEach(() => {
 
 describe('create chat submitted from the floating workspace', () => {
   it('starts the chat in the background and shows it in the floating workspace', async () => {
-    const outcome = await submitCreateChatDraft('Fix login', selection(), 'floating-workspace')
+    const outcome = await submitCreateChatDraft('Fix login', selection(), floating())
 
     expect(outcome).toEqual({ started: true })
     expectMainWindowUntouched()
@@ -123,9 +131,21 @@ describe('create chat submitted from the floating workspace', () => {
       })
     )
     await vi.waitFor(() =>
-      expect(mocks.showHostSessionInFloating).toHaveBeenCalledWith(
-        'wt-fix',
-        structuredAgentSessionTabId('session-1')
+      expect(mocks.showFloatingCreateLaunch).toHaveBeenCalledWith({
+        worktreeId: 'wt-fix',
+        tabId: structuredAgentSessionTabId('session-1'),
+        knownTabIds: new Set(['old-tab']),
+        createTabId: null
+      })
+    )
+  })
+
+  it('hands the session to the New Session tab that started it', async () => {
+    await submitCreateChatDraft('Fix login', selection(), floating('create-1'))
+
+    await vi.waitFor(() =>
+      expect(mocks.showFloatingCreateLaunch).toHaveBeenCalledWith(
+        expect.objectContaining({ createTabId: 'create-1' })
       )
     )
   })
@@ -138,7 +158,7 @@ describe('create chat submitted from the floating workspace', () => {
     const outcome = await submitCreateChatDraft(
       'Fix login',
       selection({ sessionView: 'terminal' }),
-      'floating-workspace'
+      floating('create-1')
     )
 
     expect(outcome).toEqual({ started: true })
@@ -148,37 +168,87 @@ describe('create chat submitted from the floating workspace', () => {
     )
     expect(mocks.store.setTabViewMode).toHaveBeenCalledWith('tab-9', 'terminal')
     await vi.waitFor(() =>
-      expect(mocks.showHostSessionInFloating).toHaveBeenCalledWith('wt-fix', 'tab-9')
+      expect(mocks.showFloatingCreateLaunch).toHaveBeenCalledWith({
+        worktreeId: 'wt-fix',
+        tabId: 'tab-9',
+        knownTabIds: new Set(['old-tab']),
+        createTabId: 'create-1'
+      })
     )
   })
 
   it('waits for a host-published terminal tab that is not yet in the workspace', async () => {
     mocks.launchAgentInNewTab.mockReturnValue({ surface: { kind: 'host-published' } })
 
-    await submitCreateChatDraft(
-      'Fix login',
-      selection({ sessionView: 'terminal' }),
-      'floating-workspace'
-    )
+    await submitCreateChatDraft('Fix login', selection({ sessionView: 'terminal' }), floating())
 
     await vi.waitFor(() =>
-      expect(mocks.showWhenHostPublishes).toHaveBeenCalledWith('wt-fix', new Set(['old-tab']))
+      expect(mocks.showFloatingCreateLaunch).toHaveBeenCalledWith({
+        worktreeId: 'wt-fix',
+        tabId: null,
+        knownTabIds: new Set(['old-tab']),
+        createTabId: null
+      })
     )
   })
 
+  it('shows the terminal that a host-declined chat opened, since no chat tab will appear', async () => {
+    mocks.beginStructuredAgentSessionProvisionalLaunch.mockImplementation(() => ({
+      sessionId: null,
+      tab: null,
+      settlement: Promise.resolve({ kind: 'terminal' }),
+      cancel: () => undefined
+    }))
+
+    await submitCreateChatDraft('Fix login', selection(), floating('create-3'))
+
+    await vi.waitFor(() =>
+      expect(mocks.showFloatingCreateLaunch).toHaveBeenCalledWith({
+        worktreeId: 'wt-fix',
+        tabId: null,
+        knownTabIds: new Set(['old-tab']),
+        createTabId: 'create-3'
+      })
+    )
+  })
+
+  it('ends the New Session tab wait when the chat launch never starts', async () => {
+    mocks.beginStructuredAgentSessionProvisionalLaunch.mockImplementation(() => ({
+      sessionId: null,
+      tab: null,
+      settlement: Promise.resolve({ kind: 'cancelled', sessionId: null }),
+      cancel: () => undefined
+    }))
+
+    await submitCreateChatDraft('Fix login', selection(), floating('create-4'))
+
+    await vi.waitFor(() => expect(mocks.clearFloatingCreateLaunch).toHaveBeenCalledWith('create-4'))
+    expect(mocks.showFloatingCreateLaunch).not.toHaveBeenCalled()
+  })
+
   it('creates a new worktree without revealing its creation surface in the main window', async () => {
+    mocks.runBackgroundWorktreeCreation.mockReturnValue('creation-1')
+
     const outcome = await submitCreateChatDraft(
       'Fix login',
       selection({ workspaceMode: 'new-worktree', existingWorktreeId: undefined }),
-      'floating-workspace'
+      floating('create-2')
     )
 
     expect(outcome).toEqual({ started: true })
+    expectMainWindowUntouched()
     expect(mocks.runBackgroundWorktreeCreation).toHaveBeenCalledWith(
       expect.objectContaining({ agentLaunchRoute: 'structured-native-chat' }),
       { revealCreationSurface: false }
     )
-    expect(mocks.toastInfo).toHaveBeenCalledOnce()
+    await vi.waitFor(() =>
+      expect(mocks.showFloatingNewWorktreeLaunch).toHaveBeenCalledWith({
+        repoId: 'repo-1',
+        knownWorktreeIds: new Set(['wt-main', 'wt-fix']),
+        creationId: 'creation-1',
+        createTabId: 'create-2'
+      })
+    )
   })
 })
 
@@ -192,7 +262,7 @@ describe('create chat submitted from the main window', () => {
     expect(mocks.beginStructuredAgentSessionProvisionalLaunch).toHaveBeenCalledWith(
       expect.objectContaining({ activate: true })
     )
-    expect(mocks.showHostSessionInFloating).not.toHaveBeenCalled()
+    expect(mocks.showFloatingCreateLaunch).not.toHaveBeenCalled()
   })
 
   it('still reveals a new worktree creation in the main window', async () => {

@@ -9,10 +9,7 @@ import {
   EMPTY_RETIRED_NAME_REGISTRY,
   type RetiredNameRegistry
 } from '../../../../shared/worktree/retired-name-registry'
-import {
-  announceFloatingNewWorktreeSession,
-  type CreateChatPlacement
-} from './create-chat-placement'
+import { loadFloatingCreateLaunch, type CreateChatPlacement } from './create-chat-placement'
 import type {
   CreateChatRepoOption,
   CreateChatSelection,
@@ -129,7 +126,7 @@ export async function createTerminalInNewWorktree(
   return startNewWorktreeCreation(request, placement)
 }
 
-/** The main window shows the creation surface; the floating workspace leaves it alone. */
+/** The main window shows the creation surface; the floating workspace leaves it alone and shows the session once it starts. */
 function startNewWorktreeCreation(
   request: WorktreeCreationRequest,
   placement: CreateChatPlacement
@@ -138,7 +135,18 @@ function startNewWorktreeCreation(
     runBackgroundWorktreeCreation(request)
     return started
   }
-  runBackgroundWorktreeCreation(request, { revealCreationSurface: false })
-  announceFloatingNewWorktreeSession()
+  const createTabId = placement.createTabId
+  const knownWorktreeIds = new Set(
+    (useAppStore.getState().worktreesByRepo[request.repoId] ?? []).map((worktree) => worktree.id)
+  )
+  const creationId = runBackgroundWorktreeCreation(request, { revealCreationSurface: false })
+  void loadFloatingCreateLaunch().then((floatingLaunch) =>
+    floatingLaunch.showFloatingNewWorktreeLaunch({
+      repoId: request.repoId,
+      knownWorktreeIds,
+      creationId,
+      createTabId
+    })
+  )
   return started
 }

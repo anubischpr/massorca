@@ -9,7 +9,6 @@ import {
 } from '@/lib/floating-workspace-host'
 import { FloatingTerminalWindowControls } from './FloatingTerminalWindowControls'
 import { FloatingHostSelect } from './host/FloatingHostSelect'
-import { useFloatingCreateSessionStore } from './create-session/floating-create-session-store'
 
 type ReactElementLike = {
   type: unknown
@@ -36,7 +35,12 @@ const mocks = vi.hoisted(() => ({
   awaitNewSessionTab: vi.fn(),
   chooseHost: vi.fn(),
   markHostUsed: vi.fn(),
-  openCreateChatPage: vi.fn()
+  openCreateChatPage: vi.fn(),
+  openFloatingCreateSessionTab: vi.fn()
+}))
+
+vi.mock('./create-session/floating-create-session-tab', () => ({
+  openFloatingCreateSessionTab: mocks.openFloatingCreateSessionTab
 }))
 
 vi.mock('react', async () => {
@@ -363,17 +367,16 @@ describe('FloatingTerminalWindowControls host selection', () => {
     expect(hasHostSelect(renderHeader())).toBe(true)
   })
 
-  it('opens the create screen inside the floating panel on a paired host, not in the main window', () => {
+  it('opens a New Session tab in the floating panel on a paired host, not in the main window', () => {
     pairServer({
       chosen: VPS,
       focusedWorkspace: REMOTE_WORKSPACE,
       owner: { [REMOTE_WORKSPACE]: VPS }
     })
-    useFloatingCreateSessionStore.getState().setOpen(false)
 
     clickLaunch()
 
-    expect(useFloatingCreateSessionStore.getState().open).toBe(true)
+    expect(mocks.openFloatingCreateSessionTab).toHaveBeenCalledExactlyOnceWith('New Session')
     expect(mocks.openCreateChatPage).not.toHaveBeenCalled()
     expect(mocks.launchAgentInNewTab).not.toHaveBeenCalled()
     expect(mocks.showSessionInFloatingWorkspace).not.toHaveBeenCalled()

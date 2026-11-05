@@ -102,7 +102,8 @@ export function useTabGroupActivationCommands({
       if (
         item.contentType === 'simulator' ||
         item.contentType === 'checklist' ||
-        item.contentType === 'session-ref'
+        item.contentType === 'session-ref' ||
+        item.contentType === 'create-session'
       ) {
         setActiveTabType('simulator', worktreeId)
         // simulator has no editor file entity

@@ -104,7 +104,7 @@ export function showWhenHostPublishes(
 }
 
 /** A terminal fallback carries no view mode until stamped; without one it cannot be shown by reference. */
-function markAgentTerminalAsSession(worktreeId: string, tabId: string): void {
+export function markAgentTerminalAsSession(worktreeId: string, tabId: string): void {
   const state = useAppStore.getState()
   const tab = (state.unifiedTabsByWorktree[worktreeId] ?? []).find((entry) => entry.id === tabId)
   if (tab?.contentType === 'terminal' && tab.viewMode === undefined) {

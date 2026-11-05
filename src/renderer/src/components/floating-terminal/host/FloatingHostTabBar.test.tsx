@@ -5,7 +5,12 @@ import { cleanup, render } from '@testing-library/react'
 
 const mocks = vi.hoisted(() => ({
   tabBarProps: [] as Record<string, unknown>[],
-  openCreateChatPage: vi.fn()
+  openCreateChatPage: vi.fn(),
+  openFloatingCreateSessionTab: vi.fn()
+}))
+
+vi.mock('../create-session/floating-create-session-tab', () => ({
+  openFloatingCreateSessionTab: mocks.openFloatingCreateSessionTab
 }))
 
 vi.mock('@/components/tab-bar/TabBar', () => ({
@@ -25,17 +30,16 @@ vi.mock('@/lib/floating-workspace-host-session', () => ({
   floatingCreateHost: () => ({ environmentId: 'vps-env', worktreeId: 'vps-worktree' })
 }))
 
-import { useFloatingCreateSessionStore } from '../create-session/floating-create-session-store'
 import { FloatingHostTabBar } from './FloatingHostTabBar'
 
 describe('the floating tab strip', () => {
   afterEach(() => {
     cleanup()
     mocks.tabBarProps.length = 0
-    useFloatingCreateSessionStore.getState().setOpen(false)
+    mocks.openFloatingCreateSessionTab.mockClear()
   })
 
-  it('offers New Session through the floating create screen instead of agent rows', () => {
+  it('offers New Session as a floating tab instead of agent rows', () => {
     // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the mocked TabBar reads no prop.
     render(<FloatingHostTabBar {...({} as Parameters<typeof FloatingHostTabBar>[0])} />)
     const props = mocks.tabBarProps.at(-1)
@@ -45,7 +49,7 @@ describe('the floating tab strip', () => {
     if (typeof onNewSession === 'function') {
       onNewSession()
     }
-    expect(useFloatingCreateSessionStore.getState().open).toBe(true)
+    expect(mocks.openFloatingCreateSessionTab).toHaveBeenCalledExactlyOnceWith('New Session')
     // Why: the main window's create page must not open behind the floating panel.
     expect(mocks.openCreateChatPage).not.toHaveBeenCalled()
   })

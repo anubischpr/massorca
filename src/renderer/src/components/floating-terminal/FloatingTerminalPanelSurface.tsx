@@ -1,5 +1,4 @@
 import { FloatingHostTabBar } from './host/FloatingHostTabBar'
-import { FloatingCreateSession } from './create-session/FloatingCreateSession'
 import { TabGroupSplitNodeTree } from '@/components/tab-group/TabGroupSplitNodeTree'
 import { WorkspaceTabDragLayer } from '@/components/tab-group/WorkspaceTabDragLayer'
 import { WorkspacePaneOverlayLayers } from '@/components/WorkspacePaneOverlayLayers'
@@ -182,13 +181,15 @@ export function renderFloatingTerminalPanelSurface({
                   activeSimulatorTabId={
                     activeTab?.contentType === 'simulator' ||
                     activeTab?.contentType === 'checklist' ||
-                    activeTab?.contentType === 'session-ref'
+                    activeTab?.contentType === 'session-ref' ||
+                    activeTab?.contentType === 'create-session'
                       ? activeTab.id
                       : null
                   }
                   activeTabType={
                     activeTab?.contentType === 'checklist' ||
-                    activeTab?.contentType === 'session-ref'
+                    activeTab?.contentType === 'session-ref' ||
+                    activeTab?.contentType === 'create-session'
                       ? 'simulator'
                       : activeTabType
                   }
@@ -297,7 +298,6 @@ export function renderFloatingTerminalPanelSurface({
                   closeShortcut={closeShortcut}
                 />
               )}
-              <FloatingCreateSession />
             </div>
           </div>
         )}

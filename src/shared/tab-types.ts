@@ -31,6 +31,8 @@ export type TabContentType =
   | 'checklist'
   /** A session another workspace owns, shown as a tab of the floating workspace by reference. */
   | 'session-ref'
+  /** The floating workspace's New Session tab: the create screen, until its session shows by reference. */
+  | 'create-session'
 
 export type WorkspaceVisibleTabType =
   | 'terminal'
