@@ -15,10 +15,11 @@ import {
   installingLabel
 } from './MarketplaceCatalogStatusCopy'
 import {
+  boardSkillRows,
   cliRow,
-  listPlaceholder,
+  normalizeSkillName,
   pendingStatus,
-  skillsPlaceholder,
+  unansweredStatus,
   unsetBoardRows
 } from './MarketplaceCatalogPlaceholders'
 
@@ -68,9 +69,15 @@ export type CatalogSection = {
   name: string
   note: string
   rows: CatalogRow[]
-  /** Shown in place of the rows while they are unknown or empty. */
+  /** Always null: every section lists its rows, and each row shows its own state. */
   placeholder: string | null
 }
+
+/** A host read with no answer this host can give: still running, failed, or from a host too old to answer. */
+export type HostUnanswered = { kind: 'loading' } | { kind: 'failed' } | { kind: 'update-required' }
+
+/** A host read a row depends on: unanswered, or the answer the host gave. */
+export type CatalogCheck<T> = HostUnanswered | { kind: 'ready'; value: T }
 
 /** A list read on this computer: still loading, not read for the host shown, or its items. */
 export type CatalogListState<T> =
@@ -78,16 +85,21 @@ export type CatalogListState<T> =
   | { kind: 'unavailable' }
   | { kind: 'ready'; items: readonly T[] }
 
-/** The GitHub CLI and GitLab CLI states the computer check reports. */
-export type CliBadges = { gh: MarketplaceBadgeState; gitlab: MarketplaceBadgeState }
+/** A row's badge: a host check's state, or the update a host too old for the check needs. */
+export type CatalogBadge = MarketplaceBadgeState | 'update-required'
+
+/** The GitHub CLI and GitLab CLI states the host check reports. */
+export type CliBadges = { gh: CatalogBadge; gitlab: CatalogBadge }
+
+/** One board agent and what the host check says about it. */
+export type CatalogAgentEntry = { id: TuiAgent; label: string; check: CatalogCheck<boolean> }
 
 export type CatalogBuildInputs = {
   hostLabel: string
-  badgeFor: (id: MarketplaceItemId) => MarketplaceBadgeState
+  badgeFor: (id: MarketplaceItemId) => CatalogBadge
   cli: CliBadges
-  agentEntries: readonly { id: TuiAgent; label: string }[]
-  detectedAgents: CatalogListState<TuiAgent>
-  skills: CatalogListState<DiscoveredSkill>
+  agents: readonly CatalogAgentEntry[]
+  skills: CatalogCheck<readonly DiscoveredSkill[]>
   custom: CatalogListState<MarketplaceCustomItemStatus>
   installingCustomIds: ReadonlySet<string>
 }
@@ -107,7 +119,7 @@ export function buildCatalogSections(inputs: CatalogBuildInputs): CatalogSection
       ),
       rows: [
         itemRow(inputs, 'git', 'tools'),
-        cliRow('gh', inputs.cli.gh),
+        cliRow('gh', inputs.cli.gh, host),
         ...unsetBoardRows('node'),
         itemRow(inputs, 'engram', 'tools'),
         ...customRows(inputs, 'tool', 'tools')
@@ -123,7 +135,7 @@ export function buildCatalogSections(inputs: CatalogBuildInputs): CatalogSection
         { host }
       ),
       rows: [...agentRows(inputs), ...customRows(inputs, 'agent', 'agents')],
-      placeholder: listPlaceholder(inputs.detectedAgents, host)
+      placeholder: null
     },
     {
       id: 'skills',
@@ -134,7 +146,7 @@ export function buildCatalogSections(inputs: CatalogBuildInputs): CatalogSection
         { host }
       ),
       rows: skillRows(inputs),
-      placeholder: skillsPlaceholder(inputs.skills, host)
+      placeholder: null
     },
     {
       id: 'services',
@@ -146,7 +158,7 @@ export function buildCatalogSections(inputs: CatalogBuildInputs): CatalogSection
       rows: [
         itemRow(inputs, 'openmetadata', 'services'),
         itemRow(inputs, 'github', 'services'),
-        cliRow('gitlab', inputs.cli.gitlab),
+        cliRow('gitlab', inputs.cli.gitlab, host),
         ...unsetBoardRows('email', 'calendar', 'drive', 'crm')
       ],
       placeholder: null
@@ -176,7 +188,7 @@ function itemRow(
   if (item === undefined) {
     throw new Error(`Marketplace catalog has no item ${id}`)
   }
-  const { status, owned } = itemStatus(id, inputs.badgeFor(id))
+  const { status, owned } = itemStatus(id, inputs.badgeFor(id), inputs.hostLabel)
   return {
     key: `item-${id}`,
     section,
@@ -193,8 +205,8 @@ function itemRow(
 
 type ItemState = { status: CatalogRowStatus; owned: boolean }
 
-function itemStatus(id: MarketplaceItemId, badge: MarketplaceBadgeState): ItemState {
-  const pending = pendingStatus(badge)
+function itemStatus(id: MarketplaceItemId, badge: CatalogBadge, host: string): ItemState {
+  const pending = pendingStatus(badge, host)
   if (pending !== null) {
     return { status: pending, owned: false }
   }
@@ -219,35 +231,45 @@ function itemStatus(id: MarketplaceItemId, badge: MarketplaceBadgeState): ItemSt
 }
 
 function agentRows(inputs: CatalogBuildInputs): CatalogRow[] {
-  if (inputs.detectedAgents.kind !== 'ready') {
-    return []
-  }
-  const detected = new Set<TuiAgent>(inputs.detectedAgents.items)
-  return inputs.agentEntries.map((entry) => agentRow(entry, detected.has(entry.id)))
+  return inputs.agents.map((entry) => agentRow(entry, inputs.hostLabel))
 }
 
-function agentRow(entry: { id: TuiAgent; label: string }, found: boolean): CatalogRow {
+function agentRow(entry: CatalogAgentEntry, host: string): CatalogRow {
+  const { status, owned } = agentStatus(entry.check, host)
   return {
     key: `agent-${entry.id}`,
     section: 'agents',
     name: entry.label,
     description: '',
     icon: { kind: 'agent', agent: entry.id },
-    status: found
-      ? { kind: 'found', label: foundLabel() }
-      : { kind: 'action', label: installLabel() },
+    status,
     target: { kind: 'agent', agent: entry.id },
-    owned: found,
+    owned,
     service: false,
     customId: null
   }
 }
 
-function skillRows(inputs: CatalogBuildInputs): CatalogRow[] {
-  if (inputs.skills.kind !== 'ready') {
-    return []
+function agentStatus(check: CatalogCheck<boolean>, host: string): ItemState {
+  if (check.kind !== 'ready') {
+    return { status: unansweredStatus(check, host), owned: false }
   }
-  return inputs.skills.items.map((skill): CatalogRow => ({
+  return check.value
+    ? { status: { kind: 'found', label: foundLabel() }, owned: true }
+    : { status: { kind: 'action', label: installLabel() }, owned: false }
+}
+
+function skillRows(inputs: CatalogBuildInputs): CatalogRow[] {
+  const { skills, hostLabel } = inputs
+  if (skills.kind !== 'ready') {
+    return boardSkillRows(new Set(), unansweredStatus(skills, hostLabel))
+  }
+  const listedNames = new Set(skills.value.map((skill) => normalizeSkillName(skill.name)))
+  return [...skills.value.map(skillRow), ...boardSkillRows(listedNames, null)]
+}
+
+function skillRow(skill: DiscoveredSkill): CatalogRow {
+  return {
     key: `skill-${skill.id}`,
     section: 'skills',
     name: skill.name,
@@ -260,7 +282,7 @@ function skillRows(inputs: CatalogBuildInputs): CatalogRow[] {
     owned: skill.installed,
     service: false,
     customId: null
-  }))
+  }
 }
 
 function customRows(

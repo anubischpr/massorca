@@ -1,13 +1,16 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { MarketplaceCustomItemStatus } from '../../../../shared/marketplace-custom'
 import type { DiscoveredSkill } from '../../../../shared/skills'
+import type { TuiAgent } from '../../../../shared/tui-agent'
 import type { MarketplaceItemId } from './marketplace-catalog'
-import type { MarketplaceBadgeState } from './marketplace-status'
 import {
   buildCatalogSections,
   ownedRows,
   rowMatchesQuery,
+  type CatalogAgentEntry,
+  type CatalogBadge,
   type CatalogBuildInputs,
+  type CatalogCheck,
   type CatalogRow,
   type CatalogSection
 } from './MarketplaceCatalogRows'
@@ -23,22 +26,35 @@ vi.mock('@/lib/agent-catalog', () => ({
 }))
 vi.mock('@/lib/pi-agent-display', () => ({ piRuntimeLabel: () => 'Gentle Shell' }))
 
+const PV_VPS = 'pv-vps'
+const BOARD_SKILL_NAMES = ['Browser use', 'Computer use', 'Linear', 'Orchestration', 'Price check']
+const BOARD_AGENTS: readonly { id: TuiAgent; label: string }[] = [
+  { id: 'claude', label: 'Claude Code' },
+  { id: 'codex', label: 'Codex' },
+  { id: 'antigravity', label: 'Antigravity' },
+  { id: 'pi', label: 'Gentle Shell' }
+]
+
 function badges(
-  states: Partial<Record<MarketplaceItemId, MarketplaceBadgeState>>
+  states: Partial<Record<MarketplaceItemId, CatalogBadge>>
 ): CatalogBuildInputs['badgeFor'] {
   return (id) => states[id] ?? 'not-installed'
+}
+
+function agentsWith(check: (id: TuiAgent) => CatalogCheck<boolean>): CatalogAgentEntry[] {
+  return BOARD_AGENTS.map((entry) => ({ ...entry, check: check(entry.id) }))
+}
+
+function readyAgents(foundIds: readonly TuiAgent[]): CatalogAgentEntry[] {
+  return agentsWith((id) => ({ kind: 'ready', value: foundIds.includes(id) }))
 }
 
 function inputs(overrides: Partial<CatalogBuildInputs> = {}): CatalogBuildInputs {
   return {
     hostLabel: 'This computer',
     badgeFor: badges({}),
-    agentEntries: [
-      { id: 'claude', label: 'Claude Code' },
-      { id: 'codex', label: 'Codex' }
-    ],
-    detectedAgents: { kind: 'ready', items: ['codex'] },
-    skills: { kind: 'ready', items: [] },
+    agents: readyAgents(['codex']),
+    skills: { kind: 'ready', value: [] },
     custom: { kind: 'ready', items: [] },
     installingCustomIds: new Set(),
     cli: { gh: 'not-installed', gitlab: 'not-installed' },
@@ -217,7 +233,7 @@ describe('the board-only rows, the CLI rows and skill rows', () => {
   it('opens a skill row with the skill it lists', () => {
     const listed = skill('alpha')
     const row = rowNamed(
-      buildCatalogSections(inputs({ skills: { kind: 'ready', items: [listed] } })),
+      buildCatalogSections(inputs({ skills: { kind: 'ready', value: [listed] } })),
       'alpha'
     )
     expect(row.target).toEqual({ kind: 'skill', skill: listed })
@@ -297,52 +313,50 @@ describe('the item statuses', () => {
   })
 })
 
-describe('agents, skills and custom items', () => {
-  it('lists the agents in the order given, each with Found or Install', () => {
+describe('agents, skills and custom items on this computer', () => {
+  it('lists the four board agents in board order, each with Found or Install', () => {
     const agents = sectionNamed(buildCatalogSections(inputs()), 'Agents').rows
-    expect(agents.map((row) => row.name)).toEqual(['Claude Code', 'Codex'])
+    expect(agents.map((row) => row.name)).toEqual([
+      'Claude Code',
+      'Codex',
+      'Antigravity',
+      'Gentle Shell'
+    ])
     expect(agents[1]?.status).toEqual({ kind: 'found', label: 'Found' })
     expect(agents[1]?.owned).toBe(true)
     expect(agents[0]?.status).toEqual({ kind: 'action', label: 'Install' })
     expect(agents[0]?.target).toEqual({ kind: 'agent', agent: 'claude' })
   })
 
-  it('shows a placeholder instead of agent rows while detection runs', () => {
+  it('shows each agent as Checking while detection runs, and never an empty section', () => {
     const section = sectionNamed(
-      buildCatalogSections(inputs({ detectedAgents: { kind: 'loading' } })),
+      buildCatalogSections(inputs({ agents: agentsWith(() => ({ kind: 'loading' })) })),
       'Agents'
     )
-    expect(section.rows).toEqual([])
-    expect(section.placeholder).toBe('Checking this computer…')
-  })
-
-  it('says a remote host was not checked, instead of showing this computer', () => {
-    const section = sectionNamed(
-      buildCatalogSections(
-        inputs({ hostLabel: 'Dev server', detectedAgents: { kind: 'unavailable' } })
-      ),
-      'Agents'
+    expect(section.rows.map((row) => row.status)).toEqual(
+      BOARD_AGENTS.map(() => ({ kind: 'pending', label: 'Checking…' }))
     )
-    expect(section.rows).toEqual([])
-    expect(section.placeholder).toBe('Not checked on Dev server yet.')
+    expect(section.placeholder).toBeNull()
   })
 
   it('lists the skills found, each as Installed with its source when it has no description', () => {
     const skills = sectionNamed(
-      buildCatalogSections(inputs({ skills: { kind: 'ready', items: [skill('alpha')] } })),
+      buildCatalogSections(inputs({ skills: { kind: 'ready', value: [skill('alpha')] } })),
       'Skills'
     )
-    expect(skills.rows).toHaveLength(1)
-    expect(skills.rows[0]?.name).toBe('alpha')
-    expect(skills.rows[0]?.description).toBe('Agent skills home')
-    expect(skills.rows[0]?.status).toEqual({ kind: 'done', label: 'Installed' })
+    const alpha = skills.rows.find((row) => row.name === 'alpha')
+    expect(alpha?.description).toBe('Agent skills home')
+    expect(alpha?.status).toEqual({ kind: 'done', label: 'Installed' })
     expect(skills.placeholder).toBeNull()
   })
 
-  it('says no skills were found when the scan is empty', () => {
+  it('keeps the board skills listed when the scan finds none, each with Install', () => {
     const skills = sectionNamed(buildCatalogSections(inputs()), 'Skills')
-    expect(skills.rows).toEqual([])
-    expect(skills.placeholder).toBe('No skills found on This computer.')
+    expect(skills.rows.map((row) => row.name)).toEqual(BOARD_SKILL_NAMES)
+    expect(
+      skills.rows.every((row) => row.status.kind === 'action' && row.status.label === 'Install')
+    ).toBe(true)
+    expect(skills.placeholder).toBeNull()
   })
 
   it('places a found custom tool under Tools as Installed and owned', () => {
@@ -406,12 +420,165 @@ describe('agents, skills and custom items', () => {
   })
 })
 
+describe('a picked remote host', () => {
+  it('lists all four board agents, Found where its detection finds them and Install for the rest', () => {
+    const agents = sectionNamed(
+      buildCatalogSections(inputs({ hostLabel: PV_VPS, agents: readyAgents(['codex']) })),
+      'Agents'
+    ).rows
+    expect(agents.map((row) => row.name)).toEqual([
+      'Claude Code',
+      'Codex',
+      'Antigravity',
+      'Gentle Shell'
+    ])
+    expect(agents.map((row) => row.status)).toEqual([
+      { kind: 'action', label: 'Install' },
+      { kind: 'found', label: 'Found' },
+      { kind: 'action', label: 'Install' },
+      { kind: 'action', label: 'Install' }
+    ])
+    expect(agents[1]?.owned).toBe(true)
+  })
+
+  it('shows each agent row as Checking while the host detection runs', () => {
+    const section = sectionNamed(
+      buildCatalogSections(
+        inputs({ hostLabel: PV_VPS, agents: agentsWith(() => ({ kind: 'loading' })) })
+      ),
+      'Agents'
+    )
+    expect(section.rows.map((row) => row.status)).toEqual(
+      BOARD_AGENTS.map(() => ({ kind: 'pending', label: 'Checking…' }))
+    )
+    expect(section.placeholder).toBeNull()
+  })
+
+  it('shows Could not check on each agent row when the host detection failed', () => {
+    const section = sectionNamed(
+      buildCatalogSections(
+        inputs({ hostLabel: PV_VPS, agents: agentsWith(() => ({ kind: 'failed' })) })
+      ),
+      'Agents'
+    )
+    expect(section.rows.map((row) => row.status)).toEqual(
+      BOARD_AGENTS.map(() => ({ kind: 'pending', label: 'Could not check' }))
+    )
+  })
+
+  it('shows Update MassOrca on the host only on the rows whose check that host predates', () => {
+    const section = sectionNamed(
+      buildCatalogSections(
+        inputs({
+          hostLabel: PV_VPS,
+          agents: agentsWith((id) =>
+            id === 'pi' ? { kind: 'update-required' } : { kind: 'ready', value: true }
+          )
+        })
+      ),
+      'Agents'
+    )
+    expect(section.rows.map((row) => row.status)).toEqual([
+      { kind: 'found', label: 'Found' },
+      { kind: 'found', label: 'Found' },
+      { kind: 'found', label: 'Found' },
+      { kind: 'pending', label: 'Update MassOrca on pv-vps' }
+    ])
+  })
+
+  it('shows Update MassOrca on the host for a tool row whose check the host predates', () => {
+    const sections = buildCatalogSections(
+      inputs({
+        hostLabel: PV_VPS,
+        badgeFor: badges({ git: 'update-required' }),
+        cli: { gh: 'update-required', gitlab: 'unknown' }
+      })
+    )
+    expect(rowNamed(sections, 'Git').status).toEqual({
+      kind: 'pending',
+      label: 'Update MassOrca on pv-vps'
+    })
+    expect(rowNamed(sections, 'GitHub CLI').status).toEqual({
+      kind: 'pending',
+      label: 'Update MassOrca on pv-vps'
+    })
+  })
+
+  it('lists the board skills while the host skills are checked, failed or out of date', () => {
+    const cases: [CatalogCheck<readonly DiscoveredSkill[]>, string][] = [
+      [{ kind: 'loading' }, 'Checking…'],
+      [{ kind: 'failed' }, 'Could not check'],
+      [{ kind: 'update-required' }, 'Update MassOrca on pv-vps']
+    ]
+    for (const [skills, label] of cases) {
+      const section = sectionNamed(
+        buildCatalogSections(inputs({ hostLabel: PV_VPS, skills })),
+        'Skills'
+      )
+      expect(section.rows.map((row) => row.name)).toEqual(BOARD_SKILL_NAMES)
+      expect(section.rows.map((row) => row.status)).toEqual(
+        BOARD_SKILL_NAMES.map(() => ({ kind: 'pending', label }))
+      )
+    }
+  })
+
+  it('lists the discovered skills first, and a board skill the host already lists shows its state', () => {
+    const skills = sectionNamed(
+      buildCatalogSections(
+        inputs({
+          hostLabel: PV_VPS,
+          skills: { kind: 'ready', value: [skill('browser-use'), skill('alpha')] }
+        })
+      ),
+      'Skills'
+    )
+    expect(skills.rows.map((row) => row.name)).toEqual([
+      'browser-use',
+      'alpha',
+      'Computer use',
+      'Linear',
+      'Orchestration',
+      'Price check'
+    ])
+    expect(skills.rows[0]?.status).toEqual({ kind: 'done', label: 'Installed' })
+    expect(skills.rows[2]?.status).toEqual({ kind: 'action', label: 'Install' })
+  })
+
+  it('never leaves a section empty, whatever this computer or the host answered', () => {
+    const agentChecks: CatalogCheck<boolean>[] = [
+      { kind: 'loading' },
+      { kind: 'failed' },
+      { kind: 'update-required' },
+      { kind: 'ready', value: false }
+    ]
+    const skillChecks: CatalogCheck<readonly DiscoveredSkill[]>[] = [
+      { kind: 'loading' },
+      { kind: 'failed' },
+      { kind: 'update-required' },
+      { kind: 'ready', value: [] }
+    ]
+    for (const hostLabel of ['This computer', PV_VPS]) {
+      for (const check of agentChecks) {
+        for (const skillCheck of skillChecks) {
+          const sections = buildCatalogSections(
+            inputs({ hostLabel, agents: agentsWith(() => check), skills: skillCheck })
+          )
+          for (const section of sections) {
+            expect(section.rows.length, `${hostLabel} ${section.name}`).toBeGreaterThan(0)
+            expect(section.placeholder).toBeNull()
+          }
+        }
+      }
+    }
+  })
+})
+
 describe('owned rows and search', () => {
   it('returns the owned rows in section order', () => {
     const sections = buildCatalogSections(
       inputs({
         badgeFor: badges({ git: 'installed', github: 'signed-in' }),
-        skills: { kind: 'ready', items: [skill('alpha')] }
+        skills: { kind: 'ready', value: [skill('alpha')] }
       })
     )
     expect(ownedRows(sections).map((row) => row.name)).toEqual(['Git', 'Codex', 'alpha', 'GitHub'])

@@ -43,3 +43,12 @@ export function desktopOnlyLabel(): string {
 export function installingLabel(): string {
   return translate('auto.components.marketplace.MarketplaceCatalogRows.installing', 'Installing…')
 }
+
+/** A host too old to answer a check: the row asks for the update that lets the check run. */
+export function updateOnHostLabel(host: string): string {
+  return translate(
+    'auto.components.marketplace.MarketplaceCatalogRows.updateOnHost',
+    'Update MassOrca on {{host}}',
+    { host }
+  )
+}

@@ -6,7 +6,6 @@ import { GitHubAccountsCard } from './GitHubAccountsCard'
 import { GITHUB_CLI_URL } from './marketplace-catalog'
 import type { MarketplaceAppContext } from './marketplace-app-context'
 import { MarketplaceAppSection } from './MarketplaceAppSection'
-import { MarketplaceGitHubProjects } from './MarketplaceGitHubProjects'
 import { MarketplaceInfoRow } from './MarketplaceInfoRow'
 import { credentialSummary } from './marketplace-vault-credential-text'
 import { MarketplaceVaultHosts } from './MarketplaceVaultHosts'
@@ -267,7 +266,6 @@ function GitHubConnection({ ctx }: { ctx: MarketplaceAppContext }): React.JSX.El
           'Accounts stay in the GitHub CLI on each host; MassOrca never holds the token.'
         )}
       </p>
-      <MarketplaceGitHubProjects />
     </div>
   )
 }
