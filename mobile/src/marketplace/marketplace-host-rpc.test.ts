@@ -7,6 +7,7 @@ import {
   readHostPiRuntimes,
   readHostTools,
   setEngramServer,
+  setMarketplaceAppAccess,
   setOpenMetadataToken,
   type MarketplaceHostRpc
 } from './marketplace-host-rpc'
@@ -101,6 +102,24 @@ describe('Marketplace writes', () => {
       url: 'https://engram.example.com',
       token: 'engram-token'
     })
+  })
+
+  it('saves an app access policy through setAccessPolicy', async () => {
+    const { client, sendRequest } = hostAnswering(() =>
+      succeeded({ ok: true, status: { id: 'engram', connected: true, agents: [] } })
+    )
+    const policy = {
+      agents: { mode: 'everyone' as const, ids: [] },
+      bots: { mode: 'except' as const, botIds: [], teamIds: ['team-1'] }
+    }
+
+    const result = await setMarketplaceAppAccess(client, 'engram', policy)
+
+    expect(sendRequest).toHaveBeenCalledWith('marketplace.apps.setAccessPolicy', {
+      id: 'engram',
+      policy
+    })
+    expect(result.ok).toBe(true)
   })
 
   it('passes the host refusal reason through, and reads a dropped write as failed', async () => {
