@@ -239,12 +239,11 @@ describe('create chat submitted from the floating workspace', () => {
     expectMainWindowUntouched()
     expect(mocks.runBackgroundWorktreeCreation).toHaveBeenCalledWith(
       expect.objectContaining({ agentLaunchRoute: 'structured-native-chat' }),
-      { revealCreationSurface: false }
+      { revealCreationSurface: false, onCreated: expect.any(Function) }
     )
     await vi.waitFor(() =>
       expect(mocks.showFloatingNewWorktreeLaunch).toHaveBeenCalledWith({
-        repoId: 'repo-1',
-        knownWorktreeIds: new Set(['wt-main', 'wt-fix']),
+        created: { worktreeId: null, notify: expect.any(Function) },
         creationId: 'creation-1',
         createTabId: 'create-2'
       })

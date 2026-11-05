@@ -116,13 +116,15 @@ function failFloatingCreateLaunch(createTabId: string | null, message: string | 
 }
 
 export type FloatingNewWorktreeLaunch = {
-  repoId: string
-  /** The repo's workspaces before the create, so the one it makes can be told apart. */
-  knownWorktreeIds: ReadonlySet<string>
+  /** Filled with the id the create gives its workspace; another workspace of the repo may land first. */
+  created: CreatedWorktreeSignal
   /** The create's pending entry; it is gone, or failed, when the workspace will not come. */
   creationId: string
   createTabId: string | null
 }
+
+/** Set synchronously by the create once its workspace exists; `notify` re-checks a running wait. */
+export type CreatedWorktreeSignal = { worktreeId: string | null; notify: () => void }
 
 /** How a New Session create's wait for its workspace ended. */
 type NewWorktreeWait =
@@ -158,10 +160,16 @@ export function showFloatingNewWorktreeLaunch(launch: FloatingNewWorktreeLaunch)
 }
 
 function waitForNewWorktree(launch: FloatingNewWorktreeLaunch): Promise<NewWorktreeWait> {
-  const findNew = (): string | null =>
-    (useAppStore.getState().worktreesByRepo[launch.repoId] ?? []).find(
-      (worktree) => !launch.knownWorktreeIds.has(worktree.id)
-    )?.id ?? null
+  const findNew = (): string | null => {
+    const worktreeId = launch.created.worktreeId
+    if (worktreeId === null) {
+      return null
+    }
+    const repos = Object.values(useAppStore.getState().worktreesByRepo)
+    return repos.some((worktrees) => worktrees.some((worktree) => worktree.id === worktreeId))
+      ? worktreeId
+      : null
+  }
   const createEnded = (): boolean => {
     const pending: AppState['pendingWorktreeCreations'][string] | undefined =
       useAppStore.getState().pendingWorktreeCreations[launch.creationId]
@@ -180,14 +188,17 @@ function waitForNewWorktree(launch: FloatingNewWorktreeLaunch): Promise<NewWorkt
       unsubscribe()
       resolve(wait)
     }
-    const unsubscribe = useAppStore.subscribe(() => {
+    const check = (): void => {
       const worktreeId = findNew()
       if (worktreeId !== null) {
         finish({ kind: 'created', worktreeId })
       } else if (createEnded()) {
         finish({ kind: 'ended' })
       }
-    })
+    }
+    // Why: the id can arrive after the store already holds that workspace, with no later store change.
+    launch.created.notify = check
+    const unsubscribe = useAppStore.subscribe(check)
     const timer = setTimeout(() => finish({ kind: 'timed-out' }), NEW_WORKTREE_WAIT_MS)
   })
 }

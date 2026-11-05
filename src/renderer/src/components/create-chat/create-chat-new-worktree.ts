@@ -1,3 +1,4 @@
+import type { CreatedWorktreeSignal } from '@/lib/floating-workspace-create-launch'
 import { useAppStore } from '@/store'
 import { getWorkspaceSeedName } from '@/lib/new-workspace'
 import { getSuggestedCreatureName } from '@/components/sidebar/worktree-name-suggestions'
@@ -136,14 +137,17 @@ function startNewWorktreeCreation(
     return started
   }
   const createTabId = placement.createTabId
-  const knownWorktreeIds = new Set(
-    (useAppStore.getState().worktreesByRepo[request.repoId] ?? []).map((worktree) => worktree.id)
-  )
-  const creationId = runBackgroundWorktreeCreation(request, { revealCreationSurface: false })
+  const created: CreatedWorktreeSignal = { worktreeId: null, notify: () => undefined }
+  const creationId = runBackgroundWorktreeCreation(request, {
+    revealCreationSurface: false,
+    onCreated: (worktreeId) => {
+      created.worktreeId = worktreeId
+      created.notify()
+    }
+  })
   void loadFloatingCreateLaunch().then((floatingLaunch) =>
     floatingLaunch.showFloatingNewWorktreeLaunch({
-      repoId: request.repoId,
-      knownWorktreeIds,
+      created,
       creationId,
       createTabId
     })
