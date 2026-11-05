@@ -1,3 +1,5 @@
+import { z } from 'zod'
+import type { BotTeamTask } from '../../../../../shared/rpc-contract/bot-team-room-params'
 import type { OrchestrationDb } from '../orchestration-db'
 
 /** A delegated task learns its session from its request, once the child has started. */
@@ -49,4 +51,26 @@ export function isBotTeamTaskHandedOff(this: OrchestrationDb, taskId: string): b
       )
       .get(taskId) !== undefined
   )
+}
+
+/**
+ * The task this session already handed to this teammate with the very same text, unless that
+ * request failed or was cancelled (those never started, so asking again is a retry).
+ */
+export function findHandedOverBotTeamTask(
+  db: OrchestrationDb,
+  args: { parentSessionId: string; ownerBotId: string; prompt: string }
+): BotTeamTask | null {
+  const row = db.db
+    .prepare(
+      `SELECT t.id FROM bot_team_task_delegations l
+       JOIN delegation_requests d ON d.id = l.request_id
+       JOIN bot_team_tasks t ON t.id = l.task_id
+       WHERE d.parent_session_id = ? AND t.owner_bot_id = ? AND t.prompt = ?
+         AND d.status NOT IN ('failed', 'cancelled')
+       ORDER BY t.rowid LIMIT 1`
+    )
+    .get(args.parentSessionId, args.ownerBotId, args.prompt)
+  const found = z.object({ id: z.string() }).safeParse(row)
+  return found.success ? db.getBotTeamTask(found.data.id) : null
 }

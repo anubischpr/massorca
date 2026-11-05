@@ -21,6 +21,7 @@ import {
   TEAM_FOLDER_SKIPPED,
   teammateFilesOf
 } from './bot-team-finish-child-files'
+import { registerFinishedTaskFiles } from './bot-team-finish-register-files'
 import { handOverRunBy, handOversMadeBy } from './bot-team-finish-handovers'
 import { botTeamFolderPath } from './bot-team-version-deps'
 import { isGitMainCheckout, listRecentWorkspaceFiles } from './bot-team-workspace-scan'
@@ -42,6 +43,8 @@ export type BotTeamFinishReportDeps = {
   visualsFolderOf?: (sessionId: string) => string
   /** The workspace a session ran in, from its chat record; a finished child's files are read from there. */
   workspaceOfSession?: (sessionId: string) => string | null
+  /** Where finished tasks' file records are kept; the app's own store by default. */
+  deliverableStoreDir?: string
 }
 
 const MAX_NAMED = 6
@@ -226,6 +229,16 @@ export async function reportFinishedBotTeamTask(
     .listBotTeamMessages(task.teamId)
     .filter((m) => m.authorBotId === task.ownerBotId && (m.createdAt ?? 0) >= since)
   const team = db.listBotTeams().find((entry) => entry.id === task.teamId)
+  if (task.projectId !== null && worktreePath !== null) {
+    registerFinishedTaskFiles({
+      storeDir: deps.deliverableStoreDir,
+      teamId: task.teamId,
+      taskId: task.id,
+      worktreePath,
+      written: names,
+      ownLines: own
+    })
+  }
   const handedOver = [
     ...visualFilesOf(deps, sessionId, since),
     ...childFilesOf(deps, db, sessionId, handOvers)

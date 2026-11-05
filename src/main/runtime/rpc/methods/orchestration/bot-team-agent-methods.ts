@@ -15,6 +15,7 @@ import { botTeamTaskTitle, routeBotTeamRequest } from '../../../../../shared/bot
 import { readBotTeamMemoryLines } from '../../../../bot-teams/bot-team-memory-read'
 import { botTeamRoomExcerpt } from '../../../../bot-teams/bot-team-prompt-notes'
 import { delegateToBotTeammate, findDelegationTeam } from '../../../../bot-teams/bot-team-delegate'
+import { findHandedOverBotTeamTask } from '../../../orchestration/db/bot-teams/bot-team-task-delegation-store'
 import {
   getDelegationAnswerService,
   getDelegationRequestService
@@ -129,7 +130,13 @@ export const ORCHESTRATION_BOT_TEAM_METHODS = [
             linkTask: (taskId, requestId) => db.linkBotTeamTaskDelegation(taskId, requestId),
             startRequest: (requestId, agent) =>
               getDelegationAnswerService(runtime).startChosenAgent(requestId, agent),
-            launchOutcome: (requestId) => waitForDelegationLaunch(db, requestId)
+            launchOutcome: (requestId) => waitForDelegationLaunch(db, requestId),
+            alreadyHandedOver: (ownerBotId, prompt) =>
+              findHandedOverBotTeamTask(db, {
+                parentSessionId: caller.sessionId ?? '',
+                ownerBotId,
+                prompt
+              })
           },
           {
             team,

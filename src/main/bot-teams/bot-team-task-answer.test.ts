@@ -63,6 +63,20 @@ describe('the person’s reply to a bot that asked in the room', () => {
     expect(db!.getBotTeamTask(task.id).awaitingPerson).toBeUndefined()
   })
 
+  it('tells the bot the line answers its question only and never reruns finished work', async () => {
+    const { team } = waitingTask()
+    const deps = sender()
+
+    await answerWaitingBotTeamTask(db!, deps, {
+      teamId: team.id,
+      text: 'El resumen',
+      attachments: []
+    })
+
+    expect(deps.sent[0].text).toContain('answers your question only')
+    expect(deps.sent[0].text).toContain('Do not redo work that is already finished')
+  })
+
   it('files nothing when no task waits for the person', async () => {
     const { team, task } = waitingTask()
     db!.clearBotTeamTaskWaiting(task.id)

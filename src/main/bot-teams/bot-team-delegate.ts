@@ -20,6 +20,8 @@ export type BotTeamDelegateDeps = {
   startRequest: (requestId: string, agent: BotTeamBot['agent']) => void
   /** Settles once the request left pending/starting; a request that cannot say is taken as started. */
   launchOutcome?: (requestId: string) => Promise<{ failed: string | null }>
+  /** The task this session already handed to that teammate with the same text, if any. */
+  alreadyHandedOver?: (botId: string, text: string) => BotTeamTask | null
   /** What the team and the teammate remember, as a task's own start would read it. */
   memoryFor?: (botId: string) => BotTeamMemoryLines
 }
@@ -56,10 +58,15 @@ export async function delegateToBotTeammate(
     /** Connected Marketplace apps the teammate is kept out of; its request gets no line for them. */
     deniedMarketplaceApps?: readonly MarketplaceAppId[]
   }
-): Promise<BotTeamTask> {
+): Promise<BotTeamTask & { alreadyHandedOver?: true }> {
   const teammate = team.bots.find((bot) => bot.name.toLowerCase() === botName.toLowerCase())
   if (!teammate) {
     throw new Error(`${botName} is not on this team. No effects were applied.`)
+  }
+  // Why: the same text sent twice from one task would run the part twice.
+  const earlier = deps.alreadyHandedOver?.(teammate.id, text)
+  if (earlier) {
+    return { ...earlier, alreadyHandedOver: true }
   }
   const title = botTeamTaskTitle(text, team.bots)
   const launch = botLaunchOptions(teammate)

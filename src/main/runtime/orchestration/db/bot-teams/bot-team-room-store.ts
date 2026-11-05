@@ -35,6 +35,7 @@ import {
   BOT_TEAM_TRACKER_STORE_METHODS,
   type BotTeamTrackerStoreMethods
 } from './bot-team-tracker-store'
+import { findRepeatedBotLine } from './bot-team-message-repeat'
 import type { OrchestrationDb } from '../orchestration-db'
 
 const TASK_SELECT = `SELECT id, team_id AS teamId, title, prompt, owner_bot_id AS ownerBotId, session_id AS sessionId, project_id AS projectId, created_at AS createdAt, last_status AS lastStatus,
@@ -158,19 +159,30 @@ export function postBotTeamMessage(
   if (input.authorBotId !== null && !fromAll) {
     requireBotOnTeam(this, input.teamId, input.authorBotId)
   }
-  const id = generateId('botmsg')
-  this.db
-    .prepare(
-      'INSERT INTO bot_team_messages (id, team_id, author_bot_id, author_kind, text, created_at) VALUES (?, ?, ?, ?, ?, ?)'
-    )
-    .run(
-      id,
-      input.teamId,
-      fromAll ? null : input.authorBotId,
-      fromAll ? BOT_TEAM_ALL_AUTHOR : null,
-      encodeBotTeamRoomAttachments(input.text, input.attachments ?? []),
-      Date.now()
-    )
+  const storedText = encodeBotTeamRoomAttachments(input.text, input.attachments ?? [])
+  const repeated =
+    input.authorBotId !== null && !fromAll
+      ? findRepeatedBotLine(this, {
+          teamId: input.teamId,
+          botId: input.authorBotId,
+          storedText
+        })
+      : null
+  const id = repeated ?? generateId('botmsg')
+  if (repeated === null) {
+    this.db
+      .prepare(
+        'INSERT INTO bot_team_messages (id, team_id, author_bot_id, author_kind, text, created_at) VALUES (?, ?, ?, ?, ?, ?)'
+      )
+      .run(
+        id,
+        input.teamId,
+        fromAll ? null : input.authorBotId,
+        fromAll ? BOT_TEAM_ALL_AUTHOR : null,
+        storedText,
+        Date.now()
+      )
+  }
   return messageWithAttachments(
     BotTeamMessageSchema.parse(this.db.prepare(`${MESSAGE_SELECT} WHERE id = ?`).get(id))
   )

@@ -7,10 +7,12 @@ import {
   mentionedMarketplaceApps
 } from '../../shared/marketplace-app-mentions'
 import { asksForDelegatedSession } from '../../shared/prototype-delegated-ask'
-import { botLaunchOptions } from './bot-team-model-choice'
+import { botSessionLaunchOptions } from './bot-team-model-choice'
 import {
   BOT_TEAM_HISTORY_SOURCES_NOTE,
+  BOT_TEAM_NO_REDO_NOTE,
   BOT_TEAM_ROOM_VOICE_NOTE,
+  BOT_TEAM_SAVE_FILE_NOTE,
   BOT_TEAM_UNIVERSAL_CAPABILITY_NOTE
 } from './bot-team-prompt-notes'
 import { worktreeOfWorkspace } from './bot-team-worktree-deliverables'
@@ -108,6 +110,12 @@ export type BotTeamPromptExtras = {
   deniedMarketplaceApps?: readonly MarketplaceAppId[]
 }
 
+const HAND_TO_TEAMMATE_NOTE =
+  ' To hand work to a teammate, run `orca orchestration team-delegate --bot <name> --text "<task>"`; add `--team <team>` for a bot of another team. Hand each part over once: an identical repeat is ignored.'
+// Why: a child already sits one level down, and the host refuses a sub-worker dispatched from it.
+const CHILD_NO_DISPATCH_NOTE =
+  " You are a teammate's child session: do not dispatch sub-workers (no delegation commands, no child sessions). Do the whole task yourself."
+
 export function botTeamTaskPrompt(
   team: BotTeam,
   bot: BotTeamBot,
@@ -149,13 +157,15 @@ export function botTeamTaskPrompt(
       : 'Write every file you produce in your current working directory (check it with `pwd`), never in another checkout, including the main checkout of any repository.',
     BOT_TEAM_UNIVERSAL_CAPABILITY_NOTE,
     BOT_TEAM_HISTORY_SOURCES_NOTE,
+    BOT_TEAM_NO_REDO_NOTE,
+    BOT_TEAM_SAVE_FILE_NOTE,
     BOT_TEAM_ROOM_VOICE_NOTE,
     [
       delegated
         ? 'This task is already on the board, but the room does not say you took it yet. Before you start, post one short first-person line saying what you will do, in the same language as the request: `orca orchestration team-post --text "<line>"`. Then tell'
         : 'This task is already on the board and the room already says you took it. Tell',
       'the team in its Conference room when you finish, in one short line that names the final deliverable by file name (or a link), never a path: `orca orchestration team-post --text "<line>"`. Write that line in the same language as the task\'s request above. Do not post for follow-up messages in this chat.',
-      'For this team\'s tasks, read the real board with `orca orchestration team-tasks`. Never add this task to the board again; save only separate work for later with `orca orchestration team-task-create --text "<task>"`. To hand work to a teammate, run `orca orchestration team-delegate --bot <name> --text "<task>"`; add `--team <team>` for a bot of another team.',
+      `For this team's tasks, read the real board with \`orca orchestration team-tasks\`. Never add this task to the board again; save only separate work for later with \`orca orchestration team-task-create --text "<task>"\`.${delegated ? CHILD_NO_DISPATCH_NOTE : HAND_TO_TEAMMATE_NOTE}`,
       'To keep something for later tasks, run `orca orchestration team-remember --text "<what>"`; add `--me` when only you need it, and `--told` when the person asked you to remember it.'
     ].join(' ')
   ].join('\n\n')
@@ -200,7 +210,7 @@ export async function startBotTeamTask(
       ? await linkedWorkspaceId(deps, extras.project, linked.key, task)
       : await deps.ensureTeamWorkspace(team)
   const workingDirectory = worktreeOfWorkspace(workspaceId)?.path ?? botTeamFolderPath(team.id)
-  const options = botLaunchOptions(bot)
+  const options = botSessionLaunchOptions(bot)
   const piRuntime = botAgentPiRuntime(bot.agent)
   const sessionId = await deps.createSession({
     workspaceId,
