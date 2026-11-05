@@ -14,9 +14,6 @@ export function BotTeamRoomPrototypeCard({
   return (
     <NativeChatPrototypeCountCard
       ask={{
-        text: ask.text,
-        attachments: [],
-        sentFrom: { text: ask.text, images: [] },
         keyword: ask.keyword,
         settingAsks: ask.settingAsks,
         defaultCount: ask.defaultCount,
