@@ -550,6 +550,59 @@ describe('MarketplaceAppPage', () => {
       })
     })
 
+    const leoTeam: BotTeam = {
+      ...alphaTeam,
+      id: 'team-leo',
+      name: 'Leo team',
+      bots: [{ ...alphaTeam.bots[0], id: 'bot-leo', name: 'Leo', agent: 'antigravity' }]
+    }
+    const ANTIGRAVITY_NOTICE = "a bot on Antigravity can't be kept out of one"
+
+    it('keeps an Antigravity bot picked under Only these and says why', async () => {
+      mocks.teams.push(alphaTeam, leoTeam)
+      const container = await mount('engram')
+      await act(async () => {
+        radioOf(container, BOTS_MODE, 'Only these').click()
+      })
+      expect(mocks.setAccessPolicy).toHaveBeenCalledWith({
+        id: 'engram',
+        policy: { ...EVERYONE, bots: { mode: 'only', botIds: ['bot-leo'], teamIds: [] } }
+      })
+      expect(container.textContent).toContain(ANTIGRAVITY_NOTICE)
+    })
+
+    it('refuses to keep a team with an Antigravity bot out of an app', async () => {
+      mocks.teams.push(leoTeam)
+      seedApps([
+        { ...engram, access: { ...EVERYONE, bots: { mode: 'except', botIds: [], teamIds: [] } } },
+        openmetadata,
+        github
+      ])
+      const container = await mount('engram')
+      await clickButton(document.body, 'Add a bot or team')
+      const wholeTeam = [...document.querySelectorAll('[cmdk-item]')].find((item) =>
+        item.textContent?.includes('Whole team')
+      )
+      await act(async () => {
+        wholeTeam?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+      })
+      expect(mocks.setAccessPolicy).not.toHaveBeenCalled()
+      expect(container.textContent).toContain(ANTIGRAVITY_NOTICE)
+    })
+
+    it('limits other bots without a notice when no Antigravity bot is affected', async () => {
+      mocks.teams.push(alphaTeam)
+      const container = await mount('engram')
+      await act(async () => {
+        radioOf(container, BOTS_MODE, 'Only these').click()
+      })
+      expect(mocks.setAccessPolicy).toHaveBeenCalledWith({
+        id: 'engram',
+        policy: { ...EVERYONE, bots: { mode: 'only', botIds: [], teamIds: [] } }
+      })
+      expect(container.textContent).not.toContain(ANTIGRAVITY_NOTICE)
+    })
+
     it('says that GitHub limits only change what MassOrca shows', async () => {
       const container = await mount('github')
       expect(container.textContent).toContain('For GitHub this only changes what MassOrca shows.')
