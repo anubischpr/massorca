@@ -21,7 +21,12 @@ import {
   nativeChatMentionChip,
   useNativeChatMentionFilesAndApps
 } from '../native-chat/use-native-chat-mention-apps'
-import type { CreateChatSelection } from './create-chat-selection'
+import type { NativeChatMentionProject } from '../native-chat/use-native-chat-mention-files'
+import {
+  reposOnHost,
+  type CreateChatRepoOption,
+  type CreateChatSelection
+} from './create-chat-selection'
 
 const CLOSED: ComposerAutocomplete = { mode: 'none' }
 /** The menu's tallest height (`max-h-72`) plus its gap and a margin from the window edge. */
@@ -38,17 +43,32 @@ export function createChatMentionPlacement(
 
 /** Where @ lists files: a worktree on the host the user picked, and its folder when known. */
 export type CreateChatMentionTarget = {
-  worktreeId: string
+  /** Null for a projectless chat, which has no files to list and offers `projects` instead. */
+  worktreeId: string | null
   executionHostId: ExecutionHostId
   rootPath: string | null
+  projects?: readonly NativeChatMentionProject[]
 }
 
-/** The picked worktree, else the project's primary checkout as the submit resolves it; null with no project. */
+/** The picked worktree, else the project's primary checkout as the submit resolves it; a projectless chat names the host's projects. */
 export function useCreateChatMentionTarget(
-  selection: CreateChatSelection
+  selection: CreateChatSelection,
+  repos: readonly CreateChatRepoOption[]
 ): CreateChatMentionTarget | null {
   const { project, executionHostId } = selection
   const repoId = project.kind === 'repo' ? project.repoId : null
+  const projectless = useMemo<CreateChatMentionTarget>(
+    () => ({
+      worktreeId: null,
+      executionHostId,
+      rootPath: null,
+      projects: reposOnHost(repos, executionHostId).map((repo) => ({
+        name: repo.displayName,
+        path: repo.path
+      }))
+    }),
+    [executionHostId, repos]
+  )
   const repo = useAppStore((state) =>
     repoId === null ? null : (state.repos.find((entry) => entry.id === repoId) ?? null)
   )
@@ -57,7 +77,7 @@ export function useCreateChatMentionTarget(
   )
   return useMemo(() => {
     if (repoId === null) {
-      return null
+      return projectless
     }
     const picked =
       selection.workspaceMode === 'existing-worktree' ? selection.existingWorktreeId : undefined
@@ -72,6 +92,7 @@ export function useCreateChatMentionTarget(
     return { worktreeId: primary.id, executionHostId, rootPath: primary.path }
   }, [
     executionHostId,
+    projectless,
     repo,
     repoId,
     selection.existingWorktreeId,
@@ -111,9 +132,11 @@ export function useCreateChatMention(args: {
   const mentionFiles = useNativeChatMentionFilesAndApps({
     query: autocomplete.mode === 'mention' ? autocomplete.query : null,
     terminalTabId: '',
-    structuredWorktreeId: target?.worktreeId,
+    structuredWorktreeId: target?.worktreeId ?? undefined,
     executionHostId: target?.executionHostId,
-    rootPath: target?.rootPath
+    rootPath: target?.rootPath,
+    listFiles: target?.worktreeId != null,
+    projects: target?.projects
   })
   const completeMention = (path: string): void => {
     const next = applyMentionSuggestion(draft, caret, path)

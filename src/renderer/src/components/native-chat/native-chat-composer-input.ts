@@ -4,7 +4,7 @@ import type { MarketplaceAppId } from '../../../../shared/marketplace-apps'
 export type NativeChatMentionChip = {
   token: string
   label: string
-  kind: 'file' | 'app'
+  kind: 'file' | 'app' | 'project'
   appId?: MarketplaceAppId
 }
 
