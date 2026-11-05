@@ -68,7 +68,7 @@ export function CreateChatSession({
     selection.executionHostId,
     modelListingContext
   )
-  const mentionTarget = useCreateChatMentionTarget(selection)
+  const mentionTarget = useCreateChatMentionTarget(selection, options.repos)
   const view: CreateChatSessionView = selection.sessionView ?? 'chat'
   const terminalBlock = view === 'terminal' ? createChatTerminalBlock(selection.agent) : null
   const canSubmit =

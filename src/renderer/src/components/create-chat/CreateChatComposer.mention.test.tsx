@@ -27,6 +27,7 @@ vi.mock('../native-chat/use-native-chat-mention-files', () => ({
     structuredWorktreeId?: string
     executionHostId?: string
     rootPath?: string | null
+    listFiles?: boolean
   }) => {
     mentionQueries.push({
       query: args.query,
@@ -35,7 +36,10 @@ vi.mock('../native-chat/use-native-chat-mention-files', () => ({
       rootPath: args.rootPath
     })
     return {
-      files: args.query === null ? [] : ['src/shared/routine.ts', 'docs/brief.md'],
+      files:
+        args.query === null || args.listFiles === false
+          ? []
+          : ['src/shared/routine.ts', 'docs/brief.md'],
       loading: false,
       failed: false
     }
@@ -200,10 +204,55 @@ describe('CreateChatComposer @ files', () => {
     expect(chip?.querySelector('svg.lucide-brain')).not.toBeNull()
   })
 
-  it('offers nothing without a project', () => {
+  it('offers nothing without a target', () => {
     const container = mount(null)
     type(container, 'Fix @rou')
     expect(container.querySelector('[role="listbox"]')).toBeNull()
+  })
+
+  it('opens on a projectless chat with the host’s projects and apps, and inserts a project chip', () => {
+    useAppStore.setState({
+      marketplaceApps: { status: 'ready', apps: [{ id: 'engram', connected: true, agents: [] }] }
+    })
+    const repos = [
+      { repoId: 'r1', displayName: 'massorca', path: 'C:\\code\\massorca', hostId: 'local' },
+      { repoId: 'r2', displayName: 'vps-api', path: '/srv/api', hostId: 'runtime:vps' }
+    ] as const
+    const targets: MentionTarget[] = []
+    function Probe(): null {
+      targets.push(
+        useCreateChatMentionTarget(
+          {
+            executionHostId: 'local',
+            project: { kind: 'none' },
+            workspaceMode: 'new-worktree',
+            agent: 'claude',
+            accessMode: 'default'
+          },
+          repos.map((repo) => ({ ...repo, isFolder: false }))
+        )
+      )
+      return null
+    }
+    const probe = document.createElement('div')
+    const root = createRoot(probe)
+    mounted.push({ container: probe, root })
+    act(() => root.render(<Probe />))
+
+    const container = mountTarget(targets.at(-1) ?? null)
+    const box = type(container, 'Fix @')
+    const listbox = container.querySelector('[role="listbox"]')
+    const rows = [...(listbox?.children ?? [])].filter((row) => !row.matches('[aria-live]'))
+    expect(rows.map((row) => row.textContent)).toEqual([
+      'Projects',
+      'massorca',
+      'Apps',
+      'EngramInstalled from Marketplace'
+    ])
+    keyDown(box, 'Enter')
+    const chip = box.querySelector('[data-native-chat-mention="massorca"]')
+    expect(chip?.querySelector('svg.lucide-folder')).not.toBeNull()
+    expect(promptValue(box)).toContain('C:\\code\\massorca')
   })
 
   it('lists a Local Windows project’s files on the picked host, before its worktrees load', () => {
@@ -216,13 +265,16 @@ describe('CreateChatComposer @ files', () => {
     const targets: MentionTarget[] = []
     function Probe(): null {
       targets.push(
-        useCreateChatMentionTarget({
-          executionHostId: 'local',
-          project: { kind: 'repo', repoId: 'repo-1' },
-          workspaceMode: 'new-worktree',
-          agent: 'claude',
-          accessMode: 'default'
-        })
+        useCreateChatMentionTarget(
+          {
+            executionHostId: 'local',
+            project: { kind: 'repo', repoId: 'repo-1' },
+            workspaceMode: 'new-worktree',
+            agent: 'claude',
+            accessMode: 'default'
+          },
+          []
+        )
       )
       return null
     }
