@@ -17,6 +17,7 @@
  */
 import { agentSessionLeaseAdmitsWriter } from '../../../shared/agent-session-lease-adjudication'
 import type { AgentSessionRecord } from '../../../shared/agent-session-record'
+import type { OrchestrationCompatibilityEvidence } from '../../../shared/orchestration-compatibility-evidence'
 import { ORCA_AGENT_SESSION_ID_ENV } from '../../../shared/agent-session-caller-env'
 import {
   ORCA_SESSION_ADDRESS_PREFIX,
@@ -103,6 +104,27 @@ function declaredSessionAddress(request: RpcRequest): string | undefined {
   const values: Record<string, unknown> = { ...params }
   const declared = values[name]
   return typeof declared === 'string' && parseOrcaSessionAddress(declared) ? declared : undefined
+}
+
+/**
+ * The record of the local agent session a request names as its caller, for methods that only use the
+ * caller to keep a bot's denied apps out of what they start. Unlike `resolveOrchestrationSessionCaller`
+ * it never refuses: an id that is absent, from another host (paired, SSH, WSL), malformed or unknown
+ * is simply no caller, so those requests run exactly as they did.
+ */
+export async function readCallerSessionRecord(
+  runtime: OrcaRuntimeService,
+  evidence: OrchestrationCompatibilityEvidence | undefined,
+  route: OrchestrationRequestRoute | undefined
+): Promise<AgentSessionRecord | undefined> {
+  const claimed = evidence?.agentSessionId
+  if (claimed === undefined || route?.pairedDeviceId !== undefined || evidence?.host) {
+    return undefined
+  }
+  if (typeof claimed !== 'string' || !isOrcaSessionId(claimed)) {
+    return undefined
+  }
+  return readSessionRecord(runtime, claimed).catch(() => undefined)
 }
 
 /** Only for a request `needsOrchestrationCallerResolution` accepts. Throws the refusal, if any. */

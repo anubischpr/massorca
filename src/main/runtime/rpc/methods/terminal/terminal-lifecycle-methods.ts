@@ -18,6 +18,7 @@ import {
   TerminalWait
 } from './unary-schemas'
 import { TerminalResizeForClient } from './stream-schemas'
+import { refuseDeniedBotCaller } from '../orchestration/worker/worker-bot-run'
 
 export const TERMINAL_LIFECYCLE_METHODS = [
   defineMethod({
@@ -36,7 +37,10 @@ export const TERMINAL_LIFECYCLE_METHODS = [
     name: 'terminal.create',
     permission: 'workspace',
     params: TerminalCreateParams,
-    handler: async (params, { runtime, pairedDeviceId, clientId, clientKind }) => {
+    handler: async (params, context) => {
+      const { runtime, pairedDeviceId, clientId, clientKind } = context
+      // A bot kept out of an app may not open a terminal, which would get the host's tokens.
+      await refuseDeniedBotCaller(runtime, context, 'a terminal')
       // A focused terminal create predates paired-client navigation. Keep the
       // authority boundary here so a remote caller cannot activate the host
       // renderer. This legacy RPC remains a background create for paired viewers;
@@ -88,14 +92,17 @@ export const TERMINAL_LIFECYCLE_METHODS = [
     name: 'terminal.split',
     permission: 'workspace',
     params: TerminalSplit,
-    handler: async (params, { runtime }) => ({
-      split: await runtime.splitTerminal(params.terminal, {
-        direction: params.direction,
-        command: params.command,
-        env: params.env,
-        telemetrySource: params.telemetrySource
-      })
-    })
+    handler: async (params, context) => {
+      await refuseDeniedBotCaller(context.runtime, context, 'a terminal')
+      return {
+        split: await context.runtime.splitTerminal(params.terminal, {
+          direction: params.direction,
+          command: params.command,
+          env: params.env,
+          telemetrySource: params.telemetrySource
+        })
+      }
+    }
   }),
   defineMethod({
     name: 'terminal.stop',

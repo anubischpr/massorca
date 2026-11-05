@@ -5,6 +5,9 @@ import {
 } from '../../../../../marketplace/marketplace-bot-run-denial'
 import { getStructuredAgentSessionHost } from '../../../../../native-chat/agent-session-wire/structured-agent-session-registry'
 import type { OrchestrationDb } from '../../../../orchestration/db'
+import type { OrcaRuntimeService } from '../../../../orca-runtime'
+import type { RpcContext } from '../../../core'
+import { readCallerSessionRecord } from '../../../orchestration-session-caller'
 import { OrchestrationError } from '../../../../orchestration/orchestration-error'
 
 export type WorkerBotRun = { botId: string; teamId: string }
@@ -36,4 +39,34 @@ export async function refuseWorkerForDeniedBot(
       { effectsApplied: false }
     )
   }
+}
+
+/**
+ * Refuses a terminal or agent launch from a caller session whose bot is kept out of a Marketplace
+ * app: Orca spawns it outside the bot's process, so it would get the host's tokens and config.
+ * A request with no session evidence, or from another host, is no bot's and runs as it did.
+ */
+export async function refuseDeniedBotCaller(
+  runtime: OrcaRuntimeService,
+  context: Partial<Pick<RpcContext, 'orchestrationCompatibilityEvidence' | 'pairedDeviceId'>>,
+  kind: string
+): Promise<void> {
+  if (context.orchestrationCompatibilityEvidence?.agentSessionId === undefined) {
+    return
+  }
+  const record = await readCallerSessionRecord(
+    runtime,
+    context.orchestrationCompatibilityEvidence,
+    {
+      pairedDeviceId: context.pairedDeviceId
+    }
+  )
+  if (!record) {
+    return
+  }
+  const db = runtime.getOrchestrationDb()
+  await refuseWorkerForDeniedBot(
+    botRunOfCallerSession(db, record.sessionId, () => record.options),
+    kind
+  )
 }

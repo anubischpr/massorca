@@ -7,12 +7,22 @@ import type { OrchestrationSessionCaller } from '../../../../orchestration/orche
 import { ORCHESTRATION_METHODS } from '../../orchestration'
 import { startFederatedWorker } from '../federation/federated-worker-start'
 import { startLocalWorker } from './local-worker-start'
+import { refuseDeniedBotCaller } from './worker-bot-run'
+import {
+  SESSION_X,
+  SESSION_Y,
+  sessionRecord
+} from '../../../orchestration-session-caller-test-fixture'
 
 vi.mock('./local-worker-start', () => ({
   startLocalWorker: vi.fn(async () => ({ state: 'starting' }))
 }))
 vi.mock('../federation/federated-worker-start', () => ({
   startFederatedWorker: vi.fn(async () => ({ state: 'starting' }))
+}))
+const hostRef = vi.hoisted((): { current: unknown } => ({ current: null }))
+vi.mock('../../../../../native-chat/agent-session-wire/structured-agent-session-registry', () => ({
+  getStructuredAgentSessionHost: () => hostRef.current
 }))
 const denial = vi.hoisted(() => ({ denies: false }))
 vi.mock('../../../../../marketplace/marketplace-bot-run-denial', async (importOriginal) => ({
@@ -119,5 +129,79 @@ describe('orchestration.workerStart from a session that belongs to a bot run', (
     denial.denies = true
     await startWorker(PLAIN_CALLER, 'server-1')
     expect(startFederatedWorker).toHaveBeenCalledTimes(2)
+  })
+})
+
+describe('refuseDeniedBotCaller', () => {
+  const BOT_OPTIONS = { botTeamBotId: 'bob', botTeamId: 't1' }
+  const runtime = {
+    ensureStructuredAgentSessionHost: async () => {},
+    getOrchestrationDb: () => ({ db: { prepare: () => ({ get: () => undefined }) } })
+  } as never
+
+  function installRecords(): void {
+    hostRef.current = {
+      deps: {
+        store: {
+          getRecord: (id: string) =>
+            id === SESSION_X
+              ? { ...sessionRecord(SESSION_X), options: BOT_OPTIONS }
+              : id === SESSION_Y
+                ? sessionRecord(SESSION_Y)
+                : null,
+          listRecords: () => []
+        }
+      }
+    }
+  }
+
+  beforeEach(() => {
+    denial.denies = false
+    installRecords()
+  })
+  afterEach(() => {
+    hostRef.current = null
+  })
+
+  const run = (evidence: unknown, extra: Record<string, unknown> = {}) =>
+    refuseDeniedBotCaller(
+      runtime,
+      { orchestrationCompatibilityEvidence: evidence, ...extra } as never,
+      'a terminal'
+    )
+
+  it('refuses a caller session whose bot is kept out of an app', async () => {
+    denial.denies = true
+    await expect(run({ agentSessionId: SESSION_X })).rejects.toMatchObject({
+      code: 'capability_unsupported'
+    })
+  })
+
+  it('lets through a bot kept out of nothing, a session no bot runs, and an unknown session', async () => {
+    await expect(run({ agentSessionId: SESSION_X })).resolves.toBeUndefined()
+    denial.denies = true
+    await expect(run({ agentSessionId: SESSION_Y })).resolves.toBeUndefined()
+    await expect(
+      run({ agentSessionId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' })
+    ).resolves.toBeUndefined()
+  })
+
+  it('leaves a request with no caller evidence, or one from another host, exactly as it was', async () => {
+    denial.denies = true
+    const touched = vi.fn()
+    hostRef.current = new Proxy({}, { get: touched })
+    await expect(run(undefined)).resolves.toBeUndefined()
+    await expect(run({ terminalHandle: 'term_1' })).resolves.toBeUndefined()
+    expect(touched).not.toHaveBeenCalled()
+    installRecords()
+    await expect(
+      run({ agentSessionId: SESSION_X }, { pairedDeviceId: 'phone' })
+    ).resolves.toBeUndefined()
+    await expect(
+      run({
+        agentSessionId: SESSION_X,
+        host: { kind: 'ssh', targetId: 't', connectionIncarnation: 'c', attachmentId: 'a' }
+      })
+    ).resolves.toBeUndefined()
   })
 })

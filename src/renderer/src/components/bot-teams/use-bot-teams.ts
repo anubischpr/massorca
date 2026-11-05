@@ -5,6 +5,7 @@ import { useBotTeamHost } from '@/runtime/bot-team-host'
 import { listBotTeams } from '@/runtime/runtime-bot-team-client'
 import { isBotTeamFolderPath } from '../../../../shared/bot-team-folder'
 import type { BotTeam, BotTeamCharacter } from '../../../../shared/rpc-contract/bot-team-params'
+import { botTeamChangeErrorText } from './bot-team-change-error-text'
 import { botTeamForFolderPath } from './bot-team-folder-team'
 
 const HOST_CHECK_MS = 20_000
@@ -88,7 +89,7 @@ export function useBotTeams(): BotTeamsState {
       reloadBotTeams()
       return true
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : String(error))
+      toast.error(botTeamChangeErrorText(error instanceof Error ? error.message : String(error)))
       return false
     }
   }, [])
