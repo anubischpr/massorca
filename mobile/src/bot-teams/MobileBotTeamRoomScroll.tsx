@@ -3,6 +3,7 @@ import { ScrollView, View } from 'react-native'
 import { MobileNativeChatJumpToLatest } from '../session/MobileNativeChatJumpToLatest'
 import { MobileNativeChatMessage } from '../session/MobileNativeChatMessage'
 import { isBotTeamFilesOnlyText } from '../../../src/shared/bot-team-room-attachments-line'
+import { botTeamRoomTextWithFileNames } from '../../../src/shared/bot-team-room-text-paths'
 import { botTeamStyles as styles } from './mobile-bot-team-styles'
 import type { NativeChatMessage } from '../../../src/shared/native-chat-types'
 import type { BotTeamMessage } from '../../../src/shared/rpc-contract/bot-team-room-params'
@@ -13,7 +14,14 @@ export function roomChatMessage(message: BotTeamMessage): NativeChatMessage {
   return {
     id: message.id,
     role: message.authorBotId === null ? 'user' : 'assistant',
-    blocks: [{ type: 'text', text: message.text }],
+    // A bot names a file by its path; the room attaches it, so the person reads only its name.
+    blocks: [
+      {
+        type: 'text',
+        text:
+          message.authorBotId === null ? message.text : botTeamRoomTextWithFileNames(message.text)
+      }
+    ],
     timestamp: null,
     source: 'transcript'
   }
