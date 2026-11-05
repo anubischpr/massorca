@@ -56,6 +56,7 @@ export function OneLineSessionMenu({
 }): React.JSX.Element {
   const kind = getSessionMenuKind(agent)
   const worktreeId = agent.tab.worktreeId
+  const renameRequestedRef = React.useRef(false)
   return (
     <ContextMenu>
       <ContextMenuTrigger
@@ -65,9 +66,23 @@ export function OneLineSessionMenu({
       >
         {children}
       </ContextMenuTrigger>
-      <ContextMenuContent className="w-52">
+      <ContextMenuContent
+        className="w-52"
+        // Why: the closing menu restores focus, which blurred an editor opened on select and closed it at once.
+        onCloseAutoFocus={(event) => {
+          if (renameRequestedRef.current) {
+            renameRequestedRef.current = false
+            event.preventDefault()
+            onStartRename()
+          }
+        }}
+      >
         {kind.ownsTab ? (
-          <ContextMenuItem onSelect={onStartRename}>
+          <ContextMenuItem
+            onSelect={() => {
+              renameRequestedRef.current = true
+            }}
+          >
             <Pencil className="size-3.5" />
             {translate('auto.components.tab.bar.EditorFileTabContextMenu.68cc610e7f', 'Rename')}
           </ContextMenuItem>
