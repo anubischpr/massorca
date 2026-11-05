@@ -30,10 +30,18 @@ export function decideNativeChatPrototypeRequest(input: {
   agent: PrototypeAgent
   setting: PrototypeCountSetting
   choice?: NativeChatPrototypeChoice
+  /**
+   * Whether hand-off wording leaves the request to the child; default true. A room worker passes false: it is
+   * not the lead, and nothing else would ask.
+   */
+  handOffExempt?: boolean
 }): NativeChatPrototypeDecision {
   const request: PrototypeRequest = classifyPrototypeRequest(input.text, input.agent)
   // Why: a keyword match that hands the design to a child session is that child's request, made by its own first prompt.
-  const handedToChild = request.kind === 'keyword' && asksForDelegatedSession(input.text)
+  const handedToChild =
+    input.handOffExempt !== false &&
+    request.kind === 'keyword' &&
+    asksForDelegatedSession(input.text)
   if (request.kind === 'none' || handedToChild || input.choice === 'as-typed') {
     return { kind: 'as-typed' }
   }

@@ -109,6 +109,25 @@ describe('decideDelegatedTaskPrototypeCount', () => {
     expect(decideTask(text, ASK)).toEqual({ kind: 'ask', defaultCount: 2 })
   })
 
+  it('asks a room worker the count even when the message hands the design to a child session', () => {
+    for (const text of [
+      'en una sesión hija crea un nuevo diseño para la página "clinical-report"',
+      'en una sesión hija crea un nuevo diseño para la página "pipeline-activo"'
+    ]) {
+      expect(decideNativeChatPrototypeRequest({ text, agent: 'codex', setting: ASK })).toEqual({
+        kind: 'as-typed'
+      })
+      expect(
+        decideNativeChatPrototypeRequest({
+          text,
+          agent: 'codex',
+          setting: ASK,
+          handOffExempt: false
+        })
+      ).toEqual({ kind: 'ask', keyword: true })
+    }
+  })
+
   it('shows no count question for a command under "Always make", which takes the Settings count', () => {
     expect(decideTask('/prototype a login page', ALWAYS_3)).toEqual({ kind: 'none' })
     expect(decideTask('/prototype a login page', ASK)).toEqual({ kind: 'ask', defaultCount: 2 })
