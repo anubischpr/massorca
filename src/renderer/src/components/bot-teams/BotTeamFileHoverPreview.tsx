@@ -81,13 +81,14 @@ export function BotTeamFileHoverPreview({
         <img src={peek.src} alt={name} className="max-h-40 w-full rounded-md object-contain" />
       ) : null}
       {peek.status === 'page' ? (
-        <div className="pointer-events-none h-40 w-full overflow-hidden rounded-md border border-border bg-background">
+        <div className="h-40 w-full overflow-hidden rounded-md border border-border bg-background">
           <iframe
             title={name}
             // SECURITY: never add allow-scripts or allow-same-origin; a bot's page is untrusted.
             sandbox=""
             referrerPolicy="no-referrer"
             tabIndex={-1}
+            // Why: the frame scrolls the page under the wheel; the card keeps itself open meanwhile.
             srcDoc={peek.srcDoc}
             className="block border-0"
             style={{

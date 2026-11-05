@@ -1,7 +1,6 @@
-import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card'
 import { translate } from '@/i18n/i18n'
 import type { BotTeamRoomAttachment } from '../../../../shared/bot-team-room-attachments'
-import { BotTeamFileHoverPreview } from './BotTeamFileHoverPreview'
+import { BotTeamFileHoverCard } from './BotTeamFileChipHover'
 
 /**
  * The files a room message names, listed under its text. A chip opens the file when `onOpen` is
@@ -53,12 +52,9 @@ export function BotTeamRoomAttachChips({
         return (
           <li key={file.path} className="flex max-w-full">
             {teamId ? (
-              <HoverCard openDelay={300}>
-                <HoverCardTrigger asChild>{chip}</HoverCardTrigger>
-                <HoverCardContent side="top" align="start" variant="workspace-details">
-                  <BotTeamFileHoverPreview teamId={teamId} path={file.path} name={file.name} />
-                </HoverCardContent>
-              </HoverCard>
+              <BotTeamFileHoverCard teamId={teamId} path={file.path} name={file.name}>
+                {chip}
+              </BotTeamFileHoverCard>
             ) : (
               chip
             )}
