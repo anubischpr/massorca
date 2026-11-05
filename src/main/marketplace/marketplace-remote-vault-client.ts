@@ -5,11 +5,13 @@ import {
 } from '../../shared/marketplace-apps'
 import {
   MARKETPLACE_VAULT_CLEAR_METHOD,
+  MARKETPLACE_VAULT_CLEAR_PROFILE_METHOD,
   MARKETPLACE_VAULT_SET_METHOD,
+  MARKETPLACE_VAULT_SET_PROFILE_METHOD,
   MARKETPLACE_VAULT_STATUS_METHOD,
   MarketplaceVaultHostAnswerSchema
 } from '../../shared/rpc-contract/marketplace-vault-params'
-import { parseToken } from './marketplace-apps-args'
+import { parseProfileName, parseToken } from './marketplace-apps-args'
 
 /** The slice of the SSH multiplexer this client needs. */
 export type RemoteVaultMux = {
@@ -20,6 +22,8 @@ export type RemoteVaultMux = {
 const METHOD_NOT_FOUND = -32601
 const ConnectionArgs = z.object({ connectionId: z.string().min(1).max(512) })
 const SlotArgs = ConnectionArgs.extend({ slot: z.enum(MARKETPLACE_REMOTE_CREDENTIAL_SLOTS) })
+// Why: a `profile` argument selects the profile methods, which an older relay answers as method-not-found.
+const ProfileArgs = ConnectionArgs.extend({ profile: z.string() })
 
 function errorCode(error: unknown): unknown {
   return typeof error === 'object' && error !== null && 'code' in error ? error.code : undefined
@@ -83,6 +87,14 @@ export function createRemoteVaultClient(
         : Promise.resolve(INVALID)
     },
     set: (rawArgs) => {
+      const profile = ProfileArgs.extend({ token: z.unknown() }).safeParse(rawArgs)
+      if (profile.success) {
+        const name = parseProfileName(profile.data.profile)
+        const token = parseToken(profile.data.token)
+        return name && token
+          ? call(profile.data.connectionId, MARKETPLACE_VAULT_SET_PROFILE_METHOD, { name, token })
+          : Promise.resolve(INVALID)
+      }
       const args = SlotArgs.extend({ token: z.unknown() }).safeParse(rawArgs)
       const token = args.success ? parseToken(args.data.token) : null
       return args.success && token
@@ -93,6 +105,13 @@ export function createRemoteVaultClient(
         : Promise.resolve(INVALID)
     },
     clear: (rawArgs) => {
+      const profile = ProfileArgs.safeParse(rawArgs)
+      if (profile.success) {
+        const name = parseProfileName(profile.data.profile)
+        return name
+          ? call(profile.data.connectionId, MARKETPLACE_VAULT_CLEAR_PROFILE_METHOD, { name })
+          : Promise.resolve(INVALID)
+      }
       const args = SlotArgs.safeParse(rawArgs)
       return args.success
         ? call(args.data.connectionId, MARKETPLACE_VAULT_CLEAR_METHOD, { slot: args.data.slot })

@@ -3,7 +3,9 @@ import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import {
   MarketplaceVaultClear,
-  MarketplaceVaultSet
+  MarketplaceVaultClearProfile,
+  MarketplaceVaultSet,
+  MarketplaceVaultSetProfile
 } from '../../../../shared/rpc-contract/marketplace-vault-params'
 import { MarketplaceVault } from '../../../marketplace/marketplace-vault'
 import { makeTempHome } from '../../../marketplace/marketplace-apps-test-fixtures'
@@ -11,8 +13,10 @@ import type { RpcContext } from '../core'
 import { ALL_RPC_METHODS } from './index'
 import {
   marketplaceVaultClearMethod,
+  marketplaceVaultClearProfileMethod,
   marketplaceVaultHost,
   marketplaceVaultSetMethod,
+  marketplaceVaultSetProfileMethod,
   marketplaceVaultStatusMethod
 } from './marketplace-vault-methods'
 
@@ -55,7 +59,8 @@ describe('marketplace.vault.* methods', () => {
         credentials: [
           { slot: 'openmetadata', stored: true, updatedAt: expect.any(Number) },
           { slot: 'engram-cloud', stored: false }
-        ]
+        ],
+        profiles: []
       }
     })
     expect(JSON.stringify(result)).not.toContain(TOKEN)
@@ -92,5 +97,71 @@ describe('marketplace.vault.* methods', () => {
 
   it('rejects an unknown slot at the schema', () => {
     expect(MarketplaceVaultSet.safeParse({ slot: 'github', token: TOKEN }).success).toBe(false)
+  })
+})
+
+describe('marketplace.vault profile methods', () => {
+  function addProfile(name: string): void {
+    const state = marketplaceVaultHost.vault().readState()
+    state.openMetadata.profiles.push({ name, url: 'https://om.example.com/mcp' })
+    marketplaceVaultHost.vault().writeState(state)
+  }
+
+  it('are separate methods, gated as account administration like the others', () => {
+    for (const name of ['setProfile', 'clearProfile']) {
+      const registered = ALL_RPC_METHODS.find((m) => m.name === `marketplace.vault.${name}`)
+      expect(registered?.permission).toBe('accounts-admin')
+    }
+  })
+
+  it('stores the token of a profile and hands it to the agents this host launches', async () => {
+    addProfile('escritura')
+    const result = await marketplaceVaultSetProfileMethod.handler(
+      MarketplaceVaultSetProfile.parse({ name: 'escritura', token: TOKEN }),
+      context
+    )
+    expect(result).toMatchObject({
+      ok: true,
+      status: { profiles: [{ name: 'escritura', stored: true, updatedAt: expect.any(Number) }] }
+    })
+    expect(JSON.stringify(result)).not.toContain(TOKEN)
+    expect(marketplaceVaultHost.vault().buildAgentEnv()).toEqual({
+      OPENMETADATA_TOKEN_ESCRITURA: TOKEN
+    })
+  })
+
+  it('reports a profile in the status the old status method already returns', async () => {
+    addProfile('escritura')
+    const status = await marketplaceVaultStatusMethod.handler(undefined, context)
+    expect(status).toMatchObject({ ok: true, status: { profiles: [{ name: 'escritura' }] } })
+  })
+
+  it('clears the token of a profile', async () => {
+    addProfile('escritura')
+    await marketplaceVaultSetProfileMethod.handler({ name: 'escritura', token: TOKEN }, context)
+    const cleared = await marketplaceVaultClearProfileMethod.handler(
+      MarketplaceVaultClearProfile.parse({ name: 'escritura' }),
+      context
+    )
+    expect(cleared).toMatchObject({ ok: true, status: { profiles: [{ stored: false }] } })
+    expect(marketplaceVaultHost.vault().buildAgentEnv()).toEqual({})
+  })
+
+  it('refuses a name the local profile parser refuses', async () => {
+    addProfile('escritura')
+    const result = await marketplaceVaultSetProfileMethod.handler(
+      { name: 'openmetadata', token: TOKEN },
+      context
+    )
+    expect(result).toEqual({ ok: false, reason: 'invalid-input' })
+  })
+
+  it('leaves the old set method answering the old shape', async () => {
+    const params = MarketplaceVaultSet.parse({ slot: 'engram-cloud', token: TOKEN })
+    const result = await marketplaceVaultSetMethod.handler(params, context)
+    expect(result).toMatchObject({
+      ok: true,
+      status: { credentials: [{ slot: 'openmetadata' }, { slot: 'engram-cloud', stored: true }] }
+    })
   })
 })

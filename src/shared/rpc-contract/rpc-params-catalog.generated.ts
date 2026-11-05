@@ -440,7 +440,12 @@ import {
   MarketplaceAppsSetEngramServer,
   MarketplaceAppsSetOpenMetadataToken
 } from './marketplace-apps-params'
-import { MarketplaceVaultClear, MarketplaceVaultSet } from './marketplace-vault-params'
+import {
+  MarketplaceVaultClear,
+  MarketplaceVaultClearProfile,
+  MarketplaceVaultSet,
+  MarketplaceVaultSetProfile
+} from './marketplace-vault-params'
 import { NativeChatSession, NativeChatUnsubscribe } from './native-chat-params'
 import {
   NotificationGetMissedSinceParams,
@@ -1184,7 +1189,9 @@ export const RPC_PARAMS_BY_METHOD = {
   'marketplace.apps.setEngramServer': MarketplaceAppsSetEngramServer,
   'marketplace.apps.setOpenMetadataToken': MarketplaceAppsSetOpenMetadataToken,
   'marketplace.vault.clear': MarketplaceVaultClear,
+  'marketplace.vault.clearProfile': MarketplaceVaultClearProfile,
   'marketplace.vault.set': MarketplaceVaultSet,
+  'marketplace.vault.setProfile': MarketplaceVaultSetProfile,
   'marketplace.vault.status': null,
   'mobileWeb.bundle.chunk': MobileWebBundleChunkParamsSchema,
   'mobileWeb.bundle.manifest': null,

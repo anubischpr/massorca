@@ -1,12 +1,16 @@
 import {
   MARKETPLACE_VAULT_CLEAR_METHOD,
+  MARKETPLACE_VAULT_CLEAR_PROFILE_METHOD,
   MARKETPLACE_VAULT_SET_METHOD,
+  MARKETPLACE_VAULT_SET_PROFILE_METHOD,
   MARKETPLACE_VAULT_STATUS_METHOD
 } from '../shared/rpc-contract/marketplace-vault-params'
 import {
   clearVaultHostCredential,
+  clearVaultHostProfileCredential,
   readVaultHostStatus,
-  setVaultHostCredential
+  setVaultHostCredential,
+  setVaultHostProfileCredential
 } from '../main/marketplace/marketplace-vault-host'
 import { MarketplaceVault } from '../main/marketplace/marketplace-vault'
 import type { RelayDispatcher } from './dispatcher'
@@ -68,6 +72,12 @@ export class MarketplaceVaultHandler {
     )
     dispatcher.onRequest(MARKETPLACE_VAULT_CLEAR_METHOD, async (params) =>
       clearVaultHostCredential(this.vault, params)
+    )
+    dispatcher.onRequest(MARKETPLACE_VAULT_SET_PROFILE_METHOD, async (params) =>
+      setVaultHostProfileCredential(this.vault, params)
+    )
+    dispatcher.onRequest(MARKETPLACE_VAULT_CLEAR_PROFILE_METHOD, async (params) =>
+      clearVaultHostProfileCredential(this.vault, params)
     )
   }
 }

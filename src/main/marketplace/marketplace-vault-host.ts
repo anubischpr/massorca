@@ -6,9 +6,11 @@ import {
 } from '../../shared/marketplace-apps'
 import {
   MarketplaceVaultClear,
-  MarketplaceVaultSet
+  MarketplaceVaultClearProfile,
+  MarketplaceVaultSet,
+  MarketplaceVaultSetProfile
 } from '../../shared/rpc-contract/marketplace-vault-params'
-import { parseToken } from './marketplace-apps-args'
+import { parseProfileName, parseToken } from './marketplace-apps-args'
 import type { MarketplaceVault, VaultSlot } from './marketplace-vault'
 
 const SLOTS: Record<MarketplaceRemoteCredentialSlot, VaultSlot> = {
@@ -25,6 +27,10 @@ export function readVaultHostStatus(vault: MarketplaceVault): MarketplaceVaultHo
     credentials: MARKETPLACE_REMOTE_CREDENTIAL_SLOTS.map((slot) => {
       const { stored, updatedAt } = vault.credentialStatus(SLOTS[slot])
       return updatedAt === undefined ? { slot, stored } : { slot, stored, updatedAt }
+    }),
+    profiles: vault.readState().openMetadata.profiles.map(({ name }) => {
+      const { stored, updatedAt } = vault.credentialStatus({ kind: 'openmetadata-profile', name })
+      return updatedAt === undefined ? { name, stored } : { name, stored, updatedAt }
     })
   }
 }
@@ -58,5 +64,38 @@ export function clearVaultHostCredential(
     return { ok: false, reason: 'invalid-input' }
   }
   vault.deleteToken(SLOTS[parsed.data.slot])
+  return status(vault)
+}
+
+/**
+ * Sets or replaces the token of an extra OpenMetadata profile this host already lists. A profile
+ * the host does not list is refused: its token would be stored but never reach an agent.
+ */
+export function setVaultHostProfileCredential(
+  vault: MarketplaceVault,
+  rawArgs: unknown
+): MarketplaceVaultHostResult {
+  const parsed = MarketplaceVaultSetProfile.safeParse(rawArgs)
+  const name = parsed.success ? parseProfileName(parsed.data.name) : null
+  const token = parsed.success ? parseToken(parsed.data.token) : null
+  if (!name || !token || !vault.readState().openMetadata.profiles.some((p) => p.name === name)) {
+    return { ok: false, reason: 'invalid-input' }
+  }
+  return vault.writeToken({ kind: 'openmetadata-profile', name }, token)
+    ? status(vault)
+    : { ok: false, reason: 'vault-unavailable' }
+}
+
+/** Drops the token only; the profile and its agent entries stay until it is removed. */
+export function clearVaultHostProfileCredential(
+  vault: MarketplaceVault,
+  rawArgs: unknown
+): MarketplaceVaultHostResult {
+  const parsed = MarketplaceVaultClearProfile.safeParse(rawArgs)
+  const name = parsed.success ? parseProfileName(parsed.data.name) : null
+  if (!name) {
+    return { ok: false, reason: 'invalid-input' }
+  }
+  vault.deleteToken({ kind: 'openmetadata-profile', name })
   return status(vault)
 }

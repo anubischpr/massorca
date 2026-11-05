@@ -165,6 +165,22 @@ describe('relay marketplace.apps.* methods', () => {
     expect(agentFiles()).toEqual(before)
   })
 
+  it('keeps a profile token in the host vault, injects it, and removing the profile clears it', async () => {
+    const profile = { name: 'escritura', url: 'https://om.example.com/escritura', token: TOKEN }
+    const added = await call('addOpenMetadataProfile', profile)
+    expect(added).toMatchObject({ ok: true })
+    expect(JSON.stringify(added)).not.toContain(TOKEN)
+    expect(vault.buildAgentEnv()).toEqual({ OPENMETADATA_TOKEN_ESCRITURA: TOKEN })
+    for (const text of Object.values(agentFiles())) {
+      expect(text).not.toContain(TOKEN)
+    }
+
+    const removed = await call('removeOpenMetadataProfile', { name: 'escritura' })
+    expect(removed).toMatchObject({ ok: true })
+    expect(vault.hasToken({ kind: 'openmetadata-profile', name: 'escritura' })).toBe(false)
+    expect(vault.buildAgentEnv()).toEqual({})
+  })
+
   it('takes Antigravity out of the files once the policy leaves it out', async () => {
     await call('connect', { id: 'engram' })
     const answer = await call('setAccessPolicy', {
