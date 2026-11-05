@@ -5,13 +5,26 @@ import type { RpcClient } from '../transport/rpc-client'
 import { MobileBotTeamFile, MobileBotTeamFiles } from './MobileBotTeamFiles'
 
 vi.mock('react-native', () => ({
+  ActivityIndicator: 'ActivityIndicator',
+  Image: 'Image',
   Pressable: 'Pressable',
   ScrollView: 'ScrollView',
   StyleSheet: { create: (styles: unknown) => styles },
   Text: 'Text',
-  View: 'View'
+  View: 'View',
+  useWindowDimensions: () => ({ width: 390, height: 844 })
 }))
 vi.mock('lucide-react-native', () => ({ ChevronLeft: 'ChevronLeft', FileText: 'FileText' }))
+// Why: the media preview loads expo-file-system, which needs the app's __DEV__ global to import.
+vi.mock('../files/MobileFileMediaPreview', () => ({ MobileFileMediaPreview: () => null }))
+// Why: the real markdown view imports React Native internals this runner cannot parse; its text stands in.
+vi.mock('../files/MobileFileMarkdownPreview', async () => {
+  const { createElement } = await import('react')
+  return {
+    MobileFileMarkdownPreview: ({ content }: { content: string }) =>
+      createElement('Text', null, content)
+  }
+})
 
 const NOTE = 'One bot or person edits a file at a time. Every change is saved as a version.'
 
@@ -58,6 +71,8 @@ async function renderFile(props: Partial<Parameters<typeof MobileBotTeamFile>[0]
         client: hostAnswering({ ok: true, result: { content: '' } }).client,
         workspaceId: 'folder:1',
         path: 'flyer.md',
+        folderKnown: true,
+        offline: false,
         onBack: vi.fn(),
         ...props
       })
@@ -138,12 +153,41 @@ describe('MobileBotTeamFile', () => {
     expect(renderer.root.findAll((node) => node.type === 'TextInput')).toHaveLength(0)
   })
 
-  it('says when the host will not open the file', async () => {
+  it('says when the host will not open the file, in the phone preview words', async () => {
     const { client } = hostAnswering({
       ok: false,
-      error: { code: 'file_too_large', message: 'too big' }
+      error: { code: 'file_too_large', message: 'file_too_large' }
     })
     const renderer = await renderFile({ client })
-    expect(text(renderer)).toContain('This file cannot be opened here.')
+    expect(text(renderer)).toContain('File too large for mobile preview')
+    expect(text(renderer)).not.toContain('This file cannot be opened here.')
+  })
+
+  it('previews a room image through the image read, not the text read', async () => {
+    const { client, sendRequest } = hostAnswering({
+      ok: true,
+      result: { content: 'iVBORw0KGgo=', isBinary: true, isImage: true, mimeType: 'image/png' }
+    })
+    const renderer = await renderFile({ client, path: 'attachments/photo.png' })
+    expect(firstRequest(sendRequest)).toEqual({
+      method: 'files.readPreview',
+      params: { worktree: 'id:folder:1', relativePath: 'attachments/photo.png' }
+    })
+    expect(renderer.root.findAllByType('Image')).toHaveLength(1)
+    expect(text(renderer)).not.toContain('This file cannot be opened here.')
+  })
+
+  it('waits for the room to name its folder before reading, without refusing the file', async () => {
+    const { client, sendRequest } = hostAnswering({ ok: true, result: { content: 'Flyer copy' } })
+    const renderer = await renderFile({ client, workspaceId: null, folderKnown: false })
+    expect(sendRequest).not.toHaveBeenCalled()
+    expect(text(renderer)).not.toContain('This file cannot be opened here.')
+  })
+
+  it('says a team with no folder has no file to open', async () => {
+    const { client, sendRequest } = hostAnswering({ ok: true, result: { content: 'Flyer copy' } })
+    const renderer = await renderFile({ client, workspaceId: null, folderKnown: true })
+    expect(sendRequest).not.toHaveBeenCalled()
+    expect(text(renderer)).toContain('This team has no folder yet.')
   })
 })
