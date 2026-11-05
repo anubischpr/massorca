@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 
 import { act } from 'react'
+import { repoFixture } from '../native-chat/native-chat-workspace-test-fixtures'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
@@ -319,6 +320,26 @@ describe('MarketplaceAppPage', () => {
     expect(rows[3]).toContain('Tools only')
   })
 
+  it("says in Information when an agent's settings file links outside its home", async () => {
+    seedApps([
+      engram,
+      {
+        ...openmetadata,
+        agents: openmetadata.agents.map((row) =>
+          row.agent === 'codex' ? { ...row, entry: 'missing', outsideHome: true } : row
+        )
+      },
+      github
+    ])
+    const container = await mount('openmetadata')
+    const rows = [...sectionOf(container, 'information').querySelectorAll('li')]
+    const codex = rows.find((row) => row.textContent?.includes('Codex'))
+    expect(codex?.textContent).toContain(
+      "Its settings file links outside this agent's home, so MassOrca left it alone."
+    )
+    expect(rows.filter((row) => row.textContent?.includes('links outside'))).toHaveLength(1)
+  })
+
   it('connects OpenMetadata with the address and token, and never shows the token', async () => {
     seedApps([
       engram,
@@ -495,6 +516,17 @@ describe('MarketplaceAppPage', () => {
     )
 
     expect(labels).toContain('Replace')
+  })
+
+  it('picks the host with the same list control as the Marketplace home, not buttons', async () => {
+    seedStore(store, { repos: [repoFixture({ executionHostId: 'runtime:pv-vps' })] })
+    const container = await mount('engram')
+
+    expect(container.querySelector('[role="group"][aria-label="Computer to set up"]')).toBeNull()
+    const trigger = [...container.querySelectorAll('button')].find((button) =>
+      button.textContent?.includes('This computer')
+    )
+    expect(trigger?.getAttribute('aria-haspopup')).toBe('menu')
   })
 
   it('shows the desktop-only notice and no sections without the desktop bridge', async () => {

@@ -38,10 +38,12 @@ export function useMarketplaceAppHost(): MarketplaceAppHost {
   const targets = useMarketplaceHostTargets()
   const localApps = useAppStore((s) => s.marketplaceApps)
   const refreshLocal = useAppStore((s) => s.refreshMarketplaceApps)
-  const [pickedKey, setPickedKey] = useState<string | null>(null)
+  // Why: the pick lives in the persisted UI store so leaving Marketplace and restarting keep it.
+  const pickedKey = useAppStore((s) => s.marketplaceHostKey)
+  const setPickedKey = useAppStore((s) => s.setMarketplaceHostKey)
   const [remote, setRemote] = useState<RemoteApps>(LOADING)
 
-  // Why: a host that disconnects while picked sends the page back to this computer.
+  // Why: a host that disconnects while picked shows this computer, but the saved key stays so the pick returns on reconnect.
   const target = useMemo(
     () => (pickedKey ? (targets.find((t) => marketplaceHostKey(t) === pickedKey) ?? null) : null),
     [pickedKey, targets]

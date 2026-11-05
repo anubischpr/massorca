@@ -12,7 +12,7 @@ import { MarketplaceAppConnection } from './MarketplaceAppConnection'
 import { MarketplaceAppDanger } from './MarketplaceAppDanger'
 import { MarketplaceAppDialogs } from './MarketplaceAppDialogs'
 import { MarketplaceAppHeader } from './MarketplaceAppHeader'
-import { MarketplaceAppHostPicker } from './MarketplaceAppHostPicker'
+import { MarketplaceHomeHostPicker } from './MarketplaceHomeHostPicker'
 import { MarketplaceAppInformation } from './MarketplaceAppInformation'
 import type { MarketplaceAppContext, MarketplaceAppDialog } from './marketplace-app-context'
 import { MARKETPLACE_APP_INFO } from './marketplace-app-info'
@@ -83,13 +83,16 @@ export function MarketplaceAppPage({
 
   return (
     <div className={cn(SKILLS_PAGE_COLUMN, 'flex flex-col gap-6 py-4')}>
-      <div>
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <Button type="button" variant="ghost" size="sm" onClick={onBack}>
           <ArrowLeft className="size-3.5" />
           {translate('auto.components.marketplace.MarketplaceAppPage.back', 'Back')}
         </Button>
+        {/* Why: the same host list as the Marketplace home, so both pages share one control. */}
+        {appId === 'github' || host.targets.length === 0 ? null : (
+          <MarketplaceHomeHostPicker host={host} />
+        )}
       </div>
-      {appId === 'github' ? null : <MarketplaceAppHostPicker host={host} />}
       <MarketplaceAppHeader ctx={ctx} />
       <MarketplaceAppBanner appId={appId} />
       {pageError ? (

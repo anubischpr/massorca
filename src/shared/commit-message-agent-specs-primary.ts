@@ -20,8 +20,9 @@ type PrimaryAgentSpecDeps = {
 
 const WEB_TOOLS = ['WebSearch', 'WebFetch']
 const CODE_READ_TOOLS = ['Read', 'Grep', 'Glob']
-// Why: the agent's own `openmetadata` read server is the only MCP allowed; the write server and any
-// mutating tool the read server lists are denied, and a denial beats an allow.
+// Why: the agent's own `openmetadata` read server is the only MCP allowed, so a Marketplace write
+// profile (its server is named after the profile, e.g. `escritura`) is never allowed; the legacy
+// hand-placed write server and any mutating tool the read server lists are also denied outright.
 const OPENMETADATA_READ = 'mcp__openmetadata__*'
 // Why: Engram's read tools only, so a bot can recall project history; saving memory stays denied.
 const ENGRAM_READ = [

@@ -14,7 +14,7 @@ export const BOT_TEAM_UNIVERSAL_CAPABILITY_NOTE =
  * name the agent registers them under, and OpenMetadata is read through its read server only.
  */
 export const BOT_TEAM_HISTORY_SOURCES_NOTE =
-  'For a question about a project\'s history or what was last done on it, check what the team already knows before answering: Engram memory with `mcp__engram__mem_search` and `mcp__engram__mem_context` (read them, do not save from a question), OpenMetadata through its read server named "openmetadata" only (never "openmetadata-escritura" and never a tool that creates or changes anything), and the project itself. Use the sources you have; say once which one you could not reach.'
+  'For a question about a project\'s history or what was last done on it, check what the team already knows before answering: Engram memory with `mcp__engram__mem_search` and `mcp__engram__mem_context` (read them, do not save from a question), OpenMetadata through its read server named "openmetadata" only (never another OpenMetadata server: no write profile, whatever its name, such as "escritura" or "openmetadata-escritura", and never a tool that creates or changes anything), and the project itself. Use the sources you have; say once which one you could not reach.'
 
 function authorOf(
   message: BotTeamMessage,

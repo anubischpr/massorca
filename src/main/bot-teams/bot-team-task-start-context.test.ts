@@ -68,7 +68,7 @@ describe('botTeamTaskPrompt context', () => {
     const prompt = botTeamTaskPrompt(TEAM, BOT, TASK)
     expect(prompt).toContain('mcp__engram__mem_search')
     expect(prompt).not.toContain('plugin_engram')
-    expect(prompt).toContain('never "openmetadata-escritura"')
+    expect(prompt).toContain('never another OpenMetadata server')
     expect(prompt).toContain('first person')
     expect(prompt).toContain('names the final deliverable')
   })

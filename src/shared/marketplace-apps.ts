@@ -17,6 +17,8 @@ export type MarketplaceAppAgentStatus = {
   entry: MarketplaceAgentEntryState
   /** False when the app's access policy keeps this agent out; absent means allowed. */
   allowed?: boolean
+  /** A link leads this agent's settings file out of its home, so MassOrca leaves it alone; absent means not. */
+  outsideHome?: boolean
 }
 
 /** Who may use an app: everyone, only the picked ones, or everyone except the picked ones. */

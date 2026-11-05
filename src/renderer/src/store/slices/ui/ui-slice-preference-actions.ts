@@ -70,6 +70,9 @@ export function createUiPreferenceActions(set: UISliceSet, get: UISliceGet): Par
       set({ workspaceHostScope: normalized, visibleWorkspaceHostIds })
     },
     visibleWorkspaceHostIds: null,
+    marketplaceHostKey: null,
+    // Why: bare set — persists via the debounced ui writer; kept when the host is unreachable so the pick returns on reconnect.
+    setMarketplaceHostKey: (key) => set({ marketplaceHostKey: key }),
     setVisibleWorkspaceHostIds: (ids) => {
       const normalized = normalizeVisibleExecutionHostIds(ids)
       // Why: workspaceHostScope stays the compat/default-host signal for creation flows; visibility can now be multi-select.

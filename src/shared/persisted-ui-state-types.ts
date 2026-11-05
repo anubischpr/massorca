@@ -59,6 +59,8 @@ export type PersistedUIState = {
   workspaceHostScope?: WorkspaceHostScope
   /** Which execution hosts the sidebar shows; `null` = sticky all-hosts so new hosts appear automatically. */
   visibleWorkspaceHostIds?: VisibleWorkspaceHostIds
+  /** Marketplace page host pick as `ssh:<id>` or `runtime:<id>`; null = this computer. Kept while the host is unreachable. */
+  marketplaceHostKey?: string | null
   /** User-defined sidebar order for host sections; missing/new hosts append in discovered order. */
   workspaceHostOrder?: WorkspaceHostOrder
   /** Automations page host filter. Stores only a canonical host key; invalid values degrade to all hosts. */

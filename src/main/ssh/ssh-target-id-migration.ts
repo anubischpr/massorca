@@ -132,6 +132,10 @@ export function migrateUiHostScopeSshTargetId(
     ui.workspaceHostScope = newHostId
     changed = true
   }
+  if (ui.marketplaceHostKey === oldHostId) {
+    ui.marketplaceHostKey = newHostId
+    changed = true
+  }
   if (ui.visibleWorkspaceHostIds?.includes(oldHostId)) {
     ui.visibleWorkspaceHostIds = [
       ...new Set(ui.visibleWorkspaceHostIds.map((id) => (id === oldHostId ? newHostId : id)))
