@@ -1,5 +1,5 @@
 import { RotateCcw } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { Toggle } from '@/components/ui/toggle'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { translate } from '@/i18n/i18n'
 import { DESIGN_SYSTEM_TOKENS_PATH } from '../../../../shared/prototype-design-system-files'
@@ -83,16 +83,15 @@ export function PrototypeDesignSystemView(
             </TabsList>
           </Tabs>
           {versions === undefined ? null : (
-            <Button
-              type="button"
+            <Toggle
               variant="outline"
               size="sm"
-              aria-pressed={versions.panelOpen}
-              onClick={versions.onToggle}
+              pressed={versions.panelOpen}
+              onPressedChange={versions.onToggle}
             >
               <RotateCcw className="size-3.5" />
               {translate('components.prototypes.designSystem.versionsButton', 'Versions')}
-            </Button>
+            </Toggle>
           )}
         </div>
       </div>
@@ -104,14 +103,16 @@ export function PrototypeDesignSystemView(
           onRestore={versions.onRestorePreview}
         />
       )}
-      {/* Why inert: an earlier version is read-only, so its tokens and components take no edits or picks. */}
       <div
+        data-testid="design-system-scroll"
         className="scrollbar-sleek flex min-h-0 flex-1 flex-col overflow-y-auto"
-        inert={preview !== null}
       >
-        {state.tab === 'tokens' ? <PrototypeDesignSystemTokens {...props} /> : null}
-        {state.tab === 'components' ? <PrototypeDesignSystemComponents {...props} /> : null}
-        {state.tab === 'source' ? <PrototypeDesignSystemSource {...props} /> : null}
+        {/* Why inert inside the scroller: an earlier version takes no edits or picks, yet still scrolls. */}
+        <div className="flex flex-col" inert={preview !== null}>
+          {state.tab === 'tokens' ? <PrototypeDesignSystemTokens {...props} /> : null}
+          {state.tab === 'components' ? <PrototypeDesignSystemComponents {...props} /> : null}
+          {state.tab === 'source' ? <PrototypeDesignSystemSource {...props} /> : null}
+        </div>
       </div>
     </div>
   )
