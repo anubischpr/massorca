@@ -9,7 +9,17 @@ const translate = vi.hoisted(() =>
 )
 vi.mock('@/i18n/i18n', () => ({ translate }))
 
-import { botTeamChangeErrorText } from './bot-team-change-error-text'
+import { botTeamAgentSwitchRefusalText, botTeamChangeErrorText } from './bot-team-change-error-text'
+
+describe('an agent switch refused by the host', () => {
+  it('is named only when the host refused the switch, so other failures never read as one', () => {
+    const host = marketplaceAgentSwitchBlockedMessage(['Engram'])
+    expect(botTeamAgentSwitchRefusalText(`Error invoking remote method: ${host}`)).toBe(
+      `auto.shared.marketplace-apps.agentSwitchBlocked|${host}`
+    )
+    expect(botTeamAgentSwitchRefusalText('Bot bob is not on team t1.')).toBeNull()
+  })
+})
 
 describe('a failed bot-team change', () => {
   it('shows the Antigravity refusal through the shared translation key, with its items', () => {

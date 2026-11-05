@@ -358,17 +358,17 @@ export default function BotTeamsPage({
             team: editingTeam,
             onSave: (input) => {
               void applyChange(() => updateBotTeam({ teamId: editingTeam.id, ...input })).then(
-                (done) => done && setEditingTeamId(null)
+                (outcome) => outcome.done && setEditingTeamId(null)
               )
             },
-            onAddBot: (bot) => void applyChange(() => addBotToTeam(editingTeam.id, bot)),
+            onAddBot: (bot) => applyChange(() => addBotToTeam(editingTeam.id, bot)),
             onUpdateBot: (botId, bot) =>
-              void applyChange(() => updateBotOnTeam(editingTeam.id, botId, bot)),
+              applyChange(() => updateBotOnTeam(editingTeam.id, botId, bot)),
             onRemoveBot: (botId) =>
               void applyChange(() => removeBotFromTeam(editingTeam.id, botId)),
             onDelete: () => {
               void applyChange(() => deleteBotTeam(editingTeam.id)).then(
-                (done) => done && setEditingTeamId(null)
+                (outcome) => outcome.done && setEditingTeamId(null)
               )
             }
           }}
@@ -380,8 +380,8 @@ export default function BotTeamsPage({
           usedCharacters={(teams ?? []).map((team) => team.character)}
           onCancel={() => select(NOTHING_OPEN)}
           onCreate={(input) => {
-            void applyChange(() => createBotTeam(input)).then((done) => {
-              if (done) {
+            void applyChange(() => createBotTeam(input)).then((outcome) => {
+              if (outcome.done) {
                 select(NOTHING_OPEN)
               }
             })

@@ -20,14 +20,21 @@ import { BotAgentIcon } from './BotAgentIcon'
 
 export function AddBotDialog({
   initial,
+  agentRefusal = null,
+  onAgentChange,
   onCancel,
   onAdd
 }: {
   /** The bot being edited; absent when adding a new one. */
   initial?: BotDraftInput
+  /** The host refused this agent switch; shown until the agent changes. */
+  agentRefusal?: string | null
+  onAgentChange?: () => void
   onCancel: () => void
-  onAdd: (bot: BotDraftInput) => void
+  /** The dialog stays open until the parent closes it, so the host's answer can keep it open. */
+  onAdd: (bot: BotDraftInput) => void | Promise<void>
 }): React.JSX.Element {
+  const [saving, setSaving] = useState(false)
   const [name, setName] = useState(initial?.name ?? '')
   const [job, setJob] = useState(initial?.job ?? '')
   const [agent, setAgent] = useState<BotDraftInput['agent']>(
@@ -46,6 +53,15 @@ export function AddBotDialog({
     unchanged && initial.modelMode === 'auto'
       ? botModelSummary({ agent, model: initial.model ?? null, effort: initial.effort ?? null })
       : null
+
+  const save = async (): Promise<void> => {
+    setSaving(true)
+    try {
+      await onAdd({ name: trimmedName, job: job.trim(), agent, ...advanced })
+    } finally {
+      setSaving(false)
+    }
+  }
 
   return (
     <Dialog open onOpenChange={(open) => !open && onCancel()}>
@@ -81,6 +97,7 @@ export function AddBotDialog({
               const choice = BOT_AGENT_CHOICES.find((c) => c.id === next)
               if (choice) {
                 setAgent(choice.id)
+                onAgentChange?.()
                 // A model belongs to its agent, so a new agent starts automatic again.
                 setAdvanced((current) => ({
                   ...current,
@@ -98,6 +115,11 @@ export function AddBotDialog({
               </ToggleGroupItem>
             ))}
           </ToggleGroup>
+          {agentRefusal ? (
+            <p role="alert" className="text-xs text-destructive">
+              {agentRefusal}
+            </p>
+          ) : null}
         </div>
         <BotAdvancedOptions
           botName={trimmedName}
@@ -110,10 +132,7 @@ export function AddBotDialog({
           <Button variant="ghost" onClick={onCancel}>
             {translate('components.botTeams.cancel', 'Cancel')}
           </Button>
-          <Button
-            disabled={trimmedName === ''}
-            onClick={() => onAdd({ name: trimmedName, job: job.trim(), agent, ...advanced })}
-          >
+          <Button disabled={trimmedName === '' || saving} onClick={() => void save()}>
             {initial
               ? translate('components.botTeams.saveBot', 'Save')
               : translate('components.botTeams.addBotConfirm', 'Add bot')}

@@ -27,6 +27,7 @@ import { BotTeamCharacterIcon } from './BotTeamCharacterIcon'
 import { BotTeamHostField } from './BotTeamHostPicker'
 import { firstUnusedBotTeamCharacter } from './bot-team-character-pick'
 import { BotAgentIcon } from './BotAgentIcon'
+import type { BotTeamChangeResult } from './use-bot-teams'
 
 export function NewBotTeamForm({
   usedCharacters,
@@ -46,8 +47,8 @@ export function NewBotTeamForm({
         >
       >
     ) => void
-    onAddBot: (bot: BotDraftInput) => void
-    onUpdateBot: (botId: string, bot: BotDraftInput) => void
+    onAddBot: (bot: BotDraftInput) => Promise<BotTeamChangeResult>
+    onUpdateBot: (botId: string, bot: BotDraftInput) => Promise<BotTeamChangeResult>
     onRemoveBot: (botId: string) => void
     onDelete: () => void
   }
@@ -67,11 +68,22 @@ export function NewBotTeamForm({
   const bots: readonly BotDraftInput[] = team?.bots ?? draftBots
   const [addingBot, setAddingBot] = useState(false)
   const [editingBotIndex, setEditingBotIndex] = useState<number | null>(null)
+  const [botRefusal, setBotRefusal] = useState<string | null>(null)
   const trimmedName = name.trim()
 
   const nextCharacter = (): void => {
     const index = BOT_TEAM_CHARACTERS.indexOf(character)
     setCharacter(BOT_TEAM_CHARACTERS[(index + 1) % BOT_TEAM_CHARACTERS.length])
+  }
+
+  // A refused agent switch keeps the bot editor open beside its agent picker; any other outcome closes it.
+  const settleBotEditor = (result: BotTeamChangeResult, close: () => void): void => {
+    if (!result.done && result.agentSwitch) {
+      setBotRefusal(result.refusal)
+      return
+    }
+    setBotRefusal(null)
+    close()
   }
 
   return (
@@ -255,15 +267,21 @@ export function NewBotTeamForm({
       {editingBotIndex !== null ? (
         <AddBotDialog
           initial={bots[editingBotIndex]}
-          onCancel={() => setEditingBotIndex(null)}
-          onAdd={(bot) => {
-            if (team) {
-              editing?.onUpdateBot(team.bots[editingBotIndex].id, bot)
-            } else {
-              setBots((current) =>
-                current.map((entry, index) => (index === editingBotIndex ? bot : entry))
-              )
+          agentRefusal={botRefusal}
+          onAgentChange={() => setBotRefusal(null)}
+          onCancel={() => {
+            setBotRefusal(null)
+            setEditingBotIndex(null)
+          }}
+          onAdd={async (bot) => {
+            if (editing && team) {
+              const result = await editing.onUpdateBot(team.bots[editingBotIndex].id, bot)
+              settleBotEditor(result, () => setEditingBotIndex(null))
+              return
             }
+            setBots((current) =>
+              current.map((entry, index) => (index === editingBotIndex ? bot : entry))
+            )
             setEditingBotIndex(null)
           }}
         />
@@ -277,13 +295,19 @@ export function NewBotTeamForm({
       ) : null}
       {addingBot ? (
         <AddBotDialog
-          onCancel={() => setAddingBot(false)}
-          onAdd={(bot) => {
+          agentRefusal={botRefusal}
+          onAgentChange={() => setBotRefusal(null)}
+          onCancel={() => {
+            setBotRefusal(null)
+            setAddingBot(false)
+          }}
+          onAdd={async (bot) => {
             if (editing) {
-              editing.onAddBot(bot)
-            } else {
-              setBots((current) => [...current, bot])
+              const result = await editing.onAddBot(bot)
+              settleBotEditor(result, () => setAddingBot(false))
+              return
             }
+            setBots((current) => [...current, bot])
             setAddingBot(false)
           }}
         />
