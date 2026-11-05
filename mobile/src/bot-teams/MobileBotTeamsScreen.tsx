@@ -18,7 +18,6 @@ import { MobileBotTeamWork, isBotTeamWorkScreen, type BotTeamWorkScreen } from '
 import { MobileBotTeamWorkBar as SubBar } from './MobileBotTeamWorkBar'
 import { MobileBotTeamModeSwitch } from './MobileBotTeamModeSwitch'
 import { MobileBotTeamSettings } from './MobileBotTeamSettings'
-import { MobileBotTeamMarketplaceApps } from './MobileBotTeamMarketplaceApps'
 import { MobileBotTeamEditTeam } from './MobileBotTeamEditTeam'
 import { MobileBotTeamEditTeamSheet } from './MobileBotTeamEditTeamSheet'
 import { botTeamStyles as styles } from './mobile-bot-team-styles'
@@ -48,7 +47,6 @@ type Screen =
   | { name: 'teamBot'; teamId: string }
   | { name: 'integrations' }
   | { name: 'editTeam'; teamId: string }
-  | { name: 'teamMarketplace'; teamId: string }
   | BotTeamWorkScreen
   | Routines.BotTeamRoutineScreen
 
@@ -159,8 +157,6 @@ export function MobileBotTeamsScreen({
   const openTeam = screen.name === 'team' ? teams.find((t) => t.id === screen.teamId) : undefined
   const openBotsTeam =
     screen.name === 'teamBots' ? teams.find((t) => t.id === screen.teamId) : undefined
-  const openMarketplaceTeam =
-    screen.name === 'teamMarketplace' ? teams.find((t) => t.id === screen.teamId) : undefined
   const workTeam = isBotTeamWorkScreen(screen)
     ? teams.find((t) => t.id === screen.teamId)
     : undefined
@@ -342,19 +338,10 @@ export function MobileBotTeamsScreen({
         }
         client={client}
         onDeleted={afterDelete}
-        onOpenMarketplace={() => setScreen({ name: 'teamMarketplace', teamId: openEditTeam.id })}
       />
     )
   } else if (client !== null && screen.name === 'settings') {
     body = <MobileBotTeamSettings onBack={backHome} />
-  } else if (client !== null && openMarketplaceTeam) {
-    body = (
-      <MobileBotTeamMarketplaceApps
-        client={client}
-        team={openMarketplaceTeam}
-        onBack={() => setScreen({ name: 'editTeam', teamId: openMarketplaceTeam.id })}
-      />
-    )
   } else {
     body = (
       <>

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Alert, Pressable, ScrollView, Text, TextInput, View } from 'react-native'
-import { ChevronRight, Trash2 } from 'lucide-react-native'
+import { Trash2 } from 'lucide-react-native'
 import { colors } from '../theme/mobile-theme'
 import type { BotTeam } from '../../../src/shared/rpc-contract/bot-team-params'
 import type { RpcClient } from '../transport/rpc-client'
@@ -32,21 +32,19 @@ export function confirmDeleteBotTeam(client: RpcClient, team: BotTeam, onDeleted
   ])
 }
 
-/** Edit team: name, purpose, access, the team's Marketplace apps, and delete. */
+/** Edit team: name, purpose, access, and delete. */
 export function MobileBotTeamEditTeam({
   client,
   team,
   onBack,
   onSave,
-  onDeleted,
-  onOpenMarketplace
+  onDeleted
 }: {
   client: RpcClient
   team: BotTeam
   onBack: () => void
   onSave: (input: { name: string; purpose: string; accessMode: AccessMode }) => void
   onDeleted: () => void
-  onOpenMarketplace: () => void
 }) {
   const [name, setName] = useState(team.name)
   const [purpose, setPurpose] = useState(team.purpose)
@@ -89,15 +87,6 @@ export function MobileBotTeamEditTeam({
           ))}
         </View>
         <Text style={styles.rowMeta}>What this team can do without asking.</Text>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Marketplace apps"
-          onPress={onOpenMarketplace}
-          style={styles.row}
-        >
-          <Text style={[styles.rowTitle, styles.grow]}>Marketplace apps</Text>
-          <ChevronRight size={18} color={colors.textMuted} />
-        </Pressable>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Save"

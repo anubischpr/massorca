@@ -153,13 +153,13 @@ describe('MobileBotTeamsScreen team edit', () => {
     expect(pressables).toContain('Delete team…')
   })
 
-  it('Edit team shows Access and Marketplace apps, and saves the chosen access mode', async () => {
+  it('Edit team shows Access with no Marketplace apps, and saves the chosen access mode', async () => {
     const renderer = await renderHome()
     longPress(renderer, 'Ops')
     press(renderer, 'Edit team')
     await flush()
     expect(labelsOf(renderer, 'TextInput')).toEqual(['Name', 'Purpose'])
-    expect(labelsOf(renderer, 'Pressable')).toContain('Marketplace apps')
+    expect(labelsOf(renderer, 'Pressable')).not.toContain('Marketplace apps')
     press(renderer, 'Ask first')
     press(renderer, 'Save')
     await flush()

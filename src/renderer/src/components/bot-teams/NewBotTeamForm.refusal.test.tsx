@@ -36,9 +36,6 @@ vi.mock('@/components/ui/select', () => ({
   SelectContent: ({ children }: { children: React.ReactNode }) => <>{children}</>,
   SelectItem: ({ children }: { children: React.ReactNode }) => <>{children}</>
 }))
-vi.mock('@/components/marketplace/MarketplaceTeamAccessDialog', () => ({
-  MarketplaceTeamAccessDialog: () => null
-}))
 vi.mock('./BotTeamHostPicker', () => ({ BotTeamHostField: () => null }))
 vi.mock('./BotTeamCharacterIcon', () => ({ BotTeamCharacterIcon: () => null }))
 vi.mock('./BotAgentIcon', () => ({ BotAgentIcon: () => null }))

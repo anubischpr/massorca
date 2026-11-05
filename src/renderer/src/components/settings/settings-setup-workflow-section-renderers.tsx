@@ -1,4 +1,5 @@
 import { BotTeamsSettingsPane } from './BotTeamsSettingsPane'
+import { MarketplaceSettingsPane } from './MarketplaceSettingsPane'
 import { SessionHistorySettingsPane } from './SessionHistorySettingsPane'
 import { ArtifactsSettingsPane } from './ArtifactsSettingsPane'
 import { PrototypesSettingsPane } from './PrototypesSettingsPane'
@@ -173,6 +174,25 @@ export function renderBotTeamsSettingsSection(context: SettingsRenderContext): R
       searchEntries={navigation.getSectionSearchEntries('bot-teams')}
     >
       {view.isSectionMounted('bot-teams') ? <BotTeamsSettingsPane /> : null}
+    </SettingsSection>
+  )
+}
+
+export function renderMarketplaceSettingsSection(
+  context: SettingsRenderContext
+): React.JSX.Element {
+  const { navigation, view } = context
+  return (
+    <SettingsSection
+      id="marketplace"
+      title={translate('auto.components.settings.marketplace.title', 'Marketplace')}
+      description={translate(
+        'auto.components.settings.marketplace.description',
+        'Tools, agents, skills and services MassOrca uses on each host.'
+      )}
+      searchEntries={navigation.getSectionSearchEntries('marketplace')}
+    >
+      {view.isSectionMounted('marketplace') ? <MarketplaceSettingsPane /> : null}
     </SettingsSection>
   )
 }

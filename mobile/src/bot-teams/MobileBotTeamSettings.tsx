@@ -7,7 +7,7 @@ import {
 } from './mobile-bot-character-preference'
 import { botTeamStyles as styles } from './mobile-bot-team-styles'
 
-/** Bot teams settings: the character animations. Each team's access and Marketplace apps sit in its Edit team screen. */
+/** Bot teams settings: the character animations. Each team's access sits in its Edit team screen. */
 export function MobileBotTeamSettings({ onBack }: { onBack: () => void }) {
   const characterAnimations = useBotCharacterAnimations()
   return (
