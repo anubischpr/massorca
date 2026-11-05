@@ -6,6 +6,7 @@ import {
   botTeamRoomAttachmentsNote,
   type BotTeamRoomAttachment
 } from '../../shared/bot-team-room-attachments'
+import { botTeamFilesOnlyText } from '../../shared/bot-team-room-attachments-line'
 import { botTeamTaskTitle } from '../../shared/bot-team-request-route'
 import type { BotTeamTask } from '../../shared/rpc-contract/bot-team-room-params'
 import type { OrchestrationDb } from '../runtime/orchestration/db/orchestration-db'
@@ -22,6 +23,31 @@ export function activeTasksByBot(db: OrchestrationDb, teamId: string): Record<st
     }
   }
   return counts
+}
+
+/** The person's last few lines in the room: what the language of a line with no words is read from. */
+function earlierPersonText(db: OrchestrationDb, teamId: string): string {
+  return db
+    .listBotTeamMessages(teamId)
+    .filter((message) => message.authorBotId === null)
+    .slice(-5)
+    .map((message) => message.text)
+    .join(' ')
+}
+
+/**
+ * The text a request is filed with. A message of only files gets the line that names them, in the
+ * language the person wrote before; a request with words keeps them as typed.
+ */
+export function botTeamRequestText(
+  db: OrchestrationDb,
+  teamId: string,
+  typed: string,
+  attachments: readonly BotTeamRoomAttachment[]
+): string {
+  return typed.trim() === '' && attachments.length > 0
+    ? botTeamFilesOnlyText(attachments, earlierPersonText(db, teamId))
+    : typed
 }
 
 /** What filing a request needs: where it goes, who takes it, and the person's answers so far. */
@@ -96,6 +122,8 @@ export async function fileBotTeamRequest(
   input: BotTeamRequestFiling,
   startTask: (taskId: string) => Promise<BotTeamTask>
 ): Promise<BotTeamFiling> {
+  // The answer to the project question sends back the empty text it held when the files came alone.
+  const text = botTeamRequestText(db, input.teamId, input.text, input.attachments ?? [])
   const receivingId = input.toTeamId ?? input.teamId
   const receiving = db.listBotTeams().find((entry) => entry.id === receivingId)
   if (!receiving) {
@@ -116,7 +144,7 @@ export async function fileBotTeamRequest(
   }
   const alsoNeeds = input.alsoNeeds ?? []
   const projects = db.listBotTeamProjects(receiving.id, { includeLinked: true })
-  const named = findNamedProject(input.text, projects)
+  const named = findNamedProject(text, projects)
   // Asked only of this team: a request sent to another team takes that team's own reading.
   if (
     input.askProject &&
@@ -137,8 +165,8 @@ export async function fileBotTeamRequest(
   }
   const created = db.createBotTeamTask({
     teamId: receiving.id,
-    title: botTeamTaskTitle(input.text, receiving.bots),
-    prompt: input.text,
+    title: botTeamTaskTitle(text, receiving.bots),
+    prompt: text,
     ownerBotId: owner.id
   })
   if (projectId !== null) {
@@ -161,7 +189,7 @@ export async function fileBotTeamRequest(
   )
   // Read again: the project was set after the task was created.
   const task = db.getBotTeamTask(created.id)
-  const timing = botTeamRequestTiming(input.text)
+  const timing = botTeamRequestTiming(text)
   const later = input.later || timing.later
   const started = input.start && !later
   const filed = started
@@ -176,7 +204,7 @@ export async function fileBotTeamRequest(
       when: timing.when,
       projectName: projects.find((project) => project.id === projectId)?.name ?? null,
       startError: filed.startError,
-      text: input.text
+      text
     })
   })
   // A task another team asked for that cannot start must not leave the asking room waiting.

@@ -183,4 +183,35 @@ describe('posting files with no text', () => {
       timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
     })
   })
+
+  it('answers the project question with the file names when the host still requires text', async () => {
+    callRuntimeRpc
+      .mockRejectedValueOnce(
+        new RuntimeRpcCallError({
+          id: '2',
+          ok: false,
+          error: { code: 'invalid_argument', message: 'Missing request text' }
+        })
+      )
+      .mockResolvedValueOnce({ task: null, startError: null })
+
+    await fileBotTeamRequest({
+      teamId: 't1',
+      text: '',
+      start: true,
+      askProject: true,
+      projectId: null,
+      attachments: [FLYER]
+    })
+
+    expect(callRuntimeRpc).toHaveBeenLastCalledWith({ kind: 'local' }, 'botTeams.assignRequest', {
+      teamId: 't1',
+      text: 'flyer.png',
+      start: true,
+      askProject: true,
+      projectId: null,
+      attachments: [FLYER],
+      timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
+    })
+  })
 })

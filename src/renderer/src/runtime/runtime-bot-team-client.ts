@@ -27,6 +27,7 @@ import type {
 } from '../../../shared/runtime-file-contracts'
 import { botTeamHostTarget, currentBotTeamHost } from './bot-team-host'
 import { withProjectDefaults } from './runtime-bot-team-project-client'
+import { withFileNamesIfTextRequired } from './runtime-bot-team-files-only-retry'
 import { callRuntimeRpc } from './runtime-rpc-client'
 import type { BotTeamPrototypeChoice } from '../../../shared/bot-team-prototype-choice'
 export { postBotTeamRequest } from './runtime-bot-team-post-client'
@@ -144,7 +145,9 @@ export function fileBotTeamRequest(input: BotTeamRequestFiling): Promise<{
   startError: string | null
   choice?: BotTeamRequestChoice
 }> {
-  return call('botTeams.assignRequest', withSenderTimeZone(input))
+  return withFileNamesIfTextRequired(withSenderTimeZone(input), (next) =>
+    call('botTeams.assignRequest', next)
+  )
 }
 
 export async function startBotTeamTask(taskId: string): Promise<BotTeamTask> {

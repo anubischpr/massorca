@@ -3,7 +3,6 @@ import {
   parseBotTeamClassifyResearch
 } from '../../../../shared/bot-team-request-classify'
 import type { BotTeamRequestChoice } from '../../../../shared/bot-team-request-choice'
-import { botTeamFilesOnlyText } from '../../../../shared/bot-team-room-attachments-line'
 import {
   botTeamRoomTextWithAttachments,
   type BotTeamRoomAttachment
@@ -13,7 +12,11 @@ import type {
   BotTeamTask
 } from '../../../../shared/rpc-contract/bot-team-room-params'
 import { botTeamTaskTitle, withoutBotTeamMention } from '../../../../shared/bot-team-request-route'
-import { activeTasksByBot, fileBotTeamRequest } from '../../../bot-teams/bot-team-assign-request'
+import {
+  activeTasksByBot,
+  botTeamRequestText,
+  fileBotTeamRequest
+} from '../../../bot-teams/bot-team-assign-request'
 import { botTeamScheduledReply } from '../../../bot-teams/bot-team-filed-reply'
 import { replyToBotTeamGreeting } from '../../../bot-teams/bot-team-greeting-reply'
 import { decideBotTeamRequest } from '../../../bot-teams/bot-team-request-flow'
@@ -22,7 +25,6 @@ import type { BotTeamPrototypeChoice } from '../../../../shared/bot-team-prototy
 import { keepBotTeamPrototypeChoice } from '../../../bot-teams/bot-team-task-prototype'
 import { isKnownTimeZone } from '../../../../shared/bot-team-routine-zone'
 import { createBotTeamRoutine } from '../../orchestration/db/bot-teams/bot-team-routine-store'
-import type { OrchestrationDb } from '../../orchestration/db/orchestration-db'
 import type { RpcContext } from '../core'
 import { startBotTeamConversationReply } from './bot-team-conversation-reply'
 
@@ -46,16 +48,6 @@ export type BotTeamPostResult = {
   later?: true
   /** The person named a day: a one-time routine starts the task then, on the host's clock. */
   scheduled?: { routineId: string; date: string; time: string }
-}
-
-/** The person's last few lines in the room: what the language of a line with no words is read from. */
-function earlierPersonText(db: OrchestrationDb, teamId: string): string {
-  return db
-    .listBotTeamMessages(teamId)
-    .filter((message) => message.authorBotId === null)
-    .slice(-5)
-    .map((message) => message.text)
-    .join(' ')
 }
 
 /** Files the person's line, then lets the one host query decide who takes it. */
@@ -85,10 +77,7 @@ export async function postBotTeamRequestOnHost(
   const { keep: keepChoice, startKept } = keepBotTeamPrototypeChoice(db, prototypeChoice)
   const startTask = startKept(startTaskAsFiled)
   // Files with no words are filed as a request that names them, in the language the person wrote before.
-  const text =
-    typed.trim() === '' && attachments.length > 0
-      ? botTeamFilesOnlyText(attachments, earlierPersonText(db, teamId))
-      : typed
+  const text = botTeamRequestText(db, teamId, typed, attachments)
   const message = db.postBotTeamMessage({ teamId, text, authorBotId: null, attachments })
   // A greeting gets the team's one line and stops here: no query, task or usage.
   if (replyToBotTeamGreeting(db, { teamId, text })) {
