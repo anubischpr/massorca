@@ -1,5 +1,5 @@
 import type { MarketplaceAppAgent } from '../../shared/marketplace-apps'
-import { editTextFileWithBackup } from './agent-file-write'
+import { editTextFileWithBackup, type AgentWriteFailureReason } from './agent-file-write'
 import {
   hasForeignEngramInstructions,
   hasInstructionsBlock,
@@ -19,7 +19,7 @@ export type InstructionsOutcome =
 
 export type InstructionsResult =
   | { ok: true; outcome: InstructionsOutcome }
-  | { ok: false; reason: 'unreadable-config' | 'unsupported-shape' | 'failed' }
+  | { ok: false; reason: AgentWriteFailureReason }
 
 /** Adds or removes MassOrca's marked block in the agent's user-level instructions file. */
 export function applyAgentInstructionsBlock(
@@ -48,7 +48,8 @@ export function applyAgentInstructionsBlock(
       outcome = hasInstructionsBlock(source, id) ? 'unchanged' : 'added'
       return withInstructionsBlock(current, id)
     },
-    'text'
+    'text',
+    paths.home?.()
   )
   return result.kind === 'failed' ? { ok: false, reason: result.reason } : { ok: true, outcome }
 }

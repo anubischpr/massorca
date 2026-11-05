@@ -213,6 +213,8 @@ export type MarketplaceActionResult =
         | 'invalid-input'
         | 'unreadable-config'
         | 'unsupported-shape'
+        /** A link led the agent's settings file outside this home, so it was left alone. */
+        | 'outside-home'
         | 'vault-unavailable'
         | 'failed'
         /** Another host only: it predates the Marketplace methods, or cannot be reached. */

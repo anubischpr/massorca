@@ -42,6 +42,17 @@ export function marketplaceFailureMessage(failure: MarketplaceFailure, hostLabel
             'auto.components.marketplace.marketplace-action-messages.unsupported',
             'A settings file has a format MassOrca does not recognize.'
           )
+    case 'outside-home':
+      return agent
+        ? translate(
+            'auto.components.marketplace.marketplace-action-messages.outsideHomeAgent',
+            'The settings file for {{agent}} links outside this home, so MassOrca left it alone.',
+            { agent }
+          )
+        : translate(
+            'auto.components.marketplace.marketplace-action-messages.outsideHome',
+            'A settings file links outside this home, so MassOrca left it alone.'
+          )
     case 'vault-unavailable':
       return hostLabel
         ? translate(

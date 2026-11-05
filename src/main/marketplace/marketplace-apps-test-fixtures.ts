@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import type { MarketplaceAppAgent } from '../../shared/marketplace-apps'
@@ -7,6 +7,20 @@ import type { MarketplaceAgentPaths } from './marketplace-agent-paths'
 
 export function makeTempHome(): string {
   return mkdtempSync(join(tmpdir(), 'marketplace-home-'))
+}
+
+/** Windows needs a privilege for file links; folder junctions need none. */
+export function canCreateFileLinks(): boolean {
+  const probe = mkdtempSync(join(tmpdir(), 'marketplace-link-probe-'))
+  try {
+    writeFileSync(join(probe, 'target'), 'x')
+    symlinkSync(join(probe, 'target'), join(probe, 'link'), 'file')
+    return true
+  } catch {
+    return false
+  } finally {
+    rmSync(probe, { recursive: true, force: true })
+  }
 }
 
 /** A fake OS keyring: sealed values are visibly not the token. */
@@ -31,6 +45,7 @@ export function resetFakeSecretStore(): void {
 
 export function testAgentPaths(home: string): MarketplaceAgentPaths {
   return {
+    home: () => home,
     mcpConfig: (agent: MarketplaceAppAgent) => {
       switch (agent) {
         case 'claude':

@@ -98,6 +98,8 @@ function failureMessage(reason: Extract<MarketplaceActionResult, { ok: false }>[
       return 'An agent config on the host could not be read.'
     case 'unsupported-shape':
       return 'An agent config on the host has a shape MassOrca cannot write to.'
+    case 'outside-home':
+      return 'An agent config on the host links outside its home, so MassOrca left it alone.'
     case 'host-needs-update':
       return 'Update MassOrca on this host first.'
     case 'unreachable':
