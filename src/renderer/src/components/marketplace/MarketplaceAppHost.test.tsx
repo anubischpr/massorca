@@ -106,6 +106,34 @@ async function clickButton(scope: ParentNode, text: string): Promise<void> {
   })
 }
 
+function hostTrigger(scope: ParentNode): HTMLButtonElement | undefined {
+  return [...scope.querySelectorAll<HTMLButtonElement>('button[aria-haspopup="menu"]')].at(0)
+}
+
+async function openHostList(container: ParentNode): Promise<HTMLElement[]> {
+  const trigger = hostTrigger(container)
+  if (!trigger) {
+    throw new Error('Host list missing')
+  }
+  await act(async () => {
+    trigger.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0 }))
+  })
+  return [...document.querySelectorAll<HTMLElement>('[role="menuitem"]')]
+}
+
+/** Picks a host from the same dropdown list the Marketplace home uses. */
+async function pickHost(container: ParentNode, label: string): Promise<void> {
+  const item = (await openHostList(container)).find((candidate) =>
+    candidate.textContent?.includes(label)
+  )
+  if (!item) {
+    throw new Error(`Host missing: ${label}`)
+  }
+  await act(async () => {
+    item.click()
+  })
+}
+
 function seedHosts(hosts: { runtime?: boolean; ssh?: boolean }): void {
   seedStore(store, {
     settings: {
@@ -151,6 +179,7 @@ beforeEach(() => {
   seedStore(store, {
     activeView: 'marketplace',
     marketplaceApps: { status: 'ready', apps: [localEngram] },
+    marketplaceHostKey: null,
     preflightStatus: { git: { installed: true }, gh: { installed: true, authenticated: true } },
     preflightStatusChecked: true,
     preflightStatusContextKey: 'local'
@@ -169,30 +198,31 @@ afterEach(() => {
 describe('the host picker on an app page', () => {
   it('shows no picker when this computer is the only host', async () => {
     const container = await mount('engram')
-    expect(container.querySelector('[role="group"]')).toBeNull()
+    expect(hostTrigger(container)).toBeUndefined()
     expect(container.textContent).toContain('0.1.0-local')
   })
 
   it('lists this computer, the paired server and the connected SSH hosts', async () => {
     seedHosts({ runtime: true, ssh: true })
     const container = await mount('engram')
-    const labels = [
-      ...(container.querySelector('[role="group"]')?.querySelectorAll('button') ?? [])
-    ].map((button) => button.textContent?.trim())
-    expect(labels).toEqual(['This computer', 'srv2056164', 'build-box'])
-    expect(buttonWithText(container, 'This computer')?.getAttribute('aria-pressed')).toBe('true')
+    expect(hostTrigger(container)?.textContent).toContain('This computer')
+    const labels = (await openHostList(container)).map((item) => item.textContent ?? '')
+    expect(labels).toHaveLength(3)
+    expect(labels[0]).toContain('This computer')
+    expect(labels[1]).toContain('srv2056164')
+    expect(labels[2]).toContain('build-box')
   })
 
   it('never offers the picker on the GitHub page', async () => {
     seedHosts({ ssh: true })
     const container = await mount('github')
-    expect(container.querySelector('[role="group"]')).toBeNull()
+    expect(hostTrigger(container)).toBeUndefined()
   })
 
   it('shows the SSH host status and sends every action to that host, not this computer', async () => {
     seedHosts({ ssh: true })
     const container = await mount('engram')
-    await clickButton(container, 'build-box')
+    await pickHost(container, 'build-box')
     expect(mocks.remoteListApps).toHaveBeenCalledWith({ connectionId: 'ssh-1' })
     expect(container.textContent).toContain('9.9.9-remote')
     expect(container.textContent).toContain('Engram on build-box')
@@ -211,8 +241,8 @@ describe('the host picker on an app page', () => {
   it('routes back to this computer when it is picked again', async () => {
     seedHosts({ ssh: true })
     const container = await mount('engram')
-    await clickButton(container, 'build-box')
-    await clickButton(container, 'This computer')
+    await pickHost(container, 'build-box')
+    await pickHost(container, 'This computer')
     expect(container.textContent).toContain('0.1.0-local')
     await clickButton(container, 'Connect')
     expect(mocks.localConnect).toHaveBeenCalledWith({ id: 'engram' })
@@ -223,7 +253,7 @@ describe('the host picker on an app page', () => {
     seedHosts({ ssh: true })
     mocks.remoteListApps.mockResolvedValue({ ok: false, reason: 'host-needs-update' })
     const container = await mount('engram')
-    await clickButton(container, 'build-box')
+    await pickHost(container, 'build-box')
     expect(container.textContent).toContain('Update MassOrca on build-box first.')
     expect(container.querySelector('[data-marketplace-section="connection"]')).toBeNull()
   })
@@ -236,7 +266,7 @@ describe('the host picker on an app page', () => {
         : { ok: true, status: engramStatus(true, '9.9.9-remote') }
     )
     const container = await mount('engram')
-    await clickButton(container, 'srv2056164')
+    await pickHost(container, 'srv2056164')
     expect(mocks.callRuntimeRpc).toHaveBeenCalledWith(
       { kind: 'environment', environmentId: 'env-1' },
       'marketplace.apps.list',
@@ -260,7 +290,7 @@ describe('the host picker on an app page', () => {
       Object.assign(new Error('nope'), { code: 'method_not_found' })
     )
     const container = await mount('engram')
-    await clickButton(container, 'srv2056164')
+    await pickHost(container, 'srv2056164')
     expect(container.textContent).toContain('Update MassOrca on srv2056164 first.')
   })
 })

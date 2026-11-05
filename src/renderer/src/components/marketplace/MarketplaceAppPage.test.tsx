@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 
 import { act } from 'react'
+import { repoFixture } from '../native-chat/native-chat-workspace-test-fixtures'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
@@ -495,6 +496,17 @@ describe('MarketplaceAppPage', () => {
     )
 
     expect(labels).toContain('Replace')
+  })
+
+  it('picks the host with the same list control as the Marketplace home, not buttons', async () => {
+    seedStore(store, { repos: [repoFixture({ executionHostId: 'runtime:pv-vps' })] })
+    const container = await mount('engram')
+
+    expect(container.querySelector('[role="group"][aria-label="Computer to set up"]')).toBeNull()
+    const trigger = [...container.querySelectorAll('button')].find((button) =>
+      button.textContent?.includes('This computer')
+    )
+    expect(trigger?.getAttribute('aria-haspopup')).toBe('menu')
   })
 
   it('shows the desktop-only notice and no sections without the desktop bridge', async () => {
