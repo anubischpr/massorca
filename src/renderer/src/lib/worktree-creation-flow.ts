@@ -1,4 +1,8 @@
 import { toast } from 'sonner'
+import {
+  forgetCreatedWorktreeListener,
+  listenForCreatedWorktree
+} from '@/lib/worktree-creation-created-listeners'
 import { useAppStore } from '@/store'
 import {
   findPendingLinkedWorkItemCreationId,
@@ -18,25 +22,37 @@ import {
 
 type ContinueBackgroundWorktreeCreationOptions = {
   revealCreationSurface?: boolean
+  /** Told the created workspace's id, so a caller need not guess it from the repo's list. */
+  onCreated?: (worktreeId: string) => void
 }
 
 // Why: nothing awaits these creations, so an escaped rejection would otherwise
 // strand the pending entry — and the creation surface — with no error shown.
-function startWorktreeCreation(creationId: string, request: WorktreeCreationRequest): void {
-  executeWorktreeCreation(creationId, request).catch((error: unknown) => {
-    console.error('worktree create: unhandled failure', creationId, error)
-    const store = useAppStore.getState()
-    if (!store.pendingWorktreeCreations[creationId]) {
-      return
-    }
-    const message = getWorkspaceCreateErrorToastMessage(formatWorkspaceCreateError(error))
-    store.updatePendingWorktreeCreation(creationId, { status: 'error', error: message })
-    // Why: the panel renders this error inline while its surface is visible;
-    // only announce it separately after the user has navigated away.
-    if (!(store.activeView === 'terminal' && store.activePendingCreationId === creationId)) {
-      toast.error(message)
-    }
-  })
+function startWorktreeCreation(
+  creationId: string,
+  request: WorktreeCreationRequest,
+  onCreated?: (worktreeId: string) => void
+): void {
+  if (onCreated) {
+    listenForCreatedWorktree(creationId, onCreated)
+  }
+  executeWorktreeCreation(creationId, request)
+    // Why: a create that ends without completing (cancelled, failed) never reports its workspace.
+    .finally(() => forgetCreatedWorktreeListener(creationId))
+    .catch((error: unknown) => {
+      console.error('worktree create: unhandled failure', creationId, error)
+      const store = useAppStore.getState()
+      if (!store.pendingWorktreeCreations[creationId]) {
+        return
+      }
+      const message = getWorkspaceCreateErrorToastMessage(formatWorkspaceCreateError(error))
+      store.updatePendingWorktreeCreation(creationId, { status: 'error', error: message })
+      // Why: the panel renders this error inline while its surface is visible;
+      // only announce it separately after the user has navigated away.
+      if (!(store.activeView === 'terminal' && store.activePendingCreationId === creationId)) {
+        toast.error(message)
+      }
+    })
 }
 
 function revealPendingCreation(
@@ -93,7 +109,7 @@ export function runBackgroundWorktreeCreation(
   // client over plain HTTP). createBrowserUuid falls back to getRandomValues.
   const creationId = createBrowserUuid()
   revealPendingCreation(creationId, request, getInitialWorktreeCreationPhase(request), reveal)
-  startWorktreeCreation(creationId, request)
+  startWorktreeCreation(creationId, request, options.onCreated)
   return creationId
 }
 

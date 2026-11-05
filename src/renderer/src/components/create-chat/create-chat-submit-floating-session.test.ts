@@ -117,37 +117,40 @@ describe('New Session in the floating workspace', () => {
   it('replaces its New Session tab with the session of a workspace it creates', async () => {
     const createTab = openNewSessionTab()
     markFloatingCreateLaunchStarted(createTab.id)
-    mocks.runBackgroundWorktreeCreation.mockImplementation((request: WorktreeCreationRequest) => {
-      const creationId = 'creation-1'
-      useAppStore.getState().beginPendingWorktreeCreation({
-        creationId,
-        phase: 'creating',
-        status: 'creating',
-        startedAt: 0,
-        indeterminate: false,
-        loaderVisible: false,
-        request
-      })
-      setTimeout(() => {
-        // Why: the executor adds the workspace and launches its chat there, then ends the pending create.
-        useAppStore.setState((state) => ({
-          worktreesByRepo: {
-            ...state.worktreesByRepo,
-            repo1: [
-              ...(state.worktreesByRepo.repo1 ?? []),
-              makeWorktree({ id: 'wt-new', repoId: 'repo1' })
-            ]
-          }
-        }))
-        useAppStore.getState().createUnifiedTab('wt-new', 'agent-session', {
-          id: 'wt-new-chat',
-          entityId: 'session-new',
-          activate: false
+    mocks.runBackgroundWorktreeCreation.mockImplementation(
+      (request: WorktreeCreationRequest, options?: { onCreated?: (id: string) => void }) => {
+        const creationId = 'creation-1'
+        useAppStore.getState().beginPendingWorktreeCreation({
+          creationId,
+          phase: 'creating',
+          status: 'creating',
+          startedAt: 0,
+          indeterminate: false,
+          loaderVisible: false,
+          request
         })
-        useAppStore.getState().removePendingWorktreeCreation(creationId, { cleanupVm: false })
-      }, 0)
-      return creationId
-    })
+        setTimeout(() => {
+          // Why: the executor adds the workspace and launches its chat there, then ends the pending create.
+          useAppStore.setState((state) => ({
+            worktreesByRepo: {
+              ...state.worktreesByRepo,
+              repo1: [
+                ...(state.worktreesByRepo.repo1 ?? []),
+                makeWorktree({ id: 'wt-new', repoId: 'repo1' })
+              ]
+            }
+          }))
+          options?.onCreated?.('wt-new')
+          useAppStore.getState().createUnifiedTab('wt-new', 'agent-session', {
+            id: 'wt-new-chat',
+            entityId: 'session-new',
+            activate: false
+          })
+          useAppStore.getState().removePendingWorktreeCreation(creationId, { cleanupVm: false })
+        }, 0)
+        return creationId
+      }
+    )
 
     await submitCreateChatDraft(
       'Fix login',
@@ -165,6 +168,63 @@ describe('New Session in the floating workspace', () => {
     expect(resolveFloatingWorkspaceSurfaceModel(state).kind).toBe('workspace')
     expect(useFloatingCreateLaunchStore.getState().startingTabIds[createTab.id]).toBeUndefined()
     expect(mocks.toastError).not.toHaveBeenCalled()
+  })
+
+  it('shows the workspace its create made, not another one of the repo that lands first', async () => {
+    const createTab = openNewSessionTab()
+    markFloatingCreateLaunchStarted(createTab.id)
+    const addWorktree = (id: string): void =>
+      useAppStore.setState((state) => ({
+        worktreesByRepo: {
+          ...state.worktreesByRepo,
+          repo1: [...(state.worktreesByRepo.repo1 ?? []), makeWorktree({ id, repoId: 'repo1' })]
+        }
+      }))
+    mocks.runBackgroundWorktreeCreation.mockImplementation(
+      (request: WorktreeCreationRequest, options?: { onCreated?: (id: string) => void }) => {
+        const creationId = 'creation-race'
+        useAppStore.getState().beginPendingWorktreeCreation({
+          creationId,
+          phase: 'creating',
+          status: 'creating',
+          startedAt: 0,
+          indeterminate: false,
+          loaderVisible: false,
+          request
+        })
+        setTimeout(() => {
+          // Why: a sidebar create or a refresh adds another workspace of the repo before this one.
+          addWorktree('wt-other')
+          useAppStore.getState().createUnifiedTab('wt-other', 'agent-session', {
+            id: 'wt-other-chat',
+            entityId: 'session-other',
+            activate: false
+          })
+          addWorktree('wt-mine')
+          options?.onCreated?.('wt-mine')
+          useAppStore.getState().createUnifiedTab('wt-mine', 'agent-session', {
+            id: 'wt-mine-chat',
+            entityId: 'session-mine',
+            activate: false
+          })
+          useAppStore.getState().removePendingWorktreeCreation(creationId, { cleanupVm: false })
+        }, 0)
+        return creationId
+      }
+    )
+
+    await submitCreateChatDraft(
+      'Fix login',
+      selection({ workspaceMode: 'new-worktree', existingWorktreeId: undefined }),
+      { kind: 'floating-workspace', createTabId: createTab.id }
+    )
+
+    await vi.waitFor(() => expect(floatingTabsOf('session-ref')).toHaveLength(1))
+    expect(floatingTabsOf('session-ref')[0]?.sessionRef).toEqual({
+      worktreeId: 'wt-mine',
+      tabId: 'wt-mine-chat'
+    })
+    expect(floatingTabsOf('create-session')).toHaveLength(0)
   })
 
   it('shows a chat whose host publishes its tab under another id than the launch announced', async () => {
