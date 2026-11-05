@@ -204,3 +204,39 @@ describe('a delegated task whose wording is no prototype request', () => {
     }
   })
 })
+
+describe('a delegated task when the person asked for an artifact', () => {
+  const USER_MESSAGE =
+    'En NexusCare explora la documentación y crea un artifact interactivo donde pueda visualizarse el impacto probable de estas mejoras'
+  // What a lead bot wrote for a teammate: "rediseño" reads as a design keyword.
+  const AGENT_TASK =
+    'Haz un rediseño visual de la pantalla de liquidaciones con el impacto de las mejoras'
+
+  it('is no prototype task: the agent wording does not turn an artifact into prototypes', () => {
+    expect(
+      delegatedTaskAsksForPrototypes({
+        text: AGENT_TASK,
+        agents: ['codex'],
+        userMessage: USER_MESSAGE
+      })
+    ).toBe(false)
+    expect(
+      decideDelegatedTaskPrototypeCount({
+        text: AGENT_TASK,
+        agents: ['codex'],
+        setting: ASK,
+        userMessage: USER_MESSAGE
+      })
+    ).toEqual({ kind: 'none' })
+  })
+
+  it('still follows an explicit prototype command in the task', () => {
+    expect(
+      delegatedTaskAsksForPrototypes({
+        text: '/prototype the settlements screen',
+        agents: ['codex'],
+        userMessage: USER_MESSAGE
+      })
+    ).toBe(true)
+  })
+})

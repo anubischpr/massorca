@@ -109,6 +109,18 @@ export function personHandedPrototypeToChild(
   )
 }
 
+const ARTIFACT_WORD = /\b(artifacts?|artefactos?)\b/i
+
+function personAskedForArtifactOnly(
+  userMessage: string,
+  agents: readonly PrototypeAgent[]
+): boolean {
+  return (
+    ARTIFACT_WORD.test(userMessage) &&
+    agents.every((agent) => classifyPrototypeRequest(userMessage, agent).kind === 'none')
+  )
+}
+
 function delegatedTaskPrototypeRequest(
   text: string,
   agents: readonly PrototypeAgent[],
@@ -119,7 +131,12 @@ function delegatedTaskPrototypeRequest(
     requests.find((entry) => entry.kind === 'command') ??
     requests.find((entry) => entry.kind === 'keyword')
   if (own !== undefined) {
-    return own
+    // Why: a person who asked for an artifact asked for no prototypes, whatever words the agent chose for its child.
+    return own.kind === 'keyword' &&
+      userMessage !== undefined &&
+      personAskedForArtifactOnly(userMessage, agents)
+      ? { kind: 'none' }
+      : own
   }
   return userMessage !== undefined && personHandedPrototypeToChild(userMessage, agents)
     ? { kind: 'keyword' }
