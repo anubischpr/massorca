@@ -31,6 +31,18 @@ import { useBotTeamComposerEditor } from './bot-team-composer-editor'
 import { whenBotTeamEditorMounted } from './bot-team-editor-mount'
 import { useBotTeamFilePaths } from './use-bot-team-files'
 
+/** How far PageUp and PageDown move the highlight in the open @ or / menu. */
+const MENU_PAGE_STEP = 10
+
+/** The item a page key lands on, clamped to the menu's ends; null for other keys. */
+function pagedMenuIndex(index: number, count: number, key: string): number | null {
+  if (key !== 'PageDown' && key !== 'PageUp') {
+    return null
+  }
+  const step = key === 'PageDown' ? MENU_PAGE_STEP : -MENU_PAGE_STEP
+  return Math.min(Math.max(index + step, 0), count - 1)
+}
+
 /**
  * The room's message field: its TipTap box, the @ and / menu over it and the keys, shared by the
  * conference room and the Tasks home's Bot Team mode. `text` is what it sends, each chip as "@Name".
@@ -234,6 +246,12 @@ export function useBotTeamMentionField(args: {
           if (event.key === 'Enter' && event.shiftKey && !imeEnterGesture.isComposing()) {
             event.preventDefault()
             editor?.commands.setHardBreak()
+            return
+          }
+          const paged = menu ? pagedMenuIndex(menuIndex, menu.items.length, event.key) : null
+          if (paged !== null && !imeEnterGesture.isComposing()) {
+            event.preventDefault()
+            setMenuIndex(paged)
             return
           }
           if (!removeMentionBeforeCaret(event)) {

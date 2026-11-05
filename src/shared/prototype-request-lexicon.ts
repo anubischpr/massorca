@@ -330,3 +330,9 @@ export function hasPrototypeKeyword(text: string): boolean {
   }
   return text.split(SENTENCE_BREAK).some((sentence) => designNearUiNoun(wordsOf(sentence)))
 }
+
+/** True when the text names a design or a UI screen, even if a negative term applies. */
+export function hasDesignWording(text: string): boolean {
+  const words = canonicalWords(wordsOf(text))
+  return occurrences(words, [...positivePhrases, ...designPhrases, ...uiNounPhrases]).length > 0
+}
