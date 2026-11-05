@@ -181,6 +181,14 @@ function AgentUsageRow({
             )}
           </p>
         ) : null}
+        {agent.outsideHome === true ? (
+          <p className="text-xs text-muted-foreground">
+            {translate(
+              'auto.components.marketplace.MarketplaceAppInformation.outsideHome',
+              "Its settings file links outside this agent's home, so MassOrca left it alone."
+            )}
+          </p>
+        ) : null}
       </div>
       <Badge variant="secondary">{usage.label}</Badge>
     </li>

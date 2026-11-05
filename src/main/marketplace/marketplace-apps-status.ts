@@ -11,7 +11,7 @@ import {
 } from '../../shared/marketplace-apps'
 import { mcpEntryState } from './agent-mcp-config'
 import { readAgentEntryNames } from './marketplace-agent-config'
-import type { MarketplaceAgentPaths } from './marketplace-agent-paths'
+import { resolveWriteTarget, type MarketplaceAgentPaths } from './marketplace-agent-paths'
 import {
   ENGRAM_ENTRY_NAME,
   GITHUB_ENTRY_NAME,
@@ -39,6 +39,11 @@ function levelFor(id: MarketplaceAppId, agent: MarketplaceAppAgent): Marketplace
   return MARKETPLACE_INTEGRATION_LEVELS[id][agent]
 }
 
+/** Whether a link leads the agent's settings file out of the home, where MassOrca's writes are refused. */
+function linksOutsideHome(agent: MarketplaceAppAgent, paths: MarketplaceAgentPaths): boolean {
+  return resolveWriteTarget(paths.mcpConfig(agent), paths.home?.()) === null
+}
+
 function agentStatuses(
   id: MarketplaceAppId,
   state: MarketplaceState,
@@ -52,7 +57,15 @@ function agentStatuses(
     const entry: MarketplaceAgentEntryState =
       raw === 'set' && agent === 'gentle-shell' && !writtenByUs ? 'built-in' : raw
     const allowed = isMarketplaceAppAllowedForAgent(state.access[id], agent)
-    return { agent, level: levelFor(id, agent), entry, allowed }
+    // Why: only apps MassOrca writes into an agent's settings file can be refused there.
+    const outsideHome = id !== 'github' && linksOutsideHome(agent, paths)
+    return {
+      agent,
+      level: levelFor(id, agent),
+      entry,
+      allowed,
+      ...(outsideHome ? { outsideHome: true } : {})
+    }
   })
 }
 

@@ -320,6 +320,26 @@ describe('MarketplaceAppPage', () => {
     expect(rows[3]).toContain('Tools only')
   })
 
+  it("says in Information when an agent's settings file links outside its home", async () => {
+    seedApps([
+      engram,
+      {
+        ...openmetadata,
+        agents: openmetadata.agents.map((row) =>
+          row.agent === 'codex' ? { ...row, entry: 'missing', outsideHome: true } : row
+        )
+      },
+      github
+    ])
+    const container = await mount('openmetadata')
+    const rows = [...sectionOf(container, 'information').querySelectorAll('li')]
+    const codex = rows.find((row) => row.textContent?.includes('Codex'))
+    expect(codex?.textContent).toContain(
+      "Its settings file links outside this agent's home, so MassOrca left it alone."
+    )
+    expect(rows.filter((row) => row.textContent?.includes('links outside'))).toHaveLength(1)
+  })
+
   it('connects OpenMetadata with the address and token, and never shows the token', async () => {
     seedApps([
       engram,

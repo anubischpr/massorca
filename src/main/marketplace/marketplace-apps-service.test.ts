@@ -400,4 +400,47 @@ describe('a config that links outside this home', () => {
       rmSync(outside, { recursive: true, force: true })
     }
   })
+
+  it('marks the agent whose settings folder leads out of the home in the status, and only that one', async () => {
+    const outside = mkdtempSync(join(tmpdir(), 'marketplace-service-outside-'))
+    try {
+      rmSync(join(home, '.gemini'), { recursive: true, force: true })
+      mkdirSync(join(outside, 'config'), { recursive: true })
+      writeFileSync(join(outside, 'config', 'mcp_config.json'), '{"real":"user"}')
+      symlinkSync(outside, join(home, '.gemini'), 'junction')
+
+      const engram = await statusOf('engram')
+
+      expect(
+        engram.agents.filter((row) => row.outsideHome === true).map((row) => row.agent)
+      ).toEqual(['antigravity'])
+    } finally {
+      rmSync(outside, { recursive: true, force: true })
+    }
+  })
+
+  it('marks a Claude settings file that a folder link takes out of the home', async () => {
+    const outside = mkdtempSync(join(tmpdir(), 'marketplace-service-outside-'))
+    try {
+      const paths = testAgentPaths(home)
+      writeFileSync(join(outside, 'claude.json'), '{"mcpServers":{}}')
+      symlinkSync(outside, join(home, 'linked-claude'), 'junction')
+      const linked = createMarketplaceAppsService({
+        vault,
+        paths: {
+          ...paths,
+          mcpConfig: (agent) =>
+            agent === 'claude' ? join(home, 'linked-claude', 'claude.json') : paths.mcpConfig(agent)
+        },
+        engramProgram: async () => ({ found: true, version: '1.2.3' }),
+        githubAuthenticated: async () => githubAuthenticated
+      })
+
+      const openmetadata = (await linked.listApps()).find((app) => app.id === 'openmetadata')
+
+      expect(openmetadata?.agents.find((row) => row.agent === 'claude')?.outsideHome).toBe(true)
+    } finally {
+      rmSync(outside, { recursive: true, force: true })
+    }
+  })
 })

@@ -56,7 +56,9 @@ const AgentStatusSchema = z.object({
   agent: z.enum(MARKETPLACE_APP_AGENTS),
   level: z.enum(['full', 'tools-only', 'built-in']),
   entry: z.enum(['set', 'missing', 'unreadable', 'built-in']),
-  allowed: z.boolean().optional()
+  allowed: z.boolean().optional(),
+  // Why: an optional flag, not an entry value: an older peer's strict entry enum would reject the whole list.
+  outsideHome: z.boolean().optional().catch(undefined)
 })
 
 const CredentialSchema = z.object({
