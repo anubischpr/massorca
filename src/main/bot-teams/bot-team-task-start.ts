@@ -6,6 +6,7 @@ import {
   marketplaceAppPromptLines,
   mentionedMarketplaceApps
 } from '../../shared/marketplace-app-mentions'
+import { asksForDelegatedSession } from '../../shared/prototype-delegated-ask'
 import { botLaunchOptions } from './bot-team-model-choice'
 import {
   BOT_TEAM_HISTORY_SOURCES_NOTE,
@@ -215,8 +216,10 @@ export async function startBotTeamTask(
     ...extras,
     notes: withoutBotTeamPrototypeChoice(extras.notes)
   }
+  // Why: a task that hands its design to child sessions is carried by those children, not by the bot's own session.
+  const handsToChild = asksForDelegatedSession(task.prompt || task.title)
   const prototype =
-    choice && deps.prototypeFirstPrompt
+    choice && deps.prototypeFirstPrompt && !handsToChild
       ? await deps.prototypeFirstPrompt({
           ...choice,
           childSessionId: sessionId,

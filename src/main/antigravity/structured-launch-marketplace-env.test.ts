@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { closeTestJournalHostDatabase } from '../native-chat/agent-session-journal/journal-host-database-test-support'
 import { openTestAgentSessionRecordStore } from '../runtime/agent-session-record-store-test-harness'
 import { MarketplaceVault, emptyMarketplaceState } from '../marketplace/marketplace-vault'
+import type { BotRunDenial } from '../marketplace/marketplace-bot-run-denial'
 import { createAntigravityLaunchResolver } from './structured-launch-resolution'
 import type { AntigravityAgentSessionAccountHome } from '../../shared/agent-session-account-home'
 
@@ -55,7 +56,7 @@ function connectProfile(): void {
   vault.writeState(state)
 }
 
-async function resolve() {
+async function resolve(resolveBotRunDenial?: () => Promise<BotRunDenial | null>) {
   const store = await openTestAgentSessionRecordStore(root)
   await store.reserveOwner({
     sessionId: identity.sessionId,
@@ -80,6 +81,7 @@ async function resolve() {
     now: 1_800_000_000_000
   })
   return createAntigravityLaunchResolver({
+    ...(resolveBotRunDenial ? { resolveBotRunDenial } : {}),
     store,
     resolveWorkspacePath: async () => '/host/workspace',
     resolveEnvironment: async () => ({ HOME: '/host/home' }),
@@ -93,6 +95,18 @@ async function resolve() {
 }
 
 describe('Antigravity structured launch marketplace env', () => {
+  it('keeps the Marketplace tokens of a denied app out of a bot run', async () => {
+    connectProfile()
+    const launch = await resolve(async () => ({
+      mcpServers: ['openmetadata', 'escritura'],
+      envNames: ['OPENMETADATA_TOKEN', PROFILE_ENV],
+      envPrefixes: []
+    }))
+    expect(launch.env).not.toHaveProperty(PROFILE_ENV)
+    expect(launch.env).not.toHaveProperty('OPENMETADATA_TOKEN')
+    expect(launch.env?.HOME).toBe('/host/home')
+  })
+
   it('gives the chat every connected profile token under its own name', async () => {
     connectProfile()
     const launch = await resolve()

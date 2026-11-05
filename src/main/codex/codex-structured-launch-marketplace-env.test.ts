@@ -11,6 +11,7 @@ import {
 } from '../marketplace/marketplace-vault'
 import { openCodexAppServerConnection } from './codex-app-server-connection'
 import { codexStructuredChildEnvironment } from './codex-structured-child-environment'
+import type { BotRunDenial } from '../marketplace/marketplace-bot-run-denial'
 import { createCodexStructuredLaunchResolver } from './codex-structured-launch-resolution'
 
 const vaultUnderTest = vi.hoisted((): { current: unknown } => ({ current: null }))
@@ -57,8 +58,9 @@ function connectProfile(): void {
   vault.writeState(state())
 }
 
-function resolver() {
+function resolver(resolveBotRunDenial?: () => Promise<BotRunDenial | null>) {
   return createCodexStructuredLaunchResolver({
+    ...(resolveBotRunDenial ? { resolveBotRunDenial } : {}),
     store: { getRecord: () => RECORD, pinLaunchDirectory: vi.fn() },
     resolveWorkspacePath: async (id) => `/repos/${id}`,
     resolveCommand: () => '/usr/local/bin/codex',
@@ -78,6 +80,18 @@ afterEach(() => {
 })
 
 describe('codex structured launch marketplace env', () => {
+  it('keeps the Marketplace tokens of a denied app out of a bot run', async () => {
+    connectProfile()
+    const launch = await resolver(async () => ({
+      mcpServers: ['openmetadata', 'escritura'],
+      envNames: ['OPENMETADATA_TOKEN', PROFILE_ENV],
+      envPrefixes: []
+    }))({ identity: IDENTITY })
+    expect(launch.env).not.toHaveProperty(PROFILE_ENV)
+    expect(launch.env).not.toHaveProperty('OPENMETADATA_TOKEN')
+    expect(launch.env?.PATH).toBe('/usr/bin')
+  })
+
   it('gives the app-server every connected profile token under its own name', async () => {
     connectProfile()
     const launch = await resolver()({ identity: IDENTITY })

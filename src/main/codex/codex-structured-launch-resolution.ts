@@ -104,10 +104,6 @@ export function createCodexStructuredLaunchResolver(
     const { command, environment } = await resolveCodexStructuredInvocation(deps)
     // A bot run leaves the apps its bot is kept out of: no token in its env, those servers disabled.
     const botDenial = await (deps.resolveBotRunDenial ?? resolveBotRunDenial)(record.options)
-    const args = [
-      ...codexStructuredLaunchArgs(await deps.resolveLaunchArgs()),
-      ...(await codexBotRunMcpOverrideArgs(botDenial, accountHome.path))
-    ]
     // Why: config.toml names each MCP token by env var (never the value); a fresh read per start
     // also gives a session opened after a vault change the new vars, since each owns its app-server.
     const marketplaceEnv = buildMarketplaceAgentEnv('codex')
@@ -115,6 +111,10 @@ export function createCodexStructuredLaunchResolver(
       environment || Object.keys(marketplaceEnv).length > 0
         ? { ...environment, ...marketplaceEnv }
         : undefined
+    const args = [
+      ...codexStructuredLaunchArgs(await deps.resolveLaunchArgs()),
+      ...(await codexBotRunMcpOverrideArgs(botDenial, accountHome.path))
+    ]
     const permissionPolicy = codexStructuredPermissionPolicyForSession(
       record.options?.accessMode,
       deps.resolvePermissionPolicy?.()
@@ -133,7 +133,14 @@ export function createCodexStructuredLaunchResolver(
       codexHome: accountHome.path,
       ...(childEnvironment
         ? {
-            env: deleteBotRunDeniedEnv({ ...childEnvironment } as Record<string, string>, botDenial)
+            env: deleteBotRunDeniedEnv(
+              Object.fromEntries(
+                Object.entries(childEnvironment).filter(
+                  (entry): entry is [string, string] => entry[1] !== undefined
+                )
+              ),
+              botDenial
+            )
           }
         : {}),
       ...(botDenial ? { envToDelete: botRunEnvKeysToDelete(botDenial) } : {}),

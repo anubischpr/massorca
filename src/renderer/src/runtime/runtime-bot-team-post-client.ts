@@ -4,7 +4,7 @@ import type { BotTeamRequestChoice } from '../../../shared/bot-team-request-choi
 import type { BotTeamRoomAttachment } from '../../../shared/bot-team-room-attachments'
 import type { BotTeamTask } from '../../../shared/rpc-contract/bot-team-room-params'
 import { botTeamHostTarget, currentBotTeamHost } from './bot-team-host'
-import { postWithFileNamesIfTextRequired } from './runtime-bot-team-files-only-retry'
+import { withFileNamesIfTextRequired } from './runtime-bot-team-files-only-retry'
 import { callRuntimeRpc } from './runtime-rpc-client'
 
 // Same host as every other Bot teams call; see `resolveBotTeamHost` for which.
@@ -40,5 +40,5 @@ export async function postBotTeamRequest(input: {
   later?: boolean
 }> {
   const sent = withSenderTimeZone(input)
-  return postWithFileNamesIfTextRequired(sent, (next) => call('botTeams.postMessage', next))
+  return withFileNamesIfTextRequired(sent, (next) => call('botTeams.postMessage', next))
 }

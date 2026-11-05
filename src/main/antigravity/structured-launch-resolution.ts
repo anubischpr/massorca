@@ -33,6 +33,7 @@ import { structuredSessionChildIdentityEnv } from '../runtime/structured-session
 import { delegationInstructionsForEnv } from '../delegated-session/delegation-agent-instructions'
 import {
   botRunChildEnv,
+  deleteBotRunDeniedEnv,
   type BotRunDenialResolver
 } from '../marketplace/marketplace-bot-run-denial'
 import {
@@ -159,9 +160,8 @@ export function createAntigravityLaunchResolver(deps: AntigravityLaunchDeps) {
       throw new Error('Antigravity session does not belong to this execution host')
     }
     // A bot run keeps the tokens of the apps its bot is kept out of out of the agent's env.
-    // Why: Marketplace apps reach agy as env vars named in its MCP config, never as values.
-    const { env, envToDelete } = await botRunChildEnv(
-      { ...(await deps.resolveEnvironment()), ...buildMarketplaceAgentEnv('antigravity') },
+    const { env, envToDelete, denial } = await botRunChildEnv(
+      await deps.resolveEnvironment(),
       record.options,
       deps.resolveBotRunDenial
     )
@@ -216,7 +216,15 @@ export function createAntigravityLaunchResolver(deps: AntigravityLaunchDeps) {
     return {
       command,
       cwd,
-      env: withNativeChatVisualsEnv(identityEnv, visuals),
+      // Why: Marketplace apps reach agy as env vars named in its MCP config, never as values; a bot
+      // run's denial is applied after them, so a denied app's token never comes back.
+      env: withNativeChatVisualsEnv(
+        deleteBotRunDeniedEnv(
+          { ...identityEnv, ...buildMarketplaceAgentEnv('antigravity') },
+          denial
+        ),
+        visuals
+      ),
       ...(envToDelete ? { envToDelete } : {}),
       previous,
       args: [

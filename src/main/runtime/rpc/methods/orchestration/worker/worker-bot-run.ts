@@ -1,4 +1,7 @@
-import { botRunOfCallerSession } from '../../../../../bot-teams/bot-team-delegated-run'
+import {
+  botRunOfCallerSession,
+  botRunOfDelegatedDispatch
+} from '../../../../../bot-teams/bot-team-delegated-run'
 import {
   botRunOptions,
   resolveBotRunDenial
@@ -11,6 +14,48 @@ import { readCallerSessionRecord } from '../../../orchestration-session-caller'
 import { OrchestrationError } from '../../../../orchestration/orchestration-error'
 
 export type WorkerBotRun = { botId: string; teamId: string }
+
+/**
+ * Levels a bot run may nest beyond the host's setting. A teammate handed work already sits at depth 1,
+ * so without it the child session the person asked it for is refused. Children stay under the bot
+ * that asked (same marker, same owner), so only the depth count moves, and by exactly this much.
+ */
+export const BOT_RUN_EXTRA_NESTING_DEPTH = 1
+
+type NestingHost = {
+  runtime: Pick<OrcaRuntimeService, 'getNestedWorkerMaxDepth'>
+  db: OrchestrationDb
+  botRun?: WorkerBotRun
+}
+
+/**
+ * The cap a dispatch made by this caller meets: a bot run's own session gets one more level.
+ * The delegation path passes no botRun, so the caller's own session says whether it is a bot's.
+ */
+export function nestedWorkerMaxDepthForCaller(
+  args: NestingHost & {
+    coordinator: { orcaSessionId?: string | null } | null
+    callerSession?: { sessionId?: string }
+  }
+): number {
+  const botRun =
+    args.botRun ??
+    botRunOfWorkerCaller(args.db, args.coordinator?.orcaSessionId ?? args.callerSession?.sessionId)
+  return args.runtime.getNestedWorkerMaxDepth() + (botRun ? BOT_RUN_EXTRA_NESTING_DEPTH : 0)
+}
+
+/** A started worker's depth and the cap its own dispatches meet, so its preamble teaches what is allowed. */
+export function workerNesting(
+  args: NestingHost,
+  dispatch: { id: string; depth: number }
+): { dispatchDepth: number; nestedWorkerMaxDepth: number } {
+  const botRun = botRunOfDelegatedDispatch(args.db, dispatch.id) ?? args.botRun
+  return {
+    dispatchDepth: dispatch.depth,
+    nestedWorkerMaxDepth:
+      args.runtime.getNestedWorkerMaxDepth() + (botRun ? BOT_RUN_EXTRA_NESTING_DEPTH : 0)
+  }
+}
 
 /** The bot whose run the calling session belongs to; a worker it starts directly inherits it. */
 export function botRunOfWorkerCaller(

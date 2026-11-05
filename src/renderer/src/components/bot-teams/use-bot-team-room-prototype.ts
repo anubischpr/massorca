@@ -60,7 +60,9 @@ export function decideBotTeamRoomPrototype(input: {
     const decision = decideNativeChatPrototypeRequest({
       text: input.text,
       agent: prototypeAgentOfBot(bot.agent),
-      setting: input.setting
+      setting: input.setting,
+      // Why: a room bot opens the child itself, so "in a child session" must still ask the count here.
+      handOffExempt: false
     })
     if (decision.kind === 'ask') {
       return { kind: 'ask', keyword: decision.keyword, botName: bot.name }

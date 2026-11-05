@@ -199,26 +199,35 @@ export const BotTeamMessagePost = z
   })
 
 /** Files a request the room could not place by itself: to a bot, and to a team when `toTeamId` is set. */
-export const BotTeamRequestAssign = z.object({
-  teamId: requiredString('Missing team id'),
-  text: requiredString('Missing request text'),
-  /** Absent: the least busy bot of the receiving team takes it. */
-  botId: z.string().min(1).optional(),
-  toTeamId: z.string().min(1).optional(),
-  start: z.boolean().default(true),
-  /** The answer to the project question: a project of the team, or null for none. Absent until asked. */
-  projectId: z.string().min(1).nullable().optional(),
-  /** The other bots a composite task has parts for, as the question carried them. */
-  alsoNeeds: z.array(z.string().min(1)).optional(),
-  later: z.boolean().optional(),
-  askProject: z.boolean().optional(),
-  /** Files the person attached to the request, kept when a choice card answers it. */
-  attachments: z.array(BotTeamRoomAttachmentSchema).max(BOT_TEAM_ROOM_ATTACHMENT_LIMIT).optional(),
-  /** The sender's IANA zone, so a day the request names is read on their clock. An older client sends none. */
-  timeZone: z.string().min(1).max(64).optional(),
-  /** The prototype count the person chose before the room asked this question; an older host ignores it. */
-  prototypeChoice: BotTeamPrototypeChoiceSchema.optional()
-})
+export const BotTeamRequestAssign = z
+  .object({
+    teamId: requiredString('Missing team id'),
+    /** Empty only with files: the answer to the project question for a message of only files. */
+    text: requiredStringAllowingEmpty('Missing request text'),
+    /** Absent: the least busy bot of the receiving team takes it. */
+    botId: z.string().min(1).optional(),
+    toTeamId: z.string().min(1).optional(),
+    start: z.boolean().default(true),
+    /** The answer to the project question: a project of the team, or null for none. Absent until asked. */
+    projectId: z.string().min(1).nullable().optional(),
+    /** The other bots a composite task has parts for, as the question carried them. */
+    alsoNeeds: z.array(z.string().min(1)).optional(),
+    later: z.boolean().optional(),
+    askProject: z.boolean().optional(),
+    /** Files the person attached to the request, kept when a choice card answers it. */
+    attachments: z
+      .array(BotTeamRoomAttachmentSchema)
+      .max(BOT_TEAM_ROOM_ATTACHMENT_LIMIT)
+      .optional(),
+    /** The sender's IANA zone, so a day the request names is read on their clock. An older client sends none. */
+    timeZone: z.string().min(1).max(64).optional(),
+    /** The prototype count the person chose before the room asked this question; an older host ignores it. */
+    prototypeChoice: BotTeamPrototypeChoiceSchema.optional()
+  })
+  .refine((value) => value.text.trim() !== '' || (value.attachments?.length ?? 0) > 0, {
+    message: 'Missing request text',
+    path: ['text']
+  })
 
 /** Gives an idle task to a bot of any team; its team follows the bot. Nothing starts: Start does that. */
 export const BotTeamTaskReassign = z.object({

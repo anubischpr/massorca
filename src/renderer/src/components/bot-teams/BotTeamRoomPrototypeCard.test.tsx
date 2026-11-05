@@ -130,6 +130,15 @@ describe('a prototype request typed in the room', () => {
     expect(container.querySelector('[data-native-chat-prototype-count-card]')).toBeNull()
   })
 
+  it('still asks when the request hands the design to a child session', async () => {
+    setPrototypeCount({ mode: 'ask', count: 2 })
+    sendText.value = 'en una sesión hija crea un nuevo diseño para la página de inicio'
+    const { container } = await sendFromRoom()
+
+    expect(container.querySelector('[data-native-chat-prototype-count-card]')).not.toBeNull()
+    expect(client.postBotTeamRequest).not.toHaveBeenCalled()
+  })
+
   it('posts the text as typed, with no choice, on "Not a prototype"', async () => {
     setPrototypeCount({ mode: 'ask', count: 2 })
     sendText.value = 'Make a mockup of the pricing page'

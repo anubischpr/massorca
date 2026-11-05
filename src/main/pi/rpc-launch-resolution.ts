@@ -36,7 +36,6 @@ import {
 import {
   botRunChildEnv,
   deleteBotRunDeniedEnv,
-  resolveBotRunDenial,
   type BotRunDenialResolver
 } from '../marketplace/marketplace-bot-run-denial'
 import { piChatVisualsFor } from './pi-chat-visuals'
@@ -207,7 +206,7 @@ export function createPiRpcLaunchResolver(
     }
     const cwd = await deps.resolveWorkspacePath(record.location.workspaceId)
     // A bot run keeps the tokens of the apps its bot is kept out of out of the agent's env.
-    const { env, envToDelete } = await botRunChildEnv(
+    const { env, envToDelete, denial } = await botRunChildEnv(
       await deps.resolveEnvironment(),
       record.options,
       deps.resolveBotRunDenial
@@ -268,17 +267,9 @@ export function createPiRpcLaunchResolver(
     const visuals = await piChatVisualsFor(deps, identity.sessionId)
     // Why: Marketplace apps reach Gentle Shell as env vars named in its MCP config, never as values;
     // stock Pi is not a Marketplace agent. Added after the version probe, which has no use for them.
-    const launchEnv =
-      piRuntime === 'gentle-shell'
-        ? {
-            ...env,
-            // A bot kept out of an app gets none of its Marketplace vars either.
-            ...deleteBotRunDeniedEnv(
-              buildMarketplaceAgentEnv('gentle-shell'),
-              await (deps.resolveBotRunDenial ?? resolveBotRunDenial)(record.options)
-            )
-          }
-        : env
+    // A bot run's denial runs after them, so a denied app's token never comes back.
+    const appEnv = piRuntime === 'gentle-shell' ? buildMarketplaceAgentEnv('gentle-shell') : {}
+    const launchEnv = deleteBotRunDeniedEnv({ ...env, ...appEnv }, denial)
     return {
       command,
       cwd,
