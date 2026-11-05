@@ -23,6 +23,7 @@ function makeBaseline(overrides: Partial<PersistedUIWriteBaseline> = {}): Persis
     showSleepingWorkspaces: true,
     workspaceHostScope: 'all',
     visibleWorkspaceHostIds: null,
+    marketplaceHostKey: null,
     hideDefaultBranchWorkspace: false,
     hideAutomationGeneratedWorkspaces: false,
     hideCliCreatedWorkspaces: false,

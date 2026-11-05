@@ -150,6 +150,7 @@ export const UiUpdateFields = z
     showInactiveWorkspaces: z.boolean().optional(),
     workspaceHostScope: z.string().optional(),
     visibleWorkspaceHostIds: z.array(z.string()).nullable().optional(),
+    marketplaceHostKey: NullableString.optional(),
     agentsVisibleHostIds: z.array(z.string()).nullable().optional(),
     agentsFilterRepoIds: StringArray.optional(),
     agentsHideWorkspacesFromOtherDevices: z.boolean().optional(),

@@ -228,6 +228,7 @@ export function getDefaultUIState(): PersistedUIState {
     hideSleepingWorkspaces: DEFAULT_HIDE_SLEEPING_WORKSPACES,
     workspaceHostScope: 'all',
     visibleWorkspaceHostIds: null,
+    marketplaceHostKey: null,
     workspaceHostOrder: [],
     automationHostFilter: { kind: 'all' },
     manualRepoOrder: [],

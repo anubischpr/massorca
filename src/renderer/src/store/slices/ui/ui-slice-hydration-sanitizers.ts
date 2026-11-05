@@ -189,6 +189,11 @@ export function hydratedUIPartialMatchesState(
   )
 }
 
+/** Keeps only a well-formed `ssh:<id>` or `runtime:<id>` key; anything else reads as this computer. */
+export function sanitizePersistedMarketplaceHostKey(value: unknown): string | null {
+  return typeof value === 'string' && /^(ssh|runtime):.+$/.test(value) ? value : null
+}
+
 export function normalizeHydratedVisibleWorkspaceHostIds(
   ui: PersistedUIState
 ): VisibleWorkspaceHostIds {

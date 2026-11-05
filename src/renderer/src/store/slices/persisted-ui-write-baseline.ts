@@ -23,6 +23,7 @@ export type PersistedUIWriteBaseline = {
   showSleepingWorkspaces: boolean
   workspaceHostScope: PersistedUIState['workspaceHostScope']
   visibleWorkspaceHostIds: PersistedUIState['visibleWorkspaceHostIds']
+  marketplaceHostKey: PersistedUIState['marketplaceHostKey']
   hideDefaultBranchWorkspace: boolean
   hideAutomationGeneratedWorkspaces: boolean
   hideCliCreatedWorkspaces: boolean
@@ -57,6 +58,7 @@ const PERSISTED_UI_WRITE_BASELINE_FIELD_SET = {
   showSleepingWorkspaces: true,
   workspaceHostScope: true,
   visibleWorkspaceHostIds: true,
+  marketplaceHostKey: true,
   hideDefaultBranchWorkspace: true,
   hideAutomationGeneratedWorkspaces: true,
   hideCliCreatedWorkspaces: true,
