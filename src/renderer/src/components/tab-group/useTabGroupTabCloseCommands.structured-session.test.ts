@@ -18,6 +18,7 @@ const store = vi.hoisted(() => ({
   activeWorktreeId: 'wt-1',
   browserPagesByWorkspace: {},
   browserTabsByWorktree: {},
+  groupsByWorktree: {},
   closeBrowserTab: mocks.closeBrowserTab,
   closeFile: mocks.closeFile,
   closeUnifiedTab: mocks.closeUnifiedTab,
