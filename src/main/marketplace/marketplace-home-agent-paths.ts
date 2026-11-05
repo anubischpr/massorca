@@ -33,6 +33,7 @@ export function createHomeMarketplaceAgentPaths(
   }
 
   return {
+    home: () => home(),
     mcpConfig: (agent: MarketplaceAppAgent) => {
       switch (agent) {
         case 'claude':

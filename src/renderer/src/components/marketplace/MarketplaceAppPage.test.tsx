@@ -267,6 +267,42 @@ describe('MarketplaceAppPage', () => {
     })
   })
 
+  it('runs one forced local preflight check when the GitHub page opens', async () => {
+    const refresh = vi.fn(async () => {})
+    store.setState({ refreshPreflightStatus: refresh })
+    await mount('github')
+    expect(refresh).toHaveBeenCalledTimes(1)
+    expect(refresh).toHaveBeenCalledWith({ force: true })
+  })
+
+  it('does not force a preflight check when the Engram page opens', async () => {
+    const refresh = vi.fn(async () => {})
+    store.setState({ refreshPreflightStatus: refresh })
+    await mount('engram')
+    expect(refresh).not.toHaveBeenCalledWith({ force: true })
+  })
+
+  it("shows Gentle Shell's own Engram as Full integration", async () => {
+    seedApps([
+      {
+        ...engram,
+        agents: [
+          ...engram.agents.slice(0, 3),
+          { agent: 'gentle-shell', level: 'full', entry: 'built-in' }
+        ]
+      },
+      openmetadata,
+      github
+    ])
+    const container = await mount('engram')
+    const rows = [...sectionOf(container, 'information').querySelectorAll('li')].map(
+      (row) => row.textContent ?? ''
+    )
+    expect(rows[3]).toContain('Gentle Shell')
+    expect(rows[3]).toContain('Full integration')
+    expect(rows[3]).toContain('Built into its harness')
+  })
+
   it('shows each agent with its integration level or Built in in Information', async () => {
     const container = await mount('engram')
     const rows = [...sectionOf(container, 'information').querySelectorAll('li')].map(

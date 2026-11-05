@@ -22,6 +22,23 @@ describe('removeGhAccount', () => {
     expect(invalidate).toHaveBeenCalledOnce()
   })
 
+  it('logs out an inactive account with one gh call and never switches the active login', async () => {
+    const exec = vi.fn().mockResolvedValue({ stdout: '', stderr: '' })
+    expect(await removeGhAccount({ host: 'github.com', user: 'side' }, {}, exec)).toEqual({
+      ok: true
+    })
+    // Why: gh keeps the active login when another one is logged out, so no switch is needed.
+    expect(exec).toHaveBeenCalledTimes(1)
+    expect(exec.mock.calls[0]?.[0]).toEqual([
+      'auth',
+      'logout',
+      '--hostname',
+      'github.com',
+      '--user',
+      'side'
+    ])
+  })
+
   it('refuses an invalid account without running gh', async () => {
     const exec = vi.fn()
     expect(await removeGhAccount({ host: 'github.com', user: 'a b' }, {}, exec)).toEqual({

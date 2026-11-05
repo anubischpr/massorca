@@ -191,6 +191,19 @@ function usageCopy(
   appId: MarketplaceAppId,
   agent: MarketplaceAppAgentStatus
 ): { label: string; line: string } {
+  // Why: Gentle Shell's own Engram is part of its ODD harness, so it uses memory as fully as any agent.
+  if (appId === 'engram' && agent.agent === 'gentle-shell' && agent.entry === 'built-in') {
+    return {
+      label: translate(
+        'auto.components.marketplace.MarketplaceAppInformation.fullIntegration',
+        'Full integration'
+      ),
+      line: translate(
+        'auto.components.marketplace.MarketplaceAppInformation.gentleShellEngramLine',
+        'Built into its harness: uses memory by itself in every session. MassOrca adds nothing.'
+      )
+    }
+  }
   if (agent.entry === 'built-in' || agent.level === 'built-in') {
     return {
       label: translate('auto.components.marketplace.MarketplaceAppInformation.builtIn', 'Built in'),

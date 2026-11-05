@@ -1,4 +1,14 @@
-import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync
+} from 'node:fs'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { MarketplaceAppAgent, MarketplaceAppStatus } from '../../shared/marketplace-apps'
@@ -155,6 +165,16 @@ describe('Engram', () => {
     })
     await service().setEngramServer({ url: null })
     expect(vault.buildAgentEnv()).toEqual({})
+  })
+
+  it('reports Gentle Shell as fully integrated with Engram, like Claude Code and Codex', async () => {
+    const engram = (await service().listApps()).find((app) => app.id === 'engram')
+    expect(engram?.agents.map((agent) => [agent.agent, agent.level])).toEqual([
+      ['claude', 'full'],
+      ['codex', 'full'],
+      ['antigravity', 'tools-only'],
+      ['gentle-shell', 'full']
+    ])
   })
 
   it('drops the stored token when the server changes without a new one', async () => {
@@ -356,5 +376,28 @@ describe('state file', () => {
       'openmetadata',
       'github'
     ])
+  })
+})
+
+describe('a config that links outside this home', () => {
+  it('reports outside-home for that agent, leaves the real file alone and finishes the others', async () => {
+    const outside = mkdtempSync(join(tmpdir(), 'marketplace-service-outside-'))
+    try {
+      const paths = testAgentPaths(home)
+      rmSync(join(home, '.gemini'), { recursive: true, force: true })
+      mkdirSync(join(outside, 'config'), { recursive: true })
+      writeFileSync(join(outside, 'config', 'mcp_config.json'), '{"real":"user"}')
+      symlinkSync(outside, join(home, '.gemini'), 'junction')
+
+      const result = await service().connect({ id: 'engram' })
+
+      expect(result).toEqual({ ok: false, reason: 'outside-home', agent: 'antigravity' })
+      expect(readFileSync(join(outside, 'config', 'mcp_config.json'), 'utf8')).toBe(
+        '{"real":"user"}'
+      )
+      expect(readFileSync(paths.mcpConfig('codex'), 'utf8')).toContain('[mcp_servers.engram]')
+    } finally {
+      rmSync(outside, { recursive: true, force: true })
+    }
   })
 })

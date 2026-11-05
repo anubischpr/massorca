@@ -1,5 +1,15 @@
-import { existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs'
-import { dirname } from 'node:path'
+import {
+  existsSync,
+  lstatSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync
+} from 'node:fs'
+import { tmpdir } from 'node:os'
+import { dirname, join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import {
   applyAgentMcpEdits,
@@ -9,6 +19,7 @@ import {
 import { applyAgentInstructionsBlock } from './marketplace-agent-instructions'
 import { engramEntrySpec, openMetadataEntrySpec } from './marketplace-entry-specs'
 import {
+  canCreateFileLinks,
   installAllAgents,
   makeTempHome,
   testAgentPaths,
@@ -403,5 +414,148 @@ describe('applyAgentInstructionsBlock', () => {
       ok: true,
       outcome: 'not-supported'
     })
+  })
+})
+
+describe('empty config files', () => {
+  it.each([
+    ['empty', ''],
+    ['whitespace only', ' \r\n\t\n']
+  ])(
+    'adds the entry to a %s antigravity file instead of calling it unsupported',
+    (_label, text) => {
+      const paths = testAgentPaths(home)
+      const path = paths.mcpConfig('antigravity')
+      writeFixture(path, text)
+
+      const result = applyAgentMcpEdits('antigravity', paths, [engram('antigravity')])
+
+      expect(result).toMatchObject({ ok: true, outcomes: { engram: 'added' } })
+      expect(JSON.parse(readFileSync(path, 'utf8'))).toEqual({
+        mcpServers: { engram: expect.objectContaining({ command: 'engram' }) }
+      })
+    }
+  )
+
+  it('treats an empty file as having no entries to read', () => {
+    const paths = testAgentPaths(home)
+    writeFixture(paths.mcpConfig('gentle-shell'), '')
+    expect(readAgentEntryNames('gentle-shell', paths.mcpConfig('gentle-shell'))).toEqual({
+      kind: 'present',
+      names: new Set()
+    })
+  })
+
+  it('leaves an empty file alone when asked to remove an entry that is not there', () => {
+    const paths = testAgentPaths(home)
+    const path = paths.mcpConfig('antigravity')
+    writeFixture(path, '')
+    expect(applyAgentMcpEdits('antigravity', paths, [removeEngram])).toMatchObject({
+      ok: true,
+      outcomes: { engram: 'absent' }
+    })
+    expect(readFileSync(path, 'utf8')).toBe('')
+  })
+})
+
+describe('a config that links outside the home', () => {
+  let outside: string
+  beforeEach(() => {
+    outside = mkdtempSync(join(tmpdir(), 'marketplace-config-outside-'))
+  })
+  afterEach(() => {
+    rmSync(outside, { recursive: true, force: true })
+  })
+
+  it.skipIf(!canCreateFileLinks())(
+    'is refused for MCP edits and the real file keeps every byte (skipped without file symlink privilege)',
+    () => {
+      const paths = testAgentPaths(home)
+      const target = join(outside, 'mcp.json')
+      writeFileSync(target, '{\n  "mcpServers": {}\n}\n')
+      const link = paths.mcpConfig('gentle-shell')
+      mkdirSync(dirname(link), { recursive: true })
+      symlinkSync(target, link, 'file')
+      const before = readFileSync(target)
+
+      expect(applyAgentMcpEdits('gentle-shell', paths, [engram('gentle-shell')])).toEqual({
+        ok: false,
+        reason: 'outside-home'
+      })
+      expect(readFileSync(target).equals(before)).toBe(true)
+      expect(lstatSync(link).isSymbolicLink()).toBe(true)
+    }
+  )
+
+  it('is refused when the agent folder itself links out', () => {
+    const paths = testAgentPaths(home)
+    rmSync(join(home, '.gemini'), { recursive: true, force: true })
+    symlinkSync(outside, join(home, '.gemini'), 'junction')
+    mkdirSync(join(outside, 'config'))
+    writeFileSync(join(outside, 'config', 'mcp_config.json'), '{}')
+    const before = readFileSync(join(outside, 'config', 'mcp_config.json'))
+
+    expect(applyAgentMcpEdits('antigravity', paths, [engram('antigravity')])).toEqual({
+      ok: false,
+      reason: 'outside-home'
+    })
+    expect(readFileSync(join(outside, 'config', 'mcp_config.json')).equals(before)).toBe(true)
+  })
+
+  it('is refused for the Codex TOML file', () => {
+    const paths = testAgentPaths(home)
+    rmSync(join(home, '.codex'), { recursive: true, force: true })
+    symlinkSync(outside, join(home, '.codex'), 'junction')
+    writeFileSync(join(outside, 'config.toml'), 'model = "x"\n')
+
+    expect(applyAgentMcpEdits('codex', paths, [engram('codex')])).toEqual({
+      ok: false,
+      reason: 'outside-home'
+    })
+    expect(readFileSync(join(outside, 'config.toml'), 'utf8')).toBe('model = "x"\n')
+    expect(existsSync(join(outside, 'config.toml.bak'))).toBe(false)
+  })
+
+  it('is refused for the instructions block', () => {
+    const paths = testAgentPaths(home)
+    rmSync(join(home, '.claude'), { recursive: true, force: true })
+    symlinkSync(outside, join(home, '.claude'), 'junction')
+    writeFileSync(join(outside, 'CLAUDE.md'), '# Real user\n')
+
+    expect(applyAgentInstructionsBlock('claude', paths, 'engram', true)).toEqual({
+      ok: false,
+      reason: 'outside-home'
+    })
+    expect(readFileSync(join(outside, 'CLAUDE.md'), 'utf8')).toBe('# Real user\n')
+  })
+
+  it('still works through a link that stays inside the home', () => {
+    const paths = testAgentPaths(home)
+    const dotfiles = join(home, 'dotfiles', 'gemini')
+    mkdirSync(join(dotfiles, 'config'), { recursive: true })
+    writeFileSync(join(dotfiles, 'config', 'mcp_config.json'), '{}')
+    rmSync(join(home, '.gemini'), { recursive: true, force: true })
+    symlinkSync(dotfiles, join(home, '.gemini'), 'junction')
+
+    expect(applyAgentMcpEdits('antigravity', paths, [engram('antigravity')])).toMatchObject({
+      ok: true,
+      outcomes: { engram: 'added' }
+    })
+    expect(readFileSync(join(dotfiles, 'config', 'mcp_config.json'), 'utf8')).toContain('engram')
+  })
+})
+
+describe('the first original survives later writes', () => {
+  it('keeps the user file as it was before MassOrca first touched it', () => {
+    const paths = testAgentPaths(home)
+    const path = paths.mcpConfig('antigravity')
+    const original = '{\n  "mcpServers": { "mine": { "command": "x" } }\n}\n'
+    writeFixture(path, original)
+
+    applyAgentMcpEdits('antigravity', paths, [engram('antigravity')])
+    applyAgentMcpEdits('antigravity', paths, [removeEngram])
+
+    expect(readFileSync(`${path}.massorca-original`, 'utf8')).toBe(original)
+    expect(readFileSync(path, 'utf8')).toBe(original)
   })
 })

@@ -102,6 +102,7 @@ const ActionFailureSchema = z.object({
     'invalid-input',
     'unreadable-config',
     'unsupported-shape',
+    'outside-home',
     'vault-unavailable',
     'failed'
   ]),

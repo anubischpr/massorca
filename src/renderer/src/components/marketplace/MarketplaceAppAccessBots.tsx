@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import { Check, Plus, X } from 'lucide-react'
+import { BotAgentIcon } from '@/components/bot-teams/BotAgentIcon'
+import { BotTeamCharacterIcon } from '@/components/bot-teams/BotTeamCharacterIcon'
 import { useBotTeams } from '@/components/bot-teams/use-bot-teams'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -61,6 +63,9 @@ export function MarketplaceAppAccessBots({
           return (
             <PickChip
               key={`team-${teamId}`}
+              icon={
+                team ? <BotTeamCharacterIcon character={team.character} size={14} still /> : null
+              }
               label={team?.name ?? unknown}
               detail={team ? wholeTeam : null}
               disabled={disabled}
@@ -73,6 +78,7 @@ export function MarketplaceAppAccessBots({
           return (
             <PickChip
               key={`bot-${botId}`}
+              icon={found ? <BotAgentIcon agent={found.bot.agent} size={14} /> : null}
               label={found?.bot.name ?? unknown}
               detail={found?.team.name ?? null}
               disabled={disabled}
@@ -118,6 +124,7 @@ export function MarketplaceAppAccessBots({
                   <CommandGroup key={team.id} heading={team.name}>
                     <PickItem
                       value={`team ${team.id} ${team.name}`}
+                      icon={<BotTeamCharacterIcon character={team.character} size={14} still />}
                       label={wholeTeam}
                       picked={teamPicked}
                       onSelect={() => onChange(withTeamPicked(bots, team.id, !teamPicked))}
@@ -127,6 +134,7 @@ export function MarketplaceAppAccessBots({
                       return (
                         <PickItem
                           key={bot.id}
+                          icon={<BotAgentIcon agent={bot.agent} size={14} />}
                           value={`bot ${bot.id} ${bot.name} ${team.name}`}
                           label={bot.name}
                           picked={botPicked}
@@ -159,11 +167,13 @@ function findBot(
 }
 
 function PickChip({
+  icon,
   label,
   detail,
   disabled,
   onRemove
 }: {
+  icon: React.ReactNode
   label: string
   detail: string | null
   disabled: boolean
@@ -172,6 +182,7 @@ function PickChip({
   return (
     <li className="inline-flex items-center gap-1">
       <Badge variant="outline">
+        {icon}
         <span className="max-w-40 truncate">{label}</span>
         {detail ? <span className="text-muted-foreground">· {detail}</span> : null}
       </Badge>
@@ -195,11 +206,13 @@ function PickChip({
 
 function PickItem({
   value,
+  icon,
   label,
   picked,
   onSelect
 }: {
   value: string
+  icon: React.ReactNode
   label: string
   picked: boolean
   onSelect: () => void
@@ -207,6 +220,7 @@ function PickItem({
   return (
     <CommandItem value={value} onSelect={onSelect}>
       <Check className={cn('size-3.5', picked ? 'opacity-100' : 'opacity-0')} />
+      {icon}
       <span className="truncate">{label}</span>
     </CommandItem>
   )

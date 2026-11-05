@@ -6,6 +6,7 @@
 // must name the thread this session actually proved — never one a caller asks
 // for, which is how a resume becomes a fork wearing a resume's name.
 
+import { buildMarketplaceAgentEnv } from '../marketplace/marketplace-agent-env'
 import { rememberCodexSessionLaunch } from './codex-forked-thread-process'
 import type { AgentSessionJournalIdentity } from '../../shared/agent-session-journal-types'
 import { requireLegacyAgentSessionAccountHome } from '../../shared/agent-session-account-home'
@@ -107,6 +108,13 @@ export function createCodexStructuredLaunchResolver(
       ...codexStructuredLaunchArgs(await deps.resolveLaunchArgs()),
       ...(await codexBotRunMcpOverrideArgs(botDenial, accountHome.path))
     ]
+    // Why: config.toml names each MCP token by env var (never the value); a fresh read per start
+    // also gives a session opened after a vault change the new vars, since each owns its app-server.
+    const marketplaceEnv = buildMarketplaceAgentEnv('codex')
+    const childEnvironment =
+      environment || Object.keys(marketplaceEnv).length > 0
+        ? { ...environment, ...marketplaceEnv }
+        : undefined
     const permissionPolicy = codexStructuredPermissionPolicyForSession(
       record.options?.accessMode,
       deps.resolvePermissionPolicy?.()
@@ -123,8 +131,10 @@ export function createCodexStructuredLaunchResolver(
       args: [...args, 'app-server'],
       cwd,
       codexHome: accountHome.path,
-      ...(environment
-        ? { env: deleteBotRunDeniedEnv({ ...environment } as Record<string, string>, botDenial) }
+      ...(childEnvironment
+        ? {
+            env: deleteBotRunDeniedEnv({ ...childEnvironment } as Record<string, string>, botDenial)
+          }
         : {}),
       ...(botDenial ? { envToDelete: botRunEnvKeysToDelete(botDenial) } : {}),
       // An empty chain is a session that has never proved a thread, so it

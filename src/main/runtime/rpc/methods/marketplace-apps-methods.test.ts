@@ -62,7 +62,8 @@ describe('marketplace.apps.* methods', () => {
       'marketplace.apps.list',
       'marketplace.apps.connect',
       'marketplace.apps.setOpenMetadataToken',
-      'marketplace.apps.setEngramServer'
+      'marketplace.apps.setEngramServer',
+      'marketplace.apps.setAccessPolicy'
     ])
     for (const method of MARKETPLACE_APPS_METHODS) {
       expect(MOBILE_RPC_METHOD_ALLOWLIST.has(method.name), method.name).toBe(phone.has(method.name))

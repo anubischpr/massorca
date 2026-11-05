@@ -1,6 +1,6 @@
 import { mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   installFakeSecretStore,
   makeTempHome,
@@ -103,15 +103,38 @@ describe('MarketplaceVault agent env', () => {
   it('reads the files once until something is written', () => {
     const vault = new MarketplaceVault(dir)
     vault.writeToken({ kind: 'openmetadata' }, 'one')
+    const read = vi.spyOn(vault, 'readToken')
     expect(vault.buildAgentEnv()).toEqual({ OPENMETADATA_TOKEN: 'one' })
+    const readsForOneBuild = read.mock.calls.length
+    expect(readsForOneBuild).toBeGreaterThan(0)
     expect(vault.buildAgentEnv()).toEqual({ OPENMETADATA_TOKEN: 'one' })
-    // Why: garbage on disk proves the second call came from the cache, not a re-read.
-    writeFileSync(join(dir, 'openmetadata-token.enc'), 'garbage')
-    expect(vault.buildAgentEnv()).toEqual({ OPENMETADATA_TOKEN: 'one' })
+    expect(read).toHaveBeenCalledTimes(readsForOneBuild)
     vault.writeToken({ kind: 'openmetadata' }, 'two')
     expect(vault.buildAgentEnv()).toEqual({ OPENMETADATA_TOKEN: 'two' })
     vault.deleteToken({ kind: 'openmetadata' })
     expect(vault.buildAgentEnv()).toEqual({})
+  })
+
+  it('sees a token or profile another vault object wrote to the same folder', () => {
+    const longLived = new MarketplaceVault(dir)
+    longLived.writeToken({ kind: 'openmetadata' }, 'main-token')
+    longLived.writeState(emptyMarketplaceState())
+    expect(longLived.buildAgentEnv()).toEqual({ OPENMETADATA_TOKEN: 'main-token' })
+
+    const otherProcess = new MarketplaceVault(dir)
+    otherProcess.writeToken({ kind: 'openmetadata-profile', name: 'escritura' }, 'profile-token')
+    const state = emptyMarketplaceState()
+    state.openMetadata.profiles = [{ name: 'escritura', url: 'https://x' }]
+    otherProcess.writeState(state)
+
+    expect(longLived.buildAgentEnv()).toEqual({
+      OPENMETADATA_TOKEN: 'main-token',
+      OPENMETADATA_TOKEN_ESCRITURA: 'profile-token'
+    })
+    otherProcess.writeToken({ kind: 'openmetadata-profile', name: 'escritura' }, 'rotated-token')
+    expect(longLived.buildAgentEnv().OPENMETADATA_TOKEN_ESCRITURA).toBe('rotated-token')
+    otherProcess.deleteToken({ kind: 'openmetadata-profile', name: 'escritura' })
+    expect(longLived.buildAgentEnv()).toEqual({ OPENMETADATA_TOKEN: 'main-token' })
   })
 
   it('returns a copy, so a caller cannot change what the next call sees', () => {
