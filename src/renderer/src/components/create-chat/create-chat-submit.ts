@@ -9,8 +9,10 @@ import { LOCAL_EXECUTION_HOST_ID, type ExecutionHostId } from '../../../../share
 import { createChatPrimaryWorktree } from './create-chat-primary-worktree'
 import type { ProjectlessChatWorkspaceErrorCode } from '../../../../shared/projectless-chat-folder'
 import {
+  isFloatingPlacement,
+  loadFloatingCreateLaunch,
   openCreateChatWorkspace,
-  showCreatedSessionInFloating,
+  workspaceTabIds,
   type CreateChatPlacement
 } from './create-chat-placement'
 import { createChatRepoOptions } from './create-chat-repo-options'
@@ -98,7 +100,8 @@ function launchChatInWorkspace(
   if (!openCreateChatWorkspace(worktreeId, placement)) {
     return failed(openWorkspaceMessage())
   }
-  const floating = placement === 'floating-workspace'
+  const floating = isFloatingPlacement(placement) ? placement : null
+  const knownTabIds = floating ? workspaceTabIds(worktreeId) : new Set<string>()
   const plan = adoptAgentSessionLaunchVerdict({
     route: 'structured-native-chat',
     requestId: newAgentLaunchRequestId(),
@@ -108,21 +111,50 @@ function launchChatInWorkspace(
     prompt: draft,
     promptDelivery: 'auto-submit'
   })
+  let opened = false
   const launch = beginStructuredAgentSessionProvisionalLaunch({
     plan,
     hooks: {},
     target: { worktreeId, executionHostId },
-    activate: !floating,
+    activate: floating === null,
     // Why: a host-admitted chat gets its session id only once its tab opens.
     onOpened: (sessionId) => {
       holdStructuredAgentSessionLaunchPicks(sessionId, createChatSeedPicks(selection))
       if (floating) {
-        showCreatedSessionInFloating(worktreeId, structuredAgentSessionTabId(sessionId))
+        opened = true
+        void loadFloatingCreateLaunch().then((floatingLaunch) =>
+          floatingLaunch.showFloatingCreateLaunch({
+            worktreeId,
+            tabId: structuredAgentSessionTabId(sessionId),
+            knownTabIds,
+            createTabId: floating.createTabId
+          })
+        )
       }
     }
   })
   if (!launch) {
     return failed(startFailedMessage())
+  }
+  if (floating) {
+    // Why: a launch that opens no chat tab (its host declined it to a terminal, or it was abandoned) must not leave its New Session tab waiting.
+    void launch.settlement.then((settled) => {
+      if (opened) {
+        return
+      }
+      void loadFloatingCreateLaunch().then((floatingLaunch) => {
+        if (settled.kind === 'terminal') {
+          floatingLaunch.showFloatingCreateLaunch({
+            worktreeId,
+            tabId: null,
+            knownTabIds,
+            createTabId: floating.createTabId
+          })
+          return
+        }
+        floatingLaunch.clearFloatingCreateLaunch(floating.createTabId)
+      })
+    })
   }
   return started
 }

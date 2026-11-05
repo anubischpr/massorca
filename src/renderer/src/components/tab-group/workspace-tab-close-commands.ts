@@ -90,7 +90,8 @@ export function createWorkspaceTabCloseCommands({
     } else if (
       item.contentType === 'simulator' ||
       item.contentType === 'checklist' ||
-      item.contentType === 'session-ref'
+      item.contentType === 'session-ref' ||
+      item.contentType === 'create-session'
     ) {
       closeUnifiedTab(item.id)
       if (item.sessionRef?.endsSessionOnClose) {

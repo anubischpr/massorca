@@ -238,3 +238,38 @@ describe('waiting for the session a host publishes', () => {
     ).resolves.toBeNull()
   })
 })
+
+describe('giving a New Session tab place to the session it starts', () => {
+  it('takes the New Session tab place and closes it', () => {
+    store.getState().createUnifiedTab(FLOATING, 'create-session', {
+      label: 'New Session',
+      targetGroupId: 'float-main',
+      activate: true
+    })
+    const [createTab] = floatingTabsOf('create-session')
+
+    const result = showSessionInFloatingWorkspace(
+      { worktreeId: OWNER, tabId: 'owner-chat' },
+      store,
+      {
+        replaceTabId: createTab?.id ?? null
+      }
+    )
+
+    expect(result).toEqual({ ok: true, groupId: 'float-main' })
+    expect(floatingTabsOf('create-session')).toHaveLength(0)
+    const [sessionTab] = floatingTabsOf('session-ref')
+    const group = store.getState().groupsByWorktree[FLOATING]?.[0]
+    expect(group?.tabOrder).toEqual(['float-checklist', sessionTab?.id])
+    expect(group?.activeTabId).toBe(sessionTab?.id)
+  })
+
+  it('shows nothing when the New Session tab was closed while its session started', () => {
+    expect(
+      showSessionInFloatingWorkspace({ worktreeId: OWNER, tabId: 'owner-chat' }, store, {
+        replaceTabId: 'closed-create-tab'
+      })
+    ).toEqual({ ok: false, reason: 'create-tab-closed' })
+    expect(floatingTabsOf('session-ref')).toHaveLength(0)
+  })
+})

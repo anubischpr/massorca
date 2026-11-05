@@ -1,43 +1,44 @@
-import { toast } from 'sonner'
-import { translate } from '@/i18n/i18n'
 import { activateAndRevealWorkspace } from '@/lib/worktree-activation'
-import type * as FloatingHostSession from '@/lib/floating-workspace-host-session'
+import { useAppStore } from '@/store'
+import type * as FloatingCreateLaunch from '@/lib/floating-workspace-create-launch'
+
+/** The floating workspace placement: the New Session tab a started session replaces, if one waits on it. */
+export type FloatingWorkspacePlacement = {
+  kind: 'floating-workspace'
+  createTabId: string | null
+}
 
 /**
  * Where a started session is shown. The main window opens its workspace there; the floating
- * workspace shows it by reference and leaves the main window as it is.
+ * workspace shows the session by reference, in place of the New Session tab that started it.
  */
-export type CreateChatPlacement = 'main-window' | 'floating-workspace'
+export type CreateChatPlacement = 'main-window' | FloatingWorkspacePlacement
+
+export function isFloatingPlacement(
+  placement: CreateChatPlacement
+): placement is FloatingWorkspacePlacement {
+  return placement !== 'main-window'
+}
 
 /** Opens the workspace in the main window; false when it cannot be opened. */
 export function openCreateChatWorkspace(
   worktreeId: string,
   placement: CreateChatPlacement
 ): boolean {
-  if (placement === 'floating-workspace') {
+  if (isFloatingPlacement(placement)) {
     return true
   }
   return activateAndRevealWorkspace(worktreeId, { providesInitialSurface: true }) !== false
 }
 
 // Why loaded late: the main-window chat path never needs the floating launch graph.
-export function loadFloatingHostSession(): Promise<typeof FloatingHostSession> {
-  return import('@/lib/floating-workspace-host-session')
+export function loadFloatingCreateLaunch(): Promise<typeof FloatingCreateLaunch> {
+  return import('@/lib/floating-workspace-create-launch')
 }
 
-/** Shows a started session's tab in the floating workspace. */
-export function showCreatedSessionInFloating(worktreeId: string, tabId: string): void {
-  void loadFloatingHostSession().then(({ showHostSessionInFloating }) => {
-    showHostSessionInFloating(worktreeId, tabId)
-  })
-}
-
-/** A new worktree's id is unknown until it exists, so its session is not shown in the panel. */
-export function announceFloatingNewWorktreeSession(): void {
-  toast.info(
-    translate(
-      'components.createChat.floatingNewWorktree',
-      'The session starts once its new workspace is ready. Open it here with Open a session.'
-    )
+/** The workspace's tab ids now, so a session its launch opens can be told apart from the rest. */
+export function workspaceTabIds(worktreeId: string): ReadonlySet<string> {
+  return new Set(
+    (useAppStore.getState().unifiedTabsByWorktree[worktreeId] ?? []).map((tab) => tab.id)
   )
 }

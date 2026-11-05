@@ -197,7 +197,8 @@ export function buildOrderedTabItems({
     if (
       simulatorTab?.contentType === 'simulator' ||
       simulatorTab?.contentType === 'checklist' ||
-      simulatorTab?.contentType === 'session-ref'
+      simulatorTab?.contentType === 'session-ref' ||
+      simulatorTab?.contentType === 'create-session'
     ) {
       items.push({
         type: 'simulator',

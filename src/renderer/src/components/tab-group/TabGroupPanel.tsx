@@ -12,6 +12,7 @@ import { SessionPanePicker } from './SessionPanePicker'
 import { FloatingChecklistPane } from '../floating-terminal/checklist/FloatingChecklistPane'
 import { SplitPaneTopBar } from './SplitPaneTopBar'
 import { useSplitTopBarChrome } from '../../app-shell/split-top-bar-chrome'
+import { FloatingCreateSessionPane } from '../floating-terminal/create-session/FloatingCreateSessionPane'
 
 const EditorPanel = lazy(() => import('../editor/EditorPanel'))
 
@@ -139,6 +140,7 @@ export default function TabGroupPanel({
           activeTab.contentType !== 'browser' &&
           activeTab.contentType !== 'simulator' &&
           activeTab.contentType !== 'checklist' &&
+          activeTab.contentType !== 'create-session' &&
           // Why: a session tab's content is the referenced session's overlay, drawn over this body.
           activeTab.contentType !== 'session-ref' && (
             // Why: a capture-phase owner, so Monaco never sees the drop and the file opens as a tab here.
@@ -167,6 +169,10 @@ export default function TabGroupPanel({
 
         {activeTab?.contentType === 'checklist' ? (
           <FloatingChecklistPane tabId={activeTab.id} />
+        ) : null}
+
+        {activeTab?.contentType === 'create-session' ? (
+          <FloatingCreateSessionPane tabId={activeTab.id} />
         ) : null}
 
         {/* Why: terminal/browser/simulator/structured-chat panes render at the worktree level; tab activation only changes overlay visibility and never remounts a live surface. */}

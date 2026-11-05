@@ -20,7 +20,7 @@ import {
   FLOATING_HOST_NO_WORKSPACE_REASON,
   FLOATING_HOST_THIS_COMPUTER
 } from '@/lib/floating-workspace-host'
-import { useFloatingCreateSessionStore } from './create-session/floating-create-session-store'
+import { openFloatingCreateSessionTab } from './create-session/floating-create-session-tab'
 import { FloatingHostSelect } from './host/FloatingHostSelect'
 import { useFloatingHostSelection } from './host/use-floating-host-selection'
 
@@ -75,9 +75,9 @@ export function FloatingTerminalWindowControls({
       return
     }
     if (selectedHost !== FLOATING_HOST_THIS_COMPUTER) {
-      // Why: a host session started from here missed the workspace's session list; the create
-      // screen, drawn in this panel, is the one path that lands it there.
-      useFloatingCreateSessionStore.getState().setOpen(true)
+      // Why: a host session started from here missed the workspace's session list; the New Session
+      // tab is the one path that lands it there.
+      openFloatingCreateSessionTab(translate('components.tabBar.newSession', 'New Session'))
       return
     }
     // Why: the shared launcher owns the startup plan, the route and the tab identity, so this

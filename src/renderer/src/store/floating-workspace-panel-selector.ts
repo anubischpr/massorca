@@ -79,7 +79,8 @@ export function selectFloatingVisibleTabCount(state: FloatingVisibleTabCountStat
       tab.contentType === 'simulator' ||
       tab.contentType === 'agent-session' ||
       tab.contentType === 'checklist' ||
-      tab.contentType === 'session-ref'
+      tab.contentType === 'session-ref' ||
+      tab.contentType === 'create-session'
     ) {
       // Why: simulator, structured-chat and checklist unified tabs have no separate backing
       // record; the tab itself is the visible floating workspace item.
