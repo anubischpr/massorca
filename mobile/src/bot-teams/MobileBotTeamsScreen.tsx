@@ -19,6 +19,8 @@ import { MobileBotTeamWorkBar as SubBar } from './MobileBotTeamWorkBar'
 import { MobileBotTeamModeSwitch } from './MobileBotTeamModeSwitch'
 import { MobileBotTeamSettings } from './MobileBotTeamSettings'
 import { MobileBotTeamMarketplaceApps } from './MobileBotTeamMarketplaceApps'
+import { MobileBotTeamEditTeam } from './MobileBotTeamEditTeam'
+import { MobileBotTeamEditTeamSheet } from './MobileBotTeamEditTeamSheet'
 import { botTeamStyles as styles } from './mobile-bot-team-styles'
 import {
   addMobileBot,
@@ -45,6 +47,7 @@ type Screen =
   | { name: 'editNewTeamBot'; index: number }
   | { name: 'teamBot'; teamId: string }
   | { name: 'integrations' }
+  | { name: 'editTeam'; teamId: string }
   | { name: 'teamMarketplace'; teamId: string }
   | BotTeamWorkScreen
   | Routines.BotTeamRoutineScreen
@@ -55,12 +58,14 @@ function TeamCarousel({
   client,
   teams,
   unreachable,
-  onOpen
+  onOpen,
+  onLongPress
 }: {
   client: RpcClient
   teams: readonly BotTeam[]
   unreachable: boolean
   onOpen: (teamId: string) => void
+  onLongPress: (teamId: string) => void
 }) {
   const statusOf = useMobileBotTeamStatus(client, teams)
   return (
@@ -75,6 +80,7 @@ function TeamCarousel({
           accessibilityRole="button"
           accessibilityLabel={team.name}
           onPress={() => onOpen(team.id)}
+          onLongPress={() => onLongPress(team.id)}
           style={styles.carouselItem}
         >
           <MobileBotTeamCharacterIcon
@@ -107,6 +113,7 @@ export function MobileBotTeamsScreen({
   const [unreachable, setUnreachable] = useState(false)
   const [screen, setScreen] = useState<Screen>({ name: 'home' })
   const [draftBots, setDraftBots] = useState<BotDraftInput[]>([])
+  const [sheetTeamId, setSheetTeamId] = useState<string | null>(null)
 
   const reload = useCallback(async () => {
     if (client !== null) {
@@ -138,8 +145,17 @@ export function MobileBotTeamsScreen({
     setScreen(next)
   }
 
+  /** A deleted team: close what showed it and go back to the team list. */
+  const afterDelete = () => {
+    setScreen({ name: 'home' })
+    void reload()
+  }
+
   const teams = list?.kind === 'ready' ? list.teams : []
   const backHome = () => setScreen({ name: 'home' })
+  const sheetTeam = teams.find((t) => t.id === sheetTeamId) ?? null
+  const openEditTeam =
+    screen.name === 'editTeam' ? teams.find((t) => t.id === screen.teamId) : undefined
   const openTeam = screen.name === 'team' ? teams.find((t) => t.id === screen.teamId) : undefined
   const openBotsTeam =
     screen.name === 'teamBots' ? teams.find((t) => t.id === screen.teamId) : undefined
@@ -313,29 +329,30 @@ export function MobileBotTeamsScreen({
     )
   } else if (screen.name === 'integrations') {
     body = <MobileBotTeamIntegrations onBack={backHome} />
-  } else if (client !== null && screen.name === 'settings') {
+  } else if (client !== null && openEditTeam) {
     body = (
-      <MobileBotTeamSettings
-        teams={teams}
+      <MobileBotTeamEditTeam
+        key={openEditTeam.id}
+        team={openEditTeam}
         onBack={backHome}
-        onToggleAccess={(team) =>
-          void apply(
-            updateMobileBotTeam(client, {
-              teamId: team.id,
-              accessMode: team.accessMode === 'full-access' ? 'default' : 'full-access'
-            }),
-            { name: 'settings' }
-          )
+        onSave={(input) =>
+          void apply(updateMobileBotTeam(client, { teamId: openEditTeam.id, ...input }), {
+            name: 'home'
+          })
         }
-        onOpenMarketplace={(team) => setScreen({ name: 'teamMarketplace', teamId: team.id })}
+        client={client}
+        onDeleted={afterDelete}
+        onOpenMarketplace={() => setScreen({ name: 'teamMarketplace', teamId: openEditTeam.id })}
       />
     )
+  } else if (client !== null && screen.name === 'settings') {
+    body = <MobileBotTeamSettings onBack={backHome} />
   } else if (client !== null && openMarketplaceTeam) {
     body = (
       <MobileBotTeamMarketplaceApps
         client={client}
         team={openMarketplaceTeam}
-        onBack={() => setScreen({ name: 'settings' })}
+        onBack={() => setScreen({ name: 'editTeam', teamId: openMarketplaceTeam.id })}
       />
     )
   } else {
@@ -375,9 +392,19 @@ export function MobileBotTeamsScreen({
             teams={teams}
             unreachable={unreachable}
             onOpen={(teamId) => setScreen({ name: 'team', teamId })}
+            onLongPress={setSheetTeamId}
           />
         ) : null}
         <MobileBotTeamIntegrationsRow onPress={() => setScreen({ name: 'integrations' })} />
+        {client !== null ? (
+          <MobileBotTeamEditTeamSheet
+            client={client}
+            team={sheetTeam}
+            onClose={() => setSheetTeamId(null)}
+            onEdit={(team) => setScreen({ name: 'editTeam', teamId: team.id })}
+            onDeleted={afterDelete}
+          />
+        ) : null}
       </>
     )
   }

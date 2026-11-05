@@ -1,8 +1,6 @@
 import path from 'node:path'
-import { z } from 'zod'
 import { pickBotTeamLine, botTeamReplyLanguage } from '../../shared/bot-team-reply-language'
 import {
-  BOT_TEAM_ROOM_ATTACHMENT_FOLDER,
   BOT_TEAM_ROOM_ATTACHMENT_LIMIT,
   type BotTeamRoomAttachment
 } from '../../shared/bot-team-room-attachments'
@@ -14,7 +12,16 @@ import type {
 import type { OrchestrationDb } from '../runtime/orchestration/db/orchestration-db'
 import { copyBotTeamDeliverables, listBotTeamDeliverables } from './bot-team-deliverables'
 import type { DeliverableFile } from './bot-team-deliverables-copyable'
-import { namedFilesAmong, namedFilesIn, type NamedFileRoot } from './bot-team-named-files'
+import { namedFilesIn, type NamedFileRoot } from './bot-team-named-files'
+import {
+  childFilesOf,
+  fileKey,
+  filesListedBy,
+  NO_SKIPPED_FOLDERS,
+  TEAM_FOLDER_SKIPPED,
+  teammateFilesOf
+} from './bot-team-finish-child-files'
+import { handOverRunBy, handOversMadeBy } from './bot-team-finish-handovers'
 import { botTeamFolderPath } from './bot-team-version-deps'
 import { isGitMainCheckout, listRecentWorkspaceFiles } from './bot-team-workspace-scan'
 import {
@@ -48,11 +55,6 @@ const DELIVERED = {
 
 const IN_FOLDER = { en: "the team's Files", es: 'los Archivos del equipo' }
 
-/** A team folder's attachments folder holds the copies a task made, so a copy is never taken from it. */
-const TEAM_FOLDER_SKIPPED: ReadonlySet<string> = new Set([BOT_TEAM_ROOM_ATTACHMENT_FOLDER])
-/** A worktree's own folders are the bot's work, named as it wrote them. */
-const NO_SKIPPED_FOLDERS: ReadonlySet<string> = new Set()
-
 /**
  * Where a finished task left its work: its worktree and branch, else the team folder's new files.
  * A local worktree's names are its git changes plus the files its folder shows were written since the task began.
@@ -60,10 +62,12 @@ const NO_SKIPPED_FOLDERS: ReadonlySet<string> = new Set()
 async function deliverableOf(
   deps: BotTeamFinishReportDeps,
   teamId: string,
-  since: number
+  since: number,
+  run: { sessionId: string; listed: string[] | null }
 ): Promise<{ where: string | null; names: string[]; worktreePath: string | null }> {
   const worktreeOf = deps.worktreeOf ?? worktreeOfWorkspace
-  const worktree = deps.sessionWorkspaceId ? worktreeOf(deps.sessionWorkspaceId) : null
+  const workspaceId = deps.sessionWorkspaceId ?? deps.workspaceOfSession?.(run.sessionId) ?? null
+  const worktree = workspaceId ? worktreeOf(workspaceId) : null
   if (worktree === null) {
     const names = listBotTeamDeliverables(deps.folderOf(teamId), since)
     return { where: null, names, worktreePath: null }
@@ -71,6 +75,16 @@ async function deliverableOf(
   // Why: an SSH worktree's files live on the host that runs its session; this process cannot read them.
   if (!worktree.local) {
     return { where: worktree.path, names: [], worktreePath: null }
+  }
+  // Why: a teammate shares the lead's worktree, so only the files its own report lists are its work.
+  if (run.listed !== null) {
+    const names = run.listed.flatMap((file) => {
+      const relative = path.isAbsolute(file) ? path.relative(worktree.path, file) : file
+      return relative === '' || relative.startsWith('..') || path.isAbsolute(relative)
+        ? []
+        : [relative.split(path.sep).join('/')]
+    })
+    return { where: worktree.path, names, worktreePath: worktree.path }
   }
   const changes = await (deps.changesOf ?? readWorktreeChanges)(worktree.path)
   // Why: git lists nothing it ignores (a docs/ folder usually is), and a folder project has no git list at all.
@@ -96,8 +110,6 @@ function holdsReport(request: DelegationRequestRow): boolean {
   return request.status !== 'pending' || request.question_item_id === null
 }
 const HTML_FILE = /\.html$/i
-/** A task's result when its worker reported: the files it changed. Any other result lists none. */
-const WORKER_REPORT_FILES = z.object({ filesModified: z.array(z.string()) })
 
 /** The HTML pages a session wrote into its chat-visuals folder since its task began. */
 function visualFilesOf(
@@ -112,58 +124,6 @@ function visualFilesOf(
   return listRecentWorkspaceFiles(folder, since, new Set(), (name) => HTML_FILE.test(name)).map(
     (relative) => ({ root: folder, relative })
   )
-}
-
-/** The files each finished child of a session listed in its task's result, read where that child works. */
-function childFilesOf(
-  deps: BotTeamFinishReportDeps,
-  db: OrchestrationDb,
-  sessionId: string
-): DeliverableFile[] {
-  return db.listDelegationRequestsByParentStatus(sessionId, ['finished']).flatMap((request) => {
-    if (request.child_session_id === null) {
-      return []
-    }
-    const { worktree, roots } = childRootsOf(deps, request.child_session_id)
-    const listed = filesListedBy(db, request.task_id).map((file) =>
-      worktree === null || path.isAbsolute(file) ? file : path.join(worktree, file)
-    )
-    return namedFilesAmong(listed, roots)
-  })
-}
-
-/** Where a finished child's files may sit: its worktree, and its own chat-visuals folder for a prototype. */
-function childRootsOf(
-  deps: BotTeamFinishReportDeps,
-  childSessionId: string
-): { worktree: string | null; roots: NamedFileRoot[] } {
-  const workspaceId = deps.workspaceOfSession?.(childSessionId) ?? null
-  const location =
-    workspaceId === null ? null : (deps.worktreeOf ?? worktreeOfWorkspace)(workspaceId)
-  const worktree = location?.local ? location.path : null
-  const visuals = deps.visualsFolderOf?.(childSessionId)
-  return {
-    worktree,
-    roots: [
-      ...(worktree === null ? [] : [{ path: worktree, skipFolders: NO_SKIPPED_FOLDERS }]),
-      ...(visuals === undefined ? [] : [{ path: visuals, skipFolders: NO_SKIPPED_FOLDERS }])
-    ]
-  }
-}
-
-/** The files a task's worker listed as changed; a result that is not a worker report lists none. */
-function filesListedBy(db: OrchestrationDb, taskId: string | null): string[] {
-  const result = taskId === null ? null : (db.getTask(taskId)?.result ?? null)
-  if (result === null) {
-    return []
-  }
-  try {
-    const parsed = WORKER_REPORT_FILES.safeParse(JSON.parse(result))
-    return parsed.success ? parsed.data.filesModified : []
-  } catch {
-    // Why: a result that is plain text, not a worker report, lists no files.
-    return []
-  }
 }
 
 /**
@@ -256,17 +216,25 @@ export async function reportFinishedBotTeamTask(
   }
   const since = task.createdAt ?? Number.POSITIVE_INFINITY
   const language = botTeamReplyLanguage({ text: task.prompt })
-  const { where, names, worktreePath } = await deliverableOf(deps, task.teamId, since)
+  const runAs = handOverRunBy(db, sessionId)
+  const { where, names, worktreePath } = await deliverableOf(deps, task.teamId, since, {
+    sessionId,
+    listed: runAs === null ? null : filesListedBy(db, runAs.taskId)
+  })
+  const handOvers = handOversMadeBy(db, sessionId)
   const own = db
     .listBotTeamMessages(task.teamId)
     .filter((m) => m.authorBotId === task.ownerBotId && (m.createdAt ?? 0) >= since)
   const team = db.listBotTeams().find((entry) => entry.id === task.teamId)
   const handedOver = [
     ...visualFilesOf(deps, sessionId, since),
-    ...childFilesOf(deps, db, sessionId)
+    ...childFilesOf(deps, db, sessionId, handOvers)
   ]
   if (team?.workspacesEnabled && (worktreePath !== null || handedOver.length > 0)) {
-    const files = resultFiles(deps, task.teamId, own, worktreePath, names, handedOver)
+    const teammates = teammateFilesOf(deps, db, task, handOvers, since, worktreePath)
+    const files = resultFiles(deps, task.teamId, own, worktreePath, names, handedOver).filter(
+      (file) => !teammates.has(fileKey(file))
+    )
     if (files.length > 0) {
       // A later finish of the same task does not attach its files twice.
       if (own.some((m) => (m.attachments?.length ?? 0) > 0)) {

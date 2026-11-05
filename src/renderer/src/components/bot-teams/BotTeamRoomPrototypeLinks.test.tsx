@@ -13,7 +13,12 @@ globalThis.IS_REACT_ACT_ENVIRONMENT = true
 
 vi.mock('../prototypes/use-prototype-set-for-request', () => ({
   usePrototypeSetsOfSession: (scope: { sessionId: string } | null) =>
-    scope?.sessionId === 's-1' ? [{ requestId: 'req-1', name: 'Launch flyer' }] : []
+    scope?.sessionId === 's-1'
+      ? [{ requestId: 'req-1', name: 'Launch flyer' }]
+      : // The teammate ran the set the lead handed over, so both sessions match it.
+        scope?.sessionId === 's-lead' || scope?.sessionId === 's-mate'
+        ? [{ requestId: 'req-2', name: 'Handed set', sessionId: 's-mate' }]
+        : []
 }))
 vi.mock('../native-chat/NativeChatPrototypeLinkCard', () => ({
   PrototypeSetLinkCard: ({ set }: { set: { name: string } }) => (
@@ -28,10 +33,15 @@ const message = (
   authorBotId: string | null,
   createdAt: number
 ): BotTeamRoomReportMessage => ({ id, authorBotId, createdAt })
-const task = (id: string, sessionId: string | null, createdAt: number): BotTeamRoomReportTask => ({
+const task = (
+  id: string,
+  sessionId: string | null,
+  createdAt: number,
+  ownerBotId = 'b1'
+): BotTeamRoomReportTask => ({
   id,
   teamId: 't1',
-  ownerBotId: 'b1',
+  ownerBotId,
   sessionId,
   createdAt
 })
@@ -67,6 +77,24 @@ describe('the room Prototypes links', () => {
     expect(container.querySelector('[data-message="report"]')?.textContent).toBe(
       'Open Launch flyer in Prototypes'
     )
+    act(() => root.unmount())
+  })
+
+  it("shows a teammate's set only under the teammate's report, not the lead's again", () => {
+    const container = document.createElement('div')
+    const root = createRoot(container)
+    act(() =>
+      root.render(
+        <Room
+          messages={[message('mate-report', 'mate', 5), message('lead-report', 'lead', 6)]}
+          tasks={[task('lead-task', 's-lead', 1, 'lead'), task('mate-task', 's-mate', 2, 'mate')]}
+        />
+      )
+    )
+    expect(container.querySelector('[data-message="mate-report"]')?.textContent).toBe(
+      'Open Handed set in Prototypes'
+    )
+    expect(container.querySelector('[data-message="lead-report"]')?.textContent).toBe('')
     act(() => root.unmount())
   })
 })

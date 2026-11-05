@@ -1,7 +1,6 @@
 import { createElement } from 'react'
 import { act, create, type ReactTestRenderer } from 'react-test-renderer'
 import { describe, expect, it, vi } from 'vitest'
-import type { BotTeam } from '../../../src/shared/rpc-contract/bot-team-params'
 import { MobileBotTeamSettings } from './MobileBotTeamSettings'
 
 const preference = vi.hoisted(() => ({ setBotCharacterAnimations: vi.fn() }))
@@ -23,26 +22,11 @@ vi.mock('./mobile-bot-character-preference', () => ({
   useBotCharacterAnimations: () => true
 }))
 
-function team(id: string, name: string): BotTeam {
-  return {
-    id,
-    name,
-    purpose: '',
-    character: 'circle',
-    workspacesEnabled: false,
-    accessMode: 'default',
-    bots: []
-  }
-}
-
-const OPS = team('team-ops', 'Ops')
-const DESIGN = team('team-design', 'Design')
-
-function renderSettings(teams: BotTeam[]) {
-  const handlers = { onBack: vi.fn(), onToggleAccess: vi.fn(), onOpenMarketplace: vi.fn() }
+function renderSettings() {
+  const handlers = { onBack: vi.fn() }
   let renderer!: ReactTestRenderer
   act(() => {
-    renderer = create(createElement(MobileBotTeamSettings, { teams, ...handlers }))
+    renderer = create(createElement(MobileBotTeamSettings, handlers))
   })
   return { renderer, ...handlers }
 }
@@ -62,27 +46,14 @@ function press(renderer: ReactTestRenderer, label: string) {
 }
 
 describe('MobileBotTeamSettings', () => {
-  it('puts a Marketplace apps row under each team access row', () => {
-    const { renderer } = renderSettings([OPS, DESIGN])
-    expect(
-      labelsOf(renderer, 'Pressable').filter((label) => /access$|Marketplace apps$/.test(label))
-    ).toEqual(['Ops access', 'Ops Marketplace apps', 'Design access', 'Design Marketplace apps'])
-  })
-
-  it('opens the Marketplace apps of the team whose row is pressed', () => {
-    const { renderer, onOpenMarketplace } = renderSettings([OPS, DESIGN])
-    press(renderer, 'Design Marketplace apps')
-    expect(onOpenMarketplace).toHaveBeenCalledWith(DESIGN)
-  })
-
-  it('still toggles a team access from its access row', () => {
-    const { renderer, onToggleAccess } = renderSettings([OPS])
-    press(renderer, 'Ops access')
-    expect(onToggleAccess).toHaveBeenCalledWith(OPS)
+  it('shows only the character animations, with no per-team access or Marketplace rows', () => {
+    const { renderer } = renderSettings()
+    expect(labelsOf(renderer, 'Pressable')).toEqual(['Back'])
+    expect(labelsOf(renderer, 'Switch')).toEqual(['Character animations'])
   })
 
   it('saves the character animations switch as the preference', () => {
-    const { renderer } = renderSettings([OPS])
+    const { renderer } = renderSettings()
     const animations = renderer.root.findAll(
       (node) =>
         node.type === ('Switch' as never) &&
@@ -94,7 +65,7 @@ describe('MobileBotTeamSettings', () => {
   })
 
   it('goes back to the Bot teams home from its back bar', () => {
-    const { renderer, onBack } = renderSettings([OPS])
+    const { renderer, onBack } = renderSettings()
     press(renderer, 'Back')
     expect(onBack).toHaveBeenCalledTimes(1)
   })

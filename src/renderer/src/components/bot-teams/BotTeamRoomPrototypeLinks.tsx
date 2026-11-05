@@ -1,6 +1,8 @@
 import { useCallback, useMemo, type ReactNode } from 'react'
 import {
   botTeamRoomPrototypeTasks,
+  botTeamRoomTaskSessions,
+  botTeamRoomTaskSets,
   type BotTeamRoomReportMessage,
   type BotTeamRoomReportTask
 } from '../../../../shared/bot-team-room-prototype-tasks'
@@ -17,26 +19,41 @@ export function useBotTeamRoomPrototypeLinks(
   sent: readonly { task: BotTeamRoomReportTask }[],
   teamId: string
 ): (messageId: string) => ReactNode {
-  const tasksByMessageId = useMemo(
-    () =>
-      botTeamRoomPrototypeTasks(
-        messages,
-        [...tasks, ...sent.map((request) => request.task)],
-        teamId
-      ),
-    [messages, tasks, sent, teamId]
-  )
+  const { tasksByMessageId, roomSessions } = useMemo(() => {
+    const all = [...tasks, ...sent.map((request) => request.task)]
+    return {
+      tasksByMessageId: botTeamRoomPrototypeTasks(messages, all, teamId),
+      roomSessions: botTeamRoomTaskSessions(all)
+    }
+  }, [messages, tasks, sent, teamId])
   return useCallback(
     (messageId: string) =>
       tasksByMessageId
         .get(messageId)
-        ?.map((task) => <TaskPrototypeLinks key={task.id} sessionId={task.sessionId} />),
-    [tasksByMessageId]
+        ?.map((task) => (
+          <TaskPrototypeLinks
+            key={task.id}
+            sessionId={task.sessionId}
+            roomSessions={roomSessions}
+          />
+        )),
+    [tasksByMessageId, roomSessions]
   )
 }
 
-function TaskPrototypeLinks({ sessionId }: { sessionId: string | null }): ReactNode {
+function TaskPrototypeLinks({
+  sessionId,
+  roomSessions
+}: {
+  sessionId: string | null
+  roomSessions: ReadonlySet<string>
+}): ReactNode {
   // The room holds no delegation records, so children match by the origin their sets recorded.
   const sets = usePrototypeSetsOfSession(sessionId === null ? null : { sessionId })
-  return sets.map((set) => <PrototypeSetLinkCard key={set.requestId} set={set} />)
+  if (sessionId === null) {
+    return null
+  }
+  return botTeamRoomTaskSets(sets, sessionId, roomSessions).map((set) => (
+    <PrototypeSetLinkCard key={set.requestId} set={set} />
+  ))
 }

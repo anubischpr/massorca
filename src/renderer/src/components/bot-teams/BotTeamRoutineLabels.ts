@@ -102,7 +102,8 @@ export function routineRunStatus(
   }
   const status = botTeamTaskStatus(
     task.sessionId,
-    task.sessionId === null ? undefined : statuses.get(task.sessionId)
+    task.sessionId === null ? undefined : statuses.get(task.sessionId),
+    task.awaitingPerson === true
   )
   return { label: botTeamTaskLabel(status), glyph: botTeamTaskGlyph(status) }
 }

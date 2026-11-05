@@ -1,6 +1,7 @@
 import { translate } from '@/i18n/i18n'
 import { BOT_TEAM_ALL_AUTHOR } from '../../../../shared/bot-team-greeting'
 import { isBotTeamFilesOnlyText } from '../../../../shared/bot-team-room-attachments-line'
+import { botTeamRoomTextWithFileNames } from '../../../../shared/bot-team-room-text-paths'
 import type { BotTeam } from '../../../../shared/rpc-contract/bot-team-params'
 import type { BotTeamMessage } from '../../../../shared/rpc-contract/bot-team-room-params'
 import { BotAgentIcon } from './BotAgentIcon'
@@ -60,7 +61,14 @@ export function BotTeamRoomMessage({
       >
         {isBotTeamFilesOnlyText(message.text, message.attachments) ? null : (
           <BotTeamFileChipTeamContext.Provider value={team.id}>
-            <BotTeamRoomMessageBody text={message.text} mentions={mentions} />
+            <BotTeamRoomMessageBody
+              text={
+                message.authorBotId === null
+                  ? message.text
+                  : botTeamRoomTextWithFileNames(message.text)
+              }
+              mentions={mentions}
+            />
           </BotTeamFileChipTeamContext.Provider>
         )}
         {message.attachments && message.attachments.length > 0 ? (

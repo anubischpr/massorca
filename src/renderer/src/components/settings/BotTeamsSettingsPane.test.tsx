@@ -2,7 +2,6 @@
 import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import type { BotTeam } from '../../../../shared/rpc-contract/bot-team-params'
 
 const TEAMS = [
   {
@@ -32,11 +31,6 @@ vi.mock('@/store', () => ({
     select({ settings: { botTeamCharacterAnimations: true }, updateSettings: vi.fn() })
 }))
 vi.mock('./BotTeamsIntegrations', () => ({ BotTeamsIntegrations: () => null }))
-vi.mock('@/components/marketplace/MarketplaceTeamAccessDialog', () => ({
-  MarketplaceTeamAccessDialog: ({ team }: { team: BotTeam }) => (
-    <div data-testid="team-apps-dialog">{team.name}</div>
-  )
-}))
 
 import { BotTeamsSettingsPane } from './BotTeamsSettingsPane'
 
@@ -50,22 +44,18 @@ afterEach(() => {
 })
 
 describe('Bot teams settings', () => {
-  it('opens the Marketplace apps dialog for the team whose button was pressed', () => {
+  it('shows the character animations and no per-team access or Marketplace apps rows', () => {
     const container = document.createElement('div')
     document.body.append(container)
     const root = createRoot(container)
     mounted = { root, container }
     act(() => root.render(<BotTeamsSettingsPane />))
-    const buttons = [...container.querySelectorAll('button')].filter(
-      (button) => button.textContent === 'Marketplace apps…'
-    )
-    expect(buttons).toHaveLength(2)
-    expect(container.querySelector('[data-testid="team-apps-dialog"]')).toBeNull()
-
-    act(() => buttons[1].click())
-
-    expect(container.querySelector('[data-testid="team-apps-dialog"]')?.textContent).toBe(
-      'Marketing'
-    )
+    expect(container.textContent).toContain('Character animations')
+    expect(container.querySelector('[aria-label="Access"]')).toBeNull()
+    expect(
+      [...container.querySelectorAll('button')].filter(
+        (button) => button.textContent === 'Marketplace apps…'
+      )
+    ).toHaveLength(0)
   })
 })

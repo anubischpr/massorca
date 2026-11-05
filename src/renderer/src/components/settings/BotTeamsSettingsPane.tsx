@@ -1,15 +1,5 @@
-import { useState } from 'react'
 import { useBotTeams } from '@/components/bot-teams/use-bot-teams'
-import { MarketplaceTeamAccessDialog } from '@/components/marketplace/MarketplaceTeamAccessDialog'
-import { Button } from '@/components/ui/button'
 import { BotTeamCharacterIcon } from '@/components/bot-teams/BotTeamCharacterIcon'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { BotTeamsIntegrations } from './BotTeamsIntegrations'
 import { translate } from '@/i18n/i18n'
@@ -18,8 +8,6 @@ import { useAppStore } from '@/store'
 
 export function BotTeamsSettingsPane(): React.JSX.Element {
   const { teams, applyChange } = useBotTeams()
-  const [appsTeamId, setAppsTeamId] = useState<string | null>(null)
-  const appsTeam = teams?.find((team) => team.id === appsTeamId) ?? null
   const animations = useAppStore((state) => state.settings?.botTeamCharacterAnimations !== false)
   const updateSettings = useAppStore((state) => state.updateSettings)
   const animationsRow = (
@@ -92,48 +80,8 @@ export function BotTeamsSettingsPane(): React.JSX.Element {
               }
             />
           </label>
-          <Select
-            value={team.accessMode}
-            onValueChange={(next) =>
-              void applyChange(() =>
-                updateBotTeam({
-                  teamId: team.id,
-                  accessMode: next === 'default' ? 'default' : 'full-access'
-                })
-              )
-            }
-          >
-            <SelectTrigger
-              size="sm"
-              aria-label={translate('components.botTeams.settings.access', 'Access')}
-            >
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="full-access">
-                {translate('components.botTeams.settings.fullAccess', 'Full access')}
-              </SelectItem>
-              <SelectItem value="default">
-                {translate('components.botTeams.settings.askFirst', 'Ask first')}
-              </SelectItem>
-            </SelectContent>
-          </Select>
-          <Button variant="outline" size="sm" onClick={() => setAppsTeamId(team.id)}>
-            {translate('components.botTeams.settings.marketplaceApps', 'Marketplace apps…')}
-          </Button>
         </div>
       ))}
-      {appsTeam ? (
-        <MarketplaceTeamAccessDialog
-          team={appsTeam}
-          open
-          onOpenChange={(open) => {
-            if (!open) {
-              setAppsTeamId(null)
-            }
-          }}
-        />
-      ) : null}
       <BotTeamsIntegrations />
     </div>
   )

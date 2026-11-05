@@ -47,3 +47,38 @@ describe('the files a room message names', () => {
     expect(container.textContent).toContain('flyer.png')
   })
 })
+
+describe('the file-type icon before each attached name', () => {
+  function chipOf(container: HTMLDivElement): Element {
+    return container.querySelector('li')!.firstElementChild!
+  }
+
+  it.each([
+    ['site/landing.html', 'lucide-file-code'],
+    ['notes/plan.md', 'lucide-file-text'],
+    ['attachments/flyer.png', 'lucide-file-image'],
+    ['reports/summary.pdf', 'lucide-file-text'],
+    ['src/app.ts', 'lucide-file-code'],
+    ['data/archive.xyz', 'lucide-file']
+  ])('draws the icon of %s before its name in a chip that opens it', (path, iconClass) => {
+    const name = path.split('/').pop() ?? path
+    const container = mount({ files: [{ path, name }], onOpen: vi.fn() })
+
+    const icon = chipOf(container).firstElementChild
+    expect(icon?.tagName.toLowerCase()).toBe('svg')
+    expect(icon?.classList.contains(iconClass)).toBe(true)
+    expect(icon?.nextElementSibling?.textContent).toBe(name)
+  })
+
+  it('draws the icon in a chip that only names its file', () => {
+    const container = mount({ files: [FLYER] })
+
+    expect(chipOf(container).firstElementChild?.classList.contains('lucide-file-image')).toBe(true)
+  })
+
+  it('hides the decorative icon from assistive technology', () => {
+    const container = mount({ files: [FLYER], onOpen: vi.fn() })
+
+    expect(chipOf(container).firstElementChild?.getAttribute('aria-hidden')).toBe('true')
+  })
+})

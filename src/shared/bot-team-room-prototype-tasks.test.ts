@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { botTeamRoomPrototypeTasks } from './bot-team-room-prototype-tasks'
+import {
+  botTeamRoomPrototypeTasks,
+  botTeamRoomTaskSessions,
+  botTeamRoomTaskSets
+} from './bot-team-room-prototype-tasks'
 
 function post(id: string, authorBotId: string | null, createdAt: number, fromTeamId?: string) {
   return { id, authorBotId, createdAt, ...(fromTeamId ? { fromTeamId } : {}) }
@@ -50,5 +54,23 @@ describe('botTeamRoomPrototypeTasks', () => {
     const messages = [post('report', 'bot', 30, 'team-2'), post('own', 'bot', 31)]
     const sent = { ...task('sent', 10), teamId: 'team-2' }
     expect(ids(botTeamRoomPrototypeTasks(messages, [sent], 'team'))).toEqual({ report: ['sent'] })
+  })
+})
+
+describe('botTeamRoomTaskSets', () => {
+  const lead = task('lead', 1, 's-lead')
+  const teammate = task('teammate', 2, 's-teammate')
+  const rooms = botTeamRoomTaskSessions([lead, teammate, task('idle', 3, null)])
+  // The teammate ran the prototype the lead handed over; its set records the lead as origin.
+  const handed = { requestId: 'r1', sessionId: 's-teammate', origin: { sessionId: 's-lead' } }
+  const leadsOwn = { requestId: 'r2', sessionId: 's-lead-child', origin: { sessionId: 's-lead' } }
+
+  it('shows a set made in a teammate task only under that teammate task', () => {
+    expect(botTeamRoomTaskSets([handed], 's-teammate', rooms)).toEqual([handed])
+    expect(botTeamRoomTaskSets([handed], 's-lead', rooms)).toEqual([])
+  })
+
+  it('keeps a set a non-room child of the task made', () => {
+    expect(botTeamRoomTaskSets([leadsOwn], 's-lead', rooms)).toEqual([leadsOwn])
   })
 })

@@ -52,6 +52,25 @@ export function botTeamRoomPrototypeTasks<TTask extends BotTeamRoomReportTask>(
   return byMessageId
 }
 
+/**
+ * The sets a task's card row shows: a set made in another room task's own session belongs under that
+ * task, so a lead that handed a prototype to a teammate does not repeat the teammate's card.
+ */
+export function botTeamRoomTaskSets<TSet extends { sessionId: string }>(
+  sets: readonly TSet[],
+  sessionId: string,
+  roomSessionIds: ReadonlySet<string>
+): TSet[] {
+  return sets.filter((set) => set.sessionId === sessionId || !roomSessionIds.has(set.sessionId))
+}
+
+/** The sessions of a room's tasks, which own the sets made in them. */
+export function botTeamRoomTaskSessions(
+  tasks: readonly Pick<BotTeamRoomReportTask, 'sessionId'>[]
+): ReadonlySet<string> {
+  return new Set(tasks.flatMap((task) => (task.sessionId === null ? [] : [task.sessionId])))
+}
+
 function nextTaskStart(task: BotTeamRoomReportTask, tasks: readonly BotTeamRoomReportTask[]) {
   let next = Number.POSITIVE_INFINITY
   for (const other of tasks) {

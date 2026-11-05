@@ -14,10 +14,11 @@ vi.mock('react-native', () => ({
 }))
 vi.mock('./MobileBotAgentIcon', () => ({ MobileBotAgentIcon: () => null }))
 vi.mock('./MobileBotTeamReassignSheet', () => ({ MobileBotTeamReassignSheet: () => null }))
+const feed = vi.hoisted(() => ({ statuses: new Map<string, unknown>() }))
 vi.mock('../session/mobile-structured-session-status-feed', () => ({
   mobileStructuredSessionStatusFeed: () => ({
     subscribe: () => () => {},
-    getSnapshot: () => new Map()
+    getSnapshot: () => feed.statuses
   })
 }))
 
@@ -52,14 +53,14 @@ const TASK: BotTeamTask = {
   projectId: null
 }
 
-function renderCard(): ReactTestRenderer {
+function renderCard(task: BotTeamTask = TASK): ReactTestRenderer {
   let renderer: ReactTestRenderer | undefined
   act(() => {
     renderer = create(
       createElement(MobileBotTeamTaskCard, {
         // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the status feed is mocked and never reads the client.
         client: {} as RpcClient,
-        task: TASK,
+        task,
         team: TEAM,
         offline: false,
         onOpen: () => {}
@@ -82,5 +83,18 @@ describe('a task card while the host has not answered', () => {
     expect(
       renderer.root.findAll((node) => node.props.accessibilityLabel === 'Checking status')
     ).toHaveLength(1)
+  })
+})
+
+describe('a task card whose bot asked the person a question', () => {
+  it('reads Waiting for you, not Done', () => {
+    feed.statuses = new Map([['s1', { sessionId: 's1', status: 'idle', turnOutcome: 'success' }]])
+
+    const asked = JSON.stringify(renderCard({ ...TASK, awaitingPerson: true }).toJSON())
+    const plain = JSON.stringify(renderCard().toJSON())
+
+    expect(asked).toContain('Waiting for you')
+    expect(asked).not.toContain('Done')
+    expect(plain).toContain('Done')
   })
 })

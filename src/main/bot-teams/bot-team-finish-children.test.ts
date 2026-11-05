@@ -206,4 +206,70 @@ describe('reportFinishedBotTeamTask with child delegations and chat visuals', ()
       expect(lastAttachmentNames(team.id)).toEqual(['guia.md'])
     })
   })
+
+  describe('a hand-over to a teammate in a shared worktree', () => {
+    /** The lead hands a part to its teammate; both write into one worktree. */
+    function handOver(teamId: string, teammateBotId: string, filesModified: string[]): void {
+      const requestId = child('finished', {
+        result: { provenance: 'worker_report', filesModified },
+        session: TEAMMATE_SESSION
+      })
+      const part = db!.createBotTeamTask({
+        teamId,
+        title: 'Frontend',
+        prompt: 'Explora el frontend',
+        ownerBotId: teammateBotId
+      })
+      db!.linkBotTeamTaskDelegation(part.id, requestId)
+    }
+
+    function sharedWorktree(): string {
+      const worktree = path.join(root, 'shared-worktree')
+      mkdirSync(path.join(worktree, 'docs'), { recursive: true })
+      writeFileSync(path.join(worktree, 'plan.md'), '# plan')
+      writeFileSync(path.join(worktree, 'docs', 'frontend.html'), '<p>x</p>')
+      return worktree
+    }
+
+    const sharedDeps = (worktree: string): Partial<BotTeamFinishReportDeps> => ({
+      visualsFolderOf: () => path.join(root, 'none'),
+      workspaceOfSession: () => 'ws-shared',
+      worktreeOf: () => ({ path: worktree, local: true }),
+      changesOf: async () => ({ branch: 'lead/plan', files: ['plan.md', 'docs/frontend.html'] })
+    })
+
+    function setupTeam(): { teamId: string; folder: string; teammateBotId: string } {
+      const { team, folder } = setup(true)
+      const bots = db!.addBotToTeam(team.id, {
+        name: 'Cris',
+        job: 'Frontend',
+        agent: 'claude'
+      }).bots
+      return { teamId: team.id, folder, teammateBotId: bots.at(-1)!.id }
+    }
+
+    it("attaches only the lead's own files, never the files its teammate delivered", async () => {
+      const { teamId, folder, teammateBotId } = setupTeam()
+      const worktree = sharedWorktree()
+      handOver(teamId, teammateBotId, [path.join(worktree, 'docs', 'frontend.html')])
+
+      await run(folder, sharedDeps(worktree))
+      expect(lastAttachmentNames(teamId)).toEqual(['plan.md'])
+    })
+
+    it('has the teammate attach only the files its own report lists, not the lead files beside them', async () => {
+      const { teamId, folder, teammateBotId } = setupTeam()
+      const worktree = sharedWorktree()
+      handOver(teamId, teammateBotId, ['docs/frontend.html'])
+
+      await reportFinishedBotTeamTask(db!, TEAMMATE_SESSION, {
+        folderOf: () => folder,
+        settleMs: 0,
+        ...sharedDeps(worktree)
+      })
+      const posted = db!.listBotTeamMessages(teamId).at(-1)
+      expect(posted?.authorBotId).toBe(teammateBotId)
+      expect(posted?.attachments?.map((file) => file.name)).toEqual(['frontend.html'])
+    })
+  })
 })

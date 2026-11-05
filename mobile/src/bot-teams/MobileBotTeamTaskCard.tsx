@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Pressable, Text, View } from 'react-native'
+import { botTeamStatusAwaiting } from '../../../src/shared/bot-team-task-status'
 import type { BotTeam } from '../../../src/shared/rpc-contract/bot-team-params'
 import type { BotTeamTask } from '../../../src/shared/rpc-contract/bot-team-room-params'
 import { colors } from '../theme/mobile-theme'
@@ -45,7 +46,8 @@ export function MobileBotTeamTaskCard({
 }) {
   const owner = team.bots.find((bot) => bot.id === task.ownerBotId)
   const statusOf = useMobileBotTeamTaskStatus(client)
-  const status = statusOf(task)
+  // A bot that ended its turn on a question for the person has not finished: the card waits for them.
+  const status = botTeamStatusAwaiting(statusOf(task), task.awaitingPerson)
   const [reassigning, setReassigning] = useState(false)
   return (
     <View
