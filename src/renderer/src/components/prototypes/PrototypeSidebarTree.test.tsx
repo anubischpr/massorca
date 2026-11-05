@@ -3,6 +3,12 @@ import '@testing-library/jest-dom/vitest'
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger
+} from '@/components/ui/context-menu'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import type {
   PrototypeListedDesignSystem,
@@ -430,6 +436,26 @@ describe('PrototypeSidebarTree Archived group', () => {
     await waitFor(() => expect(screen.queryByRole('menu')).toBeNull())
     expect(trigger).toHaveAttribute('data-state', 'closed')
     sessionRow.remove()
+  })
+
+  it('keeps the right-click menu open when it opens after the row menu', async () => {
+    renderTree({ sets: [set('r1', NEXUS, { chatTitle: 'Checkout' })] })
+    render(
+      <ContextMenu>
+        <ContextMenuTrigger>Session row</ContextMenuTrigger>
+        <ContextMenuContent>
+          <ContextMenuItem>Rename</ContextMenuItem>
+        </ContextMenuContent>
+      </ContextMenu>
+    )
+    const trigger = screen.getByRole('button', { name: 'Actions for Checkout' })
+    fireEvent.keyDown(trigger, { key: 'Enter' })
+    expect(screen.getByRole('menuitem', { name: 'Archive' })).toBeInTheDocument()
+    fireEvent.contextMenu(screen.getByText('Session row'))
+    await waitFor(() => expect(trigger).toHaveAttribute('data-state', 'closed'))
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    expect(screen.queryByRole('menuitem', { name: 'Archive', hidden: true })).toBeNull()
+    expect(screen.getByRole('menuitem', { name: 'Rename', hidden: true })).toBeInTheDocument()
   })
 
   it('keeps one row menu open: opening another row menu closes the previous one', () => {
