@@ -10,6 +10,7 @@ import {
   ContextMenuTrigger
 } from '@/components/ui/context-menu'
 import { translate } from '@/i18n/i18n'
+import { CLOSE_ALL_CONTEXT_MENUS_EVENT } from '@/lib/close-all-context-menus'
 import { useAppStore } from '@/store'
 import { parsePaneKey } from '../../../../shared/stable-pane-id'
 import { WORKTREE_CONTEXT_MENU_SCOPE_ATTR } from './worktree-context-menu-policy'
@@ -83,8 +84,32 @@ export function OneLineSessionMenu({
   const kind = getSessionMenuKind(agent)
   const worktreeId = agent.tab.worktreeId
   const renameRequestedRef = React.useRef(false)
+  const [menuOpen, setMenuOpen] = React.useState(false)
+  const closedByNewerMenuRef = React.useRef(false)
+
+  React.useEffect(() => {
+    if (!menuOpen) {
+      return
+    }
+    const closeMenu = (): void => {
+      closedByNewerMenuRef.current = true
+      setMenuOpen(false)
+    }
+    window.addEventListener(CLOSE_ALL_CONTEXT_MENUS_EVENT, closeMenu)
+    return () => window.removeEventListener(CLOSE_ALL_CONTEXT_MENUS_EVENT, closeMenu)
+  }, [menuOpen])
+
+  const handleOpenChange = (open: boolean): void => {
+    if (open) {
+      // Why: the newest menu wins, so older menus close before this one opens.
+      window.dispatchEvent(new Event(CLOSE_ALL_CONTEXT_MENUS_EVENT))
+      closedByNewerMenuRef.current = false
+    }
+    setMenuOpen(open)
+  }
+
   return (
-    <ContextMenu>
+    <ContextMenu open={menuOpen} onOpenChange={handleOpenChange}>
       <ContextMenuTrigger
         asChild
         // Why: a session is its own context menu scope, so the branch menu does not open over it.
@@ -95,7 +120,15 @@ export function OneLineSessionMenu({
       <ContextMenuContent
         className="w-52"
         // Why: the closing menu restores focus, which blurred an editor opened on select and closed it at once.
+        // Why: an older menu closing hands focus back to its trigger or the sidebar, which dismissed this newer one.
+        onFocusOutside={(event) => event.preventDefault()}
         onCloseAutoFocus={(event) => {
+          if (closedByNewerMenuRef.current) {
+            // Why: restoring focus here would dismiss the newer menu that closed this one.
+            closedByNewerMenuRef.current = false
+            event.preventDefault()
+            return
+          }
           if (renameRequestedRef.current) {
             renameRequestedRef.current = false
             event.preventDefault()
