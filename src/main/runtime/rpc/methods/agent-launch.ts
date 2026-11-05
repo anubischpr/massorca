@@ -45,6 +45,7 @@ import {
 } from './agent-launch-execution-outcome'
 import { AgentLaunch, AgentLaunchReplay, type AgentLaunchParams } from './agent-launch-schemas'
 import { agentLaunchSurfaceFactory } from './agent-launch-surfaces'
+import { refuseDeniedBotCaller } from './orchestration/worker/worker-bot-run'
 import {
   agentLaunchFailureCode,
   launchFailureWithoutEffectsCode
@@ -344,6 +345,7 @@ export const AGENT_LAUNCH_METHODS = [
         throw new Error('agent_launch_unsupported')
       }
       assertAgentLaunchTargetAuthorized(params.target, context)
+      await refuseDeniedBotCaller(context.runtime, context, 'a new agent')
       if (!params.operationId) {
         return runLegacyAgentLaunch(params, context)
       }

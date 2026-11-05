@@ -42,6 +42,13 @@ import {
 
 const LONG_POLL_CLIENT_GRACE_MS = 10_000
 
+// Why: the host keeps a bot's denied apps out of what these start, and learns whose call it is from this.
+const SESSION_CALLER_METHODS: ReadonlySet<string> = new Set([
+  'terminal.create',
+  'terminal.split',
+  'agent.launch'
+])
+
 const loadWebSocketTransport = async () => await import('./websocket-transport.js')
 
 export class RuntimeClient {
@@ -128,13 +135,21 @@ export class RuntimeClient {
             orchestrationRequestId ?? this.orchestrationCompatibility.compatibilityInvocationId
         }
       : {}
+    // Local only, and only the id: a paired server cannot name this host's sessions.
+    const callerSessionId =
+      !this.remotePairing && SESSION_CALLER_METHODS.has(method)
+        ? this.orchestrationCompatibility.orchestrationCompatibilityEvidence?.agentSessionId
+        : undefined
     const envelope = {
       orchestrationCapability: options?.orchestrationCapability,
       orchestrationContractVersion: method.startsWith('orchestration.')
         ? ORCHESTRATION_CONTRACT_VERSION
         : undefined,
       orchestrationRequestId,
-      ...compatibilityEnvelope
+      ...compatibilityEnvelope,
+      ...(callerSessionId
+        ? { orchestrationCompatibilityEvidence: { agentSessionId: callerSessionId } }
+        : {})
     }
     if (this.remotePairing) {
       const transport = await loadWebSocketTransport()

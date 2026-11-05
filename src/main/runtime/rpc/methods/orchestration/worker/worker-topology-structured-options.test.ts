@@ -143,6 +143,35 @@ describe('structured worker topology', () => {
       })
     })
 
+    it('seeds the marker of the bot that started a worker directly, with no hand-over row', async () => {
+      handOver()
+      const task = db.createTask({ runId: 'run_legacy_local', spec: 'Direct' })
+      const direct = db.createDispatchContext({
+        taskId: task.id,
+        assigneeHandle: 'term_direct',
+        creator: { kind: 'system' } as never,
+        maxDepth: 5
+      })
+      await start({
+        dispatchId: direct.id,
+        botRun: { botId: 'ann', teamId: 't1' },
+        launchPreferences: { model: 'gpt-6-luna' }
+      })
+      expect(createStructuredWorkerSession.mock.calls[0]?.[0].options).toEqual({
+        model: 'gpt-6-luna',
+        botTeamBotId: 'ann',
+        botTeamId: 't1'
+      })
+    })
+
+    it('keeps the teammate marker over the delegator who started the child', async () => {
+      const { team, dispatch } = handOver()
+      await start({ dispatchId: dispatch.id, botRun: { botId: 'ann', teamId: team.id } })
+      expect(createStructuredWorkerSession.mock.calls[0]?.[0].options).toMatchObject({
+        botTeamBotId: team.bots[1].id
+      })
+    })
+
     it('leaves any other delegation exactly as it was', async () => {
       handOver()
       const task = db.createTask({ runId: 'run_legacy_local', spec: 'Plain' })

@@ -2,6 +2,7 @@ import { OrchestrationError } from '../../../../orchestration/orchestration-erro
 import { defineMethod } from '../../../core'
 import { startFederatedWorker } from '../federation/federated-worker-start'
 import { startLocalWorker } from './local-worker-start'
+import { botRunOfWorkerCaller, refuseWorkerForDeniedBot } from './worker-bot-run'
 import { assertWorkerStartAccessModeApplies } from './worker-start-access-mode'
 import {
   decideWorkerStartMode,
@@ -68,7 +69,14 @@ export const ORCHESTRATION_WORKER_START_METHODS = [
           { effectsApplied: false }
         )
       }
+      // Derived from the caller, never from the request: a worker inherits the bot that starts it.
+      const botRun = botRunOfWorkerCaller(
+        db,
+        coordinator?.orcaSessionId ?? orchestrationCaller?.sessionId
+      )
       if (params.on) {
+        // Another server cannot be given the marker, so a bot kept out of an app may not start there.
+        await refuseWorkerForDeniedBot(botRun, 'a worker on another server')
         // Refused before the remote call: a server that predates the field would ignore it silently.
         assertWorkerStartAccessModeApplies({
           requested: params.accessMode,
@@ -99,6 +107,7 @@ export const ORCHESTRATION_WORKER_START_METHODS = [
         existingTask,
         orchestrationMutation,
         mode,
+        ...(botRun ? { botRun } : {}),
         // Why: a child started over the CLI by a structured chat gets the same first prompt as a delegated child.
         ...(originSessionId === undefined
           ? {}

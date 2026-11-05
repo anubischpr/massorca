@@ -36,10 +36,7 @@ import {
 } from './worker-topology'
 import { createWorkerWorktree } from './worker-worktree-creation'
 import { botRunOfDelegatedDispatch } from '../../../../../bot-teams/bot-team-delegated-run'
-import {
-  botRunOptions,
-  resolveBotRunDenial
-} from '../../../../../marketplace/marketplace-bot-run-denial'
+import { refuseWorkerForDeniedBot, type WorkerBotRun } from './worker-bot-run'
 
 /** Only what the placement itself reads. The runtime's own worktree accessors are untyped, so
  *  naming the two fields keeps `any` out of this module's unions. */
@@ -74,6 +71,8 @@ type WorkerAgentPlacementArgs = {
   /** Resolved against the agent's declared modes; present only for an explicit `--access-mode`. */
   accessMode?: AgentSessionExplicitAccess
   piRuntime?: PiRuntimeSelection
+  /** The bot whose session started this worker directly; a hand-over's own teammate wins over it. */
+  botRun?: WorkerBotRun
   effects: WorkerEffect[]
   /** Attributes a throw to the step that was running, the way the caller's own stages do. */
   onStage: (stage: string) => void
@@ -206,6 +205,7 @@ function workerSurfaceFactory(
         agent,
         dispatchId: args.dispatchId,
         db: args.db,
+        ...(args.botRun ? { botRun: args.botRun } : {}),
         ...(args.launchPreferences ? { launchPreferences: args.launchPreferences } : {}),
         ...(args.accessMode ? { accessMode: args.accessMode } : {}),
         ...(args.piRuntime ? { piRuntime: args.piRuntime } : {}),
@@ -242,16 +242,12 @@ function workerSurfaceFactory(
   }
 }
 
-/** A terminal worker gets the host's app tokens and config, so a teammate kept out of an app runs as a chat. */
+/** A terminal worker gets the host's app tokens and config, so a bot kept out of an app runs as a chat. */
 async function refuseTerminalForDeniedBot(args: WorkerAgentPlacementArgs): Promise<void> {
-  const botRun = botRunOfDelegatedDispatch(args.db, args.dispatchId)
-  if (botRun && (await resolveBotRunDenial(botRunOptions(botRun)))) {
-    throw new OrchestrationError(
-      'capability_unsupported',
-      'This teammate is kept out of a Marketplace app, and a terminal worker cannot be kept away from it. Run this part as a chat.',
-      { effectsApplied: false }
-    )
-  }
+  await refuseWorkerForDeniedBot(
+    botRunOfDelegatedDispatch(args.db, args.dispatchId) ?? args.botRun,
+    'a terminal worker'
+  )
 }
 
 function requireWorktree(worktree: PlacedWorktree | undefined): PlacedWorktree {

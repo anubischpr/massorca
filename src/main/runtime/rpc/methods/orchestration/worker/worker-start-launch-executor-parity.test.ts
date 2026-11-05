@@ -85,7 +85,12 @@ function fakes() {
 
 function place(
   f: ReturnType<typeof fakes>,
-  args: { mode: AgentLaunchModeReceipt; existing?: boolean; terminal?: string }
+  args: {
+    mode: AgentLaunchModeReceipt
+    existing?: boolean
+    terminal?: string
+    botRun?: { botId: string; teamId: string }
+  }
 ) {
   return placeWorkerAgent({
     // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the placement calls only the methods faked here.
@@ -106,6 +111,7 @@ function place(
     mode: args.mode,
     agent: args.terminal ? undefined : 'claude',
     launchPreferences: undefined,
+    ...(args.botRun ? { botRun: args.botRun } : {}),
     effects: f.effects,
     onStage: (stage) => f.failedStages.push(stage)
   })
@@ -303,6 +309,25 @@ describe('a fresh worker through the launch executor', () => {
       expect(f.runtime.createManagedWorktree).not.toHaveBeenCalledWith(
         expect.objectContaining({ startupAgent: expect.anything() })
       )
+    })
+
+    it.each([
+      ['an existing worktree', { mode: TERMINAL, existing: true }],
+      ['a worktree it creates', { mode: TERMINAL }]
+    ])('refuses a terminal worker a denied bot started directly in %s', async (_name, args) => {
+      const f = fakes()
+      denial.deniesBot = true
+
+      await expect(place(f, { ...args, botRun: BOT })).rejects.toMatchObject({
+        code: 'capability_unsupported'
+      })
+      expect(f.runtime.createTerminal).not.toHaveBeenCalled()
+    })
+
+    it('starts a terminal worker for a directly-starting bot kept out of nothing', async () => {
+      const f = fakes()
+      const placed = await place(f, { mode: TERMINAL, existing: true, botRun: BOT })
+      expect(placed.terminalHandle).toBe('term_worker')
     })
 
     it('still starts the teammate as a chat, and a teammate kept out of nothing as a terminal', async () => {
