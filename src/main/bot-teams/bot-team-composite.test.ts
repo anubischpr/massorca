@@ -24,6 +24,12 @@ describe('botTeamCompositeNotes', () => {
     expect(notes).toContain('If that command fails, the part did not start')
   })
 
+  it("has the owner post only its own deliverable, never a teammate's files", () => {
+    const notes = botTeamCompositeNotes(BOTS, ['max']) ?? ''
+    expect(notes).toContain('post your own deliverable once, by file name, never a path')
+    expect(notes).toContain('never re-list or re-attach files a teammate made')
+  })
+
   it('is empty when no other bot is needed, or the ids are not on the team', () => {
     expect(botTeamCompositeNotes(BOTS, [])).toBeNull()
     expect(botTeamCompositeNotes(BOTS, ['ghost'])).toBeNull()

@@ -46,4 +46,11 @@ describe('the notes bots read', () => {
     expect(BOT_TEAM_ROOM_VOICE_NOTE).toContain('Yo tomaré')
     expect(BOT_TEAM_ROOM_VOICE_NOTE).toContain('Never describe internal hand-offs')
   })
+
+  it('make a bot own its child sessions and name files without paths', () => {
+    expect(BOT_TEAM_ROOM_VOICE_NOTE).toContain('Work your own child sessions do is your work')
+    expect(BOT_TEAM_ROOM_VOICE_NOTE).toContain('Estoy a la espera de que elijas el tipo de agente')
+    expect(BOT_TEAM_ROOM_VOICE_NOTE).toContain('never a file path')
+    expect(BOT_TEAM_ROOM_VOICE_NOTE).toContain('Name only files you made')
+  })
 })
