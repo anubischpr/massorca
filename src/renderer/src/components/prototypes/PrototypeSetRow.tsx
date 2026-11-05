@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { Archive, ArchiveRestore, LayoutTemplate, MoreHorizontal, Trash2 } from 'lucide-react'
 import {
   DropdownMenu,
@@ -48,7 +48,7 @@ export function PrototypeSetRow({
   onMenuOpenChange: (open: boolean) => void
 }): React.JSX.Element {
   const { onArchive, onUnarchive, onDelete } = actions
-  useCloseOnContextMenu(menuOpen, onMenuOpenChange)
+  const closedByContextMenu = useCloseOnContextMenu(menuOpen, onMenuOpenChange)
   if (onArchive === undefined && onUnarchive === undefined && onDelete === undefined) {
     return <RowButton row={row} selected={selected} onSelect={onSelect} />
   }
@@ -65,7 +65,15 @@ export function PrototypeSetRow({
             <MoreHorizontal className="size-3.5" />
           </button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
+        <DropdownMenuContent
+          align="end"
+          onCloseAutoFocus={(event) => {
+            if (closedByContextMenu.current) {
+              closedByContextMenu.current = false
+              event.preventDefault()
+            }
+          }}
+        >
           {onArchive === undefined ? null : (
             <DropdownMenuItem onSelect={onArchive}>
               <Archive />
@@ -91,15 +99,25 @@ export function PrototypeSetRow({
 }
 
 // Why: a right-click does not dismiss a Radix dropdown, so another context menu would open beside it.
-function useCloseOnContextMenu(open: boolean, onOpenChange: (open: boolean) => void): void {
+// The newest menu wins: closing this one then skips focus return, which would dismiss that context menu.
+function useCloseOnContextMenu(
+  open: boolean,
+  onOpenChange: (open: boolean) => void
+): React.RefObject<boolean> {
+  const closedByContextMenu = useRef(false)
   useEffect(() => {
     if (!open) {
       return undefined
     }
-    const close = (): void => onOpenChange(false)
+    closedByContextMenu.current = false
+    const close = (): void => {
+      closedByContextMenu.current = true
+      onOpenChange(false)
+    }
     document.addEventListener('contextmenu', close, true)
     return () => document.removeEventListener('contextmenu', close, true)
   }, [open, onOpenChange])
+  return closedByContextMenu
 }
 
 // One line in the sidebar's row height: the icon, the title, and its number of prototypes. The tooltip names the agent and status.
