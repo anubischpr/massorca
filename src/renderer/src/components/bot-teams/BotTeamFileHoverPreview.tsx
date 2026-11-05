@@ -1,18 +1,23 @@
 import { useEffect, useState } from 'react'
 import { translate } from '@/i18n/i18n'
 import { readBotTeamFile } from '@/runtime/runtime-bot-team-client'
-import { isImagePath, isPdfPath } from './bot-team-file-kind'
+import { isHtmlPath, isImagePath, isPdfPath } from './bot-team-file-kind'
 import { readBotTeamFilePreview } from './bot-team-file-preview-read'
 
 const EXCERPT_LINES = 8
+// Why: no scripts and no network, so the bot's page shows its layout and nothing more.
+const PAGE_THUMBNAIL_HEAD = `<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data:; style-src 'unsafe-inline'; font-src data:">`
+/** The page renders three times the card's size, then shrinks to fit it. */
+const PAGE_THUMBNAIL_SCALE = 3
 
 type Peek =
   | { status: 'loading' }
   | { status: 'image'; src: string }
+  | { status: 'page'; srcDoc: string }
   | { status: 'text'; excerpt: string }
   | { status: 'none' }
 
-/** The hover card of an attached file: a picture or the first lines of it, read when the card opens. */
+/** The hover card of an attached file: a picture, a small render of a page, or its first lines, read when the card opens. */
 export function BotTeamFileHoverPreview({
   teamId,
   path,
@@ -49,10 +54,12 @@ export function BotTeamFileHoverPreview({
           settle(
             read === 'unavailable'
               ? { status: 'none' }
-              : {
-                  status: 'text',
-                  excerpt: read.content.split('\n').slice(0, EXCERPT_LINES).join('\n')
-                }
+              : isHtmlPath(path)
+                ? { status: 'page', srcDoc: `${PAGE_THUMBNAIL_HEAD}${read.content}` }
+                : {
+                    status: 'text',
+                    excerpt: read.content.split('\n').slice(0, EXCERPT_LINES).join('\n')
+                  }
           ),
         () => settle({ status: 'none' })
       )
@@ -72,6 +79,25 @@ export function BotTeamFileHoverPreview({
       ) : null}
       {peek.status === 'image' ? (
         <img src={peek.src} alt={name} className="max-h-40 w-full rounded-md object-contain" />
+      ) : null}
+      {peek.status === 'page' ? (
+        <div className="pointer-events-none h-40 w-full overflow-hidden rounded-md border border-border bg-background">
+          <iframe
+            title={name}
+            // SECURITY: never add allow-scripts or allow-same-origin; a bot's page is untrusted.
+            sandbox=""
+            referrerPolicy="no-referrer"
+            tabIndex={-1}
+            srcDoc={peek.srcDoc}
+            className="block border-0"
+            style={{
+              width: `${PAGE_THUMBNAIL_SCALE * 100}%`,
+              height: `${PAGE_THUMBNAIL_SCALE * 100}%`,
+              transform: `scale(${1 / PAGE_THUMBNAIL_SCALE})`,
+              transformOrigin: '0 0'
+            }}
+          />
+        </div>
       ) : null}
       {peek.status === 'text' ? (
         <pre className="max-h-40 overflow-hidden font-mono text-[11px] break-words whitespace-pre-wrap text-muted-foreground">
