@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => {
   const repos: TestRepo[] = []
   return {
     listHostBindableAccounts: vi.fn(),
+    listAccountOrgs: vi.fn(),
     switchActiveAccount: vi.fn(),
     removeAccount: vi.fn(),
     repos
@@ -79,10 +80,12 @@ describe('GitHubAccountsCard', () => {
     })
     mocks.switchActiveAccount.mockResolvedValue({ ok: true })
     mocks.removeAccount.mockResolvedValue({ ok: true })
+    mocks.listAccountOrgs.mockResolvedValue({})
     Object.assign(window, {
       api: {
         gh: {
           listHostBindableAccounts: mocks.listHostBindableAccounts,
+          listAccountOrgs: mocks.listAccountOrgs,
           switchActiveAccount: mocks.switchActiveAccount,
           removeAccount: mocks.removeAccount
         },
@@ -108,6 +111,30 @@ describe('GitHubAccountsCard', () => {
     expect(items[1]).not.toContain('Active')
     expect(items[1]).toContain('massorca')
     expect(container.textContent).toContain('These projects use the active account: notes')
+  })
+
+  it('asks once for every login organizations and shows them on each account row', async () => {
+    mocks.listHostBindableAccounts.mockResolvedValue({
+      capability: 'supported',
+      accounts: [account('personal', { active: true }), account('work'), account('side')]
+    })
+    mocks.listAccountOrgs.mockResolvedValue({
+      'github.com\0work': ['Alterra-DS', 'Acme'],
+      'github.com\0personal': []
+    })
+    const container = await renderCard()
+    expect(mocks.listAccountOrgs).toHaveBeenCalledTimes(1)
+    expect(mocks.listAccountOrgs).toHaveBeenCalledWith({
+      accounts: [
+        { host: 'github.com', user: 'personal' },
+        { host: 'github.com', user: 'work' },
+        { host: 'github.com', user: 'side' }
+      ]
+    })
+    const items = [...container.querySelectorAll('li')].map((li) => li.textContent ?? '')
+    expect(items[1]).toContain('organizations: Alterra-DS, Acme')
+    expect(items[0]).not.toContain('organizations')
+    expect(items[2]).not.toContain('organizations')
   })
 
   it('offers Make active only on inactive keyring accounts and reloads after switching', async () => {

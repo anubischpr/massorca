@@ -320,6 +320,37 @@ describe('RepositoryGitHubAccountSection', () => {
 
     expect(container.textContent).toContain('Saved, but not enforced')
   })
+
+  it('keeps the heading, description and pin controls in the settings layout', async () => {
+    listAccountsMock.mockResolvedValue(inventory([ALICE]))
+
+    await render(BASE_REPO)
+
+    expect(container.textContent).toContain('GitHub Account')
+    expect(container.textContent).toContain('MassOrca injects a short-lived token')
+    expect(container.textContent).toContain('Commit as this account')
+  })
+
+  it('compact mode drops the heading block but keeps the account select and pin controls', async () => {
+    listAccountsMock.mockResolvedValue(inventory([ALICE]))
+    storeState.repos = [BASE_REPO]
+
+    await act(async () => {
+      root.render(
+        React.createElement(RepositoryGitHubAccountSection, {
+          repo: BASE_REPO,
+          updateRepo: echoingUpdateRepo(),
+          forceVisible: true,
+          compact: true
+        })
+      )
+    })
+    await act(async () => {})
+
+    expect(container.textContent).not.toContain('MassOrca injects a short-lived token')
+    expect(getSelect().value).toBe(AMBIENT_VALUE)
+    expect(container.textContent).toContain('Commit as this account')
+  })
 })
 
 describe('isGhAccountBindingEnforced', () => {

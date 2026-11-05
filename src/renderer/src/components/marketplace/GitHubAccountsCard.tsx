@@ -3,6 +3,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { translate } from '@/i18n/i18n'
 import type { GhAccountBindingInventory, GhAuthAccount } from '../../../../shared/github/auth-types'
+import { ghAccountKey } from '../../../../shared/github/gh-account-inference'
 import { groupReposByGitHubAccount } from './github-account-repos'
 import { GitHubRemoveAccountDialog } from './GitHubRemoveAccountDialog'
 import { GitHubSignInDialog } from './GitHubSignInDialog'
@@ -53,6 +54,7 @@ export function GitHubAccountsCard({ accounts }: { accounts: GitHubAccounts }): 
         <AccountList
           inventory={inventory.value}
           repos={accounts.localRepos}
+          orgsByKey={accounts.orgsByKey}
           pendingKey={pendingKey}
           onMakeActive={accounts.makeActive}
           onRemove={setRemoving}
@@ -67,6 +69,7 @@ export function GitHubAccountsCard({ accounts }: { accounts: GitHubAccounts }): 
 function AccountList({
   inventory,
   repos,
+  orgsByKey,
   pendingKey,
   onMakeActive,
   onRemove,
@@ -74,6 +77,7 @@ function AccountList({
 }: {
   inventory: GhAccountBindingInventory
   repos: GitHubAccounts['localRepos']
+  orgsByKey: GitHubAccounts['orgsByKey']
   pendingKey: string | null
   onMakeActive: (account: GhAuthAccount) => Promise<void>
   onRemove: (account: GhAuthAccount) => void
@@ -123,7 +127,7 @@ function AccountList({
                 )}
               </div>
               <p className="truncate text-xs text-muted-foreground">
-                {accountDetail(account, repoNames)}
+                {accountDetail(account, repoNames, orgsByKey[ghAccountKey(account)] ?? [])}
               </p>
             </div>
             {account.active ? (
@@ -183,8 +187,25 @@ function AccountList({
   )
 }
 
-/** Where one login is signed in and the projects it serves, on a single line. */
-function accountDetail(account: GhAuthAccount, repoNames: readonly string[]): string {
+/** Where one login is signed in, the projects it serves and its organizations, on a single line. */
+function accountDetail(
+  account: GhAuthAccount,
+  repoNames: readonly string[],
+  orgs: readonly string[]
+): string {
+  const base = accountBaseDetail(account, repoNames)
+  if (orgs.length === 0) {
+    return base
+  }
+  const orgText = translate(
+    'auto.components.marketplace.GitHubAccountsCard.organizations',
+    'organizations: {{names}}',
+    { names: orgs.join(', ') }
+  )
+  return `${base} · ${orgText}`
+}
+
+function accountBaseDetail(account: GhAuthAccount, repoNames: readonly string[]): string {
   if (account.source === 'env') {
     return translate(
       'auto.components.marketplace.GitHubAccountsCard.envToken',
