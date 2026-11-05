@@ -156,6 +156,61 @@ describe('botRunOfDelegatedDispatch', () => {
       expect(botRunOfDelegatedDispatch(db!, nested.id)?.botId).toBe(team.bots[1].id)
     })
 
+    it('keeps the teammate’s marker on a child opened one level below a hand-over', () => {
+      const team = teamWithRunningTask()
+      const request = db!.createDelegationRequest({
+        parentSessionId: 'ann-session',
+        title: 'Part',
+        summary: 'Part',
+        prompt: 'Part',
+        writes: false,
+        workspaceKind: 'folder',
+        optionsJson: '{}',
+        decisionJson: null
+      })
+      const bobTask = db!.createBotTeamTask({
+        teamId: team.id,
+        title: 'Part',
+        prompt: 'Part',
+        ownerBotId: team.bots[1].id
+      })
+      db!.linkBotTeamTaskDelegation(bobTask.id, request.id)
+      const handOverTask = db!.createTask({ runId: 'run_legacy_local', spec: 'Part' })
+      db!.patchDelegationRequest(request.id, {
+        task_id: handOverTask.id,
+        child_session_id: 'bob_child'
+      })
+      const handOver = db!.createDispatchContext({
+        taskId: handOverTask.id,
+        assigneeHandle: 'orca_session_id:bob_child',
+        creator: SYSTEM,
+        maxDepth: 1
+      })
+      const designRequest = db!.createDelegationRequest({
+        parentSessionId: 'bob_child',
+        title: 'Design',
+        summary: 'Design',
+        prompt: 'Design',
+        writes: false,
+        workspaceKind: 'folder',
+        optionsJson: '{}',
+        decisionJson: null
+      })
+      const designTask = db!.createTask({ runId: 'run_legacy_local', spec: 'Design' })
+      db!.patchDelegationRequest(designRequest.id, { task_id: designTask.id })
+      const design = db!.createDispatchContext({
+        taskId: designTask.id,
+        assigneeHandle: 'term_design',
+        creator: { kind: 'session', orcaSessionId: 'bob_child' as never },
+        maxDepth: 2
+      })
+      expect([handOver.depth, design.depth]).toEqual([1, 2])
+      expect(botRunOfDelegatedDispatch(db!, design.id)).toEqual({
+        botId: team.bots[1].id,
+        teamId: team.id
+      })
+    })
+
     it('names nobody for a delegation by a session no bot task runs', () => {
       teamWithRunningTask()
       const child = plainChild('workspace-chat-session', 'child-9')

@@ -36,15 +36,9 @@ import { CHAT_WORKER_AUTHORITY, chatAssigneeOf, chatWorkerMode } from '../chat-a
 import { recordCreatedWorkerTerminalCustody } from './created-worker-terminal-custody'
 import { tearDownFailedWorkerStart } from './failed-worker-start-teardown'
 import { requireWorkerAuthority, type WorkerEffect } from './worker-topology'
-import { prepareLocalWorkerStart } from './worker-start-validation'
+import { nestedWorkerMaxDepthForCaller, workerNesting } from './worker-bot-run'
+import { prepareLocalWorkerStart, type WorkerStartMutation } from './worker-start-validation'
 import { deliverAndSettleWorkerStartReadiness } from './worker-start-readiness-settlement'
-
-type WorkerStartMutation = {
-  callerFingerprint: string
-  requestId: string
-  method: string
-  payloadHash: string
-}
 
 export async function startLocalWorker(args: {
   params: WorkerStartInput
@@ -154,7 +148,7 @@ export async function startLocalWorker(args: {
   }
   const started = db.createStartingWorkerDispatch({
     creator: resolveDispatchCreator(runtime, params.from, callerSession),
-    maxDepth: runtime.getNestedWorkerMaxDepth(),
+    maxDepth: nestedWorkerMaxDepthForCaller(args),
     taskId: existingTask?.id,
     taskSpec: params.spec,
     taskTitle: params.taskTitle,
@@ -283,7 +277,7 @@ export async function startLocalWorker(args: {
       task,
       firstPrompt: args.firstPrompt,
       dispatchId: started.dispatch.id,
-      dispatchDepth: started.dispatch.depth,
+      ...workerNesting(args, started.dispatch),
       structuredSession,
       terminalHandle,
       coordinatorHandle: params.from,

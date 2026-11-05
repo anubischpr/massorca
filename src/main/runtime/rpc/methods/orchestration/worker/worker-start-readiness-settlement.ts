@@ -53,6 +53,8 @@ export async function deliverAndSettleWorkerStartReadiness(args: {
   task: TaskRow
   dispatchId: string
   dispatchDepth: number
+  /** The nesting cap this worker's own dispatches meet; absent means the host's setting. */
+  nestedWorkerMaxDepth?: number
   structuredSession: Awaited<ReturnType<typeof createStructuredWorkerSessionForWorktree>> | null
   terminalHandle: string
   coordinatorHandle: string
@@ -87,6 +89,9 @@ export async function deliverAndSettleWorkerStartReadiness(args: {
     terminalHandle,
     dispatchId: args.dispatchId,
     dispatchDepth: args.dispatchDepth,
+    ...(args.nestedWorkerMaxDepth === undefined
+      ? {}
+      : { nestedWorkerMaxDepth: args.nestedWorkerMaxDepth }),
     runId: run.id,
     taskId: task.id,
     taskSpec: firstPrompt?.body ?? task.spec,

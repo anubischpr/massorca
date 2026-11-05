@@ -176,3 +176,11 @@ function resolveWorkerStartAgent(args: {
     }
   }
 }
+
+/** The idempotency key of a worker start that came in as an orchestration mutation. */
+export type WorkerStartMutation = {
+  callerFingerprint: string
+  requestId: string
+  method: string
+  payloadHash: string
+}
