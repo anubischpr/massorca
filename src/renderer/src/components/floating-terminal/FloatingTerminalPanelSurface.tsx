@@ -1,4 +1,5 @@
 import { FloatingHostTabBar } from './host/FloatingHostTabBar'
+import { FloatingCreateSession } from './create-session/FloatingCreateSession'
 import { TabGroupSplitNodeTree } from '@/components/tab-group/TabGroupSplitNodeTree'
 import { WorkspaceTabDragLayer } from '@/components/tab-group/WorkspaceTabDragLayer'
 import { WorkspacePaneOverlayLayers } from '@/components/WorkspacePaneOverlayLayers'
@@ -296,6 +297,7 @@ export function renderFloatingTerminalPanelSurface({
                   closeShortcut={closeShortcut}
                 />
               )}
+              <FloatingCreateSession />
             </div>
           </div>
         )}

@@ -2,22 +2,17 @@ import { translate } from '@/i18n/i18n'
 import { useAppStore } from '@/store'
 import { newAgentLaunchRequestId } from '@/lib/agent-launch-request-id'
 import { adoptAgentSessionLaunchVerdict } from '@/lib/agent-session-launch-plan'
-import { getWorkspaceSeedName } from '@/lib/new-workspace'
-import { getSuggestedCreatureName } from '@/components/sidebar/worktree-name-suggestions'
-import type { WorktreeCreationRequest } from '@/lib/pending-worktree-creation'
 import { holdStructuredAgentSessionLaunchPicks } from '@/lib/structured-agent-session-launch-options'
 import { beginStructuredAgentSessionProvisionalLaunch } from '@/lib/structured-agent-session-provisional-tab'
-import { activateAndRevealWorkspace } from '@/lib/worktree-activation'
-import { runBackgroundWorktreeCreation } from '@/lib/worktree-creation-flow'
+import { structuredAgentSessionTabId } from '../../../../shared/structured-agent-session-projection'
 import { LOCAL_EXECUTION_HOST_ID, type ExecutionHostId } from '../../../../shared/execution-host'
-import type { Repo } from '../../../../shared/repo-types'
 import { getRepoMainWorktreeId } from '../../../../shared/worktree/id'
-import type { CreateChatNamingOverride } from '../../../../shared/create-chat-session-naming'
 import type { ProjectlessChatWorkspaceErrorCode } from '../../../../shared/projectless-chat-folder'
 import {
-  EMPTY_RETIRED_NAME_REGISTRY,
-  type RetiredNameRegistry
-} from '../../../../shared/worktree/retired-name-registry'
+  openCreateChatWorkspace,
+  showCreatedSessionInFloating,
+  type CreateChatPlacement
+} from './create-chat-placement'
 import { createChatRepoOptions } from './create-chat-repo-options'
 import {
   canUseProjectless,
@@ -26,8 +21,15 @@ import {
   type CreateChatSelection,
   type CreateChatSubmitOutcome
 } from './create-chat-selection'
+import {
+  createChatInNewWorktree,
+  createChatNamingFor,
+  createChatSeedPicks,
+  createTerminalInNewWorktree
+} from './create-chat-new-worktree'
 import { launchTerminalInWorkspace } from './create-chat-terminal-launch'
-import { buildCreateChatTerminalStartup } from './create-chat-terminal-startup'
+
+export { createChatSeedPicks }
 
 const started: CreateChatSubmitOutcome = { started: true }
 
@@ -47,47 +49,6 @@ function openWorkspaceMessage(): string {
     'components.createChat.errorOpenWorkspace',
     'Could not open the workspace for this chat. Your draft is kept.'
   )
-}
-
-/** Per-chat picks. Model and effort go first: a model pick drops the picks held under the model it replaces. */
-export function createChatSeedPicks(selection: CreateChatSelection): Record<string, string> {
-  return {
-    ...(selection.model ? { model: selection.model } : {}),
-    ...(selection.effort ? { effort: selection.effort } : {}),
-    // Why: create seeds the saved default, so the chosen preset must be held to apply it.
-    accessMode: selection.accessMode
-  }
-}
-
-/** The first-work rename names the workspace with the session's agent and this pick. */
-function createChatNamingFor(selection: CreateChatSelection): CreateChatNamingOverride {
-  return { model: selection.model ?? null }
-}
-
-async function loadRetiredNames(repoId: string): Promise<RetiredNameRegistry> {
-  try {
-    return await window.api.worktrees.listRetiredNames({ repoId })
-  } catch (error) {
-    // Why: without the retired list a spent creature name may be reused; the workspace still gets created.
-    console.warn('create chat: retired workspace names unavailable', error)
-    return EMPTY_RETIRED_NAME_REGISTRY
-  }
-}
-
-/** Same creature pool as the composer's blank name, so the first-work rename can replace it. */
-async function temporaryWorkspaceName(repoId: string): Promise<string> {
-  const retired = await loadRetiredNames(repoId)
-  return getWorkspaceSeedName({
-    explicitName: '',
-    prompt: '',
-    linkedIssueNumber: null,
-    linkedPR: null,
-    fallbackName: getSuggestedCreatureName(
-      useAppStore.getState().worktreesByRepo,
-      undefined,
-      retired
-    )
-  })
 }
 
 function projectlessErrorMessage(code: ProjectlessChatWorkspaceErrorCode): string {
@@ -116,12 +77,13 @@ async function launchInWorkspace(
   worktreeId: string,
   executionHostId: ExecutionHostId,
   draft: string,
-  selection: CreateChatSelection
+  selection: CreateChatSelection,
+  placement: CreateChatPlacement
 ): Promise<CreateChatSubmitOutcome> {
   if (selection.sessionView !== 'terminal') {
-    return launchChatInWorkspace(worktreeId, executionHostId, draft, selection)
+    return launchChatInWorkspace(worktreeId, executionHostId, draft, selection, placement)
   }
-  const launch = await launchTerminalInWorkspace(worktreeId, draft, selection)
+  const launch = await launchTerminalInWorkspace(worktreeId, draft, selection, placement)
   if (launch === 'workspace-unavailable') {
     return failed(openWorkspaceMessage())
   }
@@ -133,12 +95,13 @@ function launchChatInWorkspace(
   worktreeId: string,
   executionHostId: ExecutionHostId,
   draft: string,
-  selection: CreateChatSelection
+  selection: CreateChatSelection,
+  placement: CreateChatPlacement
 ): CreateChatSubmitOutcome {
-  const activated = activateAndRevealWorkspace(worktreeId, { providesInitialSurface: true })
-  if (activated === false) {
+  if (!openCreateChatWorkspace(worktreeId, placement)) {
     return failed(openWorkspaceMessage())
   }
+  const floating = placement === 'floating-workspace'
   const plan = adoptAgentSessionLaunchVerdict({
     route: 'structured-native-chat',
     requestId: newAgentLaunchRequestId(),
@@ -152,10 +115,13 @@ function launchChatInWorkspace(
     plan,
     hooks: {},
     target: { worktreeId, executionHostId },
-    activate: true,
+    activate: !floating,
     // Why: a host-admitted chat gets its session id only once its tab opens.
     onOpened: (sessionId) => {
       holdStructuredAgentSessionLaunchPicks(sessionId, createChatSeedPicks(selection))
+      if (floating) {
+        showCreatedSessionInFloating(worktreeId, structuredAgentSessionTabId(sessionId))
+      }
     }
   })
   if (!launch) {
@@ -166,7 +132,8 @@ function launchChatInWorkspace(
 
 async function submitProjectless(
   draft: string,
-  selection: CreateChatSelection
+  selection: CreateChatSelection,
+  placement: CreateChatPlacement
 ): Promise<CreateChatSubmitOutcome> {
   if (!canUseProjectless(selection.executionHostId)) {
     return failed(projectlessErrorMessage('ssh_location_unsupported'))
@@ -183,79 +150,20 @@ async function submitProjectless(
   const store = useAppStore.getState()
   await store.fetchProjectGroupsForAllHosts({ remoteHosts: 'skip' })
   await store.fetchFolderWorkspacesForAllHosts({ remoteHosts: 'skip' })
-  return await launchInWorkspace(result.workspaceKey, LOCAL_EXECUTION_HOST_ID, draft, selection)
-}
-
-/** A new worktree goes through the composer's create flow; the chat launches once it exists. */
-async function createChatInNewWorktree(
-  draft: string,
-  selection: CreateChatSelection,
-  repo: CreateChatRepoOption
-): Promise<CreateChatSubmitOutcome> {
-  const request: WorktreeCreationRequest = {
-    repoId: repo.repoId,
-    executionHostId: repo.hostId,
-    // Why: a temporary creature name; the first agent message renames the branch and display name.
-    name: await temporaryWorkspaceName(repo.repoId),
-    nameWasGenerated: true,
-    // Why: the repo setup runs in a hidden terminal the chat roster shows; the chat stays the only tab.
-    setupDecision: 'run',
-    setupPresentation: 'chat-background-task',
-    agent: selection.agent,
-    agentLaunchRoute: 'structured-native-chat',
-    quickPrompt: draft,
-    promptDelivery: 'auto-submit',
-    structuredSeedPicks: createChatSeedPicks(selection),
-    // Why: the card shows the pending rename only when auto-rename will actually run.
-    pendingFirstAgentMessageRename:
-      useAppStore.getState().settings?.autoRenameBranchFromWork === true,
-    createChatNaming: createChatNamingFor(selection),
-    note: '',
-    startupPlan: null,
-    quickTelemetry: null
-  }
-  runBackgroundWorktreeCreation(request)
-  return started
-}
-
-/** A new worktree whose startup runs the agent in a terminal: the terminal is the session's surface. */
-async function createTerminalInNewWorktree(
-  draft: string,
-  selection: CreateChatSelection,
-  repo: CreateChatRepoOption,
-  fullRepo: Repo
-): Promise<CreateChatSubmitOutcome> {
-  const { startupPlan, backendStartup, telemetry } = buildCreateChatTerminalStartup(
-    fullRepo,
-    selection.agent,
-    draft
+  return await launchInWorkspace(
+    result.workspaceKey,
+    LOCAL_EXECUTION_HOST_ID,
+    draft,
+    selection,
+    placement
   )
-  const request: WorktreeCreationRequest = {
-    repoId: repo.repoId,
-    executionHostId: repo.hostId,
-    name: await temporaryWorkspaceName(repo.repoId),
-    nameWasGenerated: true,
-    setupDecision: 'run',
-    agent: selection.agent,
-    agentLaunchRoute: 'terminal-tui',
-    quickPrompt: draft,
-    promptDelivery: 'auto-submit',
-    startupPlan,
-    startup: backendStartup,
-    quickTelemetry: telemetry,
-    // Why: the card shows the pending rename only when auto-rename will actually run.
-    pendingFirstAgentMessageRename:
-      useAppStore.getState().settings?.autoRenameBranchFromWork === true,
-    note: ''
-  }
-  runBackgroundWorktreeCreation(request)
-  return started
 }
 
 async function launchExistingWorktree(
   draft: string,
   selection: CreateChatSelection,
-  repo: CreateChatRepoOption
+  repo: CreateChatRepoOption,
+  placement: CreateChatPlacement
 ): Promise<CreateChatSubmitOutcome> {
   const worktreeId = selection.existingWorktreeId
   const exists = (useAppStore.getState().worktreesByRepo[repo.repoId] ?? []).some(
@@ -269,12 +177,13 @@ async function launchExistingWorktree(
       )
     )
   }
-  return await launchInWorkspace(worktreeId, repo.hostId, draft, selection)
+  return await launchInWorkspace(worktreeId, repo.hostId, draft, selection, placement)
 }
 
 async function submitInProject(
   draft: string,
-  selection: CreateChatSelection
+  selection: CreateChatSelection,
+  placement: CreateChatPlacement
 ): Promise<CreateChatSubmitOutcome> {
   const state = useAppStore.getState()
   const repo = findRepo(createChatRepoOptions(state.repos), selection.project)
@@ -289,15 +198,21 @@ async function submitInProject(
   }
   // Why: a folder has no git worktrees, so it always opens its one workspace.
   if (repo.isFolder || selection.workspaceMode === 'current-checkout') {
-    return await launchInWorkspace(primaryWorkspaceId(repo), repo.hostId, draft, selection)
+    return await launchInWorkspace(
+      primaryWorkspaceId(repo),
+      repo.hostId,
+      draft,
+      selection,
+      placement
+    )
   }
   if (selection.workspaceMode === 'existing-worktree') {
-    return await launchExistingWorktree(draft, selection, repo)
+    return await launchExistingWorktree(draft, selection, repo, placement)
   }
   if (selection.sessionView === 'terminal') {
-    return await createTerminalInNewWorktree(draft, selection, repo, fullRepo)
+    return await createTerminalInNewWorktree(draft, selection, repo, fullRepo, placement)
   }
-  return await createChatInNewWorktree(draft, selection, repo)
+  return await createChatInNewWorktree(draft, selection, repo, placement)
 }
 
 /**
@@ -306,12 +221,13 @@ async function submitInProject(
  */
 export async function submitCreateChatDraft(
   draft: string,
-  selection: CreateChatSelection
+  selection: CreateChatSelection,
+  placement: CreateChatPlacement = 'main-window'
 ): Promise<CreateChatSubmitOutcome> {
   try {
     return selection.project.kind === 'none'
-      ? await submitProjectless(draft, selection)
-      : await submitInProject(draft, selection)
+      ? await submitProjectless(draft, selection, placement)
+      : await submitInProject(draft, selection, placement)
   } catch (error) {
     console.error('create chat: submit failed', error)
     return failed(startFailedMessage())

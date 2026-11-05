@@ -31,6 +31,8 @@ type CreateChatSessionProps = {
   aboveComposer?: ReactNode
   /** Content under the composer. */
   below?: ReactNode
+  /** The first selection, for a caller that preselects; absent uses the composer's defaults. */
+  initialSelection?: CreateChatSelection
 }
 
 /** One blank create-chat draft. The page keys this by a reset nonce, so reopening starts blank. */
@@ -41,10 +43,11 @@ export function CreateChatSession({
   subheading,
   layout = 'centered',
   aboveComposer,
-  below
+  below,
+  initialSelection
 }: CreateChatSessionProps): React.JSX.Element {
-  const [selection, setSelection] = useState<CreateChatSelection>(() =>
-    buildDefaultCreateChatSelection(options)
+  const [selection, setSelection] = useState<CreateChatSelection>(
+    () => initialSelection ?? buildDefaultCreateChatSelection(options)
   )
   const [draft, setDraft] = useState('')
   const [pending, setPending] = useState(false)
