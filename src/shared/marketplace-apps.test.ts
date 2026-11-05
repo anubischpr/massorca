@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
   everyoneAccessPolicy,
+  marketplaceAgentSupportsAppDenial,
+  marketplaceAgentSwitchBlockedMessage,
   marketplaceAppMcpServerNames,
   marketplaceAppTokenEnvNames,
   marketplaceAppsDeniedForBot,
@@ -51,5 +53,19 @@ describe('bot enforcement helpers', () => {
       'ENGRAM_CLOUD_TOKEN',
       'ENGRAM_CLOUD_SERVER'
     ])
+  })
+})
+
+describe('agents that cannot drop an app for one bot', () => {
+  it('refuses denial only for Antigravity', () => {
+    expect(marketplaceAgentSupportsAppDenial('antigravity')).toBe(false)
+    expect(marketplaceAgentSupportsAppDenial('claude')).toBe(true)
+    expect(marketplaceAgentSupportsAppDenial('pi')).toBe(true)
+  })
+
+  it('names the blocked items in the switch message', () => {
+    expect(marketplaceAgentSwitchBlockedMessage(['Engram', 'OpenMetadata'])).toContain(
+      'this bot is blocked from Engram, OpenMetadata.'
+    )
   })
 })

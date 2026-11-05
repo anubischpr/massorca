@@ -1,10 +1,14 @@
 import {
   MARKETPLACE_APP_AGENTS,
+  isMarketplaceAppAllowedForBot,
+  marketplaceAgentSupportsAppDenial,
   type MarketplaceAccessMode,
   type MarketplaceAgentAccess,
+  type MarketplaceAppAccessPolicy,
   type MarketplaceAppAgent,
   type MarketplaceBotAccess
 } from '../../../../shared/marketplace-apps'
+import type { BotTeam } from '../../../../shared/rpc-contract/bot-team-params'
 
 /** Pure edits of one access dimension; a change keeps the other dimension and its picks. */
 export function withAgentMode(
@@ -52,4 +56,34 @@ export function withTeamPicked(
 function toggled(list: readonly string[], id: string, picked: boolean): string[] {
   const rest = list.filter((item) => item !== id)
   return picked ? [...rest, id] : rest
+}
+
+/**
+ * Holds back a bot edit that would newly keep out a bot whose agent can't drop an app. Under Only
+ * these such bots are picked back in; under All except the edit is refused (`bots` is null).
+ */
+export function withUnsupportedBotsKept(
+  current: MarketplaceAppAccessPolicy,
+  next: MarketplaceBotAccess,
+  teams: readonly BotTeam[]
+): { bots: MarketplaceBotAccess | null; heldBack: boolean } {
+  const allowed = (bots: MarketplaceBotAccess, botId: string, teamId: string): boolean =>
+    isMarketplaceAppAllowedForBot({ ...current, bots }, { botId, teamId })
+  const held = teams.flatMap((team) =>
+    team.bots
+      .filter(
+        (bot) =>
+          !marketplaceAgentSupportsAppDenial(bot.agent) &&
+          allowed(current.bots, bot.id, team.id) &&
+          !allowed(next, bot.id, team.id)
+      )
+      .map((bot) => bot.id)
+  )
+  if (held.length === 0) {
+    return { bots: next, heldBack: false }
+  }
+  if (next.mode === 'only') {
+    return { bots: { ...next, botIds: [...next.botIds, ...held] }, heldBack: true }
+  }
+  return { bots: null, heldBack: true }
 }

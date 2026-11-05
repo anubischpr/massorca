@@ -73,6 +73,25 @@ export function isMarketplaceAppAllowedForBot(
   return allowedByMode(policy.bots.mode, picked)
 }
 
+/** False for an agent whose runs can't have a Marketplace app's MCP tools removed. */
+export function marketplaceAgentSupportsAppDenial(agent: string): boolean {
+  // Why: Antigravity always loads its global mcp_config.json, so one run can't drop an app.
+  return agent !== 'antigravity'
+}
+
+/** Shown wherever an app would be denied to a bot that runs on such an agent. */
+export const MARKETPLACE_AGENT_DENIAL_UNSUPPORTED_MESSAGE =
+  "Antigravity loads every Marketplace app on each run, so a bot on Antigravity can't be kept out of one. To limit this bot, switch it to another agent."
+
+/** Shown when a bot kept out of some items would be switched to such an agent; `{{items}}` is filled in. */
+export const MARKETPLACE_AGENT_SWITCH_BLOCKED_MESSAGE =
+  "Antigravity can't keep a bot out of a Marketplace item, and this bot is blocked from {{items}}. To switch it to Antigravity, remove the bot from that blocklist in the Marketplace, or pick another agent."
+
+/** The switch-blocked message with the item names joined, for callers outside the translated UI. */
+export function marketplaceAgentSwitchBlockedMessage(items: readonly string[]): string {
+  return MARKETPLACE_AGENT_SWITCH_BLOCKED_MESSAGE.replace('{{items}}', items.join(', '))
+}
+
 /** Connected apps a bot is kept out of; a bot run must leave their MCP servers and tokens out. */
 export function marketplaceAppsDeniedForBot(
   apps: readonly MarketplaceAppStatus[],

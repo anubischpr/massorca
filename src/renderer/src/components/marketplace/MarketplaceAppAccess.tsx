@@ -1,17 +1,20 @@
 import { useState } from 'react'
+import { useBotTeams } from '@/components/bot-teams/use-bot-teams'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { translate } from '@/i18n/i18n'
 import {
   MARKETPLACE_ACCESS_MODES,
+  MARKETPLACE_AGENT_DENIAL_UNSUPPORTED_MESSAGE,
   everyoneAccessPolicy,
   type MarketplaceAccessMode,
-  type MarketplaceAppAccessPolicy
+  type MarketplaceAppAccessPolicy,
+  type MarketplaceBotAccess
 } from '../../../../shared/marketplace-apps'
 import type { MarketplaceAppContext } from './marketplace-app-context'
 import { MarketplaceAppAccessAgents } from './MarketplaceAppAccessAgents'
 import { MarketplaceAppAccessBots } from './MarketplaceAppAccessBots'
-import { withAgentMode, withBotMode } from './MarketplaceAppAccessEdit'
+import { withAgentMode, withBotMode, withUnsupportedBotsKept } from './MarketplaceAppAccessEdit'
 
 /** Who may use the app: everyone by default; a limit here narrows agents and bots. */
 export function MarketplaceAppAccess({ ctx }: { ctx: MarketplaceAppContext }): React.JSX.Element {
@@ -23,6 +26,17 @@ export function MarketplaceAppAccess({ ctx }: { ctx: MarketplaceAppContext }): R
     void ctx
       .runInline((api) => api.setAccessPolicy({ id: ctx.appId, policy: next }))
       .finally(() => setSaving(false))
+  }
+  const { teams } = useBotTeams()
+  const [heldBack, setHeldBack] = useState(false)
+  const saveBots = (next: MarketplaceBotAccess): void => {
+    const kept = teams
+      ? withUnsupportedBotsKept(policy, next, teams)
+      : { bots: next, heldBack: false }
+    setHeldBack(kept.heldBack)
+    if (kept.bots) {
+      save({ ...policy, bots: kept.bots })
+    }
   }
   const noAgentPicked = policy.agents.mode === 'only' && policy.agents.ids.length === 0
   return (
@@ -95,7 +109,7 @@ export function MarketplaceAppAccess({ ctx }: { ctx: MarketplaceAppContext }): R
                 )}
                 mode={policy.bots.mode}
                 disabled={saving}
-                onChange={(mode) => save({ ...policy, bots: withBotMode(policy.bots, mode) })}
+                onChange={(mode) => saveBots(withBotMode(policy.bots, mode))}
               />
             </div>
             <p className="text-xs text-muted-foreground">
@@ -105,12 +119,16 @@ export function MarketplaceAppAccess({ ctx }: { ctx: MarketplaceAppContext }): R
               )}
             </p>
             {policy.bots.mode === 'everyone' ? null : (
-              <MarketplaceAppAccessBots
-                bots={policy.bots}
-                disabled={saving}
-                onChange={(bots) => save({ ...policy, bots })}
-              />
+              <MarketplaceAppAccessBots bots={policy.bots} disabled={saving} onChange={saveBots} />
             )}
+            {heldBack ? (
+              <p role="status" className="text-xs text-muted-foreground">
+                {translate(
+                  'auto.shared.marketplace-apps.agentDenialUnsupported',
+                  MARKETPLACE_AGENT_DENIAL_UNSUPPORTED_MESSAGE
+                )}
+              </p>
+            ) : null}
           </div>
         </div>
       </CardContent>
