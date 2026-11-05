@@ -24,6 +24,10 @@ vi.mock('react-native', () => ({
 vi.mock('react-native-safe-area-context', () => ({ SafeAreaView: 'SafeAreaView' }))
 vi.mock('../files/MobileFileMediaPreview', () => ({ MobileFileMediaPreview: () => null }))
 vi.mock('../files/MobileFileMarkdownPreview', () => ({ MobileFileMarkdownPreview: () => null }))
+// Why: expo-sharing needs the native runtime's __DEV__ global, which this node test does not provide.
+vi.mock('../files/mobile-file-share', () => ({ shareMobileFile: async () => {} }))
+// Why: the Marketplace glyphs load react-native-svg, which this node test cannot parse.
+vi.mock('../marketplace/marketplace-glyphs', () => ({ MarketplaceGlyph: () => null }))
 vi.mock('../components/MobileRepoIcon', () => ({ MobileRepoIcon: 'MobileRepoIcon' }))
 vi.mock('lucide-react-native', () => ({
   ChevronDown: 'ChevronDown',

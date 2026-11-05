@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Alert, Pressable, ScrollView, Switch, Text, View } from 'react-native'
+import { Alert, Pressable, ScrollView, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Plus, Settings, Users } from 'lucide-react-native'
 import { colors } from '../theme/mobile-theme'
@@ -17,6 +17,8 @@ import * as Routines from './MobileBotTeamRoutineScreens'
 import { MobileBotTeamWork, isBotTeamWorkScreen, type BotTeamWorkScreen } from './MobileBotTeamWork'
 import { MobileBotTeamWorkBar as SubBar } from './MobileBotTeamWorkBar'
 import { MobileBotTeamModeSwitch } from './MobileBotTeamModeSwitch'
+import { MobileBotTeamSettings } from './MobileBotTeamSettings'
+import { MobileBotTeamMarketplaceApps } from './MobileBotTeamMarketplaceApps'
 import { botTeamStyles as styles } from './mobile-bot-team-styles'
 import {
   addMobileBot,
@@ -27,10 +29,6 @@ import {
   type MobileBotTeamList
 } from './mobile-bot-team-rpc'
 import { MobileBotAgentIcon } from './MobileBotAgentIcon'
-import {
-  setBotCharacterAnimations,
-  useBotCharacterAnimations
-} from './mobile-bot-character-preference'
 import { MobileBotTeamWaitingMark } from './MobileBotTeamRoomMark'
 import { useMobileBotTeamStatus } from './use-mobile-bot-team-status'
 
@@ -47,6 +45,7 @@ type Screen =
   | { name: 'editNewTeamBot'; index: number }
   | { name: 'teamBot'; teamId: string }
   | { name: 'integrations' }
+  | { name: 'teamMarketplace'; teamId: string }
   | BotTeamWorkScreen
   | Routines.BotTeamRoutineScreen
 
@@ -108,7 +107,6 @@ export function MobileBotTeamsScreen({
   const [unreachable, setUnreachable] = useState(false)
   const [screen, setScreen] = useState<Screen>({ name: 'home' })
   const [draftBots, setDraftBots] = useState<BotDraftInput[]>([])
-  const characterAnimations = useBotCharacterAnimations()
 
   const reload = useCallback(async () => {
     if (client !== null) {
@@ -145,6 +143,8 @@ export function MobileBotTeamsScreen({
   const openTeam = screen.name === 'team' ? teams.find((t) => t.id === screen.teamId) : undefined
   const openBotsTeam =
     screen.name === 'teamBots' ? teams.find((t) => t.id === screen.teamId) : undefined
+  const openMarketplaceTeam =
+    screen.name === 'teamMarketplace' ? teams.find((t) => t.id === screen.teamId) : undefined
   const workTeam = isBotTeamWorkScreen(screen)
     ? teams.find((t) => t.id === screen.teamId)
     : undefined
@@ -315,53 +315,28 @@ export function MobileBotTeamsScreen({
     body = <MobileBotTeamIntegrations onBack={backHome} />
   } else if (client !== null && screen.name === 'settings') {
     body = (
-      <>
-        <SubBar title="Bot teams" onBack={backHome} />
-        <ScrollView contentContainerStyle={styles.form}>
-          <View style={styles.row}>
-            <View style={styles.rowText}>
-              <Text style={styles.rowTitle}>Character animations</Text>
-              <Text style={styles.rowMeta}>
-                Team characters move and react. Off, a still glow shows who is working.
-              </Text>
-            </View>
-            <Switch
-              accessibilityLabel="Character animations"
-              value={characterAnimations}
-              onValueChange={setBotCharacterAnimations}
-              trackColor={{ true: colors.textSecondary }}
-            />
-          </View>
-          <Text style={styles.rowMeta}>
-            What each team can do without asking. New teams start with full access.
-          </Text>
-          {teams.map((team) => (
-            <Pressable
-              key={team.id}
-              accessibilityRole="button"
-              accessibilityLabel={`${team.name} access`}
-              onPress={() =>
-                void apply(
-                  updateMobileBotTeam(client, {
-                    teamId: team.id,
-                    accessMode: team.accessMode === 'full-access' ? 'default' : 'full-access'
-                  }),
-                  { name: 'settings' }
-                )
-              }
-              style={styles.row}
-            >
-              <MobileBotTeamCharacterIcon character={team.character} size={28} still />
-              <View style={styles.rowText}>
-                <Text style={styles.rowTitle}>{team.name}</Text>
-                <Text style={styles.rowMeta}>
-                  {team.accessMode === 'full-access' ? 'Full access' : 'Ask first'}
-                </Text>
-              </View>
-            </Pressable>
-          ))}
-        </ScrollView>
-      </>
+      <MobileBotTeamSettings
+        teams={teams}
+        onBack={backHome}
+        onToggleAccess={(team) =>
+          void apply(
+            updateMobileBotTeam(client, {
+              teamId: team.id,
+              accessMode: team.accessMode === 'full-access' ? 'default' : 'full-access'
+            }),
+            { name: 'settings' }
+          )
+        }
+        onOpenMarketplace={(team) => setScreen({ name: 'teamMarketplace', teamId: team.id })}
+      />
+    )
+  } else if (client !== null && openMarketplaceTeam) {
+    body = (
+      <MobileBotTeamMarketplaceApps
+        client={client}
+        team={openMarketplaceTeam}
+        onBack={() => setScreen({ name: 'settings' })}
+      />
     )
   } else {
     body = (
