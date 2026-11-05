@@ -8,6 +8,7 @@ import {
   agentSessionProviderHandleKey,
   type AgentSessionProviderHandleLink
 } from '../../shared/agent-session-provider-handle'
+import { buildMarketplaceAgentEnv } from '../marketplace/marketplace-agent-env'
 import { probeGentleShellPiOutcome } from './gentle-shell-version-probe'
 import { isLegacyAgentSessionAccountHome } from '../../shared/agent-session-account-home'
 import type { AgentSessionJournalIdentity } from '../../shared/agent-session-journal-types'
@@ -257,10 +258,14 @@ export function createPiRpcLaunchResolver(
     }
     // Why: the visuals folder is named only beside its skill text, so a chat without that text gets neither.
     const visuals = await piChatVisualsFor(deps, identity.sessionId)
+    // Why: Marketplace apps reach Gentle Shell as env vars named in its MCP config, never as values;
+    // stock Pi is not a Marketplace agent. Added after the version probe, which has no use for them.
+    const launchEnv =
+      piRuntime === 'gentle-shell' ? { ...env, ...buildMarketplaceAgentEnv('gentle-shell') } : env
     return {
       command,
       cwd,
-      env: withNativeChatVisualsEnv(env, visuals?.visuals ?? null),
+      env: withNativeChatVisualsEnv(launchEnv, visuals?.visuals ?? null),
       piRuntime,
       // Why: Gentle Shell's posture is a mode command sent after start, never a launch flag, so
       // its launch is always allowed; stock Pi has no restricted mode and keeps the full-access rule.

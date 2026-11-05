@@ -92,7 +92,8 @@ function desktopKeychain(): KeychainSealer | null {
  * key is wrapped by the OS keychain when there is one, otherwise it is a separate 0600 key file.
  */
 export class MarketplaceVault {
-  private envCache: Record<EnvApp, Record<string, string>> | null = null
+  private envCache: { signature: string; envs: Record<EnvApp, Record<string, string>> } | null =
+    null
   private readonly keys: ReturnType<typeof createMasterKeyProvider>
   private readonly sealer: () => KeychainSealer | null
   private readonly hostLabel: string
@@ -251,10 +252,31 @@ export class MarketplaceVault {
     this.envCache = null
   }
 
+  /**
+   * Which files the cache was built from: names, sizes, times and ids only. A write by another
+   * process on this host (a second MassOrca, the CLI) changes it, so a long-lived process still
+   * hands the next launch the new token or profile instead of the one it cached.
+   */
+  private folderSignature(): string {
+    try {
+      return readdirSync(this.dir)
+        .filter((name) => name === 'state.json' || name.endsWith('.enc'))
+        .sort()
+        .map((name) => {
+          const stat = statSync(join(this.dir, name), { bigint: true })
+          return `${name}:${stat.size}:${stat.mtimeNs}:${stat.ino}`
+        })
+        .join('|')
+    } catch {
+      return ''
+    }
+  }
+
   /** Env vars per app, read once until the state or a token changes; never handed out as is. */
   private readAppEnvs(): Record<EnvApp, Record<string, string>> {
-    if (this.envCache) {
-      return this.envCache
+    const signature = this.folderSignature()
+    if (this.envCache?.signature === signature) {
+      return this.envCache.envs
     }
     const state = this.readState()
     const envs: Record<EnvApp, Record<string, string>> = { engram: {}, openmetadata: {} }
@@ -275,7 +297,7 @@ export class MarketplaceVault {
     if (state.engram.serverUrl) {
       envs.engram[ENGRAM_CLOUD_SERVER_ENV] = state.engram.serverUrl
     }
-    this.envCache = envs
+    this.envCache = { signature, envs }
     return envs
   }
 
