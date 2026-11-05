@@ -8,6 +8,8 @@ import { botTeamFolderPath, botTeamVersionDeps } from './bot-team-version-deps'
 import { watchBotTeamTaskFinishes } from './bot-team-version-watcher'
 import { watchBotTeamTaskLastStatus } from './bot-team-task-status-record'
 import { reportFinishedBotTeamTask } from './bot-team-finish-report'
+import { postBotTeamTaskQuestion } from './bot-team-task-question'
+import { readBotTeamSessionReply } from './bot-team-task-session-turns'
 import { botTeamReturnDeps, returnFinishedBotTeamTask } from './bot-team-return'
 import { takeBotTeamSnapshot } from './bot-team-snapshots'
 import type { BotTeamSnapshotDeps } from './bot-team-snapshot-types'
@@ -84,6 +86,11 @@ export function ensureBotTeamVersionWatcher(getDb: () => OrchestrationDb): void 
     }).catch((error: unknown) =>
       console.warn('[bot-teams] reporting a finished task failed', error)
     )
+    // A bot that ended its turn on a question for the person asks it in the room, and its task waits for them.
+    void postBotTeamTaskQuestion(getDb(), sessionId, {
+      settleMs: 3000,
+      lastReplyOf: readBotTeamSessionReply
+    }).catch((error: unknown) => console.warn('[bot-teams] posting a bot question failed', error))
     // A task another team asked for tells that team's room once it is done.
     void returnFinishedBotTeamTask(getDb(), sessionId, botTeamReturnDeps(workspaceId)).catch(
       (error: unknown) => console.warn('[bot-teams] returning a finished task failed', error)

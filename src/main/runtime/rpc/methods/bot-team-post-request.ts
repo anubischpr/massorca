@@ -20,6 +20,8 @@ import {
 import { botTeamScheduledReply } from '../../../bot-teams/bot-team-filed-reply'
 import { replyToBotTeamGreeting } from '../../../bot-teams/bot-team-greeting-reply'
 import { decideBotTeamRequest } from '../../../bot-teams/bot-team-request-flow'
+import { answerWaitingBotTeamTask } from '../../../bot-teams/bot-team-task-answer'
+import { sendBotTeamTaskFollowUp } from '../../../bot-teams/bot-team-task-session-turns'
 import { askDefaultAgentForBotTeamRequest } from '../../../bot-teams/bot-team-request-query'
 import type { BotTeamPrototypeChoice } from '../../../../shared/bot-team-prototype-choice'
 import { keepBotTeamPrototypeChoice } from '../../../bot-teams/bot-team-task-prototype'
@@ -87,6 +89,15 @@ export async function postBotTeamRequestOnHost(
   const team = teams.find((entry) => entry.id === teamId)
   if (!team) {
     return { message, task: null, startError: null }
+  }
+  // A reply to a bot's open question goes to that bot's session, not a new task.
+  const answered = await answerWaitingBotTeamTask(
+    db,
+    { sendToSession: sendBotTeamTaskFollowUp },
+    { teamId, text: typed, attachments }
+  )
+  if (answered) {
+    return { message, task: answered, startError: null }
   }
   // The classify reply also says whether a conversation needs outside knowledge or the project code.
   let classifyReply: string | null = null

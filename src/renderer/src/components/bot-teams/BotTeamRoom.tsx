@@ -13,7 +13,10 @@ import {
   setBotTeamTaskProject,
   startBotTeamTask
 } from '@/runtime/runtime-bot-team-client'
-import { botTeamTaskStatus, type BotTeamTaskStatus } from '../../../../shared/bot-team-task-status'
+import {
+  botTeamTaskStatusIn,
+  type BotTeamTaskStatus
+} from '../../../../shared/bot-team-task-status'
 import { structuredAgentSessionTabId } from '../../../../shared/structured-agent-session-projection'
 import type { BotTeam } from '../../../../shared/rpc-contract/bot-team-params'
 import type {
@@ -261,11 +264,7 @@ export function BotTeamRoom({
 
   // A send with the host shows who is typing; once it returns, the host's reply in flight does.
   const typingAuthor = typing === null ? replying.author : botTeamTypingAuthor(typing, team.bots)
-  const statusOf = (task: BotTeamTask): BotTeamTaskStatus =>
-    botTeamTaskStatus(
-      task.sessionId,
-      task.sessionId === null ? undefined : statuses.get(task.sessionId)
-    )
+  const statusOf = (task: BotTeamTask): BotTeamTaskStatus => botTeamTaskStatusIn(task, statuses)
   // Only a task nobody is working on can change hands.
   const reassignButton = (task: BotTeamTask): React.ReactNode =>
     IDLE_STATUSES.has(statusOf(task)) ? (

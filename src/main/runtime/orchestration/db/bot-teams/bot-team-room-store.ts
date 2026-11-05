@@ -15,6 +15,19 @@ import {
 } from '../../../../../shared/bot-team-room-attachments'
 import { generateId } from '../generated-id'
 import {
+  hasUnstartedBotTeamDelegation,
+  isBotTeamTaskHandedOff,
+  linkBotTeamTaskDelegation,
+  linkDelegatedBotTeamTasks
+} from './bot-team-task-delegation-store'
+import {
+  BOT_TEAM_TASK_WAITING_STORE_METHODS,
+  clearBotTeamTaskWaiting,
+  clearBotTeamTaskWaitingOfSession,
+  withAwaitingPerson,
+  type BotTeamTaskWaitingStoreMethods
+} from './bot-team-task-waiting-store'
+import {
   BOT_TEAM_MEMORY_STORE_METHODS,
   type BotTeamMemoryStoreMethods
 } from './bot-team-memory-store'
@@ -84,37 +97,17 @@ function requireBotTeamTask(db: OrchestrationDb, taskId: string): BotTeamTask {
   if (row === undefined) {
     throw new Error(`Task ${taskId} was not found.`)
   }
-  return BotTeamTaskSchema.parse(row)
+  return withAwaitingPerson(db, [BotTeamTaskSchema.parse(row)])[0]
 }
 
 export function listBotTeamTasks(this: OrchestrationDb, teamId: string): BotTeamTask[] {
   linkDelegatedBotTeamTasks(this)
-  return z
-    .array(BotTeamTaskSchema)
-    .parse(this.db.prepare(`${TASK_SELECT} WHERE team_id = ? ORDER BY rowid`).all(teamId))
-}
-
-/** A delegated task learns its session from its request, once the child has started. */
-function linkDelegatedBotTeamTasks(db: OrchestrationDb): void {
-  db.db.exec(`
-    UPDATE bot_team_tasks SET session_id = (
-      SELECT d.child_session_id FROM delegation_requests d
-      JOIN bot_team_task_delegations l ON l.request_id = d.id
-      WHERE l.task_id = bot_team_tasks.id
-    )
-    WHERE session_id IS NULL
-      AND id IN (SELECT task_id FROM bot_team_task_delegations)
-  `)
-}
-
-export function linkBotTeamTaskDelegation(
-  this: OrchestrationDb,
-  taskId: string,
-  requestId: string
-): void {
-  this.db
-    .prepare('INSERT INTO bot_team_task_delegations (task_id, request_id) VALUES (?, ?)')
-    .run(taskId, requestId)
+  return withAwaitingPerson(
+    this,
+    z
+      .array(BotTeamTaskSchema)
+      .parse(this.db.prepare(`${TASK_SELECT} WHERE team_id = ? ORDER BY rowid`).all(teamId))
+  )
 }
 
 export function setBotTeamTaskSession(
@@ -142,18 +135,10 @@ export function setBotTeamTaskLastStatus(
       'UPDATE bot_team_tasks SET last_status = ? WHERE session_id = ? AND last_status IS NOT ?'
     )
     .run(kept, sessionId, kept)
-}
-
-function hasUnstartedBotTeamDelegation(db: OrchestrationDb, parentSessionId: string): boolean {
-  return (
-    db.db
-      .prepare(
-        `SELECT 1 FROM delegation_requests d
-         JOIN bot_team_task_delegations l ON l.request_id = d.id
-         WHERE d.parent_session_id = ? AND d.status IN ('pending', 'failed', 'cancelled') LIMIT 1`
-      )
-      .get(parentSessionId) !== undefined
-  )
+  // Only a finished turn can wait on the person; working again, a stop or a failure ends the wait.
+  if (kept !== 'Done') {
+    clearBotTeamTaskWaitingOfSession(this, sessionId)
+  }
 }
 
 export function findBotTeamTaskBySession(
@@ -162,7 +147,7 @@ export function findBotTeamTaskBySession(
 ): BotTeamTask | null {
   linkDelegatedBotTeamTasks(this)
   const row = this.db.prepare(`${TASK_SELECT} WHERE session_id = ?`).get(sessionId)
-  return row === undefined ? null : BotTeamTaskSchema.parse(row)
+  return row === undefined ? null : withAwaitingPerson(this, [BotTeamTaskSchema.parse(row)])[0]
 }
 
 export function postBotTeamMessage(
@@ -280,24 +265,14 @@ export function moveBotTeamTask(
     this.db.exec('ROLLBACK')
     throw error
   }
+  // Its new owner starts fresh, so a question the old owner asked is not waiting any more.
+  clearBotTeamTaskWaiting.call(this, taskId)
   return requireBotTeamTask(this, taskId)
 }
 
-/** A teammate's child is on its way: starting the task as well would run it twice. */
-export function isBotTeamTaskHandedOff(this: OrchestrationDb, taskId: string): boolean {
-  return (
-    this.db
-      .prepare(
-        `SELECT 1 FROM bot_team_task_delegations l
-         JOIN delegation_requests d ON d.id = l.request_id
-         WHERE l.task_id = ? AND d.status IN ('pending', 'starting')`
-      )
-      .get(taskId) !== undefined
-  )
-}
-
 export type BotTeamRoomStoreMethods = BotTeamMemoryStoreMethods &
-  BotTeamTrackerStoreMethods & {
+  BotTeamTrackerStoreMethods &
+  BotTeamTaskWaitingStoreMethods & {
     linkBotTeamTaskDelegation: typeof linkBotTeamTaskDelegation
     getBotTeamTask: typeof getBotTeamTask
     isBotTeamTaskHandedOff: typeof isBotTeamTaskHandedOff
@@ -316,21 +291,27 @@ export type BotTeamRoomStoreMethods = BotTeamMemoryStoreMethods &
   }
 
 export function attachBotTeamRoomStore(ctor: { prototype: object }): void {
-  Object.assign(ctor.prototype, BOT_TEAM_MEMORY_STORE_METHODS, BOT_TEAM_TRACKER_STORE_METHODS, {
-    isBotTeamTaskHandedOff,
-    getBotTeamTaskStartNotes,
-    setBotTeamTaskStartNotes,
-    moveBotTeamTask,
-    linkBotTeamTaskDelegation,
-    getBotTeamTask,
-    getBotTeamWorkspace,
-    setBotTeamWorkspace,
-    createBotTeamTask,
-    listBotTeamTasks,
-    setBotTeamTaskSession,
-    setBotTeamTaskLastStatus,
-    findBotTeamTaskBySession,
-    postBotTeamMessage,
-    listBotTeamMessages
-  })
+  Object.assign(
+    ctor.prototype,
+    BOT_TEAM_MEMORY_STORE_METHODS,
+    BOT_TEAM_TRACKER_STORE_METHODS,
+    BOT_TEAM_TASK_WAITING_STORE_METHODS,
+    {
+      isBotTeamTaskHandedOff,
+      getBotTeamTaskStartNotes,
+      setBotTeamTaskStartNotes,
+      moveBotTeamTask,
+      linkBotTeamTaskDelegation,
+      getBotTeamTask,
+      getBotTeamWorkspace,
+      setBotTeamWorkspace,
+      createBotTeamTask,
+      listBotTeamTasks,
+      setBotTeamTaskSession,
+      setBotTeamTaskLastStatus,
+      findBotTeamTaskBySession,
+      postBotTeamMessage,
+      listBotTeamMessages
+    }
+  )
 }

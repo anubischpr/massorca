@@ -36,6 +36,10 @@ export function useBotTeamAttention(teams: readonly BotTeam[]): (teamId: string)
     (answers[botTeamRoomCountsKey(host, teamId)]?.tasks ?? []).some(
       (task) =>
         task.sessionId !== null &&
-        botTeamTaskStatus(task.sessionId, statuses.get(task.sessionId)) === 'Waiting for you'
+        botTeamTaskStatus(
+          task.sessionId,
+          statuses.get(task.sessionId),
+          task.awaitingPerson === true
+        ) === 'Waiting for you'
     )
 }

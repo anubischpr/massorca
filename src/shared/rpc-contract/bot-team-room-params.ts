@@ -22,7 +22,10 @@ export const BotTeamTaskSchema = z.object({
   // The terminal status the host kept for its session; null while the session works or has none yet.
   lastStatus: z.enum(BOT_TEAM_TASK_LAST_STATUSES).nullable().optional(),
   // A routine run started it, so the room shows it at the time it ran; SQLite reads back 0 or 1.
-  fromRoutine: z.coerce.boolean().optional()
+  fromRoutine: z.coerce.boolean().optional(),
+  // The bot ended its turn on a question the room carries; set only while the person owes an answer.
+  // A separate field, not a new `lastStatus` value: a client from before it rejects an unknown one.
+  awaitingPerson: z.boolean().optional()
 })
 
 /** Where a project's code comes from: a repository that exists, or a new folder set up with git. */
