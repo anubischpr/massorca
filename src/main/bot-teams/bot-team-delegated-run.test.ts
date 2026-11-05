@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { OrchestrationDb } from '../runtime/orchestration/db/orchestration-db'
-import { botRunOfDelegatedDispatch } from './bot-team-delegated-run'
+import { botRunOfCallerSession, botRunOfDelegatedDispatch } from './bot-team-delegated-run'
 
 const SYSTEM = { kind: 'system' } as never
 
@@ -160,6 +160,59 @@ describe('botRunOfDelegatedDispatch', () => {
       teamWithRunningTask()
       const child = plainChild('workspace-chat-session', 'child-9')
       expect(botRunOfDelegatedDispatch(db!, child.id)).toBeNull()
+    })
+  })
+
+  describe('botRunOfCallerSession', () => {
+    function runningBotTask() {
+      db = new OrchestrationDb(':memory:')
+      const team = db.createBotTeam({
+        name: 'Marketing',
+        purpose: '',
+        character: 'circle',
+        workspacesEnabled: false,
+        bots: [{ name: 'Ann', job: '', agent: 'claude' }]
+      })
+      const task = db.createBotTeamTask({
+        teamId: team.id,
+        title: 'Flyer',
+        prompt: 'Flyer',
+        ownerBotId: team.bots[0].id
+      })
+      db.setBotTeamTaskSession(task.id, 'ann-session')
+      return { bot: { botId: team.bots[0].id, teamId: team.id } }
+    }
+
+    it('reads the bot from the marker the caller session carries', () => {
+      runningBotTask()
+      const options = { botTeamBotId: 'bob', botTeamId: 't1' }
+      expect(botRunOfCallerSession(db!, 'any-session', () => options)).toEqual({
+        botId: 'bob',
+        teamId: 't1'
+      })
+    })
+
+    it('falls back to the bot task the session runs, or the chain it descends from', () => {
+      const { bot } = runningBotTask()
+      expect(botRunOfCallerSession(db!, 'ann-session', () => undefined)).toEqual(bot)
+      const request = db!.createDelegationRequest({
+        parentSessionId: 'ann-session',
+        title: 'Plain',
+        summary: 'Plain',
+        prompt: 'Plain',
+        writes: false,
+        workspaceKind: 'folder',
+        optionsJson: '{}',
+        decisionJson: null
+      })
+      db!.patchDelegationRequest(request.id, { child_session_id: 'plain-child' })
+      expect(botRunOfCallerSession(db!, 'plain-child', () => undefined)).toEqual(bot)
+    })
+
+    it('names nobody for a caller with no session or one no bot runs', () => {
+      runningBotTask()
+      expect(botRunOfCallerSession(db!, undefined, () => undefined)).toBeNull()
+      expect(botRunOfCallerSession(db!, 'workspace-chat', () => undefined)).toBeNull()
     })
   })
 })

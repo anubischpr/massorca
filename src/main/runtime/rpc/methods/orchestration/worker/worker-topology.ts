@@ -105,6 +105,8 @@ export async function createStructuredWorkerSessionForWorktree(args: {
   dispatchId: string
   /** Where the dispatch's hand-over to a bot teammate is read, so that run keeps its denied apps out. */
   db: Pick<OrchestrationDb, 'db'>
+  /** The bot whose session started the worker directly; a hand-over's own teammate wins over it. */
+  botRun?: { botId: string; teamId: string }
   /** `--model`/`--effort`; the session seeds them exactly as a saved selection is seeded. */
   launchPreferences?: AgentLaunchPreferences
   /** Already resolved against the agent's declared modes, so it never widens the request. */
@@ -124,7 +126,7 @@ export async function createStructuredWorkerSessionForWorktree(args: {
   })
   // Added after narrowing, which keeps only the options a person can pick: the marker is the
   // teammate's (the bot doing the work), so the child's launch denies what that bot is denied.
-  const botRun = botRunOfDelegatedDispatch(args.db, args.dispatchId)
+  const botRun = botRunOfDelegatedDispatch(args.db, args.dispatchId) ?? args.botRun
   const options = botRun ? { ...seeded, ...botRunOptions(botRun) } : seeded
   const created = await createStructuredWorkerSession({
     runtime: args.runtime,

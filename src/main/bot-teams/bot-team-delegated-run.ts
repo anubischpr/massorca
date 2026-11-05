@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import type { OrchestrationDb } from '../runtime/orchestration/db/orchestration-db'
+import { botRunOfOptions } from '../marketplace/marketplace-bot-run-denial'
 
 type BotRun = { botId: string; teamId: string }
 type DbHandle = Pick<OrchestrationDb, 'db'>
@@ -44,17 +45,9 @@ function parentRow(db: DbHandle, sql: string, key: string): string | null {
   return parsed.success ? parsed.data.parent : null
 }
 
-/**
- * The bot a delegated dispatch runs for, or null when it descends from no bot. A hand-over to a
- * teammate runs as that teammate; any other child of a bot's session, however deep, keeps the
- * restrictions of the bot whose session started the chain, so delegating cannot shed them.
- */
-export function botRunOfDelegatedDispatch(db: DbHandle, dispatchId: string): BotRun | null {
-  const teammate = botRow(db, TEAMMATE_OF_DISPATCH_SQL, dispatchId)
-  if (teammate) {
-    return teammate
-  }
-  let session = parentRow(db, PARENT_OF_DISPATCH_SQL, dispatchId)
+/** The bot whose run a session belongs to by the rows alone: its own task, or the chain it descends from. */
+function botRunOfSessionRows(db: DbHandle, start: string | null): BotRun | null {
+  let session = start
   for (let depth = 0; session !== null && depth < MAX_LINEAGE_DEPTH; depth += 1) {
     const bot =
       botRow(db, BOT_OF_TASK_SESSION_SQL, session) ?? botRow(db, BOT_OF_TEAMMATE_CHILD_SQL, session)
@@ -64,4 +57,31 @@ export function botRunOfDelegatedDispatch(db: DbHandle, dispatchId: string): Bot
     session = parentRow(db, PARENT_OF_CHILD_SQL, session)
   }
   return null
+}
+
+/**
+ * The bot a delegated dispatch runs for, or null when it descends from no bot. A hand-over to a
+ * teammate runs as that teammate; any other child of a bot's session, however deep, keeps the
+ * restrictions of the bot whose session started the chain, so delegating cannot shed them.
+ */
+export function botRunOfDelegatedDispatch(db: DbHandle, dispatchId: string): BotRun | null {
+  return (
+    botRow(db, TEAMMATE_OF_DISPATCH_SQL, dispatchId) ??
+    botRunOfSessionRows(db, parentRow(db, PARENT_OF_DISPATCH_SQL, dispatchId))
+  )
+}
+
+/**
+ * The bot a calling session belongs to: the marker its own record carries (every bot run has one),
+ * else the rows that tie it to a bot task. A worker it starts directly inherits this bot.
+ */
+export function botRunOfCallerSession(
+  db: DbHandle,
+  sessionId: string | null | undefined,
+  readOptions: (sessionId: string) => Readonly<Record<string, string>> | undefined
+): BotRun | null {
+  if (!sessionId) {
+    return null
+  }
+  return botRunOfOptions(readOptions(sessionId)) ?? botRunOfSessionRows(db, sessionId)
 }
