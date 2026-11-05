@@ -2,9 +2,18 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, expect, it, vi } from 'vitest'
+import type * as DurableFileWrite from '../durable-file-write'
+import { writeFileDurableSync } from '../durable-file-write'
 import { MobileNotificationDismissalStore } from './mobile-notification-dismissal-store'
+
+vi.mock('../durable-file-write', async (importOriginal) => {
+  const actual = await importOriginal<typeof DurableFileWrite>()
+  return { ...actual, writeFileDurableSync: vi.fn(actual.writeFileDurableSync) }
+})
 const paths: string[] = []
 afterEach(() => {
+  vi.useRealTimers()
+  vi.mocked(writeFileDurableSync).mockClear()
   paths.splice(0).forEach((path) => rmSync(path, { recursive: true, force: true }))
   vi.restoreAllMocks()
 })
@@ -23,6 +32,7 @@ const alert = {
 it('reconciles an old delivered alert after desktop restart and preserves unrelated identities', () => {
   const h = fixture()
   h.store.record({ ...alert, ...shown })
+  h.store.flushPendingWrite()
   const restarted = new MobileNotificationDismissalStore(h.path)
   restarted.record({
     type: 'dismiss',
@@ -30,6 +40,7 @@ it('reconciles an old delivered alert after desktop restart and preserves unrela
     notificationEpoch: 'new',
     notificationSeq: 1
   })
+  restarted.flushPendingWrite()
   const loaded = new MobileNotificationDismissalStore(h.path)
   expect(
     loaded.reconcile([
@@ -72,6 +83,7 @@ it('names the live deliveries a subject can still retire, across a restart', () 
     notificationEpoch: 'e',
     notificationSeq: 4
   })
+  h.store.flushPendingWrite()
   const restarted = new MobileNotificationDismissalStore(h.path)
   expect(restarted.liveDeliveries('subject:').map((entry) => entry.notificationId)).toEqual([
     'subject:prompt:a1'
@@ -114,17 +126,17 @@ it('keeps a record whose origin a newer build wrote, losing only that origin', (
 it('retains in-memory delivery and retirement when durable writes fail', () => {
   const h = fixture()
   mkdirSync(join(h.path, 'mobile-notification-dismissals.json'))
-  expect(() => h.store.record({ ...alert, ...shown })).toThrow()
+  h.store.record({ ...alert, ...shown })
+  expect(() => h.store.flushPendingWrite()).toThrow()
   expect(h.store.liveDeliveries(shown.notificationId)).toHaveLength(1)
-  expect(() =>
-    h.store.record({
-      type: 'dismiss',
-      notificationId: shown.notificationId,
-      notificationEpoch: 'current',
-      notificationSeq: 1,
-      dismissedDelivery: shown
-    })
-  ).toThrow()
+  h.store.record({
+    type: 'dismiss',
+    notificationId: shown.notificationId,
+    notificationEpoch: 'current',
+    notificationSeq: 1,
+    dismissedDelivery: shown
+  })
+  expect(() => h.store.flushPendingWrite()).toThrow()
   expect(h.store.liveDeliveries(shown.notificationId)).toEqual([])
   expect(h.store.reconcile([shown])).toEqual([shown])
 })
@@ -148,4 +160,31 @@ it('a targeted old delivery cannot retire a newer replacement with the same logi
     ['different', 12]
   ])
   expect(h.store.reconcile([shown, { ...shown, notificationSeq: 13 }])).toEqual([shown])
+})
+
+it('coalesces a notification burst into one plain write after the debounce', () => {
+  vi.useFakeTimers()
+  const h = fixture()
+  for (let seq = 1; seq <= 5; seq++) {
+    h.store.record({ ...alert, ...shown, notificationSeq: seq })
+  }
+  expect(writeFileDurableSync).not.toHaveBeenCalled()
+  vi.advanceTimersByTime(250)
+  expect(writeFileDurableSync).toHaveBeenCalledTimes(1)
+  const restarted = new MobileNotificationDismissalStore(h.path)
+  expect(restarted.liveDeliveries().map((entry) => entry.notificationSeq)).toEqual([5])
+})
+
+it('lands debounced entries when the process exits inside the window', () => {
+  vi.useFakeTimers()
+  const h = fixture()
+  h.store.record({ ...alert, ...shown })
+  process.emit('exit', 0)
+  const ownWrites = vi
+    .mocked(writeFileDurableSync)
+    .mock.calls.filter(
+      ([, finalPath]) => finalPath === join(h.path, 'mobile-notification-dismissals.json')
+    )
+  expect(ownWrites).toHaveLength(1)
+  expect(new MobileNotificationDismissalStore(h.path).liveDeliveries()).toEqual([shown])
 })

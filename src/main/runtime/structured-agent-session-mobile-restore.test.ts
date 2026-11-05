@@ -80,6 +80,7 @@ describe('prompt delivery after host recovery', () => {
       notificationSeq: delivered.notificationSeq
     }
     unsubscribe()
+    original.flushDismissalState()
     const restarted = new RuntimeMobileNotificationController()
     restarted.configureDismissalStore(h.root)
     const events: MobileNotificationEvent[] = []
@@ -109,6 +110,7 @@ describe('prompt delivery after host recovery', () => {
       expect(events.filter((event) => event.type === 'dismiss')).toEqual([
         expect.objectContaining({ dismissedDelivery: identity })
       ])
+      restarted.flushDismissalState()
       expect(
         new MobileNotificationDismissalStore(h.root).liveDeliveries(identity.notificationId)
       ).toEqual([])

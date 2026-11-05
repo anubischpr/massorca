@@ -1,11 +1,11 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { isUnreadableError } from '../../shared/secure-file'
 import {
-  writeSecureJsonFile,
-  hardenExistingSecureFile,
-  isUnreadableError
-} from '../../shared/secure-file'
-import { removeStaleDurableWriteTempFiles } from '../durable-file-write'
+  durableWriteTempPath,
+  removeStaleDurableWriteTempFiles,
+  writeFileDurableSync
+} from '../durable-file-write'
 import type { MobileNotificationEvent } from './runtime-mobile-notification-controller'
 import type { DeliveredNotificationIdentity } from '../../shared/mobile-notification-identity'
 import {
@@ -21,17 +21,31 @@ type RecordEntry = DeliveredNotificationRecord & { dismissedThrough: number; exp
 const LIMIT = 4096
 const RETENTION_MS = 7 * 86400_000
 const STALE_WRITE_TEMP_AGE_MS = 86400_000
+/** Notification bursts coalesce into one write of the latest entries. */
+const WRITE_DEBOUNCE_MS = 250
+
+function warnPersistFailed(error: unknown): void {
+  console.warn('[notifications] Could not persist dismissal recovery state', error)
+}
 
 export class MobileNotificationDismissalStore {
   private readonly path: string
   private entries: RecordEntry[] = []
   private unreadable = false
+  private writeTimer: ReturnType<typeof setTimeout> | null = null
+  // Why: a quit inside the debounce window must still land the latest entries.
+  private readonly flushOnExit = (): void => {
+    try {
+      this.flushPendingWrite()
+    } catch (error) {
+      warnPersistFailed(error)
+    }
+  }
   constructor(userDataPath: string) {
     this.path = join(userDataPath, 'mobile-notification-dismissals.json')
     // Why: a write killed between writeFile and rename (e.g. a hung icacls, #20497) orphans its temp forever.
     void removeStaleDurableWriteTempFiles(this.path, { minimumAgeMs: STALE_WRITE_TEMP_AGE_MS })
     try {
-      hardenExistingSecureFile(this.path)
       const value: unknown = JSON.parse(readFileSync(this.path, 'utf8'))
       if (Array.isArray(value)) {
         this.entries = value.flatMap(readEntry).slice(-LIMIT)
@@ -97,8 +111,35 @@ export class MobileNotificationDismissalStore {
     next = next.slice(-LIMIT)
     this.entries = next
     if (!this.unreadable) {
-      writeSecureJsonFile(this.path, next)
+      this.scheduleWrite()
     }
+  }
+
+  /** Writes any debounced entries now; throws when the write fails. */
+  flushPendingWrite(): void {
+    if (!this.writeTimer) {
+      return
+    }
+    clearTimeout(this.writeTimer)
+    this.writeTimer = null
+    process.removeListener('exit', this.flushOnExit)
+    // Why not the secure writer: this holds notification ids, not credentials, and its synchronous
+    // Windows icacls spawns froze every window on each notification (pv85 "Not Responding").
+    writeFileDurableSync(
+      durableWriteTempPath(this.path),
+      this.path,
+      JSON.stringify(this.entries, null, 2),
+      0o600
+    )
+  }
+
+  private scheduleWrite(): void {
+    if (this.writeTimer) {
+      return
+    }
+    process.once('exit', this.flushOnExit)
+    this.writeTimer = setTimeout(this.flushOnExit, WRITE_DEBOUNCE_MS)
+    this.writeTimer.unref?.()
   }
 
   liveDeliveries(prefix = ''): DeliveredNotificationRecord[] {

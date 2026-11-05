@@ -9,14 +9,21 @@ import {
   type SecurePathHardeningReport
 } from './secure-path-hardening-report'
 import { localDomainSidOf, parseSddlDacl } from './windows-security-descriptor'
+import {
+  lookupWindowsUserSidSync,
+  peekCachedWindowsUserSid,
+  peekWindowsUserSid,
+  resetWindowsUserSidForTests,
+  resolveWindowsUserSid
+} from './windows-user-sid'
+
+export { resolveWindowsUserSid } from './windows-user-sid'
 
 const ACL_TIMEOUT_MS = 5000
 
 /** SYSTEM and the local Administrators group: they can take ownership regardless, so denying them buys nothing. */
 const LOCAL_SYSTEM_SID = 'S-1-5-18'
 const BUILTIN_ADMINISTRATORS_SID = 'S-1-5-32-544'
-
-const WINDOWS_SID_PATTERN = /^S-1-\d+(?:-\d+)+$/
 
 type AclPlan = {
   program: string
@@ -151,12 +158,21 @@ function toIcaclsPath(targetPath: string): string {
   return targetPath
 }
 
+/** Why monotonic: a backwards wall-clock step must not stretch a cooldown or skew a duration. */
+const monotonicNowMs = (): number => performance.now()
+
 function report(
   targetPath: string,
   stage: SecurePathHardeningReport['stage'],
-  detail: string
+  detail: string,
+  startedAtMs?: number
 ): void {
-  reportSecurePathHardening(targetPath, stage, detail)
+  reportSecurePathHardening(
+    targetPath,
+    stage,
+    detail,
+    startedAtMs === undefined ? undefined : monotonicNowMs() - startedAtMs
+  )
 }
 
 /**
@@ -168,17 +184,12 @@ export function bestEffortRestrictWindowsPath(
   isDirectory: boolean,
   onSettled?: (restricted: boolean) => void
 ): void {
-  const plan = planFor(targetPath, isDirectory)
-  if (!plan) {
-    onSettled?.(false)
-    return
-  }
   // Why async: hardening runs on the read path, and blocking it on a spawn stormed the main thread (#4901).
   // Why both arms and a terminal catch: a bare `void p.then(fn)` makes a rejected `restrictAsync`
   // *and* a throw from `onSettled` itself an unhandled rejection, which Node's default turns into
   // a main-process crash — the exact opposite of what the reporter hook exists for. `false` is the
   // right value on the error arm: it drops the path from the caller's cache and leaves it retryable.
-  void restrictAsync(targetPath, plan)
+  void restrictAsync(targetPath, isDirectory)
     .then(onSettled, () => onSettled?.(false))
     .catch((error: unknown) => reportSettlementThrow(targetPath, error))
 }
@@ -195,7 +206,15 @@ function reportSettlementThrow(targetPath: string, error: unknown): void {
   }
 }
 
-async function restrictAsync(targetPath: string, plan: AclPlan): Promise<boolean> {
+async function restrictAsync(targetPath: string, isDirectory: boolean): Promise<boolean> {
+  const startedAt = monotonicNowMs()
+  // A cached SID skips the await so the first icacls starts on this tick.
+  const currentUserSid = peekCachedWindowsUserSid() ?? (await resolveWindowsUserSid())
+  if (!currentUserSid) {
+    report(targetPath, 'sid-lookup', 'could not resolve the current user SID', startedAt)
+    return false
+  }
+  const plan = buildAclPlan(targetPath, currentUserSid, isDirectory)
   // Verify first: a path that already reads back correct needs no write at all. Re-running
   // `/reset` on a correct DACL would briefly restore the inherited (broader) one for no gain.
   if ((await verifyAsync(plan)) === null) {
@@ -208,17 +227,17 @@ async function restrictAsync(targetPath: string, plan: AclPlan): Promise<boolean
     try {
       const result = await runProcess({ program: plan.program, args, timeoutMs: ACL_TIMEOUT_MS })
       if (result.code !== 0) {
-        report(targetPath, stage, result.stderr || `icacls exited ${result.code}`)
+        report(targetPath, stage, result.stderr || `icacls exited ${result.code}`, startedAt)
         return false
       }
     } catch (error) {
-      report(targetPath, stage, String(error))
+      report(targetPath, stage, String(error), startedAt)
       return false
     }
   }
   const invalid = await verifyAsync(plan)
   if (invalid) {
-    report(targetPath, 'verify', invalid)
+    report(targetPath, 'verify', invalid, startedAt)
     return false
   }
   return true
@@ -240,47 +259,103 @@ async function verifyAsync(plan: AclPlan): Promise<string | null> {
   }
 }
 
+/** A single write-path icacls call past this means the host spawns too slowly to block on. */
+const SYNC_LANE_STALL_MS = 1_000
+/** Why host-wide: a stall is process-start latency (Defender/EDR), which no single path causes. */
+const SYNC_LANE_COOLDOWN_MS = 30 * 60_000
+let syncLaneTrippedAt: number | null = null
+let lastSyncCallTimedOut = false
+
+/**
+ * Whether the write path may spawn icacls on the calling thread. False until the user SID is known
+ * (the lookup itself runs async) and for a cooldown after any synchronous call stalled, so a slow
+ * host freezes the window at most once instead of on every write (pv85 "Not Responding").
+ */
+export function isWindowsSyncAclLaneAvailable(): boolean {
+  if (syncLaneTrippedAt !== null) {
+    if (monotonicNowMs() - syncLaneTrippedAt < SYNC_LANE_COOLDOWN_MS) {
+      return false
+    }
+    syncLaneTrippedAt = null
+  }
+  return peekWindowsUserSid() !== null
+}
+
+/**
+ * Blocks until the path is restricted, resolving the SID on this thread when it is not cached.
+ * Callers that must block (orcad refusing a shared data root) use it directly; the desktop write
+ * path enters only through `isWindowsSyncAclLaneAvailable`, so it never waits on whoami.
+ */
 export function restrictWindowsPathSync(targetPath: string, isDirectory: boolean): boolean {
-  const plan = planFor(targetPath, isDirectory)
-  if (!plan) {
+  const startedAt = monotonicNowMs()
+  const currentUserSid = peekCachedWindowsUserSid() ?? lookupWindowsUserSidSync()
+  if (!currentUserSid) {
+    report(targetPath, 'sid-lookup', 'could not resolve the current user SID', startedAt)
     return false
   }
+  const plan = buildAclPlan(targetPath, currentUserSid, isDirectory)
   // Why sync: the file must not be published until its ACL is actually restricted (read path stays async, #4901).
-  if (verifySync(plan) === null) {
+  if (verifySync(plan, targetPath, startedAt) === null) {
     return true
   }
   for (const [stage, args] of [
     ['reset', plan.resetArgs],
     ['grant', plan.grantArgs]
   ] as const) {
+    // A timed-out verify means icacls never ran; the next pass would only spend another timeout.
+    if (lastSyncCallTimedOut) {
+      return false
+    }
     try {
-      const result = runProcessSync({ program: plan.program, args, timeoutMs: ACL_TIMEOUT_MS })
+      const result = runIcaclsSync(plan, args, targetPath, startedAt)
       if (result.code !== 0) {
-        report(targetPath, stage, result.stderr || `icacls exited ${result.code}`)
+        report(targetPath, stage, result.stderr || `icacls exited ${result.code}`, startedAt)
         return false
       }
     } catch (error) {
       // Why not fatal: a failed ACL apply must not crash the write; false leaves the path uncached to retry later.
-      report(targetPath, stage, String(error))
+      report(targetPath, stage, String(error), startedAt)
       return false
     }
   }
-  const invalid = verifySync(plan)
+  const invalid = verifySync(plan, targetPath, startedAt)
   if (invalid) {
-    report(targetPath, 'verify', invalid)
+    report(targetPath, 'verify', invalid, startedAt)
     return false
   }
   return true
 }
 
-function verifySync(plan: AclPlan): string | null {
+function runIcaclsSync(
+  plan: AclPlan,
+  args: string[],
+  targetPath: string,
+  startedAt: number
+): ReturnType<typeof runProcessSync> {
+  const callStartedAt = monotonicNowMs()
+  lastSyncCallTimedOut = false
+  try {
+    const result = runProcessSync({ program: plan.program, args, timeoutMs: ACL_TIMEOUT_MS })
+    lastSyncCallTimedOut = result.timedOut
+    return result
+  } finally {
+    const elapsed = monotonicNowMs() - callStartedAt
+    if (elapsed >= SYNC_LANE_STALL_MS && syncLaneTrippedAt === null) {
+      syncLaneTrippedAt = monotonicNowMs()
+      report(
+        targetPath,
+        'sync-lane-tripped',
+        `icacls took ${Math.round(elapsed)} ms; later writes restrict off the main thread`,
+        startedAt
+      )
+    }
+  }
+}
+
+function verifySync(plan: AclPlan, targetPath: string, startedAt: number): string | null {
   const savePath = sddlSavePath()
   try {
-    const result = runProcessSync({
-      program: plan.program,
-      args: verifyArgs(plan, savePath),
-      timeoutMs: ACL_TIMEOUT_MS
-    })
+    const result = runIcaclsSync(plan, verifyArgs(plan, savePath), targetPath, startedAt)
     return evaluateSavedAcl(plan, result, savePath)
   } catch (error) {
     return String(error)
@@ -297,62 +372,8 @@ function discard(savePath: string): void {
   }
 }
 
-function planFor(targetPath: string, isDirectory: boolean): AclPlan | null {
-  const currentUserSid = getCurrentWindowsUserSid()
-  if (!currentUserSid) {
-    report(targetPath, 'sid-lookup', 'could not resolve the current user SID')
-    return null
-  }
-  return buildAclPlan(targetPath, currentUserSid, isDirectory)
-}
-
-let cachedWindowsUserSid: string | null = null
-let sidLookupFailedAt: number | null = null
-const SID_LOOKUP_RETRY_MS = 60_000
-
-/**
- * Why monotonic and not `Date.now`: a backwards wall-clock step held this window open until the
- * clock caught up, and this latch is worse than the read-path budget's — a failed lookup makes
- * `planFor` return null, which disables the synchronous *write* path too, so the write-path
- * exemption that recovers from that one cannot recover from this.
- */
-const monotonicNowMs = (): number => performance.now()
-
-/**
- * Only a well-formed SID is cached for the process lifetime. A failure is cached for a minute:
- * caching it forever let one transient `whoami` hiccup disable hardening until restart.
- */
-function getCurrentWindowsUserSid(): string | null {
-  if (cachedWindowsUserSid) {
-    return cachedWindowsUserSid
-  }
-  if (sidLookupFailedAt !== null && monotonicNowMs() - sidLookupFailedAt < SID_LOOKUP_RETRY_MS) {
-    return null
-  }
-  try {
-    const result = runProcessSync({
-      program: windowsSystem32Binary('whoami.exe'),
-      args: ['/user', '/fo', 'csv', '/nh'],
-      timeoutMs: ACL_TIMEOUT_MS
-    })
-    const candidate = result.code === 0 ? parseCsvLine(result.stdout.trim())[1] : undefined
-    if (candidate && WINDOWS_SID_PATTERN.test(candidate)) {
-      cachedWindowsUserSid = candidate
-      sidLookupFailedAt = null
-      return candidate
-    }
-  } catch {
-    // Fall through to the failure record below.
-  }
-  sidLookupFailedAt = monotonicNowMs()
-  return null
-}
-
-function parseCsvLine(line: string): string[] {
-  return line.split(/","/).map((part) => part.replace(/^"/, '').replace(/"$/, ''))
-}
-
 export function resetSecureFileWindowsUserSidForTests(): void {
-  cachedWindowsUserSid = null
-  sidLookupFailedAt = null
+  resetWindowsUserSidForTests()
+  syncLaneTrippedAt = null
+  lastSyncCallTimedOut = false
 }
