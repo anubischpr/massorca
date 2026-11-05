@@ -25,8 +25,6 @@ type RepositoryGitHubAccountSectionProps = {
   repo: Repo
   updateRepo: (repoId: string, updates: { ghAccount?: GhAccountBinding | null }) => unknown
   forceVisible?: boolean
-  /** Drops the heading and description; the Marketplace project rows already name the repo. */
-  compact?: boolean
 }
 
 function accountKey(host: string, user: string): string {
@@ -39,8 +37,7 @@ const AMBIENT_VALUE = '__ambient_gh_login__'
 export function RepositoryGitHubAccountSection({
   repo,
   updateRepo,
-  forceVisible,
-  compact = false
+  forceVisible
 }: RepositoryGitHubAccountSectionProps): React.JSX.Element | null {
   const settings = useAppStore((state) => state.settings)
   const [inventory, setInventory] = useState<GhAccountBindingInventory | null>(null)
@@ -201,24 +198,22 @@ export function RepositoryGitHubAccountSection({
       className="space-y-3"
       forceVisible={forceVisible}
     >
-      {compact ? null : (
-        <div className="flex items-start justify-between gap-4">
-          <div className="min-w-0 space-y-1">
-            <div className="text-sm font-semibold">
-              {translate(
-                'auto.components.settings.RepositoryGitHubAccountSection.title',
-                'GitHub Account'
-              )}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {translate(
-                'auto.components.settings.RepositoryGitHubAccountSection.longDescription',
-                'MassOrca injects a short-lived token from the selected keyring login into each gh call for this project, and pins the repository’s git config to it. Project View stays on the ambient login.'
-              )}
-            </p>
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0 space-y-1">
+          <div className="text-sm font-semibold">
+            {translate(
+              'auto.components.settings.RepositoryGitHubAccountSection.title',
+              'GitHub Account'
+            )}
           </div>
+          <p className="text-xs text-muted-foreground">
+            {translate(
+              'auto.components.settings.RepositoryGitHubAccountSection.longDescription',
+              'MassOrca injects a short-lived token from the selected keyring login into each gh call for this project, and pins the repository’s git config to it. Project View stays on the ambient login.'
+            )}
+          </p>
         </div>
-      )}
+      </div>
 
       <div className="space-y-1.5">
         <div className="flex items-center gap-1">
