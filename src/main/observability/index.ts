@@ -177,7 +177,13 @@ export function initObservability(options?: { traceFilePath?: string }): Observa
 function installSecurePathHardeningReporter(): void {
   setSecurePathHardeningReporter((entry) => {
     const span = startSpan('secure-path.windows-acl', {
-      attributes: { targetPath: entry.targetPath, stage: entry.stage, detail: entry.detail }
+      attributes: {
+        targetPath: entry.targetPath,
+        stage: entry.stage,
+        detail: entry.detail,
+        // The span itself is zero-length; this is how long the path's restriction ran.
+        ...(entry.durationMs === undefined ? {} : { durationMs: entry.durationMs })
+      }
     })
     if (entry.stage === 'recovered') {
       span.end()
