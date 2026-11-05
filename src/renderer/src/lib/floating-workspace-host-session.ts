@@ -72,14 +72,15 @@ export function launchAgentOnHostWorkspace(
   showWhenHostPublishes(worktreeId, knownTabIds)
 }
 
-function knownSessionTabIds(worktreeId: string): Set<string> {
+/** The workspace's tab ids before a launch, so the launch's own tab can be told apart. */
+export function knownSessionTabIds(worktreeId: string): Set<string> {
   return new Set(
     (useAppStore.getState().unifiedTabsByWorktree[worktreeId] ?? []).map((tab) => tab.id)
   )
 }
 
 /** Shows the host's new session once its own tab id arrives; a provisional local id would be replaced. */
-function showWhenHostPublishes(
+export function showWhenHostPublishes(
   worktreeId: string,
   knownTabIds: ReadonlySet<string>,
   options: { endsSessionOnClose?: boolean } = {}

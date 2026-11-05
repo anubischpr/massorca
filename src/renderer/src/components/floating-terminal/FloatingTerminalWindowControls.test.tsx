@@ -9,6 +9,7 @@ import {
 } from '@/lib/floating-workspace-host'
 import { FloatingTerminalWindowControls } from './FloatingTerminalWindowControls'
 import { FloatingHostSelect } from './host/FloatingHostSelect'
+import { useFloatingCreateSessionStore } from './create-session/floating-create-session-store'
 
 type ReactElementLike = {
   type: unknown
@@ -362,16 +363,18 @@ describe('FloatingTerminalWindowControls host selection', () => {
     expect(hasHostSelect(renderHeader())).toBe(true)
   })
 
-  it('opens the Workspaces create flow on a paired host so the session lands in its workspace list', () => {
+  it('opens the create screen inside the floating panel on a paired host, not in the main window', () => {
     pairServer({
       chosen: VPS,
       focusedWorkspace: REMOTE_WORKSPACE,
       owner: { [REMOTE_WORKSPACE]: VPS }
     })
+    useFloatingCreateSessionStore.getState().setOpen(false)
 
     clickLaunch()
 
-    expect(mocks.openCreateChatPage).toHaveBeenCalledOnce()
+    expect(useFloatingCreateSessionStore.getState().open).toBe(true)
+    expect(mocks.openCreateChatPage).not.toHaveBeenCalled()
     expect(mocks.launchAgentInNewTab).not.toHaveBeenCalled()
     expect(mocks.showSessionInFloatingWorkspace).not.toHaveBeenCalled()
     expect(mocks.createTab).not.toHaveBeenCalled()

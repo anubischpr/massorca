@@ -36,6 +36,8 @@ type CreateChatSessionProps = {
   below?: ReactNode
   /** Keeps unsent text when the person clicks away; see useComposerDraft. */
   draftKey?: string
+  /** The first selection, for a caller that preselects; absent uses the composer's defaults. */
+  initialSelection?: CreateChatSelection
 }
 
 /** One create-chat draft; its choices reset with the page's nonce, its unsent text is kept. */
@@ -47,10 +49,11 @@ export function CreateChatSession({
   subheading,
   layout = 'centered',
   aboveComposer,
-  below
+  below,
+  initialSelection
 }: CreateChatSessionProps): React.JSX.Element {
-  const [selection, setSelection] = useState<CreateChatSelection>(() =>
-    buildDefaultCreateChatSelection(options)
+  const [selection, setSelection] = useState<CreateChatSelection>(
+    () => initialSelection ?? buildDefaultCreateChatSelection(options)
   )
   const [draft, setDraft, clearDraft] = useComposerDraft(draftKey ?? null)
   const [pending, setPending] = useState(false)

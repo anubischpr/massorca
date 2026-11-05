@@ -20,6 +20,7 @@ import {
   FLOATING_HOST_NO_WORKSPACE_REASON,
   FLOATING_HOST_THIS_COMPUTER
 } from '@/lib/floating-workspace-host'
+import { useFloatingCreateSessionStore } from './create-session/floating-create-session-store'
 import { FloatingHostSelect } from './host/FloatingHostSelect'
 import { useFloatingHostSelection } from './host/use-floating-host-selection'
 
@@ -49,7 +50,6 @@ export function FloatingTerminalWindowControls({
   const piRuntime = usePiDisplayRuntime({ enabled: defaultTuiAgent === 'pi' })
   const setActiveTabForWorktree = useAppStore((s) => s.setActiveTabForWorktree)
   const activateTab = useAppStore((s) => s.activateTab)
-  const openCreateChatPage = useAppStore((s) => s.openCreateChatPage)
   const maximizeShortcutLabel = useOptionalShortcutLabel('floatingWorkspace.maximize')
   const minimizeShortcutLabel = useOptionalShortcutLabel('floatingWorkspace.minimize')
   const hostSelection = useFloatingHostSelection()
@@ -75,9 +75,9 @@ export function FloatingTerminalWindowControls({
       return
     }
     if (selectedHost !== FLOATING_HOST_THIS_COMPUTER) {
-      // Why: a host session started from here missed the workspace's session list; the Workspaces
-      // create flow is the one path that lands it there.
-      openCreateChatPage()
+      // Why: a host session started from here missed the workspace's session list; the create
+      // screen, drawn in this panel, is the one path that lands it there.
+      useFloatingCreateSessionStore.getState().setOpen(true)
       return
     }
     // Why: the shared launcher owns the startup plan, the route and the tab identity, so this
@@ -114,14 +114,7 @@ export function FloatingTerminalWindowControls({
     setActiveTabForWorktree(FLOATING_TERMINAL_WORKTREE_ID, result.surface.tabId)
     activateTab(result.surface.tabId)
     focusTerminalTabSurface(result.surface.tabId)
-  }, [
-    activateTab,
-    defaultAgent,
-    defaultAgentLabel,
-    openCreateChatPage,
-    selectedHost,
-    setActiveTabForWorktree
-  ])
+  }, [activateTab, defaultAgent, defaultAgentLabel, selectedHost, setActiveTabForWorktree])
 
   return (
     <div className="flex items-center gap-1 px-2" data-floating-terminal-no-drag>
