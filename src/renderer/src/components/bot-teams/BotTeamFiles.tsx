@@ -75,7 +75,7 @@ function OpenFile({
         </Button>
         <span className="min-w-0 truncate">{file.relativePath}</span>
       </BotTeamFilesBar>
-      <div className="scrollbar-sleek min-h-0 flex-1 overflow-y-auto p-5">
+      <div className="scrollbar-sleek flex min-h-0 flex-1 flex-col overflow-y-auto p-5">
         <BotTeamFilePreview
           teamId={teamId}
           relativePath={file.relativePath}

@@ -1,5 +1,5 @@
 import { validatePathExistenceBatch } from '../../shared/path-existence-batch'
-import { ipcMain, shell, dialog } from 'electron'
+import { BrowserWindow, ipcMain, shell, dialog } from 'electron'
 import { constants, copyFile, readFile, stat } from 'node:fs/promises'
 import { basename, extname, isAbsolute, normalize, posix, win32 } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -244,10 +244,13 @@ export function registerShellHandlers(store: Store): void {
 
   // Why: a separate plural handler, like repos:pickFolder/pickFolders — callers that
   // must take exactly one file (the notebook interpreter picker) keep pickAttachment.
-  ipcMain.handle('shell:pickAttachments', async (): Promise<string[]> => {
-    const result = await dialog.showOpenDialog({
-      properties: ['openFile', 'multiSelections']
-    })
+  ipcMain.handle('shell:pickAttachments', async (event): Promise<string[]> => {
+    const options: Electron.OpenDialogOptions = { properties: ['openFile', 'multiSelections'] }
+    // An unparented dialog opens slowly on Windows and loses the window's Quick Access view.
+    const parent = event?.sender ? BrowserWindow.fromWebContents(event.sender) : null
+    const result = parent
+      ? await dialog.showOpenDialog(parent, options)
+      : await dialog.showOpenDialog(options)
     return result.canceled ? [] : result.filePaths
   })
 
