@@ -146,22 +146,48 @@ describe('GitHubAccountsCard', () => {
     expect(container.textContent).toContain('Update it to 2.40 or newer')
   })
 
-  it('offers Remove only on the active keyring account, and removes it after a confirmation', async () => {
+  it('offers Remove on every keyring account, and removes an inactive one after a confirmation', async () => {
+    mocks.listHostBindableAccounts.mockResolvedValue({
+      capability: 'supported',
+      accounts: [
+        account('personal', { active: true }),
+        account('work'),
+        account('side'),
+        account('ci', { source: 'env', envToken: 'GH_TOKEN' })
+      ]
+    })
     const container = await renderCard()
-    const removeButtons = [...container.querySelectorAll('button')].filter(
+    const removeButtons = [...container.querySelectorAll<HTMLButtonElement>('li button')].filter(
       (button) => button.textContent?.trim() === 'Remove'
     )
-    expect(removeButtons).toHaveLength(1)
+    expect(removeButtons).toHaveLength(3)
+    const rowOfCi = [...container.querySelectorAll('li')].find((li) =>
+      li.textContent?.includes('ci')
+    )
+    expect(rowOfCi?.textContent).not.toContain('Remove')
     await act(async () => {
-      removeButtons[0]?.click()
+      removeButtons[2]?.click()
     })
     expect(mocks.removeAccount).not.toHaveBeenCalled()
+    expect(document.body.textContent).toContain('Remove side from this computer?')
+    await act(async () => {
+      submitDialog()
+    })
+    expect(mocks.removeAccount).toHaveBeenCalledWith({ host: 'github.com', user: 'side' })
+    expect(mocks.listHostBindableAccounts).toHaveBeenCalledTimes(2)
+  })
+
+  it('removes the active account after a confirmation', async () => {
+    const container = await renderCard()
+    const firstRow = container.querySelector('li')
+    await act(async () => {
+      buttonByText(firstRow ?? container, 'Remove')?.click()
+    })
     expect(document.body.textContent).toContain('Remove personal from this computer?')
     await act(async () => {
       submitDialog()
     })
     expect(mocks.removeAccount).toHaveBeenCalledWith({ host: 'github.com', user: 'personal' })
-    expect(mocks.listHostBindableAccounts).toHaveBeenCalledTimes(2)
   })
 
   it('keeps the account when the removal is cancelled', async () => {

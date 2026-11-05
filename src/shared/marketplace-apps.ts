@@ -305,7 +305,8 @@ export const MARKETPLACE_INTEGRATION_LEVELS: Record<
     claude: 'full',
     codex: 'full',
     antigravity: 'tools-only',
-    'gentle-shell': 'tools-only'
+    // Why: Gentle Shell's own Engram is part of its ODD harness.
+    'gentle-shell': 'full'
   },
   openmetadata: {
     claude: 'full',

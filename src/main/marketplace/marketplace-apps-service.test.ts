@@ -157,6 +157,16 @@ describe('Engram', () => {
     expect(vault.buildAgentEnv()).toEqual({})
   })
 
+  it('reports Gentle Shell as fully integrated with Engram, like Claude Code and Codex', async () => {
+    const engram = (await service().listApps()).find((app) => app.id === 'engram')
+    expect(engram?.agents.map((agent) => [agent.agent, agent.level])).toEqual([
+      ['claude', 'full'],
+      ['codex', 'full'],
+      ['antigravity', 'tools-only'],
+      ['gentle-shell', 'full']
+    ])
+  })
+
   it('drops the stored token when the server changes without a new one', async () => {
     await service().setEngramServer({ url: 'https://engram.example.com', token: TOKEN })
     await service().setEngramServer({ url: 'https://engram.example.com' })

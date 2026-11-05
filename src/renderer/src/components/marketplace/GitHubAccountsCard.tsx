@@ -132,7 +132,21 @@ function AccountList({
               </Badge>
             ) : null}
             {account.source === 'keyring' && canManage ? (
-              account.active ? (
+              <div className="flex shrink-0 items-center gap-1">
+                {account.active ? null : (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    disabled={pendingKey !== null}
+                    onClick={() => void onMakeActive(account)}
+                  >
+                    {translate(
+                      'auto.components.marketplace.GitHubAccountsCard.makeActive',
+                      'Make active'
+                    )}
+                  </Button>
+                )}
                 <Button
                   type="button"
                   variant="ghost"
@@ -142,20 +156,7 @@ function AccountList({
                 >
                   {translate('auto.components.marketplace.GitHubAccountsCard.remove', 'Remove')}
                 </Button>
-              ) : (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  disabled={pendingKey !== null}
-                  onClick={() => void onMakeActive(account)}
-                >
-                  {translate(
-                    'auto.components.marketplace.GitHubAccountsCard.makeActive',
-                    'Make active'
-                  )}
-                </Button>
-              )
+              </div>
             ) : null}
           </li>
         ))}

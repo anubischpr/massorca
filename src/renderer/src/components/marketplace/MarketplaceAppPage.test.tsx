@@ -267,6 +267,27 @@ describe('MarketplaceAppPage', () => {
     })
   })
 
+  it("shows Gentle Shell's own Engram as Full integration", async () => {
+    seedApps([
+      {
+        ...engram,
+        agents: [
+          ...engram.agents.slice(0, 3),
+          { agent: 'gentle-shell', level: 'full', entry: 'built-in' }
+        ]
+      },
+      openmetadata,
+      github
+    ])
+    const container = await mount('engram')
+    const rows = [...sectionOf(container, 'information').querySelectorAll('li')].map(
+      (row) => row.textContent ?? ''
+    )
+    expect(rows[3]).toContain('Gentle Shell')
+    expect(rows[3]).toContain('Full integration')
+    expect(rows[3]).toContain('Built into its harness')
+  })
+
   it('shows each agent with its integration level or Built in in Information', async () => {
     const container = await mount('engram')
     const rows = [...sectionOf(container, 'information').querySelectorAll('li')].map(
