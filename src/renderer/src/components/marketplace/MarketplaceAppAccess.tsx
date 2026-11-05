@@ -1,18 +1,22 @@
 import { useState } from 'react'
+import { useBotTeams } from '@/components/bot-teams/use-bot-teams'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { translate } from '@/i18n/i18n'
 import {
   MARKETPLACE_ACCESS_MODES,
+  MARKETPLACE_AGENT_DENIAL_UNSUPPORTED_MESSAGE,
   everyoneAccessPolicy,
   type MarketplaceAccessMode,
-  type MarketplaceAppAccessPolicy
+  type MarketplaceAppAccessPolicy,
+  type MarketplaceBotAccess
 } from '../../../../shared/marketplace-apps'
 import type { MarketplaceAppContext } from './marketplace-app-context'
 import { MarketplaceAppAccessAgents } from './MarketplaceAppAccessAgents'
-import { withAgentMode } from './MarketplaceAppAccessEdit'
+import { MarketplaceAppAccessBots } from './MarketplaceAppAccessBots'
+import { withAgentMode, withBotMode, withUnsupportedBotsKept } from './MarketplaceAppAccessEdit'
 
-/** Who may use the app: every Workspaces agent by default; bots keep the stored policy for later. */
+/** Who may use the app: everyone by default; a limit here narrows agents and bots. */
 export function MarketplaceAppAccess({ ctx }: { ctx: MarketplaceAppContext }): React.JSX.Element {
   const policy = ctx.status.access ?? everyoneAccessPolicy()
   const [saving, setSaving] = useState(false)
@@ -22,6 +26,17 @@ export function MarketplaceAppAccess({ ctx }: { ctx: MarketplaceAppContext }): R
     void ctx
       .runInline((api) => api.setAccessPolicy({ id: ctx.appId, policy: next }))
       .finally(() => setSaving(false))
+  }
+  const { teams } = useBotTeams()
+  const [heldBack, setHeldBack] = useState(false)
+  const saveBots = (next: MarketplaceBotAccess): void => {
+    const kept = teams
+      ? withUnsupportedBotsKept(policy, next, teams)
+      : { bots: next, heldBack: false }
+    setHeldBack(kept.heldBack)
+    if (kept.bots) {
+      save({ ...policy, bots: kept.bots })
+    }
   }
   const noAgentPicked = policy.agents.mode === 'only' && policy.agents.ids.length === 0
   return (
@@ -33,7 +48,7 @@ export function MarketplaceAppAccess({ ctx }: { ctx: MarketplaceAppContext }): R
         <CardDescription>
           {translate(
             'auto.components.marketplace.MarketplaceAppAccess.intro',
-            'By default every Workspaces agent can use {{app}}. Limit it here only if you need to.',
+            'By default every agent and bot can use {{app}}. Limit it here only if you need to.',
             { app: ctx.info.name }
           )}
         </CardDescription>
@@ -78,6 +93,39 @@ export function MarketplaceAppAccess({ ctx }: { ctx: MarketplaceAppContext }): R
                 {translate(
                   'auto.components.marketplace.MarketplaceAppAccess.githubNote',
                   'For GitHub this only changes what MassOrca shows. It does not change what agents can reach.'
+                )}
+              </p>
+            ) : null}
+          </div>
+          <div className="flex flex-col gap-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-sm font-medium">
+                {translate('auto.components.marketplace.MarketplaceAppAccess.bots', 'Bot teams')}
+              </p>
+              <AccessModeToggle
+                label={translate(
+                  'auto.components.marketplace.MarketplaceAppAccess.botsMode',
+                  'Bot teams: who can use it'
+                )}
+                mode={policy.bots.mode}
+                disabled={saving}
+                onChange={(mode) => saveBots(withBotMode(policy.bots, mode))}
+              />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {translate(
+                'auto.components.marketplace.MarketplaceAppAccess.botsHelp',
+                'Pick Only these or All except to choose bots or whole teams.'
+              )}
+            </p>
+            {policy.bots.mode === 'everyone' ? null : (
+              <MarketplaceAppAccessBots bots={policy.bots} disabled={saving} onChange={saveBots} />
+            )}
+            {heldBack ? (
+              <p role="status" className="text-xs text-muted-foreground">
+                {translate(
+                  'auto.shared.marketplace-apps.agentDenialUnsupported',
+                  MARKETPLACE_AGENT_DENIAL_UNSUPPORTED_MESSAGE
                 )}
               </p>
             ) : null}

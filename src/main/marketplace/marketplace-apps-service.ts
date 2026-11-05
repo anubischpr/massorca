@@ -276,7 +276,8 @@ export function createMarketplaceAppsService(
           return INVALID
         }
         const state = vault.readState()
-        if (args.url === null) {
+        // Why: the stored token was given for one server; a new address without one must not inherit it.
+        if (args.url === null || (!args.token && args.url !== state.engram.serverUrl)) {
           vault.deleteToken({ kind: 'engram-cloud' })
         } else if (args.token && !vault.writeToken({ kind: 'engram-cloud' }, args.token)) {
           return VAULT_UNAVAILABLE

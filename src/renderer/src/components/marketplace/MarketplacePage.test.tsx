@@ -62,6 +62,10 @@ vi.mock('../skills/SkillInstallDialog', () => ({
   SkillInstallDialog: (props: { open: boolean; initialLink: string }) =>
     props.open ? <div data-testid="skill-install">{props.initialLink}</div> : null
 }))
+vi.mock('../skills/use-skill-install-detected-agents', () => ({
+  useSkillInstallDetectedAgents: () => ['claude']
+}))
+vi.mock('@/runtime/runtime-bot-team-client', () => ({ listBotTeams: () => Promise.resolve([]) }))
 
 const { createTestStore, seedStore } = await import('../../store/slices/store-test-helpers')
 const store = createTestStore()
@@ -187,7 +191,11 @@ describe('MarketplacePage', () => {
       marketplaceSection: 'all',
       marketplaceSelectedItemId: null,
       settings: getDefaultSettings('/tmp'),
-      preflightStatus: { git: { installed: true }, gh: { installed: true, authenticated: false } },
+      preflightStatus: {
+        git: { installed: true },
+        gh: { installed: true, authenticated: false },
+        glab: { installed: false, authenticated: false }
+      },
       preflightStatusChecked: true,
       preflightStatusContextKey: 'local'
     })
@@ -237,12 +245,40 @@ describe('MarketplacePage', () => {
     const container = await renderPage()
 
     expect(sectionBody(container, 'Tools')?.className).toContain('grid-cols-2')
-    expect(namesIn(sectionBody(container, 'Tools'))).toEqual(['Git', 'Engram'])
+    expect(namesIn(sectionBody(container, 'Tools'))).toEqual([
+      'Git',
+      'GitHub CLI',
+      'Node.js',
+      'Engram'
+    ])
     expect(statusOf(container, 'Git')).toBe('Installed')
+    expect(statusOf(container, 'GitHub CLI')).toBe('Installed')
+    expect(statusOf(container, 'Node.js')).toBe('Install')
     expect(statusOf(container, 'Engram')).toBe('Available in the desktop app')
-    expect(namesIn(sectionBody(container, 'Services'))).toEqual(['GitHub', 'OpenMetadata'])
-    expect(statusOf(container, 'GitHub')).toBe('Connect')
+    expect(namesIn(sectionBody(container, 'Services'))).toEqual([
+      'OpenMetadata',
+      'GitHub',
+      'GitLab',
+      'Email',
+      'Calendar',
+      'Shared drive',
+      '[CRM]'
+    ])
     expect(statusOf(container, 'OpenMetadata')).toBe('Available in the desktop app')
+    expect(statusOf(container, 'GitHub')).toBe('Connect')
+    expect(statusOf(container, 'GitLab')).toBe('Connect')
+    expect(statusOf(container, 'Email')).toBe('Connect')
+  })
+
+  it('shows the board-only rows with a disabled Install or Connect button and no status', async () => {
+    const container = await renderPage()
+
+    for (const name of ['Node.js', 'Email', 'Calendar', 'Shared drive', '[CRM]']) {
+      const buttons = Array.from(itemRow(container, name)?.querySelectorAll('button') ?? [])
+      expect(buttons).toHaveLength(1)
+      expect(buttons[0]?.disabled).toBe(true)
+      expect(buttons[0]?.textContent).toBe(name === 'Node.js' ? 'Install' : 'Connect')
+    }
   })
 
   it('shows Installed and Connected once the desktop reports the apps', async () => {
@@ -260,12 +296,25 @@ describe('MarketplacePage', () => {
     expect(statusOf(container, 'OpenMetadata')).toBe('Connect')
   })
 
-  it('lists every known agent, found ones first, with Found or Install', async () => {
+  it('lists only the four board agents, in board order, with Found or Install', async () => {
     const container = await renderPage()
 
-    expect(namesIn(sectionBody(container, 'Agents'))).toEqual(['Claude Code', 'Codex'])
+    expect(namesIn(sectionBody(container, 'Agents'))).toEqual([
+      'Claude Code',
+      'Codex',
+      'Antigravity',
+      'Gentle Shell'
+    ])
     expect(statusOf(container, 'Claude Code')).toBe('Found')
     expect(statusOf(container, 'Codex')).toBe('Install')
+  })
+
+  it('does not count a stock Pi install as Gentle Shell', async () => {
+    mocks.detected = ['pi']
+    const container = await renderPage()
+
+    expect(statusOf(container, 'Gentle Shell')).toBe('Install')
+    expect(container.textContent).not.toContain('Pi')
   })
 
   it('lists the skills found on this computer, each as Installed', async () => {
@@ -293,6 +342,11 @@ describe('MarketplacePage', () => {
     const git = yourAppRow(container, 'Git')
     expect(git?.querySelector('[data-slot="badge"]')?.textContent).toBe('Installed')
     expect(git?.textContent).toContain('Open')
+    expect(
+      yourAppRow(container, 'GitHub CLI')?.querySelector('[data-slot="badge"]')?.textContent
+    ).toBe('Installed')
+    expect(yourAppRow(container, 'Node.js')).toBeUndefined()
+    expect(yourAppRow(container, 'Email')).toBeUndefined()
     const claude = yourAppRow(container, 'Claude Code')
     expect(claude?.querySelector('[data-slot="badge"]')?.textContent).toBe('Found')
     expect(claude?.textContent).toContain('Manage with MassOrca')
@@ -397,6 +451,27 @@ describe('MarketplacePage', () => {
     expect(document.querySelector('[data-testid="skill-install"]')?.textContent).toBe(
       'https://github.com/acme/skill'
     )
+  })
+
+  it('opens a skill row on its own page inside the Marketplace, and Marketplace returns to the list', async () => {
+    mocks.discover.mockResolvedValue({ skills: [skill('alpha')], sources: [], scannedAt: 1 })
+    const container = await renderPage()
+    await flush()
+
+    await act(async () => {
+      itemRow(container, 'alpha')?.querySelector('button')?.click()
+    })
+    await flush()
+
+    expect(store.getState().activeView).toBe('marketplace')
+    expect(container.querySelector('h2')?.textContent).toBe('alpha')
+    expect(container.querySelector('[data-marketplace-status-line]')?.textContent).toBe(
+      'Installed on This computer'
+    )
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('nav button')?.click()
+    })
+    expect(container.querySelector('h1')?.textContent).toBe('Marketplace')
   })
 })
 

@@ -3,11 +3,14 @@
 import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import type { DiscoveredSkill } from '../../../../shared/skills'
+import type { MarketplaceInstalledSkills } from '../marketplace/MarketplaceCatalogSkills'
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true
 
-const mocks = vi.hoisted((): { detected: string[] | null } => ({
-  detected: []
+const mocks = vi.hoisted((): { detected: string[] | null; skills: MarketplaceInstalledSkills } => ({
+  detected: [],
+  skills: { status: 'loading' }
 }))
 
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
@@ -55,7 +58,7 @@ vi.mock('@/runtime/runtime-skills-client', () => ({
   discoverSkillsForRuntimeTarget: vi.fn()
 }))
 vi.mock('../marketplace/MarketplaceCatalogSkills', () => ({
-  useMarketplaceInstalledSkills: () => ({ status: 'loading' })
+  useMarketplaceInstalledSkills: () => mocks.skills
 }))
 vi.mock('./SidebarSearchRow', () => ({
   SidebarSearchRow: () => <button type="button">Search</button>
@@ -107,8 +110,25 @@ async function clickRow(container: ParentNode, label: string): Promise<void> {
   })
 }
 
+function installedSkill(name: string): DiscoveredSkill {
+  return {
+    id: `skill-${name}`,
+    name,
+    description: null,
+    providers: ['agent-skills'],
+    sourceKind: 'home',
+    sourceLabel: 'Agent skills home',
+    rootPath: '/home/dev/.agents/skills',
+    directoryPath: `/home/dev/.agents/skills/${name}`,
+    skillFilePath: `/home/dev/.agents/skills/${name}/SKILL.md`,
+    installed: true,
+    updatedAt: null
+  }
+}
+
 beforeEach(() => {
   mocks.detected = ['claude']
+  mocks.skills = { status: 'loading' }
   seedStore(store, {
     activeView: 'marketplace',
     marketplaceSection: 'all',
@@ -145,26 +165,26 @@ describe('the Marketplace sidebar', () => {
       'Services',
       'All of them',
       'Git',
+      'GitHub CLI',
       'Engram',
       'Claude Code'
     ])
-    expect(rowByLabel(container, 'All of them').textContent).toContain('3')
+    expect(rowByLabel(container, 'All of them').textContent).toContain('4')
     expect(container.textContent).toContain('Your apps')
   })
 
-  it('lists at most six apps under Your apps, while the count shows them all', async () => {
+  it('lists only the board agents under Your apps, never other found agents', async () => {
     mocks.detected = ['claude', 'codex', 'gemini', 'opencode', 'cursor', 'copilot']
     const container = await mount()
     const labels = rowLabels(container)
     expect(labels.slice(labels.indexOf('All of them') + 1)).toEqual([
       'Git',
+      'GitHub CLI',
       'Engram',
       'Claude Code',
-      'Codex',
-      'Gemini',
-      'OpenCode'
+      'Codex'
     ])
-    expect(rowByLabel(container, 'All of them').textContent).toContain('8')
+    expect(rowByLabel(container, 'All of them').textContent).toContain('5')
   })
 
   it('a section click picks that section and returns to the catalog', async () => {
@@ -193,6 +213,15 @@ describe('the Marketplace sidebar', () => {
     expect(store.getState().marketplaceSection).toBe('agents')
   })
 
+  it('a skill click opens the Skills section inside the Marketplace, not the Skills page', async () => {
+    mocks.skills = { status: 'ready', skills: [installedSkill('alpha')] }
+    const container = await mount()
+    expect(rowLabels(container)).toContain('alpha')
+    await clickRow(container, 'alpha')
+    expect(store.getState().marketplaceSection).toBe('skills')
+    expect(store.getState().activeView).toBe('marketplace')
+  })
+
   it('without the desktop bridge, Engram is not listed as installed', async () => {
     seedStore(store, { marketplaceApps: { status: 'unavailable' } })
     const container = await mount()
@@ -205,6 +234,7 @@ describe('the Marketplace sidebar', () => {
       'Services',
       'All of them',
       'Git',
+      'GitHub CLI',
       'Claude Code'
     ])
   })

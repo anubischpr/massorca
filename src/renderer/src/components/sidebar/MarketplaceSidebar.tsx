@@ -2,6 +2,7 @@ import { Book, Bot, Check, LayoutGrid, Plug, Wrench, type LucideIcon } from 'luc
 import { useTranslation } from 'react-i18next'
 import { translate } from '@/i18n/i18n'
 import { AgentIcon } from '@/lib/agent-catalog'
+import { GentleShellIcon } from '@/lib/agent-icon-gentle-shell'
 import { useAppStore } from '@/store'
 import type { MarketplaceSection } from '@/store/slices/ui/ui-slice-contract-core'
 import { useMarketplaceCatalog } from '../marketplace/MarketplaceCatalogData'
@@ -26,7 +27,6 @@ export function MarketplaceSidebar(): React.JSX.Element {
   const setSection = useAppStore((s) => s.setMarketplaceSection)
   const selectedId = useAppStore((s) => s.marketplaceSelectedItemId)
   const selectItem = useAppStore((s) => s.selectMarketplaceItem)
-  const openSkillsPage = useAppStore((s) => s.openSkillsPage)
   const apps = useAppStore((s) => s.marketplaceApps)
   // Why: the sidebar always lists this computer; a remote host is picked on the page itself.
   const catalog = useMarketplaceCatalog({
@@ -50,11 +50,7 @@ export function MarketplaceSidebar(): React.JSX.Element {
       selectItem(target.id)
       return
     }
-    if (target?.kind === 'skill') {
-      openSkillsPage()
-      return
-    }
-    // Why: an agent opens its section here; its page is opened from the list itself.
+    // Why: an agent or a skill opens its section here; its page is opened from the list itself.
     showSection(row.section)
   }
 
@@ -147,7 +143,11 @@ function SidebarRowIcon({ icon }: { icon: CatalogRowIcon }): React.JSX.Element {
     case 'item':
       return <MarketplaceItemIcon id={icon.id} className={ROW_ICON_CLASS} />
     case 'agent':
-      return <AgentIcon agent={icon.agent} size={16} />
+      return icon.agent === 'pi' ? (
+        <GentleShellIcon size={16} />
+      ) : (
+        <AgentIcon agent={icon.agent} size={16} />
+      )
     case 'skill':
       return <Book className={ROW_ICON_CLASS} aria-hidden />
     case 'custom':
@@ -156,5 +156,7 @@ function SidebarRowIcon({ icon }: { icon: CatalogRowIcon }): React.JSX.Element {
       ) : (
         <Wrench className={ROW_ICON_CLASS} aria-hidden />
       )
+    case 'glyph':
+      return <icon.glyph className={ROW_ICON_CLASS} aria-hidden />
   }
 }

@@ -1,3 +1,4 @@
+import type { LucideIcon } from 'lucide-react'
 import { translate } from '@/i18n/i18n'
 import type { MarketplaceCustomItemStatus } from '../../../../shared/marketplace-custom'
 import type { DiscoveredSkill } from '../../../../shared/skills'
@@ -5,17 +6,21 @@ import type { TuiAgent } from '../../../../shared/tui-agent'
 import { MARKETPLACE_CATALOG, type MarketplaceItemId } from './marketplace-catalog'
 import type { MarketplaceBadgeState } from './marketplace-status'
 import {
-  checkingLabel,
   connectLabel,
   connectedLabel,
   couldNotCheckLabel,
-  desktopOnlyLabel,
   foundLabel,
   installLabel,
   installedLabel,
   installingLabel
 } from './MarketplaceCatalogStatusCopy'
-import { listPlaceholder, skillsPlaceholder } from './MarketplaceCatalogPlaceholders'
+import {
+  cliRow,
+  listPlaceholder,
+  pendingStatus,
+  skillsPlaceholder,
+  unsetBoardRows
+} from './MarketplaceCatalogPlaceholders'
 
 /** The sidebar's choice: every section, or one section. */
 export type MarketplaceCatalogFilter = 'all' | 'tools' | 'agents' | 'skills' | 'services'
@@ -25,13 +30,14 @@ export type MarketplaceCatalogSectionId = Exclude<MarketplaceCatalogFilter, 'all
 export type CatalogRowTarget =
   | { kind: 'item'; id: MarketplaceItemId }
   | { kind: 'agent'; agent: TuiAgent }
-  | { kind: 'skill' }
+  | { kind: 'skill'; skill: DiscoveredSkill }
 
 export type CatalogRowIcon =
   | { kind: 'item'; id: MarketplaceItemId }
   | { kind: 'agent'; agent: TuiAgent }
   | { kind: 'skill' }
   | { kind: 'custom'; itemKind: MarketplaceCustomItemStatus['kind'] }
+  | { kind: 'glyph'; glyph: LucideIcon }
 
 /** The row's right-hand control: done, found, an action to take, or nothing to do yet. */
 export type CatalogRowStatus =
@@ -72,9 +78,13 @@ export type CatalogListState<T> =
   | { kind: 'unavailable' }
   | { kind: 'ready'; items: readonly T[] }
 
+/** The GitHub CLI and GitLab CLI states the computer check reports. */
+export type CliBadges = { gh: MarketplaceBadgeState; gitlab: MarketplaceBadgeState }
+
 export type CatalogBuildInputs = {
   hostLabel: string
   badgeFor: (id: MarketplaceItemId) => MarketplaceBadgeState
+  cli: CliBadges
   agentEntries: readonly { id: TuiAgent; label: string }[]
   detectedAgents: CatalogListState<TuiAgent>
   skills: CatalogListState<DiscoveredSkill>
@@ -97,6 +107,8 @@ export function buildCatalogSections(inputs: CatalogBuildInputs): CatalogSection
       ),
       rows: [
         itemRow(inputs, 'git', 'tools'),
+        cliRow('gh', inputs.cli.gh),
+        ...unsetBoardRows('node'),
         itemRow(inputs, 'engram', 'tools'),
         ...customRows(inputs, 'tool', 'tools')
       ],
@@ -131,7 +143,12 @@ export function buildCatalogSections(inputs: CatalogBuildInputs): CatalogSection
         'auto.components.marketplace.MarketplaceCatalogRows.servicesNote',
         'Accounts are kept on each host'
       ),
-      rows: [itemRow(inputs, 'github', 'services'), itemRow(inputs, 'openmetadata', 'services')],
+      rows: [
+        itemRow(inputs, 'openmetadata', 'services'),
+        itemRow(inputs, 'github', 'services'),
+        cliRow('gitlab', inputs.cli.gitlab),
+        ...unsetBoardRows('email', 'calendar', 'drive', 'crm')
+      ],
       placeholder: null
     }
   ]
@@ -201,28 +218,12 @@ function itemStatus(id: MarketplaceItemId, badge: MarketplaceBadgeState): ItemSt
   }
 }
 
-/** A status the page cannot decide yet, shown as a disabled control. */
-function pendingStatus(badge: MarketplaceBadgeState): CatalogRowStatus | null {
-  if (badge === 'checking') {
-    return { kind: 'pending', label: checkingLabel() }
-  }
-  if (badge === 'unknown') {
-    return { kind: 'pending', label: couldNotCheckLabel() }
-  }
-  if (badge === 'desktop-only') {
-    return { kind: 'pending', label: desktopOnlyLabel() }
-  }
-  return null
-}
-
 function agentRows(inputs: CatalogBuildInputs): CatalogRow[] {
   if (inputs.detectedAgents.kind !== 'ready') {
     return []
   }
   const detected = new Set<TuiAgent>(inputs.detectedAgents.items)
-  // Why: agents found on this computer lead the section, the rest follow in catalog order.
-  const rows = inputs.agentEntries.map((entry) => agentRow(entry, detected.has(entry.id)))
-  return [...rows.filter((row) => row.owned), ...rows.filter((row) => !row.owned)]
+  return inputs.agentEntries.map((entry) => agentRow(entry, detected.has(entry.id)))
 }
 
 function agentRow(entry: { id: TuiAgent; label: string }, found: boolean): CatalogRow {
@@ -255,7 +256,7 @@ function skillRows(inputs: CatalogBuildInputs): CatalogRow[] {
     status: skill.installed
       ? { kind: 'done', label: installedLabel() }
       : { kind: 'action', label: installLabel() },
-    target: { kind: 'skill' },
+    target: { kind: 'skill', skill },
     owned: skill.installed,
     service: false,
     customId: null

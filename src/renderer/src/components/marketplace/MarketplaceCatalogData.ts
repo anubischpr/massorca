@@ -1,8 +1,7 @@
 import { useCallback } from 'react'
-import { useDetectedAgents } from '@/hooks/useDetectedAgents'
-import { getAgentCatalog, getAgentDisplayLabel } from '@/lib/agent-catalog'
-import { usePiDisplayRuntime } from '@/lib/use-pi-runtime'
 import type { MarketplaceAppsState } from '@/store/slices/ui/ui-slice-contract-core'
+import type { PreflightStatus } from '../../../../preload/api-types'
+import type { MarketplaceAppAgent } from '../../../../shared/marketplace-apps'
 import type { MarketplaceCustomItemStatus } from '../../../../shared/marketplace-custom'
 import type { DiscoveredSkill } from '../../../../shared/skills'
 import type { TuiAgent } from '../../../../shared/tui-agent'
@@ -13,11 +12,21 @@ import {
   ownedRows,
   type CatalogListState,
   type CatalogRow,
-  type CatalogSection
+  type CatalogSection,
+  type CliBadges
 } from './MarketplaceCatalogRows'
 import type { MarketplaceItemId } from './marketplace-catalog'
 import { marketplaceBadgeState, type MarketplaceBadgeState } from './marketplace-status'
+import { useMarketplaceAgents } from './use-marketplace-agents'
 import { useMarketplacePreflight } from './use-marketplace-preflight'
+
+// Why: the approved Catalog board shows exactly these agents, in this order; Gentle Shell is the Pi entry.
+const BOARD_AGENTS: readonly { app: MarketplaceAppAgent; id: TuiAgent; label: string }[] = [
+  { app: 'claude', id: 'claude', label: 'Claude Code' },
+  { app: 'codex', id: 'codex', label: 'Codex' },
+  { app: 'antigravity', id: 'antigravity', label: 'Antigravity' },
+  { app: 'gentle-shell', id: 'pi', label: 'Gentle Shell' }
+]
 
 export type MarketplaceCatalog = {
   sections: readonly CatalogSection[]
@@ -47,8 +56,7 @@ export function useMarketplaceCatalog({
   refreshPreflight: boolean
 }): MarketplaceCatalog {
   const preflight = useMarketplacePreflight({ refreshOnMount: refreshPreflight })
-  const { detectedIds } = useDetectedAgents(null)
-  const piRuntime = usePiDisplayRuntime()
+  const marketplaceAgents = useMarketplaceAgents()
   const skills = useMarketplaceInstalledSkills()
   const custom = useMarketplaceCustomItems()
 
@@ -66,16 +74,18 @@ export function useMarketplaceCatalog({
     [apps, local, preflight.checked, preflight.preflight]
   )
 
-  const agentEntries = getAgentCatalog().map((entry) => ({
-    id: entry.id,
-    label: getAgentDisplayLabel(entry.id, piRuntime)
-  }))
+  const agentEntries = BOARD_AGENTS.map(({ id, label }) => ({ id, label }))
 
   const detectedAgents: CatalogListState<TuiAgent> = !local
     ? { kind: 'unavailable' }
-    : detectedIds === null
+    : marketplaceAgents === null
       ? { kind: 'loading' }
-      : { kind: 'ready', items: detectedIds }
+      : {
+          kind: 'ready',
+          items: BOARD_AGENTS.filter((agent) => marketplaceAgents.includes(agent.app)).map(
+            (agent) => agent.id
+          )
+        }
 
   const skillList: CatalogListState<DiscoveredSkill> =
     !local || skills.status === 'failed'
@@ -90,9 +100,11 @@ export function useMarketplaceCatalog({
       ? { kind: 'loading' }
       : { kind: 'ready', items: custom.items }
 
+  const cli = cliBadges(preflight.preflight, preflight.checked, local)
   const sections = buildCatalogSections({
     hostLabel,
     badgeFor,
+    cli,
     agentEntries,
     detectedAgents,
     skills: skillList,
@@ -109,4 +121,32 @@ export function useMarketplaceCatalog({
     badgeFor,
     installCustom: custom.install
   }
+}
+
+/** The GitHub CLI and GitLab CLI states this computer's check reports; a remote host is not checked. */
+function cliBadges(preflight: PreflightStatus | null, checked: boolean, local: boolean): CliBadges {
+  if (!local) {
+    return { gh: 'unknown', gitlab: 'unknown' }
+  }
+  if (!checked) {
+    return { gh: 'checking', gitlab: 'checking' }
+  }
+  if (preflight === null) {
+    return { gh: 'unknown', gitlab: 'unknown' }
+  }
+  return {
+    gh: preflight.gh.installed ? 'installed' : 'not-installed',
+    gitlab: gitlabBadge(preflight.glab)
+  }
+}
+
+function gitlabBadge(glab: PreflightStatus['glab']): MarketplaceBadgeState {
+  // Why: payloads from before GitLab support omit glab, so its state is unknown rather than missing.
+  if (glab === undefined) {
+    return 'unknown'
+  }
+  if (!glab.installed) {
+    return 'not-installed'
+  }
+  return glab.authenticated ? 'signed-in' : 'not-signed-in'
 }

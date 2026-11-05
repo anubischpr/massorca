@@ -2,6 +2,7 @@ import { useCallback, useState } from 'react'
 import { translate } from '@/i18n/i18n'
 import { useDetectedAgents } from '@/hooks/useDetectedAgents'
 import { AgentIcon, getAgentCatalog, getAgentDisplayLabel } from '@/lib/agent-catalog'
+import { GentleShellIcon } from '@/lib/agent-icon-gentle-shell'
 import { cn } from '@/lib/utils'
 import { usePiDisplayRuntime } from '@/lib/use-pi-runtime'
 import { useAppStore } from '@/store'
@@ -54,7 +55,9 @@ export function MarketplaceAgentPage({
     )
   }, [])
   const entry = getAgentCatalog().find((agent) => agent.id === agentId)
-  const name = getAgentDisplayLabel(agentId, piRuntime)
+  // Why: in the Marketplace the Pi entry is Gentle Shell, never called Pi and always with its rose.
+  const gentleShell = agentId === 'pi'
+  const name = gentleShell ? 'Gentle Shell' : getAgentDisplayLabel(agentId, piRuntime)
   const description = AGENT_DESCRIPTIONS[agentId]
   const summary = marketplaceAgentHostsSummary(
     hosts.map((host) => detections[marketplaceAgentHostKey(host)] ?? 'checking')
@@ -64,7 +67,7 @@ export function MarketplaceAgentPage({
     <div className={cn(SKILLS_PAGE_COLUMN, 'flex max-w-4xl flex-col gap-6 py-4')}>
       <MarketplaceBreadcrumb name={name} onBack={onBack} />
       <MarketplaceItemHeader
-        icon={<AgentIcon agent={agentId} size={30} />}
+        icon={gentleShell ? <GentleShellIcon size={30} /> : <AgentIcon agent={agentId} size={30} />}
         name={name}
         description={description ? translate(description.key, description.fallback) : null}
         statusTone={summary.tone}
