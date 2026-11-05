@@ -342,7 +342,10 @@ describe('PrototypeSidebarTree Archived group', () => {
     await user.click(screen.getByRole('menuitem', { name: 'Delete' }))
     await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete' }))
     await waitFor(() =>
-      expect(actions.run).toHaveBeenCalledWith('delete', expect.objectContaining({ requestId: 'r1' }))
+      expect(actions.run).toHaveBeenCalledWith(
+        'delete',
+        expect.objectContaining({ requestId: 'r1' })
+      )
     )
 
     await user.click(screen.getByRole('button', { name: 'Actions for Live chat' }))
@@ -414,6 +417,19 @@ describe('PrototypeSidebarTree Archived group', () => {
     await user.click(screen.getByRole('button', { name: 'Actions for Checkout' }))
     await user.click(await screen.findByRole('menuitem', { name: 'Archive' }))
     expect(onSelectRequest).toHaveBeenCalledWith('r2')
+  })
+
+  it('closes the row menu when a right-click opens another context menu', async () => {
+    renderTree({ sets: [set('r1', NEXUS, { chatTitle: 'Checkout' })] })
+    const trigger = screen.getByRole('button', { name: 'Actions for Checkout' })
+    fireEvent.keyDown(trigger, { key: 'Enter' })
+    expect(screen.getAllByRole('menu')).toHaveLength(1)
+    const sessionRow = document.createElement('div')
+    document.body.append(sessionRow)
+    fireEvent.contextMenu(sessionRow)
+    await waitFor(() => expect(screen.queryByRole('menu')).toBeNull())
+    expect(trigger).toHaveAttribute('data-state', 'closed')
+    sessionRow.remove()
   })
 
   it('keeps one row menu open: opening another row menu closes the previous one', () => {
