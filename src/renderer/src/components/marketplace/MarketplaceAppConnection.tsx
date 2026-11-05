@@ -208,7 +208,12 @@ function OpenMetadataConnection({ ctx }: { ctx: MarketplaceAppContext }): React.
           }
         />
       </div>
-      {ctx.hostLabel ? null : <MarketplaceVaultHosts slot="openmetadata" />}
+      {ctx.hostLabel ? null : (
+        <MarketplaceVaultHosts
+          slot="openmetadata"
+          profiles={ctx.status.profiles?.map((profile) => profile.name) ?? []}
+        />
+      )}
       <p className="text-xs text-muted-foreground">
         {translate(
           'auto.components.marketplace.MarketplaceAppConnection.openMetadataHelp',

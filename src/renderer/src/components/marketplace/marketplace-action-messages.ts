@@ -1,5 +1,9 @@
 import { translate } from '@/i18n/i18n'
-import type { MarketplaceActionResult } from '../../../../shared/marketplace-apps'
+import type {
+  MarketplaceActionResult,
+  MarketplaceVaultHostResult,
+  MarketplaceVaultSlot
+} from '../../../../shared/marketplace-apps'
 import { marketplaceAgentLabel } from './marketplace-catalog'
 import { vaultHostFailureMessage } from './marketplace-vault-credential-text'
 
@@ -70,6 +74,25 @@ export function marketplaceFailureMessage(failure: MarketplaceFailure, hostLabel
     case 'failed':
       return changeFailedMessage()
   }
+}
+
+/** Why a host's vault could not take or clear one token; a profile token says what the update is for. */
+export function vaultSlotFailureMessage(
+  reason: Extract<MarketplaceVaultHostResult, { ok: false }>['reason'],
+  hostLabel: string,
+  slot: MarketplaceVaultSlot
+): string {
+  return reason === 'host-needs-update' && typeof slot !== 'string'
+    ? profileTokenNeedsUpdateMessage(hostLabel)
+    : vaultHostFailureMessage(reason, hostLabel)
+}
+
+export function profileTokenNeedsUpdateMessage(hostLabel: string): string {
+  return translate(
+    'auto.components.marketplace.marketplace-action-messages.profileTokenNeedsUpdate',
+    "Update MassOrca on {{host}} to store this profile's token.",
+    { host: hostLabel }
+  )
 }
 
 /** The change threw before it reported a reason, so the reason is only the generic one. */

@@ -154,11 +154,22 @@ export type MarketplaceCredentialStatus = {
 export const MARKETPLACE_REMOTE_CREDENTIAL_SLOTS = ['openmetadata', 'engram-cloud'] as const
 export type MarketplaceRemoteCredentialSlot = (typeof MARKETPLACE_REMOTE_CREDENTIAL_SLOTS)[number]
 
+/** The token of one extra OpenMetadata profile in a host's vault. */
+export type MarketplaceVaultProfileSlot = { kind: 'openmetadata-profile'; name: string }
+
+/** Any credential a client may set on another host's vault. */
+export type MarketplaceVaultSlot = MarketplaceRemoteCredentialSlot | MarketplaceVaultProfileSlot
+
 /** One host's vault as a client may see it: set or not set, when it changed, never a value. */
 export type MarketplaceVaultHostStatus = {
   hostLabel: string
   store: MarketplaceCredentialStore
   credentials: { slot: MarketplaceRemoteCredentialSlot; stored: boolean; updatedAt?: number }[]
+  /**
+   * The extra OpenMetadata profiles this host knows. Absent on a host that predates profile
+   * tokens, which a client reads as "update that host first".
+   */
+  profiles?: { name: string; stored: boolean; updatedAt?: number }[]
 }
 
 export type MarketplaceVaultHostResult =
@@ -172,15 +183,17 @@ export type MarketplaceVaultHostResult =
 /** Write-only management of the vault on an SSH host; a token travels once and is never returned. */
 export type MarketplaceRemoteVaultApi = {
   status: (args: { connectionId: string }) => Promise<MarketplaceVaultHostResult>
-  set: (args: {
-    connectionId: string
-    slot: MarketplaceRemoteCredentialSlot
-    token: string
-  }) => Promise<MarketplaceVaultHostResult>
-  clear: (args: {
-    connectionId: string
-    slot: MarketplaceRemoteCredentialSlot
-  }) => Promise<MarketplaceVaultHostResult>
+  /** A `profile` instead of a `slot` stores that extra OpenMetadata profile's token. */
+  set: (
+    args:
+      | { connectionId: string; slot: MarketplaceRemoteCredentialSlot; token: string }
+      | { connectionId: string; profile: string; token: string }
+  ) => Promise<MarketplaceVaultHostResult>
+  clear: (
+    args:
+      | { connectionId: string; slot: MarketplaceRemoteCredentialSlot }
+      | { connectionId: string; profile: string }
+  ) => Promise<MarketplaceVaultHostResult>
 }
 
 export type MarketplaceAppStatus = {
