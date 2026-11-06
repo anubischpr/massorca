@@ -122,7 +122,7 @@ function EngramConnection({ ctx }: { ctx: MarketplaceAppContext }): React.JSX.El
 }
 
 /** The board's two rows: the icon tile, the name, one line of detail, and the row's action. */
-function ConnectionRow({
+export function ConnectionRow({
   icon,
   name,
   sub,

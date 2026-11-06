@@ -1,14 +1,4 @@
-import {
-  BookOpen,
-  Calendar,
-  Folder,
-  Gitlab,
-  Hexagon,
-  Mail,
-  SquareTerminal,
-  Users,
-  type LucideIcon
-} from 'lucide-react'
+import { BookOpen, Hexagon, SquareTerminal, type LucideIcon } from 'lucide-react'
 import { translate } from '@/i18n/i18n'
 import type { MarketplaceItemKind } from './marketplace-catalog'
 import type {
@@ -20,8 +10,6 @@ import type {
 } from './MarketplaceCatalogRows'
 import {
   checkingLabel,
-  connectLabel,
-  connectedLabel,
   couldNotCheckLabel,
   desktopOnlyLabel,
   installLabel,
@@ -29,20 +17,8 @@ import {
   updateOnHostLabel
 } from './MarketplaceCatalogStatusCopy'
 
-/** Board rows without an item page. GitHub CLI and GitLab read the CLI check; the rest have nothing behind them yet. */
-type BoardRowId =
-  | 'gh'
-  | 'node'
-  | 'gitlab'
-  | 'email'
-  | 'calendar'
-  | 'drive'
-  | 'crm'
-  | 'browser'
-  | 'computer'
-  | 'linear'
-  | 'orch'
-  | 'price'
+/** Board rows without an item page. GitHub CLI reads the CLI check; the rest have nothing behind them yet. */
+type BoardRowId = 'gh' | 'node' | 'browser' | 'computer' | 'linear' | 'orch' | 'price'
 
 type BoardRowKind = MarketplaceItemKind | 'skill'
 
@@ -77,56 +53,6 @@ const BOARD_ROWS: readonly BoardRow[] = [
       fallback: 'Runs the JavaScript tools some agents call.'
     },
     glyph: Hexagon
-  },
-  {
-    id: 'gitlab',
-    kind: 'service',
-    name: 'GitLab',
-    description: {
-      key: `${BOARD_COPY}.gitlabDescription`,
-      fallback: 'Repositories, merge requests and issues.'
-    },
-    glyph: Gitlab
-  },
-  {
-    id: 'email',
-    kind: 'service',
-    name: 'Email',
-    description: {
-      key: `${BOARD_COPY}.emailDescription`,
-      fallback: 'Bot teams read and send mail.'
-    },
-    glyph: Mail
-  },
-  {
-    id: 'calendar',
-    kind: 'service',
-    name: 'Calendar',
-    description: {
-      key: `${BOARD_COPY}.calendarDescription`,
-      fallback: 'Bot teams read and add events.'
-    },
-    glyph: Calendar
-  },
-  {
-    id: 'drive',
-    kind: 'service',
-    name: 'Shared drive',
-    description: {
-      key: `${BOARD_COPY}.sharedDriveDescription`,
-      fallback: 'Bot teams read and save shared files.'
-    },
-    glyph: Folder
-  },
-  {
-    id: 'crm',
-    kind: 'service',
-    name: '[CRM]',
-    description: {
-      key: `${BOARD_COPY}.crmDescription`,
-      fallback: 'Bot teams read customers and deals.'
-    },
-    glyph: Users
   },
   {
     id: 'browser',
@@ -172,7 +98,10 @@ const BOARD_ROWS: readonly BoardRow[] = [
     id: 'price',
     kind: 'skill',
     name: 'Price check',
-    description: { key: `${BOARD_COPY}.priceCheckDescription`, fallback: 'Made by Development.' },
+    description: {
+      key: `${BOARD_COPY}.priceCheckDescription`,
+      fallback: 'Made by Development.'
+    },
     glyph: BookOpen
   }
 ]
@@ -239,11 +168,7 @@ function boardRow(id: BoardRowId, status: CatalogRowStatus, owned: boolean): Cat
 
 /** Board rows nothing backs yet: the action shows disabled, and no status is claimed. */
 export function unsetBoardRows(...ids: readonly BoardRowId[]): CatalogRow[] {
-  return ids.map((id) => {
-    const kind = BOARD_ROWS.find((row) => row.id === id)?.kind
-    const label = kind === 'service' ? connectLabel() : installLabel()
-    return boardRow(id, { kind: 'action', label }, false)
-  })
+  return ids.map((id) => boardRow(id, { kind: 'action', label: installLabel() }, false))
 }
 
 /** The board skills the host does not list: each shows the pending control, else Install with no page to open. */
@@ -256,22 +181,15 @@ export function boardSkillRows(
   ).map((row) => boardRow(row.id, pending ?? { kind: 'action', label: installLabel() }, false))
 }
 
-/** GitHub CLI and GitLab rows: the host check decides them, and they are owned once installed or signed in. */
-export function cliRow(id: 'gh' | 'gitlab', badge: CatalogBadge, host: string): CatalogRow {
+/** The GitHub CLI row: the host check decides it, and it is owned once installed. */
+export function cliRow(id: 'gh', badge: CatalogBadge, host: string): CatalogRow {
   const pending = pendingStatus(badge, host)
   if (pending !== null) {
     return boardRow(id, pending, false)
   }
-  if (id === 'gh') {
-    const installed = badge === 'installed'
-    const status: CatalogRowStatus = installed
-      ? { kind: 'done', label: installedLabel() }
-      : { kind: 'action', label: installLabel() }
-    return boardRow(id, status, installed)
-  }
-  const connected = badge === 'signed-in'
-  const status: CatalogRowStatus = connected
-    ? { kind: 'done', label: connectedLabel() }
-    : { kind: 'action', label: connectLabel() }
-  return boardRow(id, status, connected)
+  const installed = badge === 'installed'
+  const status: CatalogRowStatus = installed
+    ? { kind: 'done', label: installedLabel() }
+    : { kind: 'action', label: installLabel() }
+  return boardRow(id, status, installed)
 }

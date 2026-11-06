@@ -259,26 +259,42 @@ describe('MarketplacePage', () => {
       'OpenMetadata',
       'GitHub',
       'GitLab',
-      'Email',
-      'Calendar',
-      'Shared drive',
-      '[CRM]'
+      'Bitbucket',
+      'Azure DevOps',
+      'Gitea',
+      'Linear',
+      'Jira'
     ])
     expect(statusOf(container, 'OpenMetadata')).toBe('Available in the desktop app')
     expect(statusOf(container, 'GitHub')).toBe('Connect')
-    expect(statusOf(container, 'GitLab')).toBe('Connect')
-    expect(statusOf(container, 'Email')).toBe('Connect')
+    for (const name of ['GitLab', 'Bitbucket', 'Azure DevOps', 'Gitea']) {
+      expect(statusOf(container, name)).toBe('Connect')
+    }
   })
 
-  it('shows the board-only rows with a disabled Install or Connect button and no status', async () => {
+  it('shows Node.js with a disabled Install button and lists no placeholder services', async () => {
     const container = await renderPage()
 
-    for (const name of ['Node.js', 'Email', 'Calendar', 'Shared drive', '[CRM]']) {
-      const buttons = Array.from(itemRow(container, name)?.querySelectorAll('button') ?? [])
-      expect(buttons).toHaveLength(1)
-      expect(buttons[0]?.disabled).toBe(true)
-      expect(buttons[0]?.textContent).toBe(name === 'Node.js' ? 'Install' : 'Connect')
+    const buttons = Array.from(itemRow(container, 'Node.js')?.querySelectorAll('button') ?? [])
+    expect(buttons).toHaveLength(1)
+    expect(buttons[0]?.disabled).toBe(true)
+    expect(buttons[0]?.textContent).toBe('Install')
+    for (const name of ['Email', 'Calendar', 'Shared drive', '[CRM]']) {
+      expect(itemRow(container, name)).toBeUndefined()
     }
+  })
+
+  it('opens an integration from its row and returns to the catalog with Back', async () => {
+    const container = await renderPage()
+
+    await act(async () => {
+      itemRow(container, 'Bitbucket')?.querySelector('button')?.click()
+    })
+    expect(container.querySelector('h2')?.textContent).toBe('Bitbucket')
+    expect(container.querySelector('[data-marketplace-section="connection"]')).not.toBeNull()
+
+    await clickButtonWithText(container, 'Back')
+    expect(sectionHeading(container, 'Services')).toBeDefined()
   })
 
   it('shows Installed and Connected once the desktop reports the apps', async () => {
@@ -370,7 +386,7 @@ describe('MarketplacePage', () => {
       yourAppRow(container, 'GitHub CLI')?.querySelector('[data-slot="badge"]')?.textContent
     ).toBe('Installed')
     expect(yourAppRow(container, 'Node.js')).toBeUndefined()
-    expect(yourAppRow(container, 'Email')).toBeUndefined()
+    expect(yourAppRow(container, 'GitLab')).toBeUndefined()
     const claude = yourAppRow(container, 'Claude Code')
     expect(claude?.querySelector('[data-slot="badge"]')?.textContent).toBe('Found')
     expect(claude?.textContent).toContain('Manage with MassOrca')

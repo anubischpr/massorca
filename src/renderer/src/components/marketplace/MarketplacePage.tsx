@@ -6,6 +6,7 @@ import { discoverSkillsForRuntimeTarget } from '@/runtime/runtime-skills-client'
 import { useAppStore } from '@/store'
 import type { DiscoveredSkill } from '../../../../shared/skills'
 import type { TuiAgent } from '../../../../shared/tui-agent'
+import { useIntegrationProviderStatusRefresh } from '../settings/use-integration-provider-status-refresh'
 import { skillAgentByRootPath } from '../skills/skill-agent-filter'
 import { SkillInstallDialog } from '../skills/SkillInstallDialog'
 import { MarketplaceAddCustomDialog } from './MarketplaceAddCustomDialog'
@@ -16,6 +17,8 @@ import { useMarketplaceCatalog } from './MarketplaceCatalogData'
 import type { CatalogRow } from './MarketplaceCatalogRows'
 import { MarketplaceDetail } from './MarketplaceDetail'
 import { MarketplaceHeader } from './MarketplaceHeader'
+import { MarketplaceIntegrationPage } from './MarketplaceIntegrationPage'
+import type { MarketplaceIntegrationId } from './marketplace-integrations'
 import { MarketplaceSkillPage } from './MarketplaceSkillPage'
 import {
   marketplaceSkillFromDiscovered,
@@ -26,9 +29,10 @@ import { MARKETPLACE_CATALOG } from './marketplace-catalog'
 import { marketplaceHostKey } from './use-marketplace-host-targets'
 import { useMarketplaceAppHost } from './use-marketplace-app-host'
 
-/** A page a list opened: an agent, or a skill with the copy its page reads. */
+/** A page a list opened: an agent, a Settings integration, or a skill with the copy its page reads. */
 type OpenPage =
   | { kind: 'agent'; agent: TuiAgent }
+  | { kind: 'integration'; id: MarketplaceIntegrationId }
   | { kind: 'skill'; skill: MarketplaceSkillPageSkill }
 
 export default function MarketplacePage(): React.JSX.Element {
@@ -71,6 +75,9 @@ export default function MarketplacePage(): React.JSX.Element {
     void refreshApps()
   }, [refreshApps])
 
+  // Why: the Services rows read the Settings checks, which nothing else refreshes while Marketplace is open.
+  useIntegrationProviderStatusRefresh()
+
   // Why: the catalog keeps only the skill list, so the page takes one fresh scan for the agents that hold it.
   const openSkill = (listed: DiscoveredSkill): void => {
     if (skillTarget === null) {
@@ -112,6 +119,8 @@ export default function MarketplacePage(): React.JSX.Element {
     openRequest.current += 1
     if (target.kind === 'item') {
       selectItem(target.id)
+    } else if (target.kind === 'integration') {
+      setOpenPage({ kind: 'integration', id: target.id })
     } else {
       setOpenPage({ kind: 'agent', agent: target.agent })
     }
@@ -148,6 +157,8 @@ export default function MarketplacePage(): React.JSX.Element {
       <PageFrame>
         {openPage.kind === 'agent' ? (
           <MarketplaceAgentPage agentId={openPage.agent} onBack={closePage} />
+        ) : openPage.kind === 'integration' ? (
+          <MarketplaceIntegrationPage integration={openPage.id} onBack={closePage} />
         ) : (
           <MarketplaceSkillPage skill={openPage.skill} hostName={hostLabel} onBack={closePage} />
         )}
