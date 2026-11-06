@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import {
+  addTaskDeliverableFiles,
   listTeamProjectDeliverables,
   readTeamDeliverableRecords,
   recordFinishedTaskDeliverables,
@@ -167,5 +168,46 @@ describe('the files of a team’s linked projects', () => {
     })
 
     expect(listed.projects[0]?.files).toHaveLength(1)
+  })
+})
+
+describe('files a finished task registered by name', () => {
+  it('lists a registered file even when it is old and a worktree diff would miss it', async () => {
+    const project = path.join(root, 'project')
+    mkdirSync(path.join(project, 'docs'), { recursive: true })
+    writeFileSync(path.join(project, 'docs', 'reference.md'), '# Reference')
+    recordTaskDeliverables(storeDir, record({ folder: project, since: Date.now() + 60_000 }))
+
+    addTaskDeliverableFiles(storeDir, 'team_a1', 'task-1', ['docs/reference.md', 'docs/gone.md'])
+    addTaskDeliverableFiles(storeDir, 'team_a1', 'task-1', ['docs/reference.md'])
+    const listed = await listTeamProjectDeliverables({
+      storeDir,
+      teamId: 'team_a1',
+      projects: [{ projectId: 'project-1', name: 'NexusCare' }]
+    })
+
+    expect(listed.projects[0]?.files).toEqual([
+      { workspaceId: 'workspace-1', relativePath: 'docs/reference.md' }
+    ])
+  })
+
+  it('keeps registered files when the task is recorded again, and ignores a task with no record', () => {
+    recordTaskDeliverables(storeDir, record())
+    addTaskDeliverableFiles(storeDir, 'team_a1', 'task-1', ['docs/reference.md'])
+    addTaskDeliverableFiles(storeDir, 'team_a1', 'unknown', ['x.md'])
+    recordFinishedTaskDeliverables({
+      storeDir,
+      taskId: 'task-1',
+      teamId: 'team_a1',
+      projectId: 'project-1',
+      workspaceId: 'workspace-1',
+      location: { path: root, local: true },
+      since: 10,
+      now: 30
+    })
+
+    const records = readTeamDeliverableRecords(storeDir, 'team_a1')
+    expect(records).toHaveLength(1)
+    expect(records[0]?.files).toEqual(['docs/reference.md'])
   })
 })

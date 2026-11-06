@@ -154,6 +154,91 @@ describe('bot team routine scheduler', () => {
     ])
   })
 
+  it('records why when its task cannot even be created', async () => {
+    const { db, team, routine, scheduler, startTask, setClock } = setup()
+    vi.spyOn(db, 'createBotTeamTask').mockImplementation(() => {
+      throw new Error('SQLITE_BUSY: database is locked')
+    })
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+    setClock(at(11, 2, 9, 0))
+    await scheduler.tick()
+    expect(startTask).not.toHaveBeenCalled()
+    expect(db.listBotTeamTasks(team.id)).toEqual([])
+    expect(listBotTeamRoutineRuns(db, routine.id)).toEqual([
+      expect.objectContaining({
+        taskId: null,
+        error: 'The routine’s task could not be created: SQLITE_BUSY: database is locked'
+      })
+    ])
+  })
+
+  it('keeps the task and records why when it could not be prepared to start', async () => {
+    const { db, team, routine, scheduler, startTask, setClock } = setup()
+    vi.spyOn(db, 'setBotTeamTaskStartNotes').mockImplementation(() => {
+      throw new Error('disk full')
+    })
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+    // Only a routine with a zone has a clock note to save.
+    const due = Date.UTC(2026, 10, 2, 9, 0)
+    db.db.prepare('UPDATE bot_team_routines SET time_zone = ?, next_run_at = ?').run('UTC', due)
+    setClock(due)
+    await scheduler.tick()
+    const [task] = db.listBotTeamTasks(team.id)
+    expect(startTask).not.toHaveBeenCalled()
+    expect(listBotTeamRoutineRuns(db, routine.id)).toEqual([
+      expect.objectContaining({
+        taskId: task.id,
+        error: 'The routine’s task was made but could not be prepared: disk full'
+      })
+    ])
+  })
+
+  it('never records a blank reason for a start that fails without a message', async () => {
+    const { db, routine, scheduler, setClock } = setup(
+      vi.fn(async () => {
+        // oxlint-disable-next-line unicorn/error-message -- A blank message is the case under test.
+        throw new Error('')
+      })
+    )
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+    setClock(at(11, 2, 9, 0))
+    await scheduler.tick()
+    const [run] = listBotTeamRoutineRuns(db, routine.id)
+    expect(run.error).toBe('No further detail was reported.')
+  })
+
+  it('logs a run that failed to start', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+    const { scheduler, setClock } = setup(
+      vi.fn(async () => {
+        throw new Error('No Claude login on this host.')
+      })
+    )
+    setClock(at(11, 2, 9, 0))
+    await scheduler.tick()
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringContaining('routine run botrun_'),
+      expect.any(Error)
+    )
+  })
+
+  it('gives a run left with neither a task nor a reason its reason', async () => {
+    const { db, routine, scheduler, setClock } = setup()
+    // A claim whose host stopped before the task was made.
+    db.db
+      .prepare('INSERT INTO bot_team_routine_runs (id, routine_id, scheduled_for) VALUES (?, ?, ?)')
+      .run('botrun_lost', routine.id, at(11, 2, 9, 0))
+    setClock(at(11, 2, 9, 5))
+    await scheduler.tick()
+    const stored = db.db
+      .prepare('SELECT task_id, error FROM bot_team_routine_runs WHERE id = ?')
+      .get('botrun_lost')
+    expect(stored).toEqual({
+      task_id: null,
+      error: expect.stringContaining('its task was never created')
+    })
+  })
+
   it('runs nothing while paused and keeps the history', async () => {
     const { db, routine, scheduler, startTask, setClock } = setup()
     setClock(at(11, 2, 9, 0))

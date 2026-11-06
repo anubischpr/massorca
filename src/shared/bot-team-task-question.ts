@@ -30,6 +30,12 @@ function plainSentences(paragraph: string): string[] {
     .filter((sentence) => sentence !== '')
 }
 
+/** What a bot's final reply says to the room: its spoken paragraphs, without session notes or code. */
+export function botTeamSpokenReplyOf(finalReply: string): string | null {
+  const spoken = spokenParagraphs(finalReply).join('\n\n')
+  return spoken === '' ? null : botTeamRoomTextWithFileNames(spoken)
+}
+
 /**
  * The question a bot's final reply puts to the person, or null when the reply does not end on one.
  * Only the closing questions are kept: what the bot said before them, its next-step notes and file

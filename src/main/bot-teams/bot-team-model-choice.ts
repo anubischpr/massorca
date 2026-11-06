@@ -71,6 +71,23 @@ export function botLaunchOptions(
   return { model: bot.model, ...(bot.effort === null ? {} : { effort: bot.effort }) }
 }
 
+/**
+ * The options a bot's own chat starts with. Gentle Shell takes no model at launch, but its chat
+ * applies a `provider/id` model after launch (a model it refuses is logged and the default kept),
+ * so only the chat path passes it; a worker launch would refuse the model outright.
+ */
+export function botSessionLaunchOptions(
+  bot: Pick<BotTeamBot, 'agent' | 'model' | 'effort'>
+): Record<string, string> | undefined {
+  if (bot.agent !== 'pi') {
+    return botLaunchOptions(bot)
+  }
+  if (bot.model === null) {
+    return undefined
+  }
+  return { model: bot.model, ...(bot.effort === null ? {} : { effort: bot.effort }) }
+}
+
 // Why: the capable tier, not the smallest, since a bot's one reply should still be a good one.
 const CONVERSATION_TIER: DelegationTier = 4
 

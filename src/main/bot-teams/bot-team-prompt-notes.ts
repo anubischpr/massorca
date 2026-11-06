@@ -9,6 +9,14 @@ const EXCERPT_MESSAGE_CHARS = 300
 export const BOT_TEAM_UNIVERSAL_CAPABILITY_NOTE =
   'Every bot on a team can create option cards and MassOrca artifacts, whatever its job. Never say that creating one is not your task or that you cannot do it.'
 
+/** Earlier requests in the room and on the board are history: a bot does only its own task. */
+export const BOT_TEAM_NO_REDO_NOTE =
+  'Do not redo work that is already finished: a report, analysis or file that you or a teammate already made in an earlier task stays as it is, so read it instead of running it again. Do only the task above; earlier requests in the room are history, not new orders.'
+
+/** A file the person asks to keep must land where Files lists it, and the room hears it is saved. */
+export const BOT_TEAM_SAVE_FILE_NOTE =
+  'When the person asks you to save a file for future reference or as project documentation, write it as a file in your working directory (a docs folder is fine), so it shows in Files, and say in the Conference room that it is saved, by file name only, in your finish line.'
+
 /**
  * Where a bot looks for what the team already knows about a project. The Engram tools carry the
  * name the agent registers them under, and OpenMetadata is read through its read server only.

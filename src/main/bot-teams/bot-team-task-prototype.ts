@@ -7,6 +7,8 @@ import {
   withBotTeamPrototypeChoice,
   type BotTeamPrototypeChoice
 } from '../../shared/bot-team-prototype-choice'
+import { PROTOTYPE_AGENTS } from '../../shared/prototype-request'
+import { asksForPrototypeTask } from '../../shared/prototype-request-decision'
 import type { BotTeamTask } from '../../shared/rpc-contract/bot-team-room-params'
 import type { OrchestrationDb } from '../runtime/orchestration/db/orchestration-db'
 import type { OrcaRuntimeService } from '../runtime/orca-runtime'
@@ -20,8 +22,12 @@ export function botTeamPrototypeFirstPrompt(
   runtime: OrcaRuntimeService,
   deps: DelegatedChildFirstPromptDeps = delegatedChildPromptDeps(runtime)
 ): BotTeamPrototypeFirstPrompt {
-  return (input) =>
-    delegatedChildFirstPrompt(
+  return async (input) => {
+    // Why: the room's count answers a design; other tasks, and artifacts, are sent as written.
+    if (!asksForPrototypeTask(input.taskSpec, PROTOTYPE_AGENTS)) {
+      return null
+    }
+    return delegatedChildFirstPrompt(
       {
         childSessionId: input.childSessionId,
         originSessionId: input.childSessionId,
@@ -32,6 +38,7 @@ export function botTeamPrototypeFirstPrompt(
       },
       deps
     )
+  }
 }
 
 /**

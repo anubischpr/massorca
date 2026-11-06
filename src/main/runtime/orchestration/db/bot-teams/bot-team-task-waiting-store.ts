@@ -15,6 +15,7 @@ function ensureWaitingTable(db: OrchestrationDb): void {
   db.db.exec(
     'CREATE TABLE IF NOT EXISTS bot_team_task_waiting (task_id TEXT PRIMARY KEY, since INTEGER NOT NULL)'
   )
+  db.db.exec('CREATE TABLE IF NOT EXISTS bot_team_task_answered (task_id TEXT PRIMARY KEY)')
   tablesMade.add(db.db)
 }
 
@@ -45,6 +46,20 @@ export function markBotTeamTaskWaiting(
 export function clearBotTeamTaskWaiting(this: OrchestrationDb, taskId: string): void {
   ensureWaitingTable(this)
   this.db.prepare('DELETE FROM bot_team_task_waiting WHERE task_id = ?').run(taskId)
+}
+
+/** The person's answer went to the task's session: its next finish is that answer's reply. */
+export function markBotTeamTaskAnswered(this: OrchestrationDb, taskId: string): void {
+  ensureWaitingTable(this)
+  this.db.prepare('INSERT OR REPLACE INTO bot_team_task_answered (task_id) VALUES (?)').run(taskId)
+}
+
+/** True once per answer: the finish that reads it takes the mark. */
+export function takeBotTeamTaskAnswered(this: OrchestrationDb, taskId: string): boolean {
+  ensureWaitingTable(this)
+  return (
+    this.db.prepare('DELETE FROM bot_team_task_answered WHERE task_id = ?').run(taskId).changes > 0
+  )
 }
 
 /** A session that works again, stops or fails is no longer waiting on the person. */
@@ -78,6 +93,8 @@ export function listWaitingBotTeamTasks(
 export const BOT_TEAM_TASK_WAITING_STORE_METHODS = {
   markBotTeamTaskWaiting,
   clearBotTeamTaskWaiting,
+  markBotTeamTaskAnswered,
+  takeBotTeamTaskAnswered,
   listWaitingBotTeamTasks
 }
 

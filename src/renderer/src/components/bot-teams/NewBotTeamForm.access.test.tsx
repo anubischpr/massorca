@@ -32,11 +32,6 @@ vi.mock('@/components/ui/select', () => ({
     <option value={value}>{children}</option>
   )
 }))
-vi.mock('@/components/marketplace/MarketplaceTeamAccessDialog', () => ({
-  MarketplaceTeamAccessDialog: ({ team }: { team: BotTeam }) => (
-    <div data-testid="team-apps-dialog">{team.name}</div>
-  )
-}))
 vi.mock('./BotTeamHostPicker', () => ({ BotTeamHostField: () => null }))
 vi.mock('./AddBotDialog', () => ({ AddBotDialog: () => null }))
 vi.mock('./BotTeamCharacterIcon', () => ({ BotTeamCharacterIcon: () => null }))
@@ -91,12 +86,11 @@ function buttonNamed(container: HTMLElement, text: string): HTMLButtonElement {
 }
 
 describe('NewBotTeamForm edit access', () => {
-  it('shows the Access choice and a Marketplace apps button for an existing team', () => {
+  it('shows the Access choice and no Marketplace apps control for an existing team', () => {
     const { container } = renderEdit()
     const access = container.querySelector('select[aria-label="Access"]') as HTMLSelectElement
     expect(access.value).toBe('default')
-    act(() => buttonNamed(container, 'Marketplace apps…').click())
-    expect(container.querySelector('[data-testid="team-apps-dialog"]')?.textContent).toBe('Ops')
+    expect(container.textContent).not.toContain('Marketplace')
   })
 
   it('saves the access mode chosen in the edit form', () => {

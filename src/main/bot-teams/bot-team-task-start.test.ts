@@ -96,6 +96,19 @@ describe('startBotTeamTask', () => {
     )
   })
 
+  it('starts a Gentle Shell bot with its model for the chat to apply after launch', async () => {
+    const d = deps()
+    const bot = { ...TEAM.bots[0], agent: 'pi' as const, model: 'nan/deepseek-v4-flash' }
+    await startBotTeamTask(d, { team: { ...TEAM, bots: [bot] }, task: TASK })
+
+    expect(d.createSession).toHaveBeenCalledWith(
+      expect.objectContaining({
+        piRuntime: 'gentle-shell',
+        options: { model: 'nan/deepseek-v4-flash' }
+      })
+    )
+  })
+
   it("runs on the owner's engine with the team's access, in the team's workspace", async () => {
     const d = deps()
     const started = await startBotTeamTask(d, { team: TEAM, task: TASK })

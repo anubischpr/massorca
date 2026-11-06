@@ -104,4 +104,36 @@ describe('BotTeamCharacterIcon hover motion', () => {
 
     expect(moveClass(svg)).toBeNull()
   })
+
+  it('moves the character when the row or card that holds it is entered', () => {
+    const svg = mount(
+      <div data-bot-character-zone>
+        <BotTeamCharacterIcon character="circle" size={16} still />
+      </div>
+    )
+    const zone = svg.closest<HTMLElement>('[data-bot-character-zone]')!
+
+    act(() => {
+      zone.dispatchEvent(new PointerEvent('pointerenter', { pointerType: 'mouse' }))
+    })
+
+    expect(moveClass(svg)).toBe('bc-move-hop')
+  })
+
+  it('keeps a character in a hovered row still when Character animations are turned off', () => {
+    settings.animations = false
+    const svg = mount(
+      <div data-bot-character-zone>
+        <BotTeamCharacterIcon character="circle" size={16} />
+      </div>
+    )
+
+    act(() => {
+      svg
+        .closest<HTMLElement>('[data-bot-character-zone]')!
+        .dispatchEvent(new PointerEvent('pointerenter', { pointerType: 'mouse' }))
+    })
+
+    expect(moveClass(svg)).toBeNull()
+  })
 })

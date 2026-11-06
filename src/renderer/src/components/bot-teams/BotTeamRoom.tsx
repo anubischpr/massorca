@@ -1,11 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { ChevronLeft } from 'lucide-react'
 import { toast } from 'sonner'
 import { useRightSidebarPageTarget } from '../../app-shell/right-sidebar-page-slot'
-import { Button } from '@/components/ui/button'
-import NativeChatView from '@/components/native-chat/NativeChatView'
-import { botTeamHostTarget, useBotTeamHost } from '@/runtime/bot-team-host'
 import { translate } from '@/i18n/i18n'
 import {
   listBotTeamRoom,
@@ -17,7 +13,6 @@ import {
   botTeamTaskStatusIn,
   type BotTeamTaskStatus
 } from '../../../../shared/bot-team-task-status'
-import { structuredAgentSessionTabId } from '../../../../shared/structured-agent-session-projection'
 import type { BotTeam } from '../../../../shared/rpc-contract/bot-team-params'
 import type {
   BotTeamMessage,
@@ -31,7 +26,7 @@ import { botTeamTypingAuthor } from '../../../../shared/bot-team-typing'
 import { useBotTeamReplying } from './BotTeamRoomReplying'
 import { BotTeamReassignButton } from './BotTeamReassignButton'
 import { BotTeamPendingChoice, type BotTeamPendingChoiceRequest } from './BotTeamPendingChoice'
-import { BotTeamRoomComposer } from './BotTeamRoomComposer'
+import { BotTeamRoomComposer, type BotTeamRoomReply } from './BotTeamRoomComposer'
 import { BotTeamRoomPrototypeCard } from './BotTeamRoomPrototypeCard'
 import { useBotTeamRoomPrototype } from './use-bot-team-room-prototype'
 import type { BotTeamPrototypeChoice } from '../../../../shared/bot-team-prototype-choice'
@@ -42,6 +37,7 @@ import { useBotTeamRoomPrototypeLinks } from './BotTeamRoomPrototypeLinks'
 import { useBotTeamRoomAttachments } from './bot-team-room-attach-state'
 import type { BotTeamRoomAttachment } from '../../../../shared/bot-team-room-attachments'
 import { BotTeamTaskCard } from './BotTeamTaskCard'
+import { BotTeamTaskThread } from './BotTeamTaskThread'
 import { BotTeamRoomQuestion } from './BotTeamRoomQuestion'
 import { BotTeamRoomSidePanel } from './BotTeamRoomSidePanel'
 import { placeBotTeamRoomTasks } from '../../../../shared/bot-team-room-order'
@@ -51,53 +47,6 @@ import { useBotTeamRoomScroll } from './use-bot-team-room-scroll'
 const NO_PROJECT = 'none'
 const NO_TEAMS: readonly BotTeam[] = []
 const IDLE_STATUSES: ReadonlySet<BotTeamTaskStatus> = new Set(['Not started', 'Stopped', 'Stuck'])
-
-/** A task's thread: the normal chat, which already holds the composer, Stop and Continue. */
-function BotTeamTaskThread({
-  task,
-  agent,
-  onBack,
-  reassign
-}: {
-  task: BotTeamTask
-  agent: BotTeam['bots'][number]['agent']
-  onBack: () => void
-  /** Reassign, offered while the task is idle. */
-  reassign?: React.ReactNode
-}): React.JSX.Element | null {
-  const host = useBotTeamHost()
-  const target = useMemo(() => botTeamHostTarget(host), [host])
-  if (task.sessionId === null) {
-    return null
-  }
-  return (
-    <div className="flex h-full min-h-0 flex-col gap-2 p-2">
-      <div className="flex items-center gap-2">
-        <Button
-          variant="ghost"
-          size="icon"
-          aria-label={translate('components.botTeams.backToRoom', 'Back to Conference room')}
-          onClick={onBack}
-        >
-          <ChevronLeft className="size-4" />
-        </Button>
-        <h2 className="min-w-0 flex-1 truncate text-sm font-medium">{task.title}</h2>
-        {reassign}
-      </div>
-      <div className="min-h-0 flex-1">
-        <NativeChatView
-          mode="structured"
-          tabId={structuredAgentSessionTabId(task.sessionId)}
-          sessionId={task.sessionId}
-          agent={agent}
-          isVisible
-          isFocusedGroup
-          target={target}
-        />
-      </div>
-    </div>
-  )
-}
 
 const ROOM_CHECK_MS = 5_000
 
@@ -137,6 +86,8 @@ export function BotTeamRoom({
   const [pending, setPending] = useState<BotTeamPendingChoiceRequest | null>(null)
   // The text with the host, if any; the room shows who is typing until the reply comes back.
   const [typing, setTyping] = useState<string | null>(null)
+  // A bot's Reply puts its @ in the composer; a new object per click asks again.
+  const [replyTo, setReplyTo] = useState<BotTeamRoomReply | null>(null)
   const { mentionProjects, mentionIcons } = useBotTeamRoomMentions(team, otherTeams, projects)
   const replying = useBotTeamReplying(team.bots)
   const readReplying = replying.readRoom
@@ -358,6 +309,7 @@ export function BotTeamRoom({
                   otherTeams={otherTeams}
                   mentions={mentionIcons}
                   onOpenFile={onOpenFile}
+                  onReply={(bot) => setReplyTo({ bot })}
                 >
                   {placement.cardsByMessageId.get(message.id)?.map(taskCard)}
                   {trackers(sent.filter((request) => request.messageId === message.id))}
@@ -410,6 +362,7 @@ export function BotTeamRoom({
           offline={offline}
           onSend={prototype.send}
           onAttachFiles={onAttachFiles}
+          replyTo={replyTo}
         />
       </div>
       {sidePanel

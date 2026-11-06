@@ -13,6 +13,7 @@ import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { gitExecFileSync } from '../git/command-runner/git-exec-file'
 import { OrchestrationDb } from '../runtime/orchestration/db/orchestration-db'
+import { readTeamDeliverableRecords, recordTaskDeliverables } from './bot-team-deliverables-record'
 import { reportFinishedBotTeamTask } from './bot-team-finish-report'
 
 /** Two hours before now: older than any task the tests start, so no list shows the file. */
@@ -101,6 +102,48 @@ describe('reportFinishedBotTeamTask', () => {
     })
     await run(folder)
     expect(db!.listBotTeamMessages(team.id)).toHaveLength(1)
+  })
+
+  it('registers the files a project task wrote, even ones git would ignore, for Files', async () => {
+    const { team, task, folder } = setup()
+    const worktree = path.join(root, 'worktree')
+    mkdirSync(path.join(worktree, 'docs'), { recursive: true })
+    const reference = path.join(worktree, 'docs', 'reference.md')
+    writeFileSync(reference, '# Reference')
+    const project = db!.createBotTeamProject({
+      teamId: team.id,
+      name: 'NexusCare',
+      goal: '',
+      codeSource: null
+    })
+    db!.setBotTeamTaskProject(task.id, project.id)
+    const storeDir = path.join(root, 'store')
+    recordTaskDeliverables(storeDir, {
+      taskId: task.id,
+      teamId: team.id,
+      projectId: project.id,
+      workspaceId: 'ws-1',
+      folder: worktree,
+      kind: 'worktree',
+      since: 0,
+      recordedAt: 1
+    })
+    db!.postBotTeamMessage({
+      teamId: team.id,
+      authorBotId: task.ownerBotId,
+      text: `Guardado para referencia: ${reference}`
+    })
+
+    await reportFinishedBotTeamTask(db!, 'session-1', {
+      folderOf: () => folder,
+      settleMs: 0,
+      sessionWorkspaceId: 'ws-1',
+      deliverableStoreDir: storeDir,
+      worktreeOf: () => ({ path: worktree, local: true }),
+      changesOf: async () => ({ branch: 'iris/informe', files: [] })
+    })
+
+    expect(readTeamDeliverableRecords(storeDir, team.id)[0]?.files).toEqual(['docs/reference.md'])
   })
 
   it('adds nothing for a task that made no file', async () => {

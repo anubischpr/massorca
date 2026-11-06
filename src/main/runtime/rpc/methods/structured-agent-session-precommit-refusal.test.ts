@@ -11,6 +11,7 @@ import {
 } from '../../../native-chat/agent-session-wire/structured-agent-session-logger-test-support'
 import { computeAgentSessionPayloadFingerprint } from '../../../../shared/agent-session-mutation-envelope'
 import { isDefinitiveAgentSessionCreateRefusal } from '../../../../shared/agent-session-definitive-refusal'
+import { agentSessionRefusalError } from '../../../../shared/agent-session-wire-refusals'
 import { AgentSessionPreSpawnError } from '../../../native-chat/agent-session-wire/structured-agent-session-adapter'
 import { STRUCTURED_AGENT_SESSION_RUNTIME_CAPABILITY } from '../../../../shared/protocol-version'
 import type { OrcaRuntimeService } from '../../orca-runtime'
@@ -241,14 +242,56 @@ describe('a create refused before it commits', () => {
     expect(console.warn).not.toHaveBeenCalled()
   })
 
-  it('does not log a refusal the host raised by code', async () => {
+  it('logs a refusal the host raised by code, so its cause is findable', async () => {
     await create({
       resolveStructuredAgentSessionCreateIntent: vi.fn(async () => {
         throw new Error('structured_agent_session_unsupported')
       })
     })
 
-    expect(hostLog).toHaveLength(0)
+    expect(hostLog).toHaveLength(1)
+    expect(hostLog[0]).toMatchObject({
+      level: 'warn',
+      fields: {
+        scope: 'create.precommitRefused',
+        refusalCode: 'structured_agent_session_unsupported'
+      }
+    })
+  })
+
+  it('names the code in the message of a bare coded refusal', async () => {
+    const response = await create({
+      resolveStructuredAgentSessionCreateIntent: vi.fn(async () => {
+        throw new Error('structured_agent_session_unsupported')
+      })
+    })
+
+    expect(refusalOf(response)?.message).toBe(
+      'MassOrca cannot open a structured agent chat for this workspace. Reason: structured_agent_session_unsupported.'
+    )
+  })
+
+  it('names the reason in the message of a refusal the host raised, and logs it', async () => {
+    const response = await create({
+      resolveStructuredAgentSessionCreateIntent: vi.fn(async () => {
+        throw agentSessionRefusalError('structured_agent_session_unsupported', {
+          reason: 'hostUnsupported'
+        })
+      })
+    })
+
+    const refusal = refusalOf(response)
+    expect(refusal?.details?.reason).toBe('hostUnsupported')
+    expect(refusal?.message).toBe(
+      'MassOrca cannot open a structured agent chat for this workspace. Reason: hostUnsupported.'
+    )
+    expect(hostLog[0]).toMatchObject({
+      fields: {
+        scope: 'create.precommitRefused',
+        refusalCode: 'structured_agent_session_unsupported',
+        refusalReason: 'hostUnsupported'
+      }
+    })
   })
 
   it('answers a host that will not install as a definitive envelope', async () => {

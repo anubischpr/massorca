@@ -49,14 +49,26 @@ function wireRefusalCode(error: unknown): AgentSessionWireRefusalCode | null {
 
 const PRECOMMIT_REFUSAL_MESSAGE = 'MassOrca cannot open a structured agent chat for this workspace.'
 
+/** The friendly sentence plus the specific reason, which callers that show only the message need. */
+function messageWithReason(reason: string): string {
+  return `${PRECOMMIT_REFUSAL_MESSAGE} Reason: ${reason}.`
+}
+
 function precommitRefusal(error: unknown): AgentSessionWireRefusal {
   // A refusal the host raised keeps its situation; a bare code names none.
   if (isAgentSessionRefusalError(error)) {
-    return agentSessionRefusalFromReference(error.refusal, PRECOMMIT_REFUSAL_MESSAGE)
+    const { code, details } = error.refusal
+    const reason = details && 'reason' in details ? details.reason : undefined
+    logPrecommitRefusal(error, reason, code)
+    return agentSessionRefusalFromReference(
+      error.refusal,
+      messageWithReason(typeof reason === 'string' ? reason : code)
+    )
   }
   const code = wireRefusalCode(error)
   if (code) {
-    return refuseUnclassified(code, PRECOMMIT_REFUSAL_MESSAGE)
+    logPrecommitRefusal(error, undefined, code)
+    return refuseUnclassified(code, messageWithReason(code))
   }
   const message = error instanceof Error ? error.message : String(error)
   const wording = `MassOrca could not prepare a structured agent chat for this workspace: ${message}`
@@ -71,13 +83,18 @@ function precommitRefusal(error: unknown): AgentSessionWireRefusal {
 }
 
 /** To the host's trace file, not just the console: a packaged service's stdout is often discarded. */
-function logPrecommitRefusal(error: unknown, reason: string | undefined): void {
+function logPrecommitRefusal(
+  error: unknown,
+  reason: string | undefined,
+  code?: AgentSessionWireRefusalCode
+): void {
   try {
     const logger =
       getStructuredAgentSessionHost()?.deps.logger ?? createStructuredAgentSessionLogger()
     logger.warn('create refused before it committed anything', {
       scope: 'create.precommitRefused',
       error,
+      ...(code ? { refusalCode: code } : {}),
       ...(reason ? { refusalReason: reason } : {})
     })
   } catch {

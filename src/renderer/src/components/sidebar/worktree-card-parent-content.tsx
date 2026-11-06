@@ -44,6 +44,7 @@ export function WorktreeCardParentContent({
     <div
       className="group/worktree-card flex w-full min-w-0 flex-col gap-1.5"
       data-worktree-card-hover-trigger=""
+      data-bot-character-zone=""
     >
       <WorktreeCardHeader card={card} presentation={presentation} />
       {presentation.hasMetaRow && <WorktreeCardMetaRow card={card} presentation={presentation} />}

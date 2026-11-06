@@ -12,7 +12,6 @@ import {
   SelectTrigger,
   SelectValue
 } from '@/components/ui/select'
-import { MarketplaceTeamAccessDialog } from '@/components/marketplace/MarketplaceTeamAccessDialog'
 import { translate } from '@/i18n/i18n'
 import { botAgentLabel } from '../../../../shared/bot-team-character-art'
 import {
@@ -63,7 +62,6 @@ export function NewBotTeamForm({
   )
   const [workspacesEnabled, setWorkspacesEnabled] = useState(team?.workspacesEnabled ?? false)
   const [accessMode, setAccessMode] = useState<BotTeam['accessMode']>(team?.accessMode ?? 'default')
-  const [marketplaceOpen, setMarketplaceOpen] = useState(false)
   const [draftBots, setBots] = useState<BotDraftInput[]>([])
   const bots: readonly BotDraftInput[] = team?.bots ?? draftBots
   const [addingBot, setAddingBot] = useState(false)
@@ -126,53 +124,35 @@ export function NewBotTeamForm({
         />
       </div>
       {team ? (
-        <>
-          <div className="flex items-center gap-3 rounded-lg border border-border p-3">
-            <div className="min-w-0 flex-1">
-              <div className="text-sm font-medium">
-                {translate('components.botTeams.settings.access', 'Access')}
-              </div>
-              <div className="text-xs text-muted-foreground">
-                {translate(
-                  'components.botTeams.accessHelp',
-                  'What this team can do without asking.'
-                )}
-              </div>
+        <div className="flex items-center gap-3 rounded-lg border border-border p-3">
+          <div className="min-w-0 flex-1">
+            <div className="text-sm font-medium">
+              {translate('components.botTeams.settings.access', 'Access')}
             </div>
-            <Select
-              value={accessMode}
-              onValueChange={(next) =>
-                setAccessMode(next === 'default' ? 'default' : 'full-access')
-              }
+            <div className="text-xs text-muted-foreground">
+              {translate('components.botTeams.accessHelp', 'What this team can do without asking.')}
+            </div>
+          </div>
+          <Select
+            value={accessMode}
+            onValueChange={(next) => setAccessMode(next === 'default' ? 'default' : 'full-access')}
+          >
+            <SelectTrigger
+              size="sm"
+              aria-label={translate('components.botTeams.settings.access', 'Access')}
             >
-              <SelectTrigger
-                size="sm"
-                aria-label={translate('components.botTeams.settings.access', 'Access')}
-              >
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="full-access">
-                  {translate('components.botTeams.settings.fullAccess', 'Full access')}
-                </SelectItem>
-                <SelectItem value="default">
-                  {translate('components.botTeams.settings.askFirst', 'Ask first')}
-                </SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="flex items-center gap-3 rounded-lg border border-border p-3">
-            <div className="min-w-0 flex-1 text-xs text-muted-foreground">
-              {translate(
-                'components.botTeams.marketplaceAppsHelp',
-                'Connected apps this team’s bots can use.'
-              )}
-            </div>
-            <Button variant="outline" size="sm" onClick={() => setMarketplaceOpen(true)}>
-              {translate('components.botTeams.settings.marketplaceApps', 'Marketplace apps…')}
-            </Button>
-          </div>
-        </>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="full-access">
+                {translate('components.botTeams.settings.fullAccess', 'Full access')}
+              </SelectItem>
+              <SelectItem value="default">
+                {translate('components.botTeams.settings.askFirst', 'Ask first')}
+              </SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       ) : null}
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between">
@@ -284,13 +264,6 @@ export function NewBotTeamForm({
             )
             setEditingBotIndex(null)
           }}
-        />
-      ) : null}
-      {team ? (
-        <MarketplaceTeamAccessDialog
-          team={team}
-          open={marketplaceOpen}
-          onOpenChange={setMarketplaceOpen}
         />
       ) : null}
       {addingBot ? (

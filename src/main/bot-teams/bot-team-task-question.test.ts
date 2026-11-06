@@ -76,13 +76,13 @@ describe('posting the question a bot ends its turn with', () => {
     expect(roomLines(task.teamId)).toEqual([QUESTION])
   })
 
-  it('posts nothing and does not wait when the turn ends without a question', async () => {
+  it('does not wait when the turn ends without a question, and posts the reply once', async () => {
     const task = startedTask()
 
     await postBotTeamTaskQuestion(db!, 'session-1', finish('Listo. Guardé flyer.png.'))
     await postBotTeamTaskQuestion(db!, 'session-1', finish(null))
 
-    expect(roomLines(task.teamId)).toEqual([])
+    expect(roomLines(task.teamId)).toEqual(['Listo. Guard\u00e9 flyer.png.'])
     expect(db!.getBotTeamTask(task.id).awaitingPerson).toBeUndefined()
   })
 

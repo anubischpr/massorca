@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { ArrowUp, Plus, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { translate } from '@/i18n/i18n'
@@ -11,13 +11,17 @@ import {
   BOT_TEAM_ROOM_ATTACHMENT_LIMIT,
   type BotTeamRoomAttachment
 } from '../../../../shared/bot-team-room-attachments'
-import type { BotTeam } from '../../../../shared/rpc-contract/bot-team-params'
+import type { BotTeam, BotTeamBot } from '../../../../shared/rpc-contract/bot-team-params'
+import { botTeamComposerChipAttrs } from './bot-team-composer-document'
 import { useBotTeamRoomDraft } from './bot-team-room-draft'
 import { openBotTeamRoomSessions } from './open-bot-team-room-sessions'
 import { useBotTeamMentionField } from './use-bot-team-mention-field'
 
 const NO_TEAMS: readonly BotTeam[] = []
 const NO_PROJECTS: readonly BotTeamMentionProject[] = []
+
+/** A reply request: the bot is mentioned once per object, so asking twice for one bot inserts twice. */
+export type BotTeamRoomReply = { bot: BotTeamBot }
 
 /** The files already picked, then the new ones not yet listed, up to the message's limit. */
 function mergeAttachments(
@@ -40,7 +44,8 @@ export function BotTeamRoomComposer({
   projects = NO_PROJECTS,
   offline,
   onSend,
-  onAttachFiles
+  onAttachFiles,
+  replyTo = null
 }: {
   team: BotTeam
   /** `@Name` of one of these sends the request to that team. */
@@ -51,9 +56,12 @@ export function BotTeamRoomComposer({
   onSend: (text: string, attachments: BotTeamRoomAttachment[]) => Promise<boolean>
   /** Picks files into the team folder; without it the room takes no files and the "+" stays hidden. */
   onAttachFiles?: () => Promise<BotTeamRoomAttachment[]>
+  /** A bot's Reply: its @ chip goes at the end of the box, which takes focus. */
+  replyTo?: BotTeamRoomReply | null
 }): React.JSX.Element {
   const [pending, setPending] = useState<BotTeamRoomAttachment[]>([])
   const [attaching, setAttaching] = useState(false)
+  const appliedReply = useRef<BotTeamRoomReply | null>(null)
   const { editor, text, containerRef, menu, field } = useBotTeamMentionField({
     team,
     otherTeams,
@@ -71,6 +79,26 @@ export function BotTeamRoomComposer({
     onCommand: () => void openBotTeamRoomSessions()
   })
   useBotTeamRoomDraft(editor, team.id)
+  // Why: the ref keeps a StrictMode remount from inserting the same reply twice.
+  useEffect(() => {
+    if (!editor || !replyTo || replyTo === appliedReply.current) {
+      return
+    }
+    appliedReply.current = replyTo
+    const chip = botTeamComposerChipAttrs({ kind: 'bot', bot: replyTo.bot, insert: '' })
+    if (!chip) {
+      return
+    }
+    editor
+      .chain()
+      .focus('end')
+      .insertContent([
+        ...(editor.isEmpty ? [] : [{ type: 'text', text: ' ' }]),
+        { type: 'botTeamMention', attrs: chip },
+        { type: 'text', text: ' ' }
+      ])
+      .run()
+  }, [editor, replyTo])
   // Hoisted: the field's Enter calls it, after the editor exists.
   async function send(): Promise<void> {
     if (!editor) {

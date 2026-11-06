@@ -49,6 +49,25 @@ describe('botTeamComposerMenu', () => {
     expect(items?.slice(-2).map((item) => item.kind)).toEqual(['app', 'app'])
   })
 
+  it('keeps room for files when bots, teams and apps would fill the menu', () => {
+    const bots = Array.from({ length: 14 }, (_, index) => ({
+      id: `b${index}`,
+      name: `Bot${index}`,
+      job: '',
+      agent: 'claude' as const
+    }))
+    const apps = [{ id: 'engram' as const, name: 'Engram' }]
+    const items = botTeamComposerMenu({
+      text: '@',
+      caret: 1,
+      bots,
+      files: ['attachments/from-desarrollo-A-2.html'],
+      apps
+    })?.items
+    expect(items).toHaveLength(12)
+    expect(items?.map((item) => item.insert)).toContain('@attachments/from-desarrollo-A-2.html ')
+  })
+
   it('offers the other teams between the bots and the files, each with its character', () => {
     const teams = [
       { id: 'wh', name: 'Warehouse', character: 'square' as const },

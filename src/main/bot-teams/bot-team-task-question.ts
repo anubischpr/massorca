@@ -1,6 +1,7 @@
 import type { AgentJournalRenderItem } from '../../shared/agent-session-journal-types'
-import { botTeamQuestionOf } from '../../shared/bot-team-task-question'
+import { botTeamQuestionOf, botTeamSpokenReplyOf } from '../../shared/bot-team-task-question'
 import type { BotTeamMessage } from '../../shared/rpc-contract/bot-team-room-params'
+import { isBotTeamStartAcknowledgement } from './bot-team-filed-reply'
 import type { OrchestrationDb } from '../runtime/orchestration/db/orchestration-db'
 
 export type BotTeamTaskQuestionDeps = {
@@ -57,6 +58,17 @@ function botLinesThisTurn(
   )
 }
 
+/** The bot's own lines since its task began. */
+function botLinesSince(
+  messages: readonly BotTeamMessage[],
+  task: { ownerBotId: string; createdAt?: number | null }
+): BotTeamMessage[] {
+  return messages.filter(
+    (message) =>
+      message.authorBotId === task.ownerBotId && (message.createdAt ?? 0) >= (task.createdAt ?? 0)
+  )
+}
+
 function alreadyAsked(question: string, lines: readonly BotTeamMessage[]): boolean {
   const wanted = compact(question)
   return lines.some((line) => {
@@ -89,11 +101,21 @@ export async function postBotTeamTaskQuestion(
     return
   }
   const reply = await deps.lastReplyOf(sessionId)
+  const answered = db.takeBotTeamTaskAnswered(task.id)
   const question = reply === null ? null : botTeamQuestionOf(reply)
+  const messages = db.listBotTeamMessages(task.teamId)
+  const lines = botLinesThisTurn(messages, task)
   if (question === null) {
+    // Without a line of its own after the start acknowledgement, the bot's answer never reaches the room.
+    const spoken = reply === null ? null : botTeamSpokenReplyOf(reply)
+    const own = (answered ? lines : botLinesSince(messages, task)).filter(
+      (line) => !isBotTeamStartAcknowledgement(line.text)
+    )
+    if (spoken !== null && own.length === 0) {
+      db.postBotTeamMessage({ teamId: task.teamId, authorBotId: task.ownerBotId, text: spoken })
+    }
     return
   }
-  const lines = botLinesThisTurn(db.listBotTeamMessages(task.teamId), task)
   db.markBotTeamTaskWaiting(task.id)
   if (!alreadyAsked(question, lines)) {
     db.postBotTeamMessage({ teamId: task.teamId, authorBotId: task.ownerBotId, text: question })
