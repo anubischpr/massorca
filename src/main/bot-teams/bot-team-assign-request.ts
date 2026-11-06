@@ -11,6 +11,7 @@ import { botTeamTaskTitle } from '../../shared/bot-team-request-route'
 import type { BotTeamTask } from '../../shared/rpc-contract/bot-team-room-params'
 import type { OrchestrationDb } from '../runtime/orchestration/db/orchestration-db'
 import { botTeamCompositeNotes } from './bot-team-composite'
+import { botTeamReplyNote, type BotTeamReplyQuote } from './bot-team-prompt-notes'
 import { botTeamFiledReply } from './bot-team-filed-reply'
 import { returnUnstartedBotTeamTask } from './bot-team-return'
 
@@ -72,6 +73,8 @@ export type BotTeamRequestFiling = {
   originMessageId?: string
   /** The sender's zone: the task's start notes keep the clock the request was asked on. */
   timeZone?: string | null
+  /** The room message the request answers; the task's start notes quote it. */
+  quote?: BotTeamReplyQuote
 }
 
 export type BotTeamFiling = {
@@ -97,15 +100,17 @@ export async function startFiled(
   }
 }
 
-/** The task's start notes: the person's clock, a composite task's parts, then the files attached. */
+/** The task's start notes: the person's clock, the message a reply quotes, a composite's parts, the files. */
 function taskStartNotes(
   bots: Parameters<typeof botTeamCompositeNotes>[0],
   alsoNeeds: readonly string[],
   attachments: readonly BotTeamRoomAttachment[],
-  clock: string | null
+  clock: string | null,
+  quote: BotTeamReplyQuote | undefined
 ): string | null {
   const notes = [
     clock,
+    quote ? botTeamReplyNote(quote) : null,
     botTeamCompositeNotes(bots, alsoNeeds),
     botTeamRoomAttachmentsNote(attachments)
   ]
@@ -184,7 +189,8 @@ export async function fileBotTeamRequest(
       receiving.bots,
       alsoNeeds,
       input.attachments ?? [],
-      botTeamClockNote(Date.now(), input.timeZone)
+      botTeamClockNote(Date.now(), input.timeZone),
+      input.quote
     )
   )
   // Read again: the project was set after the task was created.

@@ -19823,6 +19823,8 @@
     },
     "botTeams": {
       "conferenceRoom": "Conference room",
+      "replyingTo": "Replying to {{name}}",
+      "cancelReply": "Cancel reply",
       "newFile": "New file",
       "openToPreview": "Open the file to see it.",
       "unreadFiles": "{{count}} new files",

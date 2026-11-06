@@ -128,6 +128,7 @@ async function renderHome() {
       createElement(MobileBotTeamsScreen, {
         hostId: 'host',
         onShowWorkspaces: () => {},
+        onOpenMarketplace: () => {},
         onOpenTask: () => {}
       })
     )

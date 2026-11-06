@@ -33,6 +33,7 @@ import type { BotTeamPrototypeChoice } from '../../../../shared/bot-team-prototy
 import { useBotTeamRoomMentions } from './bot-team-mention-projects'
 import { BotTeamSentTrackers } from './BotTeamRoomTracker'
 import { BotTeamRoomMessage } from './BotTeamRoomMessage'
+import { botTeamMessageRuns } from './bot-team-message-run'
 import { useBotTeamRoomPrototypeLinks } from './BotTeamRoomPrototypeLinks'
 import { useBotTeamRoomAttachments } from './bot-team-room-attach-state'
 import type { BotTeamRoomAttachment } from '../../../../shared/bot-team-room-attachments'
@@ -86,7 +87,7 @@ export function BotTeamRoom({
   const [pending, setPending] = useState<BotTeamPendingChoiceRequest | null>(null)
   // The text with the host, if any; the room shows who is typing until the reply comes back.
   const [typing, setTyping] = useState<string | null>(null)
-  // A bot's Reply puts its @ in the composer; a new object per click asks again.
+  // A bot's Reply quotes its message above the composer; a new object per click asks again.
   const [replyTo, setReplyTo] = useState<BotTeamRoomReply | null>(null)
   const { mentionProjects, mentionIcons } = useBotTeamRoomMentions(team, otherTeams, projects)
   const replying = useBotTeamReplying(team.bots)
@@ -138,7 +139,8 @@ export function BotTeamRoom({
   const send = async (
     text: string,
     attachments: BotTeamRoomAttachment[] = [],
-    prototypeChoice?: BotTeamPrototypeChoice
+    prototypeChoice?: BotTeamPrototypeChoice,
+    replyToMessageId?: string
   ): Promise<boolean> => {
     if (sending.current) {
       return false
@@ -155,7 +157,8 @@ export function BotTeamRoom({
         askProject: true,
         clientRequestId: replying.requestIdFor(text),
         ...(attachments.length > 0 ? { attachments } : {}),
-        ...(prototypeChoice ? { prototypeChoice } : {})
+        ...(prototypeChoice ? { prototypeChoice } : {}),
+        ...(replyToMessageId ? { replyToMessageId } : {})
       })
       replying.settle(sent.replying?.botId ?? null)
       setNeedsOwner(
@@ -230,6 +233,11 @@ export function BotTeamRoom({
   // A card sits right after the request that made it; the rest follow the conversation.
   const placement = useMemo(() => placeBotTeamRoomTasks(messages, tasks), [messages, tasks])
   const prototypeLinks = useBotTeamRoomPrototypeLinks(messages, tasks, sent, team.id)
+  // A card, tracker or prototype row under a message ends its run, so the next message shows its author.
+  const rowsBelow = (message: BotTeamMessage): boolean =>
+    (placement.cardsByMessageId.get(message.id)?.length ?? 0) > 0 ||
+    sent.some((request) => request.messageId === message.id) ||
+    Boolean(prototypeLinks(message.id))
   const openTask = tasks.find((task) => task.id === openTaskId)
   const openAgent = botOf(openTask?.ownerBotId ?? null)?.agent
   if (openTask && openAgent) {
@@ -301,20 +309,31 @@ export function BotTeamRoom({
                 </div>
               ) : null}
               {placement.leading.map(taskCard)}
-              {messages.map((message) => (
-                <BotTeamRoomMessage
-                  key={message.id}
-                  message={message}
-                  team={team}
-                  otherTeams={otherTeams}
-                  mentions={mentionIcons}
-                  onOpenFile={onOpenFile}
-                  onReply={(bot) => setReplyTo({ bot })}
-                >
-                  {placement.cardsByMessageId.get(message.id)?.map(taskCard)}
-                  {trackers(sent.filter((request) => request.messageId === message.id))}
-                  {prototypeLinks(message.id)}
-                </BotTeamRoomMessage>
+              {botTeamMessageRuns(messages, rowsBelow).map((run) => (
+                <div key={run[0]?.id} className="flex flex-col gap-1.5">
+                  {run.map((message, index) => (
+                    <BotTeamRoomMessage
+                      key={message.id}
+                      message={message}
+                      team={team}
+                      otherTeams={otherTeams}
+                      mentions={mentionIcons}
+                      onOpenFile={onOpenFile}
+                      onReply={(bot) =>
+                        setReplyTo({
+                          messageId: message.id,
+                          botName: bot.name,
+                          quote: message.text
+                        })
+                      }
+                      continuesRun={index > 0}
+                    >
+                      {placement.cardsByMessageId.get(message.id)?.map(taskCard)}
+                      {trackers(sent.filter((request) => request.messageId === message.id))}
+                      {prototypeLinks(message.id)}
+                    </BotTeamRoomMessage>
+                  ))}
+                </div>
               ))}
               {placement.trailing.map(taskCard)}
               {trackers(unplacedSent)}

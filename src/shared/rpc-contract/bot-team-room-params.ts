@@ -194,7 +194,9 @@ export const BotTeamMessagePost = z
     /** The sender's IANA zone, so "mañana a las 10" is read on their clock. An older client sends none. */
     timeZone: z.string().min(1).max(64).optional(),
     /** The prototype count the person chose on the card; an older host ignores it and sends the text as typed. */
-    prototypeChoice: BotTeamPrototypeChoiceSchema.optional()
+    prototypeChoice: BotTeamPrototypeChoiceSchema.optional(),
+    /** The room message this one answers, read from the same team; an older host ignores it. */
+    replyToMessageId: z.string().min(1).max(100).optional()
   })
   .refine((value) => value.text.trim() !== '' || (value.attachments?.length ?? 0) > 0, {
     message: 'Missing message text',

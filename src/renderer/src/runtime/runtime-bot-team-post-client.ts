@@ -23,6 +23,8 @@ export async function postBotTeamRequest(input: {
   /** Files from the team folder; sent only to a host that takes them in its room. */
   attachments?: BotTeamRoomAttachment[]
   prototypeChoice?: BotTeamPrototypeChoice
+  /** The room message this one answers; sent only when the person pressed Reply, so an older host never sees it. */
+  replyToMessageId?: string
 }): Promise<{
   task: BotTeamTask | null
   startError: string | null
