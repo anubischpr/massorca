@@ -4,13 +4,22 @@ import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { BotTeam, BotTeamBot } from '../../../../shared/rpc-contract/bot-team-params'
+import type { MarketplaceVaultHostTarget } from './marketplace-vault-host-client'
 import type { MarketplaceSkillPageSkill } from './MarketplaceSkillPageModel'
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true
 
-type Mocks = { teams: BotTeam[]; detected: string[] | null }
+type Mocks = {
+  teams: BotTeam[]
+  detected: string[] | null
+  targets: MarketplaceVaultHostTarget[]
+}
 
-const mocks = vi.hoisted((): Mocks => ({ teams: [], detected: ['claude', 'codex', 'pi'] }))
+const mocks = vi.hoisted((): Mocks => ({
+  teams: [],
+  detected: ['claude', 'codex', 'pi'],
+  targets: []
+}))
 
 vi.mock('@/runtime/runtime-bot-team-client', () => ({
   listBotTeams: () => Promise.resolve(mocks.teams)
@@ -23,6 +32,18 @@ vi.mock('../skills/SkillInstallDialog', () => ({
     <div data-install-dialog={initialLink ?? ''} />
   )
 }))
+vi.mock('./use-marketplace-host-targets', async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
+  useMarketplaceHostTargets: () => mocks.targets
+}))
+vi.mock('./marketplace-apps-host-client', () => ({
+  readHostApps: () => Promise.resolve({ ok: true, apps: [] }),
+  createHostMarketplaceAppsApi: () => ({})
+}))
+
+const { createTestStore, seedStore } = await import('../../store/slices/store-test-helpers')
+const store = createTestStore()
+vi.mock('@/store', () => ({ useAppStore: store }))
 
 const { TooltipProvider } = await import('@/components/ui/tooltip')
 const { MarketplaceSkillPage } = await import('./MarketplaceSkillPage')
@@ -64,6 +85,8 @@ const POOL_SKILL: MarketplaceSkillPageSkill = {
     detail: 'Bundled with this version of MassOrca.'
   }
 }
+
+const VPS: MarketplaceVaultHostTarget = { kind: 'runtime', environmentId: 'env-1', label: 'VPS' }
 
 let root: Root | null = null
 let container: HTMLDivElement | null = null
@@ -110,12 +133,38 @@ function pressedLabels(scope: ParentNode): string[] {
   )
 }
 
+function hostTrigger(scope: ParentNode): HTMLButtonElement | null {
+  return scope.querySelector<HTMLButtonElement>('button[aria-haspopup="menu"]')
+}
+
+/** Opens the host dropdown the Marketplace home uses and clicks the host whose name contains label. */
+async function pickHost(scope: ParentNode, label: string): Promise<void> {
+  const trigger = hostTrigger(scope)
+  if (!trigger) {
+    throw new Error('Host list missing')
+  }
+  await act(async () => {
+    trigger.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0 }))
+  })
+  const item = [...document.querySelectorAll<HTMLElement>('[role="menuitem"]')].find((candidate) =>
+    candidate.textContent?.includes(label)
+  )
+  if (!item) {
+    throw new Error(`Host missing: ${label}`)
+  }
+  await act(async () => {
+    item.click()
+  })
+}
+
 beforeEach(() => {
   mocks.detected = ['claude', 'codex', 'pi']
   mocks.teams = [
     team('mk', 'Marketing', [bot('b1', 'Iris', ['Browser use']), bot('b2', 'Ana', [])]),
     team('dev', 'Development', [bot('b3', 'Max', []), bot('b4', 'Leo', [])])
   ]
+  mocks.targets = [VPS]
+  seedStore(store, { marketplaceHostKey: null })
 })
 
 afterEach(async () => {
@@ -135,6 +184,20 @@ describe('MarketplaceSkillPage', () => {
     expect(crumb?.textContent).toBe('MarketplaceBrowser use')
     await act(async () => crumb?.querySelector('button')?.click())
     expect(onBack).toHaveBeenCalledTimes(1)
+  })
+
+  it('puts the host dropdown next to Back, and saves the host picked from it', async () => {
+    const page = await renderPage()
+    const backRow = page.querySelector('nav')?.parentElement ?? page
+    expect(hostTrigger(backRow)?.textContent).toContain('This computer')
+    await pickHost(page, 'VPS')
+    expect(store.getState().marketplaceHostKey).toBe('runtime:env-1')
+  })
+
+  it('leaves out the host dropdown when there is no other host to pick', async () => {
+    mocks.targets = []
+    const page = await renderPage()
+    expect(hostTrigger(page)).toBeNull()
   })
 
   it('heads a skill that is not installed and opens the install flow on its link', async () => {

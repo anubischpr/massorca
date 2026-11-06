@@ -15,12 +15,14 @@ import {
   MarketplaceCardRow,
   MarketplaceItemHeader
 } from './MarketplaceDetail'
+import { MarketplaceHomeHostPicker } from './MarketplaceHomeHostPicker'
 import {
   marketplaceSkillReachesAgent,
   type MarketplaceSkillOrigin,
   type MarketplaceSkillPageSkill
 } from './MarketplaceSkillPageModel'
 import { MarketplaceSkillTeams } from './MarketplaceSkillTeams'
+import { useMarketplaceAppHost } from './use-marketplace-app-host'
 
 const ORIGIN_ICONS: Record<MarketplaceSkillOrigin['kind'], typeof Store> = {
   pool: Store,
@@ -42,10 +44,15 @@ export function MarketplaceSkillPage({
   onBack: () => void
 }): React.JSX.Element {
   const [installOpen, setInstallOpen] = useState(false)
+  const host = useMarketplaceAppHost()
   const OriginIcon = ORIGIN_ICONS[skill.origin.kind]
   return (
     <div className={cn(SKILLS_PAGE_COLUMN, 'flex max-w-4xl flex-col gap-6 py-4')}>
-      <MarketplaceBreadcrumb name={skill.name} onBack={onBack} />
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <MarketplaceBreadcrumb name={skill.name} onBack={onBack} />
+        {/* Why: same host list as the Marketplace home and app pages. */}
+        {host.targets.length === 0 ? null : <MarketplaceHomeHostPicker host={host} />}
+      </div>
       <MarketplaceItemHeader
         icon={<BookOpen className="size-6" aria-hidden />}
         name={skill.name}

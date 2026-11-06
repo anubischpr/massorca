@@ -7,10 +7,11 @@ vi.mock('@/i18n/i18n', () => ({
 
 const {
   marketplaceAgentHostActionLabel,
+  marketplaceAgentHostFromTarget,
   marketplaceAgentHostKey,
   marketplaceAgentHostLabel,
-  marketplaceAgentHostView,
-  marketplaceAgentHostsSummary
+  marketplaceAgentHostStatus,
+  marketplaceAgentHostView
 } = await import('./MarketplaceAgentHostState')
 
 describe('marketplaceAgentHostLabel', () => {
@@ -19,17 +20,31 @@ describe('marketplaceAgentHostLabel', () => {
     expect(marketplaceAgentHostLabel({ kind: 'runtime', environmentId: 'e1', label: 'VPS' })).toBe(
       'VPS'
     )
-    expect(marketplaceAgentHostLabel({ kind: 'wsl', distro: 'Ubuntu' })).toBe('WSL: Ubuntu')
     expect(marketplaceAgentHostLabel({ kind: 'ssh', connectionId: 'c1', label: 'box' })).toBe(
       'SSH: box'
     )
   })
 
   it('keys hosts by kind and identity', () => {
+    expect(marketplaceAgentHostKey({ kind: 'local' })).toBe('local')
+    expect(marketplaceAgentHostKey({ kind: 'runtime', environmentId: 'e1', label: 'VPS' })).toBe(
+      'runtime:e1'
+    )
     expect(marketplaceAgentHostKey({ kind: 'ssh', connectionId: 'c1', label: 'box' })).toBe(
       'ssh:c1'
     )
-    expect(marketplaceAgentHostKey({ kind: 'wsl', distro: 'Ubuntu' })).toBe('wsl:Ubuntu')
+  })
+})
+
+describe('marketplaceAgentHostFromTarget', () => {
+  it('maps the host the shared picker points at, and This computer when none is picked', () => {
+    expect(marketplaceAgentHostFromTarget(null)).toEqual({ kind: 'local' })
+    expect(
+      marketplaceAgentHostFromTarget({ kind: 'runtime', environmentId: 'env-1', label: 'VPS' })
+    ).toEqual({ kind: 'runtime', environmentId: 'env-1', label: 'VPS' })
+    expect(
+      marketplaceAgentHostFromTarget({ kind: 'ssh', connectionId: 'conn-1', label: 'box' })
+    ).toEqual({ kind: 'ssh', connectionId: 'conn-1', label: 'box' })
   })
 })
 
@@ -58,12 +73,23 @@ describe('marketplaceAgentHostView', () => {
   })
 })
 
-describe('marketplaceAgentHostsSummary', () => {
-  it('counts found hosts out of every listed host', () => {
-    expect(marketplaceAgentHostsSummary(['found', 'missing', 'found', 'checking'])).toEqual({
-      text: 'On 2 of 4 hosts · works on 2',
+describe('marketplaceAgentHostStatus', () => {
+  it('names the picked host in the header status, the way the skill page does', () => {
+    expect(marketplaceAgentHostStatus('This computer', 'found')).toEqual({
+      text: 'Installed on This computer',
       tone: 'ok'
     })
-    expect(marketplaceAgentHostsSummary(['missing']).tone).toBe('pending')
+    expect(marketplaceAgentHostStatus('VPS', 'missing')).toEqual({
+      text: 'Not installed on VPS',
+      tone: 'pending'
+    })
+    expect(marketplaceAgentHostStatus('VPS', 'checking')).toEqual({
+      text: 'Checking VPS…',
+      tone: 'pending'
+    })
+    expect(marketplaceAgentHostStatus('box', 'unverifiable')).toEqual({
+      text: 'Could not check box',
+      tone: 'pending'
+    })
   })
 })
