@@ -1,11 +1,11 @@
 import { translate } from '@/i18n/i18n'
+import type { MarketplaceVaultHostTarget } from './marketplace-vault-host-client'
 import type { MarketplaceStatusTone } from './MarketplaceDetail'
 
-/** A host that can run agents, as the agent page lists it. */
+/** A host the agent page can show: This computer, a paired server or an SSH host, as the Marketplace picker lists them. */
 export type MarketplaceAgentHost =
   | { kind: 'local' }
   | { kind: 'runtime'; environmentId: string; label: string }
-  | { kind: 'wsl'; distro: string }
   | { kind: 'ssh'; connectionId: string; label: string }
 
 /** What detection says about one agent on one host; `unverifiable` is a probe that never answered. */
@@ -19,14 +19,24 @@ export type MarketplaceAgentHostView = {
   action: MarketplaceAgentHostAction | null
 }
 
+/** The host the shared Marketplace picker points at; This computer when nothing is picked. */
+export function marketplaceAgentHostFromTarget(
+  target: MarketplaceVaultHostTarget | null
+): MarketplaceAgentHost {
+  if (target === null) {
+    return { kind: 'local' }
+  }
+  return target.kind === 'ssh'
+    ? { kind: 'ssh', connectionId: target.connectionId, label: target.label }
+    : { kind: 'runtime', environmentId: target.environmentId, label: target.label }
+}
+
 export function marketplaceAgentHostKey(host: MarketplaceAgentHost): string {
   switch (host.kind) {
     case 'local':
       return 'local'
     case 'runtime':
       return `runtime:${host.environmentId}`
-    case 'wsl':
-      return `wsl:${host.distro}`
     case 'ssh':
       return `ssh:${host.connectionId}`
   }
@@ -41,14 +51,6 @@ export function marketplaceAgentHostLabel(host: MarketplaceAgentHost): string {
       )
     case 'runtime':
       return host.label
-    case 'wsl':
-      return translate(
-        'auto.components.marketplace.MarketplaceAgentPage.wslHost',
-        'WSL: {{name}}',
-        {
-          name: host.distro
-        }
-      )
     case 'ssh':
       return translate(
         'auto.components.marketplace.MarketplaceAgentPage.sshHost',
@@ -116,18 +118,47 @@ export function marketplaceAgentHostActionLabel(action: MarketplaceAgentHostActi
     : translate('auto.components.marketplace.MarketplaceAgentPage.install', 'Install')
 }
 
-/** "On N of M hosts · works on K"; hosts still being checked count toward M only. */
-export function marketplaceAgentHostsSummary(detections: readonly MarketplaceAgentDetection[]): {
-  text: string
-  tone: MarketplaceStatusTone
-} {
-  const on = detections.filter((detection) => detection === 'found').length
-  return {
-    text: translate(
-      'auto.components.marketplace.MarketplaceAgentPage.summary',
-      'On {{on}} of {{total}} hosts · works on {{works}}',
-      { on: String(on), total: String(detections.length), works: String(on) }
-    ),
-    tone: on > 0 ? 'ok' : 'pending'
+/** The header status line for the picked host, worded the way the skill page words its host. */
+export function marketplaceAgentHostStatus(
+  hostName: string,
+  detection: MarketplaceAgentDetection
+): { text: string; tone: MarketplaceStatusTone } {
+  switch (detection) {
+    case 'found':
+      return {
+        text: translate(
+          'auto.components.marketplace.MarketplaceAgentPage.installedOn',
+          'Installed on {{host}}',
+          { host: hostName }
+        ),
+        tone: 'ok'
+      }
+    case 'missing':
+      return {
+        text: translate(
+          'auto.components.marketplace.MarketplaceAgentPage.notInstalledOn',
+          'Not installed on {{host}}',
+          { host: hostName }
+        ),
+        tone: 'pending'
+      }
+    case 'checking':
+      return {
+        text: translate(
+          'auto.components.marketplace.MarketplaceAgentPage.checkingOn',
+          'Checking {{host}}…',
+          { host: hostName }
+        ),
+        tone: 'pending'
+      }
+    case 'unverifiable':
+      return {
+        text: translate(
+          'auto.components.marketplace.MarketplaceAgentPage.couldNotCheckOn',
+          'Could not check {{host}}',
+          { host: hostName }
+        ),
+        tone: 'pending'
+      }
   }
 }

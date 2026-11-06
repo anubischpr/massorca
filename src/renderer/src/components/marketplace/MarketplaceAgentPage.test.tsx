@@ -5,25 +5,27 @@ import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { getDefaultSettings } from '../../../../shared/constants'
 import type { GlobalSettings } from '../../../../shared/global-settings-types'
+import type { MarketplaceVaultHostTarget } from './marketplace-vault-host-client'
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true
 
 type Mocks = {
   detectedByTarget: Record<string, string[] | null>
   failedTargets: Set<string>
-  wslDetected: string[] | null
-  state: {
-    settings: GlobalSettings | null
-    updateSettings: (updates: Partial<GlobalSettings>) => void
-  }
+  updateSettings: (updates: Partial<GlobalSettings>) => Promise<void>
 }
 
 const mocks = vi.hoisted((): Mocks => ({
   detectedByTarget: {},
   failedTargets: new Set<string>(),
-  wslDetected: null,
-  state: { settings: null, updateSettings: () => undefined }
+  updateSettings: vi.fn()
 }))
+
+// Why: the host list must be the same array on every render, or the app host reloads forever.
+const TARGETS: MarketplaceVaultHostTarget[] = [
+  { kind: 'runtime', environmentId: 'env-1', label: 'VPS' },
+  { kind: 'ssh', connectionId: 'conn-1', label: 'box' }
+]
 
 vi.mock('react-i18next', () => ({ useTranslation: () => ({}) }))
 vi.mock('@/i18n/i18n', () => ({
@@ -50,10 +52,6 @@ vi.mock('@/lib/agent-catalog', () => {
   }
 })
 vi.mock('@/lib/use-pi-runtime', () => ({ usePiDisplayRuntime: () => 'unknown' }))
-vi.mock('@/lib/web-client-location', () => ({ isWebClientLocation: () => false }))
-vi.mock('@/lib/windows-terminal-capabilities', () => ({
-  useLocalWindowsTerminalCapabilities: () => ({ wslDistros: ['Ubuntu'], isLoading: false })
-}))
 vi.mock('@/hooks/useDetectedAgents', () => ({
   useDetectedAgents: (
     target: { kind: string; connectionId?: string; environmentId?: string } | null
@@ -73,22 +71,18 @@ vi.mock('@/hooks/useDetectedAgents', () => ({
     }
   }
 }))
-vi.mock('../skills/use-skill-install-detected-agents', () => ({
-  useSkillInstallDetectedAgents: () => mocks.wslDetected
+vi.mock('./use-marketplace-host-targets', async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
+  useMarketplaceHostTargets: () => TARGETS
 }))
-vi.mock('./use-marketplace-host-targets', () => ({
-  useMarketplaceHostTargets: () => [
-    { kind: 'runtime', environmentId: 'env-1', label: 'VPS' },
-    { kind: 'ssh', connectionId: 'conn-1', label: 'box' }
-  ]
+vi.mock('./marketplace-apps-host-client', () => ({
+  readHostApps: () => Promise.resolve({ ok: true, apps: [] }),
+  createHostMarketplaceAppsApi: () => ({})
 }))
-vi.mock('@/store', () => {
-  const useAppStore = Object.assign(
-    (selector: (state: typeof mocks.state) => unknown) => selector(mocks.state),
-    { getState: () => mocks.state }
-  )
-  return { useAppStore }
-})
+
+const { createTestStore, seedStore } = await import('../../store/slices/store-test-helpers')
+const store = createTestStore()
+vi.mock('@/store', () => ({ useAppStore: store }))
 
 const { TooltipProvider } = await import('@/components/ui/tooltip')
 const { MarketplaceAgentPage } = await import('./MarketplaceAgentPage')
@@ -136,13 +130,39 @@ function buttonIn(scope: ParentNode, text: string): HTMLButtonElement {
   return button
 }
 
+function hostTrigger(scope: ParentNode): HTMLButtonElement | null {
+  return scope.querySelector<HTMLButtonElement>('button[aria-haspopup="menu"]')
+}
+
+/** Opens the host dropdown the Marketplace home uses and clicks the host whose name contains label. */
+async function pickHost(scope: ParentNode, label: string): Promise<void> {
+  const trigger = hostTrigger(scope)
+  if (!trigger) {
+    throw new Error('Host list missing')
+  }
+  await act(async () => {
+    trigger.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0 }))
+  })
+  const item = [...document.querySelectorAll<HTMLElement>('[role="menuitem"]')].find((candidate) =>
+    candidate.textContent?.includes(label)
+  )
+  if (!item) {
+    throw new Error(`Host missing: ${label}`)
+  }
+  await act(async () => {
+    item.click()
+  })
+}
+
 beforeEach(() => {
-  vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue('Mozilla/5.0 (Windows NT 10.0)')
   mocks.detectedByTarget = { local: ['claude'], 'runtime:env-1': [], 'ssh:conn-1': null }
   mocks.failedTargets = new Set(['ssh:conn-1'])
-  mocks.wslDetected = ['claude']
-  mocks.state.settings = getDefaultSettings('/tmp')
-  mocks.state.updateSettings = vi.fn()
+  mocks.updateSettings = vi.fn()
+  seedStore(store, {
+    settings: getDefaultSettings('/tmp'),
+    updateSettings: mocks.updateSettings,
+    marketplaceHostKey: null
+  })
 })
 
 afterEach(async () => {
@@ -165,37 +185,62 @@ describe('MarketplaceAgentPage', () => {
     expect(onBack).toHaveBeenCalledTimes(1)
   })
 
-  it('heads the page with the name, description and host count', async () => {
+  it('heads the page with the name, description and status of This computer', async () => {
     const page = await renderPage()
     expect(page.querySelector('h2')?.textContent).toBe('Claude Code')
     expect(page.textContent).toContain('Coding agent from Anthropic.')
     expect(page.querySelector('[data-marketplace-status-line]')?.textContent).toBe(
-      'On 2 of 4 hosts · works on 2'
+      'Installed on This computer'
     )
   })
 
-  it('lists This computer, the paired server, WSL and SSH with their state and action', async () => {
-    await renderPage()
-    const local = hostRow('local')
-    expect(local.textContent).toContain('This computer')
-    expect(local.textContent).toContain('Found, works')
-    expect(buttonIn(local, 'Manage with MassOrca').disabled).toBe(true)
+  it('puts the host dropdown next to Back, as the app pages do', async () => {
+    const page = await renderPage()
+    const backRow = section(page, 'nav').parentElement ?? page
+    expect(hostTrigger(backRow)?.textContent).toContain('This computer')
+  })
 
+  it('shows only the picked host, with its own state and action', async () => {
+    seedStore(store, { marketplaceHostKey: 'runtime:env-1' })
+    const page = await renderPage()
+    expect(page.querySelectorAll('[data-marketplace-agent-host]')).toHaveLength(1)
     const vps = hostRow('runtime:env-1')
     expect(vps.textContent).toContain('VPS')
     expect(vps.textContent).toContain('Not installed')
     expect(vps.textContent).toContain('Missing')
     expect(buttonIn(vps, 'Install').disabled).toBe(true)
+    expect(page.querySelector('[data-marketplace-agent-host="local"]')).toBeNull()
+    expect(page.querySelector('[data-marketplace-status-line]')?.textContent).toBe(
+      'Not installed on VPS'
+    )
+  })
 
-    expect(hostRow('wsl:Ubuntu').textContent).toContain('WSL: Ubuntu')
-    expect(hostRow('wsl:Ubuntu').textContent).toContain('Found, works')
+  it('keeps the note that each host has its own agents', async () => {
+    const page = await renderPage()
+    expect(page.textContent).toContain(
+      'Each host has its own agents. MassOrca updates and removes only what it manages.'
+    )
+  })
 
+  it('switches the shown host and the saved pick when another host is picked', async () => {
+    const page = await renderPage()
+    await pickHost(page, 'box')
+    expect(store.getState().marketplaceHostKey).toBe('ssh:conn-1')
+    expect(page.querySelectorAll('[data-marketplace-agent-host]')).toHaveLength(1)
     const ssh = hostRow('ssh:conn-1')
     expect(ssh.textContent).toContain('SSH: box')
     expect(ssh.textContent).toContain('Could not check')
     expect(ssh.querySelector('button')).toBeNull()
-    expect(container?.textContent).toContain(
-      'Each host has its own agents. MassOrca updates and removes only what it manages.'
+    expect(page.querySelector('[data-marketplace-status-line]')?.textContent).toBe(
+      'Could not check box'
+    )
+
+    await pickHost(page, 'This computer')
+    expect(store.getState().marketplaceHostKey).toBeNull()
+    expect(page.querySelectorAll('[data-marketplace-agent-host]')).toHaveLength(1)
+    expect(buttonIn(hostRow('local'), 'Manage with MassOrca').disabled).toBe(true)
+    expect(page.querySelector('[data-marketplace-status-line]')?.textContent).toBe(
+      'Installed on This computer'
     )
   })
 
@@ -216,13 +261,13 @@ describe('MarketplaceAgentPage', () => {
 
     await act(async () => buttonIn(settings, 'Off').click())
     await vi.waitFor(() =>
-      expect(mocks.state.updateSettings).toHaveBeenCalledWith(
+      expect(mocks.updateSettings).toHaveBeenCalledWith(
         expect.objectContaining({ disabledTuiAgents: expect.arrayContaining(['claude']) })
       )
     )
 
     await act(async () => buttonIn(settings, 'Set as default').click())
-    expect(mocks.state.updateSettings).toHaveBeenCalledWith({ defaultTuiAgent: 'claude' })
+    expect(mocks.updateSettings).toHaveBeenCalledWith({ defaultTuiAgent: 'claude' })
   })
 
   it('shows the launch command and variables and opens their editors with Edit', async () => {

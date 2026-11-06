@@ -4,15 +4,19 @@ import type { MarketplaceCustomItemStatus } from '../../../../shared/marketplace
 import type { DiscoveredSkill } from '../../../../shared/skills'
 import type { TuiAgent } from '../../../../shared/tui-agent'
 import { MARKETPLACE_CATALOG, type MarketplaceItemId } from './marketplace-catalog'
+import { customRows } from './MarketplaceCatalogCustomRows'
+import { integrationRows } from './MarketplaceCatalogIntegrations'
+import type {
+  MarketplaceIntegrationId,
+  MarketplaceIntegrationStates
+} from './marketplace-integrations'
 import type { MarketplaceBadgeState } from './marketplace-status'
 import {
   connectLabel,
   connectedLabel,
-  couldNotCheckLabel,
   foundLabel,
   installLabel,
-  installedLabel,
-  installingLabel
+  installedLabel
 } from './MarketplaceCatalogStatusCopy'
 import {
   boardSkillRows,
@@ -32,6 +36,7 @@ export type CatalogRowTarget =
   | { kind: 'item'; id: MarketplaceItemId }
   | { kind: 'agent'; agent: TuiAgent }
   | { kind: 'skill'; skill: DiscoveredSkill }
+  | { kind: 'integration'; id: MarketplaceIntegrationId }
 
 export type CatalogRowIcon =
   | { kind: 'item'; id: MarketplaceItemId }
@@ -88,16 +93,22 @@ export type CatalogListState<T> =
 /** A row's badge: a host check's state, or the update a host too old for the check needs. */
 export type CatalogBadge = MarketplaceBadgeState | 'update-required'
 
-/** The GitHub CLI and GitLab CLI states the host check reports. */
-export type CliBadges = { gh: CatalogBadge; gitlab: CatalogBadge }
+/** The GitHub CLI state the host check reports. */
+export type CliBadges = { gh: CatalogBadge }
 
 /** One board agent and what the host check says about it. */
-export type CatalogAgentEntry = { id: TuiAgent; label: string; check: CatalogCheck<boolean> }
+export type CatalogAgentEntry = {
+  id: TuiAgent
+  label: string
+  check: CatalogCheck<boolean>
+}
 
 export type CatalogBuildInputs = {
   hostLabel: string
   badgeFor: (id: MarketplaceItemId) => CatalogBadge
   cli: CliBadges
+  /** Settings integrations are app-wide, so their states do not follow the host shown. */
+  integrations: MarketplaceIntegrationStates
   agents: readonly CatalogAgentEntry[]
   skills: CatalogCheck<readonly DiscoveredSkill[]>
   custom: CatalogListState<MarketplaceCustomItemStatus>
@@ -158,8 +169,7 @@ export function buildCatalogSections(inputs: CatalogBuildInputs): CatalogSection
       rows: [
         itemRow(inputs, 'openmetadata', 'services'),
         itemRow(inputs, 'github', 'services'),
-        cliRow('gitlab', inputs.cli.gitlab, host),
-        ...unsetBoardRows('email', 'calendar', 'drive', 'crm')
+        ...integrationRows(inputs.integrations)
       ],
       placeholder: null
     }
@@ -282,49 +292,5 @@ function skillRow(skill: DiscoveredSkill): CatalogRow {
     owned: skill.installed,
     service: false,
     customId: null
-  }
-}
-
-function customRows(
-  inputs: CatalogBuildInputs,
-  itemKind: MarketplaceCustomItemStatus['kind'],
-  section: MarketplaceCatalogSectionId
-): CatalogRow[] {
-  if (inputs.custom.kind !== 'ready') {
-    return []
-  }
-  return inputs.custom.items
-    .filter((item) => item.kind === itemKind)
-    .map((item): CatalogRow => {
-      const installing = inputs.installingCustomIds.has(item.id)
-      return {
-        key: `custom-${item.id}`,
-        section,
-        name: item.name,
-        description: item.checkCommand?.join(' ') ?? '',
-        icon: { kind: 'custom', itemKind: item.kind },
-        status: customStatus(item.presence, installing),
-        target: null,
-        owned: !installing && item.presence === 'found',
-        service: false,
-        customId: item.id
-      }
-    })
-}
-
-function customStatus(
-  presence: MarketplaceCustomItemStatus['presence'],
-  installing: boolean
-): CatalogRowStatus {
-  if (installing) {
-    return { kind: 'pending', label: installingLabel() }
-  }
-  switch (presence) {
-    case 'found':
-      return { kind: 'done', label: installedLabel() }
-    case 'missing':
-      return { kind: 'action', label: installLabel() }
-    case 'unverifiable':
-      return { kind: 'pending', label: couldNotCheckLabel() }
   }
 }

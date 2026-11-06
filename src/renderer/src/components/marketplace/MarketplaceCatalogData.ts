@@ -22,6 +22,7 @@ import {
   type CliBadges
 } from './MarketplaceCatalogRows'
 import type { MarketplaceItemId } from './marketplace-catalog'
+import { useMarketplaceIntegrationStates } from './marketplace-integration-status'
 import { marketplaceBadgeState, type MarketplaceBadgeState } from './marketplace-status'
 import type { MarketplaceVaultHostTarget } from './marketplace-vault-host-client'
 import { useMarketplaceAgents } from './use-marketplace-agents'
@@ -72,11 +73,14 @@ export function useMarketplaceCatalog({
   apps: MarketplaceAppsState
   refreshPreflight: boolean
 }): MarketplaceCatalog {
-  const preflight = useMarketplacePreflight({ refreshOnMount: refreshPreflight })
+  const preflight = useMarketplacePreflight({
+    refreshOnMount: refreshPreflight
+  })
   const marketplaceAgents = useMarketplaceAgents()
   const skills = useMarketplaceInstalledSkills()
   const custom = useMarketplaceCustomItems()
   const remote = useMarketplaceRemoteDetection(local ? null : remoteTarget)
+  const integrations = useMarketplaceIntegrationStates()
 
   const rowBadgeFor = useCallback(
     (id: MarketplaceItemId): CatalogBadge => {
@@ -125,6 +129,7 @@ export function useMarketplaceCatalog({
     hostLabel,
     badgeFor: rowBadgeFor,
     cli,
+    integrations,
     agents,
     skills: skillList,
     custom: customList,
@@ -214,37 +219,22 @@ function githubBadge(gh: RemoteTools['gh']): MarketplaceBadgeState {
   return gh.authenticated ? 'signed-in' : 'not-signed-in'
 }
 
-/** The GitHub CLI and GitLab CLI states a picked host reports. */
+/** The GitHub CLI state a picked host reports. */
 function remoteCliBadges(remote: RemoteHostReads): CliBadges {
   return {
     gh: badgeFromCheck(remote.tools, (tools) =>
       tools.gh.installed ? 'installed' : 'not-installed'
-    ),
-    gitlab: badgeFromCheck(remote.tools, (tools) => gitlabBadge(tools.glab))
+    )
   }
 }
 
-/** The GitHub CLI and GitLab CLI states this computer's check reports. */
+/** The GitHub CLI state this computer's check reports. */
 function cliBadges(preflight: PreflightStatus | null, checked: boolean): CliBadges {
   if (!checked) {
-    return { gh: 'checking', gitlab: 'checking' }
+    return { gh: 'checking' }
   }
   if (preflight === null) {
-    return { gh: 'unknown', gitlab: 'unknown' }
+    return { gh: 'unknown' }
   }
-  return {
-    gh: preflight.gh.installed ? 'installed' : 'not-installed',
-    gitlab: gitlabBadge(preflight.glab)
-  }
-}
-
-function gitlabBadge(glab: PreflightStatus['glab']): MarketplaceBadgeState {
-  // Why: payloads from before GitLab support omit glab, so its state is unknown rather than missing.
-  if (glab === undefined) {
-    return 'unknown'
-  }
-  if (!glab.installed) {
-    return 'not-installed'
-  }
-  return glab.authenticated ? 'signed-in' : 'not-signed-in'
+  return { gh: preflight.gh.installed ? 'installed' : 'not-installed' }
 }

@@ -3,6 +3,10 @@ import type { MarketplaceCustomItemStatus } from '../../../../shared/marketplace
 import type { DiscoveredSkill } from '../../../../shared/skills'
 import type { TuiAgent } from '../../../../shared/tui-agent'
 import type { MarketplaceItemId } from './marketplace-catalog'
+import type {
+  MarketplaceIntegrationState,
+  MarketplaceIntegrationStates
+} from './marketplace-integrations'
 import {
   buildCatalogSections,
   ownedRows,
@@ -49,6 +53,21 @@ function readyAgents(foundIds: readonly TuiAgent[]): CatalogAgentEntry[] {
   return agentsWith((id) => ({ kind: 'ready', value: foundIds.includes(id) }))
 }
 
+function integrationStates(
+  overrides: Partial<MarketplaceIntegrationStates> = {},
+  fallback: MarketplaceIntegrationState = 'not-connected'
+): MarketplaceIntegrationStates {
+  return {
+    gitlab: fallback,
+    bitbucket: fallback,
+    'azure-devops': fallback,
+    gitea: fallback,
+    linear: fallback,
+    jira: fallback,
+    ...overrides
+  }
+}
+
 function inputs(overrides: Partial<CatalogBuildInputs> = {}): CatalogBuildInputs {
   return {
     hostLabel: 'This computer',
@@ -57,7 +76,8 @@ function inputs(overrides: Partial<CatalogBuildInputs> = {}): CatalogBuildInputs
     skills: { kind: 'ready', value: [] },
     custom: { kind: 'ready', items: [] },
     installingCustomIds: new Set(),
-    cli: { gh: 'not-installed', gitlab: 'not-installed' },
+    cli: { gh: 'not-installed' },
+    integrations: integrationStates(),
     ...overrides
   }
 }
@@ -76,6 +96,15 @@ function rowNamed(sections: readonly CatalogSection[], name: string): CatalogRow
     .find((candidate) => candidate.name === name)
   if (!row) {
     throw new Error(`No row ${name}`)
+  }
+  return row
+}
+
+/** Linear is also a board skill, so Services rows are looked up inside their section. */
+function serviceRow(sections: readonly CatalogSection[], name: string): CatalogRow {
+  const row = sectionNamed(sections, 'Services').rows.find((candidate) => candidate.name === name)
+  if (!row) {
+    throw new Error(`No service ${name}`)
   }
   return row
 }
@@ -136,38 +165,33 @@ describe('the catalog sections', () => {
     ])
   })
 
-  it('puts OpenMetadata, GitHub, GitLab, Email, Calendar, Shared drive and [CRM] under Services, in the board order', () => {
+  it('puts OpenMetadata, GitHub and the Settings integrations under Services, with no placeholder rows', () => {
     const sections = buildCatalogSections(inputs())
     expect(sectionNamed(sections, 'Services').rows.map((row) => row.name)).toEqual([
       'OpenMetadata',
       'GitHub',
       'GitLab',
-      'Email',
-      'Calendar',
-      'Shared drive',
-      '[CRM]'
+      'Bitbucket',
+      'Azure DevOps',
+      'Gitea',
+      'Linear',
+      'Jira'
     ])
+    const names = sections.flatMap((section) => section.rows.map((row) => row.name))
+    for (const removed of ['Email', 'Calendar', 'Shared drive', '[CRM]']) {
+      expect(names).not.toContain(removed)
+    }
   })
 })
 
 describe('the board-only rows, the CLI rows and skill rows', () => {
-  it('shows Node.js and the bot-team services with a disabled action and no status', () => {
-    const sections = buildCatalogSections(inputs())
-    const expected: [string, string, string][] = [
-      ['Node.js', 'Install', 'Runs the JavaScript tools some agents call.'],
-      ['Email', 'Connect', 'Bot teams read and send mail.'],
-      ['Calendar', 'Connect', 'Bot teams read and add events.'],
-      ['Shared drive', 'Connect', 'Bot teams read and save shared files.'],
-      ['[CRM]', 'Connect', 'Bot teams read customers and deals.']
-    ]
-    for (const [name, label, description] of expected) {
-      const row = rowNamed(sections, name)
-      expect(row.status).toEqual({ kind: 'action', label })
-      expect(row.description).toBe(description)
-      expect(row.owned).toBe(false)
-      expect(row.target).toBeNull()
-      expect(row.customId).toBeNull()
-    }
+  it('shows Node.js with a disabled action and no status', () => {
+    const row = rowNamed(buildCatalogSections(inputs()), 'Node.js')
+    expect(row.status).toEqual({ kind: 'action', label: 'Install' })
+    expect(row.description).toBe('Runs the JavaScript tools some agents call.')
+    expect(row.owned).toBe(false)
+    expect(row.target).toBeNull()
+    expect(row.customId).toBeNull()
   })
 
   it('keeps the board-only rows out of Your apps, while the real rows that are owned stay in', () => {
@@ -180,7 +204,8 @@ describe('the board-only rows, the CLI rows and skill rows', () => {
             github: 'signed-in',
             openmetadata: 'connected'
           }),
-          cli: { gh: 'installed', gitlab: 'signed-in' }
+          cli: { gh: 'installed' },
+          integrations: integrationStates({ gitlab: 'connected', jira: 'connected' })
         })
       )
     )
@@ -191,13 +216,14 @@ describe('the board-only rows, the CLI rows and skill rows', () => {
       'Codex',
       'OpenMetadata',
       'GitHub',
-      'GitLab'
+      'GitLab',
+      'Jira'
     ])
   })
 
   it('shows GitHub CLI from the computer check, and Could not check while that check is unknown', () => {
     const installed = rowNamed(
-      buildCatalogSections(inputs({ cli: { gh: 'installed', gitlab: 'not-installed' } })),
+      buildCatalogSections(inputs({ cli: { gh: 'installed' } })),
       'GitHub CLI'
     )
     expect(installed.status).toEqual({ kind: 'done', label: 'Installed' })
@@ -207,27 +233,36 @@ describe('the board-only rows, the CLI rows and skill rows', () => {
       kind: 'action',
       label: 'Install'
     })
-    const unknown = rowNamed(
-      buildCatalogSections(inputs({ cli: { gh: 'unknown', gitlab: 'unknown' } })),
-      'GitHub CLI'
-    )
+    const unknown = rowNamed(buildCatalogSections(inputs({ cli: { gh: 'unknown' } })), 'GitHub CLI')
     expect(unknown.status).toEqual({ kind: 'pending', label: 'Could not check' })
   })
 
-  it('shows GitLab as Connected and owned only when glab is signed in, and Connect otherwise', () => {
-    const signedIn = rowNamed(
-      buildCatalogSections(inputs({ cli: { gh: 'not-installed', gitlab: 'signed-in' } })),
-      'GitLab'
+  it('shows each integration with its own real status and a page to open', () => {
+    const sections = buildCatalogSections(
+      inputs({
+        integrations: integrationStates({
+          gitlab: 'connected',
+          linear: 'checking',
+          jira: 'unavailable'
+        })
+      })
     )
-    expect(signedIn.status).toEqual({ kind: 'done', label: 'Connected' })
-    expect(signedIn.owned).toBe(true)
-    expect(signedIn.service).toBe(true)
-    const notSigned = rowNamed(
-      buildCatalogSections(inputs({ cli: { gh: 'not-installed', gitlab: 'not-signed-in' } })),
-      'GitLab'
-    )
-    expect(notSigned.status).toEqual({ kind: 'action', label: 'Connect' })
-    expect(notSigned.owned).toBe(false)
+    const gitlab = serviceRow(sections, 'GitLab')
+    expect(gitlab.status).toEqual({ kind: 'done', label: 'Connected' })
+    expect(gitlab.owned).toBe(true)
+    expect(gitlab.service).toBe(true)
+    expect(gitlab.target).toEqual({ kind: 'integration', id: 'gitlab' })
+    expect(serviceRow(sections, 'Linear').status).toEqual({ kind: 'pending', label: 'Checking…' })
+    expect(serviceRow(sections, 'Jira').status).toEqual({
+      kind: 'pending',
+      label: 'Could not check'
+    })
+    for (const name of ['Bitbucket', 'Azure DevOps', 'Gitea']) {
+      const row = serviceRow(sections, name)
+      expect(row.status).toEqual({ kind: 'action', label: 'Connect' })
+      expect(row.owned).toBe(false)
+      expect(row.target?.kind).toBe('integration')
+    }
   })
 
   it('opens a skill row with the skill it lists', () => {
@@ -491,7 +526,7 @@ describe('a picked remote host', () => {
       inputs({
         hostLabel: PV_VPS,
         badgeFor: badges({ git: 'update-required' }),
-        cli: { gh: 'update-required', gitlab: 'unknown' }
+        cli: { gh: 'update-required' }
       })
     )
     expect(rowNamed(sections, 'Git').status).toEqual({
