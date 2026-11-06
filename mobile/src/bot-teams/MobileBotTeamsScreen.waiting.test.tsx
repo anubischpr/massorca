@@ -80,6 +80,7 @@ describe('the team list', () => {
         createElement(MobileBotTeamsScreen, {
           hostId: 'host',
           onShowWorkspaces: () => {},
+          onOpenMarketplace: () => {},
           onOpenTask: () => {}
         })
       )

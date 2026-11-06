@@ -78,6 +78,7 @@ describe('MobileBotTeamsScreen', () => {
         createElement(MobileBotTeamsScreen, {
           hostId: 'host',
           onShowWorkspaces: () => {},
+          onOpenMarketplace: () => {},
           onOpenTask: () => {}
         })
       )
@@ -93,6 +94,7 @@ describe('MobileBotTeamsScreen', () => {
         createElement(MobileBotTeamsScreen, {
           hostId: 'host',
           onShowWorkspaces: () => {},
+          onOpenMarketplace: () => {},
           onOpenTask: () => {}
         })
       )
@@ -108,6 +110,24 @@ describe('MobileBotTeamsScreen', () => {
     expect(nameInput().props.value).toBe('Marketing')
   })
 
+  it('opens the shared Marketplace from the Bot teams settings wheel', async () => {
+    const onOpenMarketplace = vi.fn()
+    let renderer!: ReactTestRenderer
+    await act(async () => {
+      renderer = create(
+        createElement(MobileBotTeamsScreen, {
+          hostId: 'host',
+          onShowWorkspaces: () => {},
+          onOpenMarketplace,
+          onOpenTask: () => {}
+        })
+      )
+    })
+    press(renderer, 'Bot teams settings')
+    press(renderer, 'Marketplace')
+    expect(onOpenMarketplace).toHaveBeenCalledTimes(1)
+  })
+
   it('edits a bot while creating a team, in the add form with its values', async () => {
     let renderer!: ReactTestRenderer
     await act(async () => {
@@ -115,6 +135,7 @@ describe('MobileBotTeamsScreen', () => {
         createElement(MobileBotTeamsScreen, {
           hostId: 'host',
           onShowWorkspaces: () => {},
+          onOpenMarketplace: () => {},
           onOpenTask: () => {}
         })
       )

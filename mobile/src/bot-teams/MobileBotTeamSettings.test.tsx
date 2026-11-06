@@ -23,7 +23,7 @@ vi.mock('./mobile-bot-character-preference', () => ({
 }))
 
 function renderSettings() {
-  const handlers = { onBack: vi.fn() }
+  const handlers = { onBack: vi.fn(), onOpenMarketplace: vi.fn() }
   let renderer!: ReactTestRenderer
   act(() => {
     renderer = create(createElement(MobileBotTeamSettings, handlers))
@@ -46,10 +46,16 @@ function press(renderer: ReactTestRenderer, label: string) {
 }
 
 describe('MobileBotTeamSettings', () => {
-  it('shows only the character animations, with no per-team access or Marketplace rows', () => {
+  it('shows the character animations and the one shared Marketplace, with no per-team rows', () => {
     const { renderer } = renderSettings()
-    expect(labelsOf(renderer, 'Pressable')).toEqual(['Back'])
+    expect(labelsOf(renderer, 'Pressable')).toEqual(['Back', 'Marketplace'])
     expect(labelsOf(renderer, 'Switch')).toEqual(['Character animations'])
+  })
+
+  it('opens the shared Marketplace from its row', () => {
+    const { renderer, onOpenMarketplace } = renderSettings()
+    press(renderer, 'Marketplace')
+    expect(onOpenMarketplace).toHaveBeenCalledTimes(1)
   })
 
   it('saves the character animations switch as the preference', () => {

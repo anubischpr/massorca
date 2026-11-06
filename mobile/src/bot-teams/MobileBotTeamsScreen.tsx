@@ -100,10 +100,12 @@ function TeamCarousel({
 export function MobileBotTeamsScreen({
   hostId,
   onShowWorkspaces,
+  onOpenMarketplace,
   onOpenTask
 }: {
   hostId: string
   onShowWorkspaces: () => void
+  onOpenMarketplace: () => void
   onOpenTask: (workspaceId: string, task: BotTeamTask) => void
 }) {
   const { client } = useHostClient(hostId)
@@ -341,7 +343,7 @@ export function MobileBotTeamsScreen({
       />
     )
   } else if (client !== null && screen.name === 'settings') {
-    body = <MobileBotTeamSettings onBack={backHome} />
+    body = <MobileBotTeamSettings onBack={backHome} onOpenMarketplace={onOpenMarketplace} />
   } else {
     body = (
       <>
