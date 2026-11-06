@@ -11,7 +11,11 @@ import {
 } from '../../shared/marketplace-apps'
 import { mcpEntryState } from './agent-mcp-config'
 import { readAgentEntryNames } from './marketplace-agent-config'
-import { resolveWriteTarget, type MarketplaceAgentPaths } from './marketplace-agent-paths'
+import {
+  isAgentPresent,
+  resolveWriteTarget,
+  type MarketplaceAgentPaths
+} from './marketplace-agent-paths'
 import {
   ENGRAM_ENTRY_NAME,
   GITHUB_ENTRY_NAME,
@@ -64,6 +68,7 @@ function agentStatuses(
       level: levelFor(id, agent),
       entry,
       allowed,
+      installed: isAgentPresent(agent, paths),
       ...(outsideHome ? { outsideHome: true } : {})
     }
   })

@@ -17,6 +17,8 @@ export type MarketplaceAppAgentStatus = {
   entry: MarketplaceAgentEntryState
   /** False when the app's access policy keeps this agent out; absent means allowed. */
   allowed?: boolean
+  /** Whether the agent is on this computer; absent on a host that predates it, which never flags a gap. */
+  installed?: boolean
   /** A link leads this agent's settings file out of its home, so MassOrca leaves it alone; absent means not. */
   outsideHome?: boolean
 }
@@ -79,6 +81,20 @@ export function isMarketplaceAppAllowedForBot(
 export function marketplaceAgentSupportsAppDenial(agent: string): boolean {
   // Why: Antigravity always loads its global mcp_config.json, so one run can't drop an app.
   return agent !== 'antigravity'
+}
+
+/** An installed agent the access policy allows, with no entry for the app yet: Connect writes it. */
+export function isMarketplaceAgentEntryMissing(
+  appId: MarketplaceAppId,
+  agent: MarketplaceAppAgentStatus
+): boolean {
+  return (
+    appId !== 'github' &&
+    agent.entry === 'missing' &&
+    agent.installed === true &&
+    agent.allowed !== false &&
+    agent.outsideHome !== true
+  )
 }
 
 /** Shown wherever an app would be denied to a bot that runs on such an agent. */

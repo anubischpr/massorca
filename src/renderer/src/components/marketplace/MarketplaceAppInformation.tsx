@@ -3,6 +3,7 @@ import { Badge } from '@/components/ui/badge'
 import { translate } from '@/i18n/i18n'
 import {
   MARKETPLACE_APP_AGENTS,
+  isMarketplaceAgentEntryMissing,
   type MarketplaceAppAgentStatus,
   type MarketplaceAppId
 } from '../../../../shared/marketplace-apps'
@@ -164,7 +165,8 @@ function AgentUsageRow({
   appId: MarketplaceAppId
   agent: MarketplaceAppAgentStatus
 }): React.JSX.Element {
-  const usage = usageCopy(appId, agent)
+  const missing = isMarketplaceAgentEntryMissing(appId, agent)
+  const usage = missing ? missingUsage() : usageCopy(appId, agent)
   return (
     <li className="flex items-center gap-3 border-t border-border px-4 py-3">
       <span className="flex shrink-0 items-center justify-center">
@@ -190,9 +192,19 @@ function AgentUsageRow({
           </p>
         ) : null}
       </div>
-      <Badge variant="secondary">{usage.label}</Badge>
+      <Badge variant={missing ? 'outline' : 'secondary'}>{usage.label}</Badge>
     </li>
   )
+}
+
+function missingUsage(): { label: string; line: string } {
+  return {
+    label: translate('auto.components.marketplace.MarketplaceAppInformation.missing', 'Missing'),
+    line: translate(
+      'auto.components.marketplace.MarketplaceAppInformation.missingLine',
+      'This agent has no entry for the app yet. Connect adds it.'
+    )
+  }
 }
 
 function usageCopy(
