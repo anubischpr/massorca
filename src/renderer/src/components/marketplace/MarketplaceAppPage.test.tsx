@@ -808,4 +808,51 @@ describe('MarketplaceAppPage', () => {
     expect(rows[0]).toContain('Claude Code')
     expect(rows[3]).toContain('Gentle Shell')
   })
+
+  describe('a connected app with an installed agent that has no entry', () => {
+    const withMissingCodex = (app: MarketplaceAppStatus): MarketplaceAppStatus => ({
+      ...app,
+      agents: app.agents.map((row) =>
+        row.agent === 'codex' ? { ...row, entry: 'missing', installed: true } : row
+      )
+    })
+
+    it('shows that agent as Missing, not Full integration, and offers Connect in the header', async () => {
+      seedApps([withMissingCodex(engram), openmetadata, github])
+      const container = await mount('engram')
+      const codex = [...sectionOf(container, 'information').querySelectorAll('li')].find((row) =>
+        row.textContent?.includes('Codex')
+      )
+      expect(codex?.textContent).toContain('Missing')
+      expect(codex?.textContent).not.toContain('Full integration')
+      await clickButton(headerOf(container), 'Connect')
+      expect(mocks.connect).toHaveBeenCalledWith({ id: 'engram' })
+    })
+
+    it('opens the OpenMetadata connect dialog from that header Connect', async () => {
+      seedApps([engram, withMissingCodex(openmetadata), github])
+      const container = await mount('openmetadata')
+      await clickButton(headerOf(container), 'Connect')
+      expect(document.body.textContent).toContain('Connect OpenMetadata')
+      expect(inputById('marketplace-openmetadata-address')).toBeDefined()
+    })
+
+    it('keeps Connect out of a connected app whose installed agents all have their entry', async () => {
+      const container = await mount('engram')
+      expect(buttonWithText(headerOf(container), 'Connect')).toBeUndefined()
+    })
+
+    it('never offers Connect for GitHub, which writes no agent entries', async () => {
+      seedApps([
+        engram,
+        openmetadata,
+        {
+          ...github,
+          agents: [{ agent: 'codex', level: 'full', entry: 'missing', installed: true }]
+        }
+      ])
+      const container = await mount('github')
+      expect(buttonWithText(headerOf(container), 'Connect')).toBeUndefined()
+    })
+  })
 })

@@ -11,7 +11,12 @@ import {
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import type { MarketplaceAppAgent, MarketplaceAppStatus } from '../../shared/marketplace-apps'
+import {
+  isMarketplaceAgentEntryMissing,
+  type MarketplaceAppAgent,
+  type MarketplaceAppAgentStatus,
+  type MarketplaceAppStatus
+} from '../../shared/marketplace-apps'
 import {
   installAllAgents,
   installFakeSecretStore,
@@ -25,6 +30,13 @@ import { MarketplaceVault } from './marketplace-vault'
 
 const TOKEN = 'tok-SECRET-123'
 const URL_ = 'https://om.example.com/mcp'
+const ESCRITURA_URL = 'https://escritura.example.com/mcp'
+const ESCRITURA_TABLE = [
+  '[mcp_servers.escritura]',
+  `url = "${ESCRITURA_URL}"`,
+  'bearer_token_env_var = "OPENMETADATA_TOKEN_ESCRITURA"',
+  ''
+].join('\n')
 
 let home: string
 let vault: MarketplaceVault
@@ -442,5 +454,125 @@ describe('a config that links outside this home', () => {
     } finally {
       rmSync(outside, { recursive: true, force: true })
     }
+  })
+})
+
+describe('reconnecting a connected app', () => {
+  const codexPath = (): string => testAgentPaths(home).mcpConfig('codex')
+  const everyFile = (): Record<string, string> =>
+    Object.fromEntries(
+      allFiles(home)
+        .filter((path) => !path.startsWith(join(home, '.orca')))
+        .map((path) => [path, readFileSync(path, 'utf8')])
+    )
+  const rowOf = (
+    status: MarketplaceAppStatus,
+    agent: MarketplaceAppAgent
+  ): MarketplaceAppAgentStatus => {
+    const row = status.agents.find((candidate) => candidate.agent === agent)
+    if (!row) {
+      throw new Error(`no ${agent} row`)
+    }
+    return row
+  }
+
+  it("writes an entry the user removed by hand, and records it as MassOrca's", async () => {
+    writeFixture(
+      codexPath(),
+      '[mcp_servers.openmetadata]\nurl = "https://mine.example.com/mcp"\n\n[mcp_servers.engram]\ncommand = "my-engram"\n'
+    )
+    await service().connect({ id: 'openmetadata', url: URL_, token: TOKEN })
+    await service().connect({ id: 'engram' })
+    await service().addOpenMetadataProfile({
+      name: 'escritura',
+      url: ESCRITURA_URL,
+      token: 'esc-secret'
+    })
+    const userTables = readFileSync(codexPath(), 'utf8')
+    // Why: the user's own same-name tables stay as they are and are never recorded as MassOrca's.
+    expect(vault.readState().written.openmetadata.codex?.entries).toEqual(['escritura'])
+    expect(vault.readState().written.engram.codex?.entries ?? []).toEqual([])
+    await service().connect({ id: 'openmetadata', url: URL_, token: TOKEN })
+    expect(readFileSync(codexPath(), 'utf8')).toBe(userTables)
+
+    writeFixture(codexPath(), ESCRITURA_TABLE)
+    await service().connect({ id: 'openmetadata', url: URL_, token: TOKEN })
+    await service().connect({ id: 'engram' })
+
+    const codex = readFileSync(codexPath(), 'utf8')
+    expect(codex).toContain('[mcp_servers.openmetadata]')
+    expect(codex).toContain('[mcp_servers.engram]')
+    expect(codex).toContain('[mcp_servers.escritura]')
+    expect(vault.readState().written.openmetadata.codex?.entries.sort()).toEqual([
+      'escritura',
+      'openmetadata'
+    ])
+    expect(vault.readState().written.engram.codex?.entries).toEqual(['engram'])
+    expect(entryOf(await statusOf('openmetadata'), 'codex')).toBe('set')
+    expect(entryOf(await statusOf('engram'), 'codex')).toBe('set')
+  })
+
+  it('changes no file when connect runs again on a connected app', async () => {
+    await service().connect({ id: 'openmetadata', url: URL_, token: TOKEN })
+    await service().connect({ id: 'engram' })
+    const before = everyFile()
+    expect((await service().connect({ id: 'openmetadata', url: URL_, token: TOKEN })).ok).toBe(true)
+    expect((await service().connect({ id: 'engram' })).ok).toBe(true)
+    expect(everyFile()).toEqual(before)
+  })
+
+  it('reports an installed agent whose entry is gone as missing, and one not on this computer as not installed', async () => {
+    await service().connect({ id: 'openmetadata', url: URL_, token: TOKEN })
+    writeFixture(codexPath(), '')
+    rmSync(join(home, '.gemini'), { recursive: true, force: true })
+    const status = await statusOf('openmetadata')
+    expect(status.connected).toBe(true)
+    expect(rowOf(status, 'codex')).toMatchObject({
+      entry: 'missing',
+      allowed: true,
+      installed: true
+    })
+    expect(rowOf(status, 'claude')).toMatchObject({ entry: 'set', installed: true })
+    expect(rowOf(status, 'antigravity')).toMatchObject({ entry: 'missing', installed: false })
+  })
+})
+
+describe('isMarketplaceAgentEntryMissing', () => {
+  const codex = (patch: Partial<MarketplaceAppAgentStatus>): MarketplaceAppAgentStatus => ({
+    agent: 'codex',
+    level: 'full',
+    entry: 'missing',
+    installed: true,
+    allowed: true,
+    ...patch
+  })
+
+  it('flags an installed, allowed agent whose entry is absent, for an app MassOrca writes', () => {
+    expect(isMarketplaceAgentEntryMissing('engram', codex({}))).toBe(true)
+    expect(isMarketplaceAgentEntryMissing('openmetadata', codex({}))).toBe(true)
+  })
+
+  it('does not flag a set, built-in, unreadable or outside-home entry', () => {
+    const patches: Partial<MarketplaceAppAgentStatus>[] = [
+      { entry: 'set' },
+      { entry: 'built-in' },
+      { entry: 'unreadable' },
+      { outsideHome: true }
+    ]
+    for (const patch of patches) {
+      expect(isMarketplaceAgentEntryMissing('engram', codex(patch))).toBe(false)
+    }
+  })
+
+  it('does not flag an agent that is not installed, not reported, or kept out by access', () => {
+    expect(isMarketplaceAgentEntryMissing('engram', codex({ installed: false }))).toBe(false)
+    expect(
+      isMarketplaceAgentEntryMissing('engram', { agent: 'codex', level: 'full', entry: 'missing' })
+    ).toBe(false)
+    expect(isMarketplaceAgentEntryMissing('engram', codex({ allowed: false }))).toBe(false)
+  })
+
+  it('never flags GitHub, which writes no agent entries', () => {
+    expect(isMarketplaceAgentEntryMissing('github', codex({}))).toBe(false)
   })
 })
