@@ -112,6 +112,8 @@ type DecideArgs = {
   now?: number
   /** The asking person's zone: a named day and time are read on their clock. */
   timeZone?: string | null
+  /** The bot whose room message this request replies to; it takes the request unless a bot or team is named. */
+  quotedBot?: BotTeamBot | null
 }
 
 /**
@@ -148,6 +150,10 @@ async function decideOwner(args: DecideArgs & { now: number }): Promise<BotTeamR
   const mentionedTeam = findMentionedBot(text, args.otherTeams)
   if (mentionedTeam) {
     return { type: 'team', teamId: mentionedTeam.id, ...laterOf(timing.later) }
+  }
+  // A reply goes to the bot it quotes, which hands on what is far from its job.
+  if (args.quotedBot) {
+    return { type: 'task', bot: args.quotedBot, alsoNeeds: [], ...laterOf(timing.later) }
   }
   if (team.bots.length === 0) {
     return { type: 'ask' }

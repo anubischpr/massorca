@@ -24,6 +24,21 @@ export const BOT_TEAM_SAVE_FILE_NOTE =
 export const BOT_TEAM_HISTORY_SOURCES_NOTE =
   'For a question about a project\'s history or what was last done on it, check what the team already knows before answering: Engram memory with `mcp__engram__mem_search` and `mcp__engram__mem_context` (read them, do not save from a question), OpenMetadata through its read server named "openmetadata" only (never "openmetadata-escritura" and never a tool that creates or changes anything), and the project itself. Use the sources you have; say once which one you could not reach.'
 
+/** The room message a reply answers: its author's name, or null for the person's own line. */
+export type BotTeamReplyQuote = { authorName: string | null; text: string }
+
+const REPLY_QUOTE_MAX_CHARS = 500
+
+/** The message a room reply answers, quoted, and where a request far from the bot's job goes instead. */
+export function botTeamReplyNote(quote: BotTeamReplyQuote): string {
+  const flat = quote.text.replace(/\s+/g, ' ').trim()
+  const shown =
+    flat.length > REPLY_QUOTE_MAX_CHARS ? `${flat.slice(0, REPLY_QUOTE_MAX_CHARS - 1)}…` : flat
+  const whose =
+    quote.authorName === null ? 'their own earlier message' : `${quote.authorName}'s message`
+  return `The person is replying to ${whose} in the Conference room: "${shown}". Answer that message. If this request is far from your job, hand it to the right teammate with \`orca orchestration team-delegate --bot <name> --text "<task>"\` instead of answering it yourself.`
+}
+
 function authorOf(
   message: BotTeamMessage,
   bots: readonly Pick<BotTeamBot, 'id' | 'name'>[]

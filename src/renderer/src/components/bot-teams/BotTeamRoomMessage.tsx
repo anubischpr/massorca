@@ -24,6 +24,7 @@ export function BotTeamRoomMessage({
   mentions,
   onOpenFile,
   onReply,
+  continuesRun = false,
   children
 }: {
   message: BotTeamMessage
@@ -31,8 +32,10 @@ export function BotTeamRoomMessage({
   otherTeams: readonly BotTeam[]
   mentions: readonly BotTeamMentionIcon[]
   onOpenFile?: (path: string) => void
-  /** Puts the bot's `@Name` in the composer; the reply actions show only for a named bot. */
+  /** Puts the bot's `@Name` in the composer's reply bar; the reply action shows only for a named bot. */
   onReply?: (bot: BotTeamBot) => void
+  /** The message follows one from the same author, so its name and avatar stay with the run's first message. */
+  continuesRun?: boolean
   /** The cards that sit right under the message. */
   children?: React.ReactNode
 }): React.JSX.Element {
@@ -54,32 +57,42 @@ export function BotTeamRoomMessage({
   const body = filesOnly ? null : <BotTeamRoomMessageBody text={text} mentions={mentions} />
   return (
     <div className="flex flex-col gap-3">
-      {author ? (
-        <div className="flex items-center gap-2 text-[13px] font-medium">
-          <BotAgentIcon agent={author.agent} size={16} />
-          <span style={{ color: botAgentNameColor(author.agent) }}>{author.name}</span>
-          {fromTeam ? (
-            <span className="flex items-center gap-1 text-xs font-normal text-muted-foreground">
-              <BotTeamCharacterIcon character={fromTeam.character} size={14} />
-              {fromTeamTag(fromTeam)}
-            </span>
-          ) : null}
-        </div>
-      ) : null}
-      {fromAll ? <BotTeamAllAuthor bots={team.bots} /> : null}
-      {author || fromAll ? (
-        <div className="flex flex-col gap-1.5">
-          {body ? (
-            <div className="rounded-xl border border-border bg-card px-3.5 py-2.5 text-sm leading-relaxed text-foreground/80">
-              {body}
+      {continuesRun ? null : (
+        <>
+          {author ? (
+            <div className="flex items-center gap-2 text-[13px] font-medium">
+              <BotAgentIcon agent={author.agent} size={16} />
+              <span style={{ color: botAgentNameColor(author.agent) }}>{author.name}</span>
+              {fromTeam ? (
+                <span className="flex items-center gap-1 text-xs font-normal text-muted-foreground">
+                  <BotTeamCharacterIcon character={fromTeam.character} size={14} />
+                  {fromTeamTag(fromTeam)}
+                </span>
+              ) : null}
             </div>
           ) : null}
-          {attachments}
-          <BotTeamRoomMessageActions
-            copyText={filesOnly ? null : message.text}
-            botName={author?.name ?? ''}
-            {...(author && onReply ? { onReply: () => onReply(author) } : {})}
-          />
+          {fromAll ? <BotTeamAllAuthor bots={team.bots} /> : null}
+        </>
+      )}
+      {author || fromAll ? (
+        <div className="flex flex-col gap-1.5">
+          <div className="flex items-center gap-1">
+            {body ? (
+              <div className="min-w-0 max-w-[85%] rounded-xl border border-border bg-card px-3.5 py-2.5 text-sm leading-relaxed text-foreground/80">
+                {body}
+              </div>
+            ) : (
+              <div className="min-w-0">{attachments}</div>
+            )}
+            <div className="shrink-0">
+              <BotTeamRoomMessageActions
+                copyText={filesOnly ? null : message.text}
+                botName={author?.name ?? ''}
+                {...(author && onReply ? { onReply: () => onReply(author) } : {})}
+              />
+            </div>
+          </div>
+          {body ? attachments : null}
         </div>
       ) : (
         <div className="max-w-[80%] self-end rounded-xl border border-border bg-muted px-3.5 py-2.5 text-sm leading-relaxed">

@@ -17,7 +17,8 @@ import { useAppStore } from '@/store'
 type RoomPost = (
   text: string,
   attachments: BotTeamRoomAttachment[],
-  prototypeChoice?: BotTeamPrototypeChoice
+  prototypeChoice?: BotTeamPrototypeChoice,
+  replyToMessageId?: string
 ) => Promise<boolean>
 
 /** A message held for the count card: nothing is posted until the person answers. */
@@ -29,10 +30,16 @@ export type BotTeamRoomPrototypeAsk = {
   defaultCount: number
   /** The host picks the owner later, so the card names the bot whose agent read the request as one. */
   botName: string
+  /** The message the held text replies to; posted with it once the person picks a count. */
+  replyToMessageId?: string
 }
 
 export type BotTeamRoomPrototype = {
-  send: (text: string, attachments?: BotTeamRoomAttachment[]) => Promise<boolean>
+  send: (
+    text: string,
+    attachments?: BotTeamRoomAttachment[],
+    replyToMessageId?: string
+  ) => Promise<boolean>
   ask: BotTeamRoomPrototypeAsk | null
   choose: (choice: NativeChatPrototypeChoice) => void
 }
@@ -84,7 +91,11 @@ export function useBotTeamRoomPrototype({
   const prototypeCount = useAppStore((state) => state.settings?.prototypeCount)
 
   const send = useCallback(
-    async (text: string, attachments: BotTeamRoomAttachment[] = []): Promise<boolean> => {
+    async (
+      text: string,
+      attachments: BotTeamRoomAttachment[] = [],
+      replyToMessageId?: string
+    ): Promise<boolean> => {
       const setting = sanitizePrototypeCountSetting(prototypeCount)
       const decision = decideBotTeamRoomPrototype({ text, bots, setting })
       // A newer message retires a card still waiting for its answer.
@@ -96,14 +107,16 @@ export function useBotTeamRoomPrototype({
           keyword: decision.keyword,
           settingAsks: setting.mode === 'ask',
           defaultCount: setting.count,
-          botName: decision.botName
+          botName: decision.botName,
+          ...(replyToMessageId ? { replyToMessageId } : {})
         })
         return true
       }
       return post(
         text,
         attachments,
-        decision.kind === 'create' ? { count: decision.count } : undefined
+        decision.kind === 'create' ? { count: decision.count } : undefined,
+        replyToMessageId
       )
     },
     [bots, post, prototypeCount]
@@ -115,14 +128,17 @@ export function useBotTeamRoomPrototype({
         return
       }
       setAsk(null)
-      void post(ask.text, ask.attachments, choice === 'as-typed' ? undefined : choice).then(
-        (sent) => {
-          // A refused post brings the card back, so the message is not lost.
-          if (!sent) {
-            setAsk(ask)
-          }
+      void post(
+        ask.text,
+        ask.attachments,
+        choice === 'as-typed' ? undefined : choice,
+        ask.replyToMessageId
+      ).then((sent) => {
+        // A refused post brings the card back, so the message is not lost.
+        if (!sent) {
+          setAsk(ask)
         }
-      )
+      })
     },
     [ask, post]
   )

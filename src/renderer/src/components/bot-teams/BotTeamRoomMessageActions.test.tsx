@@ -96,7 +96,7 @@ describe('BotTeamRoomMessage bot replies', () => {
     expect(toast.success).toHaveBeenCalledWith('Message copied')
   })
 
-  it('puts the bot into the composer through Reply', () => {
+  it("asks the room to quote the bot's message through Reply", () => {
     const onReply = vi.fn()
     const shown = show({ onReply })
 

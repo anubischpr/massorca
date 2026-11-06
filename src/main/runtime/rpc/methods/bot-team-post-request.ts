@@ -18,6 +18,7 @@ import {
   fileBotTeamRequest
 } from '../../../bot-teams/bot-team-assign-request'
 import { botTeamScheduledReply } from '../../../bot-teams/bot-team-filed-reply'
+import { botTeamReplyTarget } from '../../../bot-teams/bot-team-reply-quote'
 import { replyToBotTeamGreeting } from '../../../bot-teams/bot-team-greeting-reply'
 import { decideBotTeamRequest } from '../../../bot-teams/bot-team-request-flow'
 import { answerWaitingBotTeamTask } from '../../../bot-teams/bot-team-task-answer'
@@ -62,7 +63,8 @@ export async function postBotTeamRequestOnHost(
     askProject = false,
     attachments = [],
     timeZone,
-    prototypeChoice
+    prototypeChoice,
+    replyToMessageId
   }: {
     teamId: string
     text: string
@@ -72,6 +74,8 @@ export async function postBotTeamRequestOnHost(
     timeZone?: string
     /** The count the person chose on the prototype card; the task that starts reads it from its notes. */
     prototypeChoice?: BotTeamPrototypeChoice
+    /** The room message this request replies to; an older client never sends it. */
+    replyToMessageId?: string
   },
   startTaskAsFiled: (taskId: string) => Promise<BotTeamTask>
 ): Promise<BotTeamPostResult> {
@@ -90,6 +94,9 @@ export async function postBotTeamRequestOnHost(
   if (!team) {
     return { message, task: null, startError: null }
   }
+  // A reply quotes the message it answers; a message from another team, or none, quotes nothing.
+  const reply =
+    replyToMessageId === undefined ? null : botTeamReplyTarget(db, team, replyToMessageId)
   // A reply to a bot's open question goes to that bot's session, not a new task.
   const answered = await answerWaitingBotTeamTask(
     db,
@@ -107,6 +114,7 @@ export async function postBotTeamRequestOnHost(
     otherTeams: teams.filter((entry) => entry.id !== teamId),
     activeTasksByBot: activeTasksByBot(db, teamId),
     timeZone: timeZone ?? null,
+    quotedBot: reply?.bot ?? null,
     classify: async (prompt) => {
       classifyReply = await askDefaultAgentForBotTeamRequest({
         prompt,
@@ -205,7 +213,8 @@ export async function postBotTeamRequestOnHost(
       later,
       askProject,
       attachments,
-      timeZone: timeZone ?? null
+      timeZone: timeZone ?? null,
+      ...(reply ? { quote: reply.quote } : {})
     },
     startTask
   )
