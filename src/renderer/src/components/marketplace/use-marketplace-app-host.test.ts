@@ -110,3 +110,29 @@ describe('useMarketplaceAppHost pick persistence', () => {
     expect(store.getState().marketplaceHostKey).toBeNull()
   })
 })
+
+describe('useMarketplaceAppHost on a WSL distro', () => {
+  const UBUNTU: MarketplaceVaultHostTarget = { kind: 'wsl', distro: 'Ubuntu', label: 'WSL: Ubuntu' }
+
+  beforeEach(() => {
+    mocks.targets = [UBUNTU]
+    mocks.readHostApps.mockReset()
+    store.getState().setMarketplaceHostKey('wsl:Ubuntu')
+  })
+
+  afterEach(() => {
+    if (root) {
+      unmountFresh()
+    }
+    latest = null
+  })
+
+  it('is not available: it reads no apps and shows none of this computer apps', () => {
+    mountFresh()
+    expect(latest?.selectedKey).toBe('wsl:Ubuntu')
+    expect(latest?.wslDistro).toBe('Ubuntu')
+    expect(latest?.apps).toEqual({ status: 'failed' })
+    expect(latest?.failure).toBeNull()
+    expect(mocks.readHostApps).not.toHaveBeenCalled()
+  })
+})

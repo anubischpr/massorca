@@ -3,7 +3,9 @@ import { INSTALLED_AGENT_SKILLS_CHANGED_EVENT } from '@/hooks/installed-agent-sk
 import { useActiveSkillDiscoveryRuntimeTarget } from '@/hooks/use-active-skill-discovery-runtime-target'
 import type { RuntimeClientTarget } from '@/runtime/runtime-client-target'
 import { discoverSkillsForRuntimeTarget } from '@/runtime/runtime-skills-client'
+import type { ManagedSkillInstall } from '../../../../shared/skill-install-contract'
 import type { DiscoveredSkill } from '../../../../shared/skills'
+import { markMarketplaceManagedSkills } from './marketplace-managed-skills'
 
 /** The skills on the host the Marketplace shows. */
 export type MarketplaceInstalledSkills =
@@ -30,6 +32,21 @@ function publish(next: Snapshot): void {
   }
 }
 
+/** The installs MassOrca placed on this target; a listing that fails or is unsupported reads as none. */
+async function readManagedInstalls(
+  target: RuntimeClientTarget
+): Promise<readonly ManagedSkillInstall[]> {
+  try {
+    const operation = await window.api.skills.listManagedInstalls(
+      target.kind === 'local' ? undefined : target.environmentId
+    )
+    return operation.status === 'ok' ? operation.value : []
+  } catch (cause) {
+    console.warn('[skills] managed install listing failed:', cause)
+    return []
+  }
+}
+
 function scan(target: RuntimeClientTarget): void {
   const key = targetKey(target)
   activeTarget = target
@@ -38,10 +55,12 @@ function scan(target: RuntimeClientTarget): void {
   if (snapshot.key !== key || snapshot.state.status !== 'ready') {
     publish({ key, state: { status: 'loading' } })
   }
-  discoverSkillsForRuntimeTarget(target).then(
-    (result) => {
+  // Why: a failed managed-install listing never fails the scan; its skills stay unmarked, so hidden.
+  Promise.all([discoverSkillsForRuntimeTarget(target), readManagedInstalls(target)]).then(
+    ([result, installs]) => {
       if (request === latestRequest) {
-        publish({ key, state: { status: 'ready', skills: result.skills } })
+        const skills = markMarketplaceManagedSkills(result.skills, installs)
+        publish({ key, state: { status: 'ready', skills } })
       }
     },
     () => {

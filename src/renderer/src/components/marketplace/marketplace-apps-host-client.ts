@@ -16,6 +16,8 @@ import type { MarketplaceVaultHostTarget } from './marketplace-vault-host-client
 
 const RPC_TIMEOUT_MS = 30_000
 const NEEDS_UPDATE = { ok: false, reason: 'host-needs-update' } as const
+// Why: the apps have no WSL path yet, so a distro answers failed and never with this computer's apps.
+const WSL_UNAVAILABLE = { ok: false, reason: 'failed' } as const
 
 type RemoteCalls = MarketplaceRemoteAppsApi
 
@@ -29,6 +31,9 @@ function predatesMarketplace(error: unknown): boolean {
 }
 
 async function listOnHost(target: MarketplaceVaultHostTarget): Promise<MarketplaceAppsListResult> {
+  if (target.kind === 'wsl') {
+    return WSL_UNAVAILABLE
+  }
   try {
     if (target.kind === 'ssh') {
       const remote = window.api?.marketplaceApps?.remote
@@ -53,6 +58,9 @@ async function actOnHost<K extends Exclude<MarketplaceAppsHostCall, 'listApps'>>
   args: Parameters<RemoteCalls[K]>[0]['args'],
   viaSsh: (remote: RemoteCalls, connectionId: string) => Promise<MarketplaceActionResult>
 ): Promise<MarketplaceActionResult> {
+  if (target.kind === 'wsl') {
+    return WSL_UNAVAILABLE
+  }
   try {
     if (target.kind === 'ssh') {
       const remote = window.api?.marketplaceApps?.remote

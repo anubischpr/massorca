@@ -26,12 +26,16 @@ export type MarketplaceAppHost = {
   failure: string | null
   /** Set only while another host is picked. */
   scope: MarketplaceHostScope | null
+  /** The picked WSL distro, which the Marketplace apps cannot act on yet; null for every other host. */
+  wslDistro: string | null
   retry: () => void
 }
 
 type RemoteApps = { key: string | null; state: MarketplaceAppsState; failure: string | null }
 
 const LOADING: RemoteApps = { key: null, state: { status: 'loading' }, failure: null }
+// Why: a WSL distro is never read, so its apps are failed rather than this computer's shared copy.
+const WSL_APPS_UNAVAILABLE: MarketplaceAppsState = { status: 'failed' }
 
 /** Aims the app page at this computer or one of the hosts that run agents of their own. */
 export function useMarketplaceAppHost(): MarketplaceAppHost {
@@ -48,9 +52,11 @@ export function useMarketplaceAppHost(): MarketplaceAppHost {
     () => (pickedKey ? (targets.find((t) => marketplaceHostKey(t) === pickedKey) ?? null) : null),
     [pickedKey, targets]
   )
+  const wslDistro = target?.kind === 'wsl' ? target.distro : null
 
   const reload = useCallback(async (): Promise<void> => {
-    if (!target) {
+    // Why: a WSL distro has no apps path, so it is never asked and never answers with this computer's apps.
+    if (!target || target.kind === 'wsl') {
       return
     }
     const key = marketplaceHostKey(target)
@@ -67,7 +73,7 @@ export function useMarketplaceAppHost(): MarketplaceAppHost {
   }, [target])
 
   useEffect(() => {
-    if (!target) {
+    if (!target || target.kind === 'wsl') {
       return
     }
     void reload()
@@ -87,9 +93,10 @@ export function useMarketplaceAppHost(): MarketplaceAppHost {
     targets,
     selectedKey,
     select: setPickedKey,
-    apps: target ? shown.state : localApps,
-    failure: target ? shown.failure : null,
+    apps: wslDistro !== null ? WSL_APPS_UNAVAILABLE : target ? shown.state : localApps,
+    failure: wslDistro === null && target ? shown.failure : null,
     scope,
+    wslDistro,
     retry: () => void (target ? reload() : refreshLocal())
   }
 }

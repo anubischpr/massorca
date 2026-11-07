@@ -280,6 +280,8 @@ export type UISliceCore = {
   /** The rail's Calendar page: scheduled bot runs and automations. */
   openCalendarPage: () => void
   openMarketplacePage: () => void
+  /** Opens the Marketplace catalog on one section, from another page. */
+  openMarketplaceSection: (section: MarketplaceSection) => void
   closeMarketplacePage: () => void
   /** The Marketplace sidebar's section; the catalog list shows its items. */
   marketplaceSection: MarketplaceSection

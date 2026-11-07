@@ -22,6 +22,7 @@ import {
   type MarketplaceSkillPageSkill
 } from './MarketplaceSkillPageModel'
 import { MarketplaceSkillTeams } from './MarketplaceSkillTeams'
+import { useWslAgentDetection } from './marketplace-host-wsl'
 import { useMarketplaceAppHost } from './use-marketplace-app-host'
 
 const ORIGIN_ICONS: Record<MarketplaceSkillOrigin['kind'], typeof Store> = {
@@ -46,6 +47,8 @@ export function MarketplaceSkillPage({
   const [installOpen, setInstallOpen] = useState(false)
   const host = useMarketplaceAppHost()
   const OriginIcon = ORIGIN_ICONS[skill.origin.kind]
+  // Why: a WSL distro's install state is not read yet, so this computer's copy is never shown for it.
+  const wslDistro = host.wslDistro
   return (
     <div className={cn(SKILLS_PAGE_COLUMN, 'flex max-w-4xl flex-col gap-6 py-4')}>
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -57,22 +60,28 @@ export function MarketplaceSkillPage({
         icon={<BookOpen className="size-6" aria-hidden />}
         name={skill.name}
         description={skill.description}
-        statusTone={skill.installed ? 'ok' : 'warn'}
+        statusTone={wslDistro !== null ? 'pending' : skill.installed ? 'ok' : 'warn'}
         status={
-          skill.installed
+          wslDistro !== null
             ? translate(
-                'auto.components.marketplace.MarketplaceSkillPage.installedOn',
-                'Installed on {{host}}',
+                'auto.components.marketplace.MarketplaceSkillPage.couldNotCheckOn',
+                'Could not check {{host}}',
                 { host: hostName }
               )
-            : translate(
-                'auto.components.marketplace.MarketplaceSkillPage.notInstalledOn',
-                'Not installed on {{host}}',
-                { host: hostName }
-              )
+            : skill.installed
+              ? translate(
+                  'auto.components.marketplace.MarketplaceSkillPage.installedOn',
+                  'Installed on {{host}}',
+                  { host: hostName }
+                )
+              : translate(
+                  'auto.components.marketplace.MarketplaceSkillPage.notInstalledOn',
+                  'Not installed on {{host}}',
+                  { host: hostName }
+                )
         }
         action={
-          skill.installed ? undefined : (
+          wslDistro !== null || skill.installed ? undefined : (
             <Button type="button" onClick={() => setInstallOpen(true)}>
               {translate(
                 'auto.components.marketplace.MarketplaceSkillPage.installOn',
@@ -83,7 +92,7 @@ export function MarketplaceSkillPage({
           )
         }
       />
-      <MarketplaceSkillAgents agentIds={skill.agentIds} hostName={hostName} />
+      <MarketplaceSkillAgents agentIds={skill.agentIds} hostName={hostName} wslDistro={wslDistro} />
       <MarketplaceSkillTeams skillName={skill.name} />
       <section data-marketplace-skill-origin>
         <MarketplaceCard>
@@ -109,15 +118,51 @@ export function MarketplaceSkillPage({
   )
 }
 
-/** "Workspaces": the agents on this host, pressed when they already read the skill. */
+type SkillAgentsProps = { agentIds: readonly string[]; hostName: string }
+
+/** "Workspaces": the agents on the host the page reads, pressed when they already read the skill. */
 function MarketplaceSkillAgents({
   agentIds,
-  hostName
-}: {
-  agentIds: readonly string[]
-  hostName: string
-}): React.JSX.Element {
+  hostName,
+  wslDistro
+}: SkillAgentsProps & { wslDistro: string | null }): React.JSX.Element {
+  return wslDistro === null ? (
+    <LocalSkillAgents agentIds={agentIds} hostName={hostName} />
+  ) : (
+    <WslSkillAgents agentIds={agentIds} hostName={hostName} distro={wslDistro} />
+  )
+}
+
+function LocalSkillAgents({ agentIds, hostName }: SkillAgentsProps): React.JSX.Element {
   const detected = useSkillInstallDetectedAgents({ environmentId: 'local' })
+  return (
+    <SkillAgentsList agentIds={agentIds} hostName={hostName} detected={detected} failed={false} />
+  )
+}
+
+function WslSkillAgents({
+  agentIds,
+  hostName,
+  distro
+}: SkillAgentsProps & { distro: string }): React.JSX.Element {
+  const { detectedIds, detectionFailed } = useWslAgentDetection(distro)
+  return (
+    <SkillAgentsList
+      agentIds={agentIds}
+      hostName={hostName}
+      detected={detectedIds}
+      failed={detectionFailed}
+    />
+  )
+}
+
+/** The agents a host has as toggles; a host whose probe failed says so instead of listing none. */
+function SkillAgentsList({
+  agentIds,
+  hostName,
+  detected,
+  failed
+}: SkillAgentsProps & { detected: readonly string[] | null; failed: boolean }): React.JSX.Element {
   const agents = installableSkillProviders(detected ?? [])
   // Why: a press is held here; placing or removing one agent's copy has no backend yet.
   const [picked, setPicked] = useState<ReadonlySet<string> | null>(null)
@@ -150,27 +195,37 @@ function MarketplaceSkillAgents({
               )}
             </span>
           </div>
-          <div className="flex flex-wrap gap-1.5">
-            {agents.map((provider) => (
-              <Toggle
-                key={provider.id}
-                variant="outline"
-                size="sm"
-                pressed={selected.has(provider.id)}
-                onPressedChange={(pressed) => {
-                  const next = new Set(selected)
-                  if (pressed) {
-                    next.add(provider.id)
-                  } else {
-                    next.delete(provider.id)
-                  }
-                  setPicked(next)
-                }}
-              >
-                {provider.displayName}
-              </Toggle>
-            ))}
-          </div>
+          {failed ? (
+            <span className="text-sm text-muted-foreground">
+              {translate(
+                'auto.components.marketplace.MarketplaceSkillPage.couldNotCheckOn',
+                'Could not check {{host}}',
+                { host: hostName }
+              )}
+            </span>
+          ) : (
+            <div className="flex flex-wrap gap-1.5">
+              {agents.map((provider) => (
+                <Toggle
+                  key={provider.id}
+                  variant="outline"
+                  size="sm"
+                  pressed={selected.has(provider.id)}
+                  onPressedChange={(pressed) => {
+                    const next = new Set(selected)
+                    if (pressed) {
+                      next.add(provider.id)
+                    } else {
+                      next.delete(provider.id)
+                    }
+                    setPicked(next)
+                  }}
+                >
+                  {provider.displayName}
+                </Toggle>
+              ))}
+            </div>
+          )}
         </div>
       </MarketplaceCard>
     </section>

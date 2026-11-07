@@ -189,9 +189,9 @@ export function hydratedUIPartialMatchesState(
   )
 }
 
-/** Keeps only a well-formed `ssh:<id>` or `runtime:<id>` key; anything else reads as this computer. */
+/** Keeps only a well-formed `ssh:<id>`, `runtime:<id>` or `wsl:<distro>` key; anything else reads as this computer. */
 export function sanitizePersistedMarketplaceHostKey(value: unknown): string | null {
-  return typeof value === 'string' && /^(ssh|runtime):.+$/.test(value) ? value : null
+  return typeof value === 'string' && /^(ssh|runtime|wsl):.+$/.test(value) ? value : null
 }
 
 export function normalizeHydratedVisibleWorkspaceHostIds(

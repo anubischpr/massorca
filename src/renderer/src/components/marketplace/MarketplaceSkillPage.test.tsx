@@ -13,12 +13,14 @@ type Mocks = {
   teams: BotTeam[]
   detected: string[] | null
   targets: MarketplaceVaultHostTarget[]
+  wsl: { detectedIds: string[] | null; detectionFailed: boolean }
 }
 
 const mocks = vi.hoisted((): Mocks => ({
   teams: [],
   detected: ['claude', 'codex', 'pi'],
-  targets: []
+  targets: [],
+  wsl: { detectedIds: null, detectionFailed: false }
 }))
 
 vi.mock('@/runtime/runtime-bot-team-client', () => ({
@@ -35,6 +37,10 @@ vi.mock('../skills/SkillInstallDialog', () => ({
 vi.mock('./use-marketplace-host-targets', async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
   useMarketplaceHostTargets: () => mocks.targets
+}))
+vi.mock('./marketplace-host-wsl', async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
+  useWslAgentDetection: () => mocks.wsl
 }))
 vi.mock('./marketplace-apps-host-client', () => ({
   readHostApps: () => Promise.resolve({ ok: true, apps: [] }),
@@ -279,5 +285,36 @@ describe('MarketplaceSkillPage', () => {
     expect(origin.textContent).toContain('Where it comes from')
     expect(origin.textContent).toContain('MassOrca skills pool')
     expect(origin.textContent).toContain('Bundled with this version of MassOrca.')
+  })
+})
+
+describe('MarketplaceSkillPage with a WSL distro picked', () => {
+  const UBUNTU: MarketplaceVaultHostTarget = { kind: 'wsl', distro: 'Ubuntu', label: 'WSL: Ubuntu' }
+
+  afterEach(() => {
+    mocks.targets = []
+    mocks.wsl = { detectedIds: null, detectionFailed: false }
+  })
+
+  it('lists the agents the distro has and says its install state cannot be checked', async () => {
+    mocks.targets = [UBUNTU]
+    mocks.wsl = { detectedIds: ['codex'], detectionFailed: false }
+    seedStore(store, { marketplaceHostKey: 'wsl:Ubuntu' })
+    container = document.createElement('div')
+    document.body.appendChild(container)
+    root = createRoot(container)
+    await act(async () => {
+      root?.render(
+        <TooltipProvider>
+          <MarketplaceSkillPage skill={POOL_SKILL} hostName="WSL: Ubuntu" onBack={vi.fn()} />
+        </TooltipProvider>
+      )
+    })
+    expect(container.textContent).toContain('Could not check WSL: Ubuntu')
+    expect(container.textContent).not.toContain('Install on')
+    const agents = section('agents')
+    expect([...agents.querySelectorAll('button')].map((button) => button.textContent)).toEqual([
+      'Codex'
+    ])
   })
 })

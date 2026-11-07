@@ -41,6 +41,17 @@ describe('Marketplace state in the UI slice', () => {
     expect(store.getState().marketplaceSelectedItemId).toBe('github')
   })
 
+  it('opens the catalog on one section from another page', () => {
+    const store = createTestStore()
+    store.getState().selectMarketplaceItem('engram')
+
+    store.getState().openMarketplaceSection('services')
+
+    expect(store.getState().activeView).toBe('marketplace')
+    expect(store.getState().marketplaceSection).toBe('services')
+    expect(store.getState().marketplaceSelectedItemId).toBeNull()
+  })
+
   it('reads the apps as unavailable without the desktop bridge', async () => {
     const store = createTestStore()
 

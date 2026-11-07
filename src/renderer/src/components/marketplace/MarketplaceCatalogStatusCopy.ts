@@ -6,6 +6,11 @@ export function installedLabel(): string {
   return translate('auto.components.marketplace.MarketplaceCatalogRows.installed', 'Installed')
 }
 
+/** Reuses the composer's existing Built-in skill scope label. */
+export function builtInLabel(): string {
+  return translate('components.native-chat.composer.skillScopeBuiltIn', 'Built-in')
+}
+
 export function foundLabel(): string {
   return translate('auto.components.marketplace.MarketplaceCatalogRows.found', 'Found')
 }

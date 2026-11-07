@@ -8,10 +8,27 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { translate } from '@/i18n/i18n'
 import { cn } from '@/lib/utils'
+import type { MarketplaceVaultHostTarget } from './marketplace-vault-host-client'
 import type { MarketplaceAppHost } from './use-marketplace-app-host'
 import { marketplaceHostKey } from './use-marketplace-host-targets'
 
 type HostOption = { key: string | null; label: string; sub: string }
+
+/** The second line of a host in the picker: how it is reached. */
+function hostOptionSub(target: MarketplaceVaultHostTarget): string {
+  switch (target.kind) {
+    case 'ssh':
+      return translate('auto.components.marketplace.MarketplaceHomeHostPicker.ssh', 'SSH')
+    case 'runtime':
+      return translate(
+        'auto.components.marketplace.MarketplaceHomeHostPicker.paired',
+        'Paired server'
+      )
+    case 'wsl':
+      // Why: the label already reads WSL: <distro>, so no second line repeats it.
+      return ''
+  }
+}
 
 /** The header's host picker: the computer the page shows, and the hosts it can switch to. */
 export function MarketplaceHomeHostPicker({
@@ -28,13 +45,7 @@ export function MarketplaceHomeHostPicker({
     ...host.targets.map((target): HostOption => ({
       key: marketplaceHostKey(target),
       label: target.label,
-      sub:
-        target.kind === 'ssh'
-          ? translate('auto.components.marketplace.MarketplaceHomeHostPicker.ssh', 'SSH')
-          : translate(
-              'auto.components.marketplace.MarketplaceHomeHostPicker.paired',
-              'Paired server'
-            )
+      sub: hostOptionSub(target)
     }))
   ]
   const shown = options.find((option) => option.key === host.selectedKey)

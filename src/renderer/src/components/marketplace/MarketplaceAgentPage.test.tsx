@@ -9,22 +9,31 @@ import type { MarketplaceVaultHostTarget } from './marketplace-vault-host-client
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true
 
+type WslProbe = { detectedIds: string[] | null; detectionFailed: boolean }
 type Mocks = {
   detectedByTarget: Record<string, string[] | null>
   failedTargets: Set<string>
   updateSettings: (updates: Partial<GlobalSettings>) => Promise<void>
+  withWsl: boolean
+  wslByDistro: Record<string, WslProbe>
 }
 
 const mocks = vi.hoisted((): Mocks => ({
   detectedByTarget: {},
   failedTargets: new Set<string>(),
-  updateSettings: vi.fn()
+  updateSettings: vi.fn(),
+  withWsl: false,
+  wslByDistro: {}
 }))
 
 // Why: the host list must be the same array on every render, or the app host reloads forever.
 const TARGETS: MarketplaceVaultHostTarget[] = [
   { kind: 'runtime', environmentId: 'env-1', label: 'VPS' },
   { kind: 'ssh', connectionId: 'conn-1', label: 'box' }
+]
+const TARGETS_WITH_WSL: MarketplaceVaultHostTarget[] = [
+  ...TARGETS,
+  { kind: 'wsl', distro: 'Ubuntu', label: 'WSL: Ubuntu' }
 ]
 
 vi.mock('react-i18next', () => ({ useTranslation: () => ({}) }))
@@ -73,7 +82,14 @@ vi.mock('@/hooks/useDetectedAgents', () => ({
 }))
 vi.mock('./use-marketplace-host-targets', async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
-  useMarketplaceHostTargets: () => TARGETS
+  useMarketplaceHostTargets: () => (mocks.withWsl ? TARGETS_WITH_WSL : TARGETS)
+}))
+vi.mock('./marketplace-host-wsl', async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
+  useWslAgentDetection: (distro: string | null): WslProbe =>
+    distro === null
+      ? { detectedIds: null, detectionFailed: false }
+      : (mocks.wslByDistro[distro] ?? { detectedIds: null, detectionFailed: false })
 }))
 vi.mock('./marketplace-apps-host-client', () => ({
   readHostApps: () => Promise.resolve({ ok: true, apps: [] }),
@@ -155,6 +171,8 @@ async function pickHost(scope: ParentNode, label: string): Promise<void> {
 }
 
 beforeEach(() => {
+  mocks.withWsl = false
+  mocks.wslByDistro = {}
   mocks.detectedByTarget = { local: ['claude'], 'runtime:env-1': [], 'ssh:conn-1': null }
   mocks.failedTargets = new Set(['ssh:conn-1'])
   mocks.updateSettings = vi.fn()
@@ -212,6 +230,22 @@ describe('MarketplaceAgentPage', () => {
     expect(page.querySelector('[data-marketplace-agent-host="local"]')).toBeNull()
     expect(page.querySelector('[data-marketplace-status-line]')?.textContent).toBe(
       'Not installed on VPS'
+    )
+  })
+
+  it('shows a picked WSL distro with its own detection and a disabled Install', async () => {
+    mocks.withWsl = true
+    mocks.wslByDistro = { Ubuntu: { detectedIds: [], detectionFailed: false } }
+    seedStore(store, { marketplaceHostKey: 'wsl:Ubuntu' })
+    const page = await renderPage()
+    expect(page.querySelectorAll('[data-marketplace-agent-host]')).toHaveLength(1)
+    const row = hostRow('wsl:Ubuntu')
+    expect(row.textContent).toContain('WSL: Ubuntu')
+    expect(row.textContent).toContain('Missing')
+    expect(buttonIn(row, 'Install').disabled).toBe(true)
+    expect(page.querySelector('[data-marketplace-agent-host="local"]')).toBeNull()
+    expect(page.querySelector('[data-marketplace-status-line]')?.textContent).toBe(
+      'Not installed on WSL: Ubuntu'
     )
   })
 

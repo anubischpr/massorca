@@ -122,6 +122,7 @@ function installedSkill(name: string): DiscoveredSkill {
     directoryPath: `/home/dev/.agents/skills/${name}`,
     skillFilePath: `/home/dev/.agents/skills/${name}/SKILL.md`,
     installed: true,
+    source: 'marketplace',
     updatedAt: null
   }
 }

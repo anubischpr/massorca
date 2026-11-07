@@ -10,6 +10,7 @@ import {
 } from '../../../../shared/pi-runtime-selection'
 import type { DiscoveredSkill } from '../../../../shared/skills'
 import { readHostApps } from './marketplace-apps-host-client'
+import { detectWslAgents } from './marketplace-host-wsl'
 import type { CatalogCheck, HostUnanswered } from './MarketplaceCatalogRows'
 import type { MarketplaceVaultHostTarget } from './marketplace-vault-host-client'
 
@@ -55,7 +56,14 @@ const ToolsAnswerSchema = z.object({
 })
 
 function remoteHostKey(target: MarketplaceVaultHostTarget): string {
-  return target.kind === 'ssh' ? `ssh:${target.connectionId}` : `runtime:${target.environmentId}`
+  switch (target.kind) {
+    case 'ssh':
+      return `ssh:${target.connectionId}`
+    case 'wsl':
+      return `wsl:${target.distro}`
+    case 'runtime':
+      return `runtime:${target.environmentId}`
+  }
 }
 
 /** A host that predates a call answers it method_not_found, and a phone scope without it answers forbidden. */
@@ -139,6 +147,29 @@ async function readApps(
   return result.reason === 'host-needs-update' ? { kind: 'update-required' } : FAILED
 }
 
+/** A WSL distro answers its git, GitHub CLI and agents through its own probes; the rest has no WSL path yet. */
+async function readWslHostChecks(distro: string): Promise<RemoteHostReads> {
+  const [tools, agents] = await Promise.all([readWslTools(distro), readWslAgents(distro)])
+  return { ...FAILED_READS, tools, agents }
+}
+
+async function readWslTools(distro: string): Promise<CatalogCheck<RemoteTools>> {
+  try {
+    const status = await window.api.preflight.check({ wslDistro: distro })
+    return { kind: 'ready', value: { git: status.git.installed, gh: status.gh, glab: status.glab } }
+  } catch {
+    return FAILED
+  }
+}
+
+async function readWslAgents(distro: string): Promise<CatalogCheck<ReadonlySet<string>>> {
+  try {
+    return { kind: 'ready', value: new Set(await detectWslAgents(distro)) }
+  } catch {
+    return FAILED
+  }
+}
+
 /**
  * Reads a picked host the way the phone does: the same preflight calls on a runtime host, its skills
  * and apps. An SSH host answers its agents through its own probe; what has no path there stays failed.
@@ -146,6 +177,9 @@ async function readApps(
 export async function readRemoteHostChecks(
   target: MarketplaceVaultHostTarget
 ): Promise<RemoteHostReads> {
+  if (target.kind === 'wsl') {
+    return readWslHostChecks(target.distro)
+  }
   if (target.kind === 'ssh') {
     const [agents, apps] = await Promise.all([readSshAgents(target.connectionId), readApps(target)])
     return { ...FAILED_READS, agents, apps }

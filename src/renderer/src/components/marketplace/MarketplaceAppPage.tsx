@@ -100,7 +100,13 @@ export function MarketplaceAppPage({
           {pageError}
         </p>
       ) : null}
-      <AppPageBody apps={apps} ctx={ctx} failure={host.failure} onRetry={host.retry} />
+      <AppPageBody
+        apps={apps}
+        ctx={ctx}
+        failure={host.failure}
+        onRetry={host.retry}
+        wslDistro={host.wslDistro}
+      />
       <MarketplaceAppDialogs ctx={ctx} dialog={dialog} onClose={() => setDialog(null)} />
     </div>
   )
@@ -110,13 +116,26 @@ function AppPageBody({
   apps,
   ctx,
   failure,
-  onRetry
+  onRetry,
+  wslDistro
 }: {
   apps: MarketplaceAppsState
   ctx: MarketplaceAppContext
   failure: string | null
   onRetry: () => void
+  wslDistro: string | null
 }): React.JSX.Element {
+  // Why: the apps have no WSL path yet, so the page says so instead of offering a retry or actions.
+  if (wslDistro !== null) {
+    return (
+      <Notice>
+        {translate(
+          'auto.components.marketplace.MarketplaceAppPage.wslNotAvailable',
+          'Not available on WSL yet'
+        )}
+      </Notice>
+    )
+  }
   if (apps.status === 'unavailable') {
     return (
       <Notice>

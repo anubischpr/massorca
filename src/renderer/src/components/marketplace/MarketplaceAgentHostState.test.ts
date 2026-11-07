@@ -93,3 +93,15 @@ describe('marketplaceAgentHostStatus', () => {
     })
   })
 })
+
+describe('a WSL distro host', () => {
+  const UBUNTU = { kind: 'wsl', distro: 'Ubuntu', label: 'WSL: Ubuntu' } as const
+
+  it('is picked from the shared list, named WSL: <distro>, and keyed by its distro', () => {
+    expect(
+      marketplaceAgentHostFromTarget({ kind: 'wsl', distro: 'Ubuntu', label: 'WSL: Ubuntu' })
+    ).toEqual(UBUNTU)
+    expect(marketplaceAgentHostLabel(UBUNTU)).toBe('WSL: Ubuntu')
+    expect(marketplaceAgentHostKey(UBUNTU)).toBe('wsl:Ubuntu')
+  })
+})

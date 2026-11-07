@@ -111,6 +111,12 @@ export function normalizeSkillName(name: string): string {
   return name.toLowerCase().replace(/[^\p{L}\p{N}]/gu, '')
 }
 
+/** Whether a name is one of MassOrca's own board skills, however it is spelled. */
+export function isBoardSkillName(name: string): boolean {
+  const key = normalizeSkillName(name)
+  return BOARD_ROWS.some((row) => row.kind === 'skill' && normalizeSkillName(row.name) === key)
+}
+
 /** The pending control a host check shows while it has no answer this host can give. */
 export function unansweredStatus(check: HostUnanswered, host: string): CatalogRowStatus {
   switch (check.kind) {

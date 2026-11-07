@@ -13,29 +13,52 @@ import {
   type MarketplaceAgentDetection,
   type MarketplaceAgentHost
 } from './MarketplaceAgentHostState'
+import { useWslAgentDetection } from './marketplace-host-wsl'
 
-/** The picked host's row: its detection, status badge and one action. Reports detection up for the page header. */
-export function MarketplaceAgentHostPicked({
-  host,
-  agentId,
-  installUrl,
-  onDetection
-}: {
+type PickedRowProps = {
   host: MarketplaceAgentHost
   agentId: TuiAgent
   installUrl: string
   onDetection: (key: string, detection: MarketplaceAgentDetection) => void
-}): React.JSX.Element {
-  // This computer, the paired server and SSH hosts share the renderer's agent detection store.
-  const { detectedIds, detectionFailed } = useDetectedAgents(detectionTarget(host))
-  const detection: MarketplaceAgentDetection =
-    detectedIds !== null
-      ? detectedIds.includes(agentId)
-        ? 'found'
-        : 'missing'
-      : detectionFailed
-        ? 'unverifiable'
-        : 'checking'
+}
+
+/** The picked host's row: its detection, status badge and one action. Reports detection up for the page header. */
+export function MarketplaceAgentHostPicked(props: PickedRowProps): React.JSX.Element {
+  if (props.host.kind === 'wsl') {
+    return <WslHostRow {...props} distro={props.host.distro} />
+  }
+  return <DetectedHostRow {...props} />
+}
+
+/** This computer, the paired server and SSH hosts share the renderer's agent detection store. */
+function DetectedHostRow(props: PickedRowProps): React.JSX.Element {
+  const { detectedIds, detectionFailed } = useDetectedAgents(detectionTarget(props.host))
+  return <HostRow {...props} detection={detectionOf(props.agentId, detectedIds, detectionFailed)} />
+}
+
+/** A WSL distro is probed on its own; this computer's detection never answers for it. */
+function WslHostRow(props: PickedRowProps & { distro: string }): React.JSX.Element {
+  const { detectedIds, detectionFailed } = useWslAgentDetection(props.distro)
+  return <HostRow {...props} detection={detectionOf(props.agentId, detectedIds, detectionFailed)} />
+}
+
+function detectionOf(
+  agentId: TuiAgent,
+  detectedIds: readonly string[] | null,
+  detectionFailed: boolean
+): MarketplaceAgentDetection {
+  if (detectedIds !== null) {
+    return detectedIds.includes(agentId) ? 'found' : 'missing'
+  }
+  return detectionFailed ? 'unverifiable' : 'checking'
+}
+
+function HostRow({
+  host,
+  installUrl,
+  onDetection,
+  detection
+}: PickedRowProps & { detection: MarketplaceAgentDetection }): React.JSX.Element {
   const key = marketplaceAgentHostKey(host)
   useEffect(() => {
     onDetection(key, detection)

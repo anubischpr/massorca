@@ -2,11 +2,12 @@ import { translate } from '@/i18n/i18n'
 import type { MarketplaceVaultHostTarget } from './marketplace-vault-host-client'
 import type { MarketplaceStatusTone } from './MarketplaceDetail'
 
-/** A host the agent page can show: This computer, a paired server or an SSH host, as the Marketplace picker lists them. */
+/** A host the agent page can show: This computer, a paired server, an SSH host or a WSL distro, as the Marketplace picker lists them. */
 export type MarketplaceAgentHost =
   | { kind: 'local' }
   | { kind: 'runtime'; environmentId: string; label: string }
   | { kind: 'ssh'; connectionId: string; label: string }
+  | { kind: 'wsl'; distro: string; label: string }
 
 /** What detection says about one agent on one host; `unverifiable` is a probe that never answered. */
 export type MarketplaceAgentDetection = 'checking' | 'found' | 'missing' | 'unverifiable'
@@ -26,9 +27,14 @@ export function marketplaceAgentHostFromTarget(
   if (target === null) {
     return { kind: 'local' }
   }
-  return target.kind === 'ssh'
-    ? { kind: 'ssh', connectionId: target.connectionId, label: target.label }
-    : { kind: 'runtime', environmentId: target.environmentId, label: target.label }
+  switch (target.kind) {
+    case 'ssh':
+      return { kind: 'ssh', connectionId: target.connectionId, label: target.label }
+    case 'wsl':
+      return { kind: 'wsl', distro: target.distro, label: target.label }
+    case 'runtime':
+      return { kind: 'runtime', environmentId: target.environmentId, label: target.label }
+  }
 }
 
 export function marketplaceAgentHostKey(host: MarketplaceAgentHost): string {
@@ -39,6 +45,8 @@ export function marketplaceAgentHostKey(host: MarketplaceAgentHost): string {
       return `runtime:${host.environmentId}`
     case 'ssh':
       return `ssh:${host.connectionId}`
+    case 'wsl':
+      return `wsl:${host.distro}`
   }
 }
 
@@ -50,6 +58,7 @@ export function marketplaceAgentHostLabel(host: MarketplaceAgentHost): string {
         'This computer'
       )
     case 'runtime':
+    case 'wsl':
       return host.label
     case 'ssh':
       return translate(
