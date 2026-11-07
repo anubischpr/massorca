@@ -8,7 +8,7 @@ import {
 } from '../../shared/bot-team-room-attachments'
 import { botTeamFilesOnlyText } from '../../shared/bot-team-room-attachments-line'
 import { botTeamTaskTitle } from '../../shared/bot-team-request-route'
-import type { BotTeamTask } from '../../shared/rpc-contract/bot-team-room-params'
+import type { BotTeamMessage, BotTeamTask } from '../../shared/rpc-contract/bot-team-room-params'
 import type { OrchestrationDb } from '../runtime/orchestration/db/orchestration-db'
 import { botTeamCompositeNotes } from './bot-team-composite'
 import { botTeamReplyNote, type BotTeamReplyQuote } from './bot-team-prompt-notes'
@@ -27,9 +27,8 @@ export function activeTasksByBot(db: OrchestrationDb, teamId: string): Record<st
 }
 
 /** The person's last few lines in the room: what the language of a line with no words is read from. */
-function earlierPersonText(db: OrchestrationDb, teamId: string): string {
-  return db
-    .listBotTeamMessages(teamId)
+export function earlierPersonText(messages: readonly BotTeamMessage[]): string {
+  return messages
     .filter((message) => message.authorBotId === null)
     .slice(-5)
     .map((message) => message.text)
@@ -47,7 +46,7 @@ export function botTeamRequestText(
   attachments: readonly BotTeamRoomAttachment[]
 ): string {
   return typed.trim() === '' && attachments.length > 0
-    ? botTeamFilesOnlyText(attachments, earlierPersonText(db, teamId))
+    ? botTeamFilesOnlyText(attachments, earlierPersonText(db.listBotTeamMessages(teamId)))
     : typed
 }
 

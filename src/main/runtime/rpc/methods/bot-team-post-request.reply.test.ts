@@ -11,6 +11,8 @@ vi.mock('../../../bot-teams/bot-team-request-query', () => ({
 
 import { postBotTeamRequestOnHost } from './bot-team-post-request'
 
+const FLYER = { path: 'attachments/flyer.png', name: 'flyer.png' }
+
 describe('a room request that replies to a message', () => {
   let db: OrchestrationDb | undefined
   beforeEach(() => classify.mockClear())
@@ -77,6 +79,11 @@ describe('a room request that replies to a message', () => {
     expect(classify).not.toHaveBeenCalled()
     expect(result.task?.ownerBotId).toBe(env.botNamed('Ana'))
     expect(notesAtStart).toContain('Nadie lanza el viernes por la mañana.')
+    expect(result.message.replyToMessageId).toBe(quoted.id)
+    expect(env.database.listBotTeamMessages(env.team.id)[1]).toMatchObject({
+      text: 'Y si el viernes cambia?',
+      replyToMessageId: quoted.id
+    })
   })
 
   it('lets an explicit mention of another bot win over the quoted bot', async () => {
@@ -121,5 +128,34 @@ describe('a room request that replies to a message', () => {
     expect(classify).toHaveBeenCalledTimes(1)
     expect(result.task?.ownerBotId).toBe(env.botNamed('Bea'))
     expect(notesAtStart ?? '').not.toContain('Texto ajeno a esta sala')
+    expect(result.message).not.toHaveProperty('replyToMessageId')
+  })
+
+  it('asks the bot the person replied to when the reply has only files, and files nothing', async () => {
+    const env = setup()
+    const quoted = env.database.postBotTeamMessage({
+      teamId: env.team.id,
+      authorBotId: env.botNamed('Ana'),
+      text: 'Nadie lanza el viernes por la mañana.'
+    })
+    const result = await postBotTeamRequestOnHost(
+      env.ctx,
+      {
+        teamId: env.team.id,
+        text: '',
+        start: true,
+        attachments: [FLYER],
+        replyToMessageId: quoted.id
+      },
+      async () => {
+        throw new Error('not started')
+      }
+    )
+    expect(classify).not.toHaveBeenCalled()
+    expect(result.task).toBeNull()
+    expect(env.database.listBotTeamMessages(env.team.id).at(-1)).toMatchObject({
+      authorBotId: env.botNamed('Ana'),
+      text: 'What do you want me to do with flyer.png?'
+    })
   })
 })

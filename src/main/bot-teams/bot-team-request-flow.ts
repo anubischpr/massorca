@@ -21,6 +21,8 @@ import {
 } from '../../shared/bot-team-request-schedule'
 import { botTeamClockLine } from '../../shared/bot-team-person-clock'
 import type { BotTeam, BotTeamBot } from '../../shared/rpc-contract/bot-team-params'
+import type { BotTeamRoomAttachment } from '../../shared/bot-team-room-attachments'
+import { isBotTeamFilesWithoutWords } from './bot-team-files-only-question'
 
 /** `later` is set only when the person wants the work later, so an unset decision means now. */
 type Later = { later?: true }
@@ -43,6 +45,8 @@ export type BotTeamRequestDecision =
   | ({ type: 'conversation'; subjectBotIds: string[] } & Later)
   /** The team has no bot to take anything. */
   | { type: 'ask' }
+  /** Files with no words: the bot asks in the room what to do with them, and nothing is filed. */
+  | { type: 'files'; bot: BotTeamBot }
 
 function laterOf(later: boolean): Later {
   return later ? { later: true } : {}
@@ -114,6 +118,8 @@ type DecideArgs = {
   timeZone?: string | null
   /** The bot whose room message this request replies to; it takes the request unless a bot or team is named. */
   quotedBot?: BotTeamBot | null
+  /** The files the line carries; a line of only files, or only a mention, is asked about instead. */
+  attachments?: readonly BotTeamRoomAttachment[]
 }
 
 /**
@@ -142,6 +148,18 @@ export async function decideBotTeamRequest(args: DecideArgs): Promise<BotTeamReq
 
 async function decideOwner(args: DecideArgs & { now: number }): Promise<BotTeamRequestDecision> {
   const { team, text } = args
+  // Asked before any other reading: files with no words are never filed or classified.
+  if (isBotTeamFilesWithoutWords(text, args.attachments ?? [])) {
+    const asker =
+      findMentionedBot(text, team.bots) ??
+      args.quotedBot ??
+      chooseBotTeamOwner({
+        matchedBotIds: team.bots.map((bot) => bot.id),
+        bots: team.bots,
+        activeTasksByBot: args.activeTasksByBot
+      })
+    return asker ? { type: 'files', bot: asker } : { type: 'ask' }
+  }
   const timing = botTeamRequestTiming(text)
   const mentioned = findMentionedBot(text, team.bots)
   if (mentioned) {

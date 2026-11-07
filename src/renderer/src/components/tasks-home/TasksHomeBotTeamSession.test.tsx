@@ -172,6 +172,19 @@ afterEach(() => {
 })
 
 describe('the Tasks home Bot Team composer', () => {
+  it('moves a team character when its row in the team picker is hovered', async () => {
+    await mount()
+    press('Team')
+    const row = [...document.querySelectorAll<HTMLElement>('[role="menuitemradio"]')].find(
+      (candidate) => candidate.textContent?.includes('Sales')
+    )
+    expect(row?.querySelector('.bc-root')).not.toBeNull()
+
+    act(() => row?.dispatchEvent(new PointerEvent('pointerenter', { pointerType: 'mouse' })))
+
+    expect(row?.querySelector('.bc-root')?.getAttribute('class') ?? '').toMatch(/bc-move-/)
+  })
+
   it('shows the canvas row: team chip, Save to Todo, the team placeholder, and no project chip', async () => {
     const container = await mount()
     expect(container.querySelector('[role="combobox"]')?.getAttribute('aria-label')).toBe(

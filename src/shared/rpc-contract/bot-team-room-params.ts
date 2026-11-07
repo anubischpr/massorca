@@ -153,7 +153,9 @@ export const BotTeamMessageSchema = z.object({
   /** Files from the team folder the message names; absent for a message with none. */
   attachments: z.array(BotTeamRoomAttachmentSchema).optional(),
   /** Set when another team's bot reports a finished request here; absent for a message of this room. */
-  fromTeamId: z.string().optional()
+  fromTeamId: z.string().optional(),
+  /** The room message this one answers; absent for a line that answers none, and from an older host. */
+  replyToMessageId: z.string().optional()
 })
 
 /** A task another team took for a request this team sent, with the message that asked for it. */
@@ -269,4 +271,6 @@ export type BotTeamMessageInput = {
   text: string
   authorBotId: string | null
   attachments?: BotTeamRoomAttachment[]
+  /** The room message this one answers. */
+  replyToMessageId?: string
 }

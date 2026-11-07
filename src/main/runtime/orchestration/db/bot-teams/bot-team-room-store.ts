@@ -9,10 +9,7 @@ import {
 } from '../../../../../shared/rpc-contract/bot-team-room-params'
 import type { BotTeamTaskLastStatus } from '../../../../../shared/bot-team-task-status'
 import { BOT_TEAM_ALL_AUTHOR } from '../../../../../shared/bot-team-greeting'
-import {
-  encodeBotTeamRoomAttachments,
-  splitBotTeamRoomAttachments
-} from '../../../../../shared/bot-team-room-attachments'
+import { botTeamRoomMessageFromStored, botTeamRoomStoredText } from './bot-team-room-stored-text'
 import { generateId } from '../generated-id'
 import {
   hasUnstartedBotTeamDelegation,
@@ -159,7 +156,7 @@ export function postBotTeamMessage(
   if (input.authorBotId !== null && !fromAll) {
     requireBotOnTeam(this, input.teamId, input.authorBotId)
   }
-  const storedText = encodeBotTeamRoomAttachments(input.text, input.attachments ?? [])
+  const storedText = botTeamRoomStoredText(input)
   const repeated =
     input.authorBotId !== null && !fromAll
       ? findRepeatedBotLine(this, {
@@ -183,7 +180,7 @@ export function postBotTeamMessage(
         Date.now()
       )
   }
-  return messageWithAttachments(
+  return botTeamRoomMessageFromStored(
     BotTeamMessageSchema.parse(this.db.prepare(`${MESSAGE_SELECT} WHERE id = ?`).get(id))
   )
 }
@@ -193,21 +190,11 @@ export function listBotTeamMessages(this: OrchestrationDb, teamId: string): BotT
   return z
     .array(BotTeamMessageSchema)
     .parse(this.db.prepare(`${MESSAGE_SELECT} WHERE team_id = ? ORDER BY rowid`).all(teamId))
-    .map(messageWithAttachments)
+    .map(botTeamRoomMessageFromStored)
     .map((message) => {
       const fromTeamId = sources.get(message.id)
       return fromTeamId === undefined ? message : { ...message, fromTeamId }
     })
-}
-
-/** The visible text, with the files a message stores after it; a message with none is unchanged. */
-function messageWithAttachments(message: BotTeamMessage): BotTeamMessage {
-  const split = splitBotTeamRoomAttachments(message.text)
-  return {
-    ...message,
-    text: split.text,
-    ...(split.attachments.length > 0 ? { attachments: split.attachments } : {})
-  }
 }
 
 export function getBotTeamWorkspace(this: OrchestrationDb, teamId: string): string | null {

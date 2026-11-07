@@ -47,7 +47,12 @@ describe('BotTeamRoomMessage inside a run', () => {
     host = undefined
   })
 
-  function show(props: { continuesRun?: boolean; attachments?: typeof FILES }): HTMLDivElement {
+  function show(props: {
+    continuesRun?: boolean
+    attachments?: typeof FILES
+    authorBotId?: string | null
+    quoted?: { authorName: string; text: string }
+  }): HTMLDivElement {
     host = document.createElement('div')
     document.body.append(host)
     root = createRoot(host)
@@ -57,7 +62,7 @@ describe('BotTeamRoomMessage inside a run', () => {
           message={{
             id: 'm1',
             teamId: 't1',
-            authorBotId: 'ana',
+            authorBotId: props.authorBotId === undefined ? 'ana' : props.authorBotId,
             text: TEXT,
             ...(props.attachments ? { attachments: props.attachments } : {})
           }}
@@ -65,6 +70,7 @@ describe('BotTeamRoomMessage inside a run', () => {
           otherTeams={[]}
           mentions={[]}
           continuesRun={props.continuesRun === true}
+          quoted={props.quoted ?? null}
         />
       )
     )
@@ -75,11 +81,31 @@ describe('BotTeamRoomMessage inside a run', () => {
     expect(show({}).textContent).toContain('Ana')
   })
 
-  it('leaves the name out of a message that continues a run', () => {
+  it('puts the name inside the first bubble, with its corner', () => {
+    const bubble = bubbleOf(show({}))
+    expect(bubble?.textContent).toContain('Ana')
+    expect(bubble?.querySelector('svg')).not.toBeNull()
+  })
+
+  it('leaves the name and the corner out of a message that continues a run', () => {
     const shown = show({ continuesRun: true })
     expect(shown.textContent).toContain(TEXT)
     expect(shown.textContent).not.toContain('Ana')
+    expect(bubbleOf(shown)?.querySelector('svg')).toBeNull()
   })
+
+  it('quotes the message a sent line answers inside its bubble', () => {
+    const shown = show({ authorBotId: null, quoted: { authorName: 'Ana', text: 'Listo' } })
+    const bubble = bubbleOf(shown)
+    expect(bubble?.textContent).toContain('Ana')
+    expect(bubble?.textContent).toContain('Listo')
+  })
+
+  function bubbleOf(shown: HTMLElement): HTMLElement | undefined {
+    return Array.from(shown.querySelectorAll<HTMLElement>('.rounded-xl')).find((element) =>
+      element.textContent?.includes(TEXT)
+    )
+  }
 
   it('puts Copy beside the bubble instead of under the attachments', () => {
     const shown = show({ attachments: FILES })

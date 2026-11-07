@@ -240,4 +240,14 @@ describe('comparing a version with the current file', () => {
     expect(scroller?.className).toContain('flex')
     expect(scroller?.className).toContain('flex-col')
   })
+
+  it('takes the pane height itself, so an HTML page is not cut off by a parent with no height', async () => {
+    const container = await mount()
+    const view = container.firstElementChild as HTMLElement
+    // Why: the Files page is a block with no height, so flex-1 alone gives the view nothing to fill.
+    expect(view.className).toContain('h-full')
+    const frame = container.querySelector('iframe')
+    expect(frame?.parentElement?.className).toContain('flex-1')
+    expect(frame?.parentElement?.parentElement?.className).toContain('flex-1')
+  })
 })

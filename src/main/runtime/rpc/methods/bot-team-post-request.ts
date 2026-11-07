@@ -15,8 +15,14 @@ import { botTeamTaskTitle, withoutBotTeamMention } from '../../../../shared/bot-
 import {
   activeTasksByBot,
   botTeamRequestText,
+  earlierPersonText,
   fileBotTeamRequest
 } from '../../../bot-teams/bot-team-assign-request'
+import {
+  botTeamFilesAwaitingInstruction,
+  botTeamRequestFiles
+} from '../../../bot-teams/bot-team-files-only-carry'
+import { botTeamFilesQuestion } from '../../../bot-teams/bot-team-files-only-question'
 import { botTeamScheduledReply } from '../../../bot-teams/bot-team-filed-reply'
 import { botTeamReplyTarget } from '../../../bot-teams/bot-team-reply-quote'
 import { replyToBotTeamGreeting } from '../../../bot-teams/bot-team-greeting-reply'
@@ -41,7 +47,7 @@ export type BotTeamPostResult = {
   choice?: BotTeamRequestChoice
   /** The other bots a composite task has parts for. */
   composite?: string[]
-  /** A bot answered a plain conversation in the room; nothing was filed. */
+  /** A bot answered in the room (a conversation, or a question about files); nothing was filed. */
   answered?: true
   /** A bot is answering a plain conversation in the background; its line reaches the room when ready. */
   replying?: { botId: string }
@@ -82,9 +88,20 @@ export async function postBotTeamRequestOnHost(
   const db = ctx.runtime.getOrchestrationDb()
   const { keep: keepChoice, startKept } = keepBotTeamPrototypeChoice(db, prototypeChoice)
   const startTask = startKept(startTaskAsFiled)
-  // Files with no words are filed as a request that names them, in the language the person wrote before.
+  // A message of only files is stored with the line that names them, in the language the person wrote before.
   const text = botTeamRequestText(db, teamId, typed, attachments)
-  const message = db.postBotTeamMessage({ teamId, text, authorBotId: null, attachments })
+  // The room before this line: its words, and the files an earlier line still waits on.
+  const earlier = db.listBotTeamMessages(teamId)
+  const files = botTeamRequestFiles(text, attachments, botTeamFilesAwaitingInstruction(earlier))
+  // The sent line keeps the message it answers, so the room can quote it in the bubble.
+  const answers = earlier.some((entry) => entry.id === replyToMessageId)
+  const message = db.postBotTeamMessage({
+    teamId,
+    text,
+    authorBotId: null,
+    attachments,
+    ...(answers ? { replyToMessageId } : {})
+  })
   // A greeting gets the team's one line and stops here: no query, task or usage.
   if (replyToBotTeamGreeting(db, { teamId, text })) {
     return { message, task: null, startError: null, greeted: true }
@@ -115,6 +132,7 @@ export async function postBotTeamRequestOnHost(
     activeTasksByBot: activeTasksByBot(db, teamId),
     timeZone: timeZone ?? null,
     quotedBot: reply?.bot ?? null,
+    attachments: files,
     classify: async (prompt) => {
       classifyReply = await askDefaultAgentForBotTeamRequest({
         prompt,
@@ -138,7 +156,7 @@ export async function postBotTeamRequestOnHost(
         start,
         later,
         askProject: false,
-        attachments,
+        attachments: files,
         originMessageId: message.id,
         timeZone: timeZone ?? null
       },
@@ -147,6 +165,15 @@ export async function postBotTeamRequestOnHost(
     keepChoice(filed.task)
     return { message, ...filed, sentTo }
   }
+  if (decision.type === 'files') {
+    // Nothing is filed: the bot asks what the files are for, and the person's next line answers it.
+    db.postBotTeamMessage({
+      teamId,
+      authorBotId: decision.bot.id,
+      text: botTeamFilesQuestion(files, earlierPersonText(earlier))
+    })
+    return { message, task: null, startError: null, answered: true }
+  }
   if (decision.type === 'choice') {
     return { message, task: null, startError: null, choice: decision.choice, ...laterFlag }
   }
@@ -154,7 +181,7 @@ export async function postBotTeamRequestOnHost(
     // The reply can take a minute, so it runs on: the room shows the bot typing until it lands.
     const started = startBotTeamConversationReply(ctx, {
       team,
-      text: botTeamRoomTextWithAttachments(text, attachments),
+      text: botTeamRoomTextWithAttachments(text, files),
       subjectBotIds: decision.subjectBotIds,
       research: classifyReply !== null && parseBotTeamClassifyResearch(classifyReply),
       code: classifyReply !== null && parseBotTeamClassifyCode(classifyReply),
@@ -177,7 +204,7 @@ export async function postBotTeamRequestOnHost(
         teamId,
         botId: decision.bot.id,
         name: botTeamTaskTitle(text, team.bots),
-        prompt: botTeamRoomTextWithAttachments(text, attachments),
+        prompt: botTeamRoomTextWithAttachments(text, files),
         schedule: {
           frequency: 'once',
           time,
@@ -212,7 +239,7 @@ export async function postBotTeamRequestOnHost(
       start,
       later,
       askProject,
-      attachments,
+      attachments: files,
       timeZone: timeZone ?? null,
       ...(reply ? { quote: reply.quote } : {})
     },

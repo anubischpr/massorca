@@ -187,6 +187,7 @@ function renderChoiceItems(
       key={item.value}
       value={item.value}
       disabled={item.disabled}
+      {...item.rowAttributes}
       onSelect={(event) => {
         // Why: Radix closes on select; the next step of the choice is in this same menu.
         if (group.keepOpenAfter?.(item.value)) {

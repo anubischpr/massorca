@@ -124,6 +124,19 @@ describe('the Files of a team', () => {
     expect(container.querySelector('img')?.getAttribute('src')).toBe('data:image/png;base64,AAAA')
   })
 
+  it('opens a page of the team folder in a view that takes the pane height', async () => {
+    listBotTeamFiles.mockResolvedValue({
+      files: [{ relativePath: 'flyer.html', basename: 'flyer.html', kind: 'text' }],
+      truncated: false
+    })
+    readBotTeamFile.mockResolvedValue({ content: '<p>Summer</p>' })
+    const container = await mount()
+
+    await act(async () => rowFor(container, 'flyer.html').click())
+
+    expect((container.firstElementChild as HTMLElement).className).toContain('h-full')
+  })
+
   it('marks a file that arrived after the first listing, until the person opens it', async () => {
     useBotTeamSeenFilesStore.setState({ seen: { t1: ['team:flyer.html'] } })
     listBotTeamFiles.mockResolvedValue({

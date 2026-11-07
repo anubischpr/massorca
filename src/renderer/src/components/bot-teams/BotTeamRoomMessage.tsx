@@ -1,4 +1,5 @@
 import { translate } from '@/i18n/i18n'
+import { cn } from '@/lib/utils'
 import { BOT_TEAM_ALL_AUTHOR } from '../../../../shared/bot-team-greeting'
 import { isBotTeamFilesOnlyText } from '../../../../shared/bot-team-room-attachments-line'
 import { botTeamRoomTextWithFileNames } from '../../../../shared/bot-team-room-text-paths'
@@ -13,6 +14,7 @@ import type { BotTeamMentionIcon } from './BotTeamMentionChip'
 import { BotTeamRoomAttachChips } from './BotTeamRoomAttachChips'
 import { BotTeamRoomMessageActions } from './BotTeamRoomMessageActions'
 import { BotTeamRoomMessageBody } from './BotTeamRoomMessageBody'
+import { BotTeamRoomBubbleTail, BotTeamRoomQuote } from './BotTeamRoomQuote'
 
 const fromTeamTag = (from: BotTeam): string =>
   translate('components.botTeams.fromTeam', 'From {{team}}', { team: from.name })
@@ -26,6 +28,7 @@ export function BotTeamRoomMessage({
   onOpenFile,
   onReply,
   continuesRun = false,
+  quoted = null,
   children
 }: {
   message: BotTeamMessage
@@ -37,6 +40,8 @@ export function BotTeamRoomMessage({
   onReply?: (bot: BotTeamBot) => void
   /** The message follows one from the same author, so its name and avatar stay with the run's first message. */
   continuesRun?: boolean
+  /** The message this one answers, quoted at the top of its bubble. */
+  quoted?: { authorName: string; color?: string; text: string } | null
   /** The cards that sit right under the message. */
   children?: React.ReactNode
 }): React.JSX.Element {
@@ -60,47 +65,64 @@ export function BotTeamRoomMessage({
       <BotTeamRoomMessageBody text={text} mentions={mentions} />
     </BotTeamFileChipTeamContext.Provider>
   )
+  const quote = quoted ? (
+    <BotTeamRoomQuote authorName={quoted.authorName} color={quoted.color} text={quoted.text} />
+  ) : null
+  // A run's first bot bubble carries the name inside it and the corner that points at the icon.
+  const named = author !== undefined && !continuesRun
+  const nameLine = named ? (
+    <div className="mb-0.5 flex items-center gap-2 text-[13px] font-medium">
+      <span style={{ color: botAgentNameColor(author.agent) }}>{author.name}</span>
+      {fromTeam ? (
+        <span className="flex items-center gap-1 text-xs font-normal text-muted-foreground">
+          <BotTeamCharacterIcon character={fromTeam.character} size={14} />
+          {fromTeamTag(fromTeam)}
+        </span>
+      ) : null}
+    </div>
+  ) : null
+  const bubbled = body !== null || named
   return (
     <div className="flex flex-col gap-3">
-      {continuesRun ? null : (
-        <>
+      {fromAll && !continuesRun ? <BotTeamAllAuthor bots={team.bots} /> : null}
+      {author || fromAll ? (
+        <div className="flex items-start gap-2">
           {author ? (
-            <div className="flex items-center gap-2 text-[13px] font-medium">
-              <BotAgentIcon agent={author.agent} size={16} />
-              <span style={{ color: botAgentNameColor(author.agent) }}>{author.name}</span>
-              {fromTeam ? (
-                <span className="flex items-center gap-1 text-xs font-normal text-muted-foreground">
-                  <BotTeamCharacterIcon character={fromTeam.character} size={14} />
-                  {fromTeamTag(fromTeam)}
-                </span>
-              ) : null}
+            <div className="flex w-4 shrink-0 justify-center pt-2.5">
+              {named ? <BotAgentIcon agent={author.agent} size={16} /> : null}
             </div>
           ) : null}
-          {fromAll ? <BotTeamAllAuthor bots={team.bots} /> : null}
-        </>
-      )}
-      {author || fromAll ? (
-        <div className="flex flex-col gap-1.5">
-          <div className="flex items-center gap-1">
-            {body ? (
-              <div className="min-w-0 max-w-[85%] rounded-xl border border-border bg-card px-3.5 py-2.5 text-sm leading-relaxed text-foreground/80">
-                {body}
+          <div className="flex min-w-0 max-w-[85%] flex-col gap-1.5">
+            <div className="flex items-center gap-1">
+              {bubbled ? (
+                <div
+                  className={cn(
+                    'relative min-w-0 rounded-xl border border-border bg-card px-3.5 py-2.5 text-sm leading-relaxed text-foreground/80',
+                    named && 'rounded-tl-none'
+                  )}
+                >
+                  {named ? <BotTeamRoomBubbleTail /> : null}
+                  {nameLine}
+                  {quote}
+                  {body ?? attachments}
+                </div>
+              ) : (
+                <div className="min-w-0">{attachments}</div>
+              )}
+              <div className="shrink-0">
+                <BotTeamRoomMessageActions
+                  copyText={filesOnly ? null : message.text}
+                  botName={author?.name ?? ''}
+                  {...(author && onReply ? { onReply: () => onReply(author) } : {})}
+                />
               </div>
-            ) : (
-              <div className="min-w-0">{attachments}</div>
-            )}
-            <div className="shrink-0">
-              <BotTeamRoomMessageActions
-                copyText={filesOnly ? null : message.text}
-                botName={author?.name ?? ''}
-                {...(author && onReply ? { onReply: () => onReply(author) } : {})}
-              />
             </div>
+            {body ? attachments : null}
           </div>
-          {body ? attachments : null}
         </div>
       ) : (
         <div className="max-w-[80%] self-end rounded-xl border border-border bg-muted px-3.5 py-2.5 text-sm leading-relaxed">
+          {quote}
           {body}
           {attachments}
         </div>

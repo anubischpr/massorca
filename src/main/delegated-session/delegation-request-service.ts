@@ -26,7 +26,7 @@ import {
   routeDelegationRequestWithAdvice,
   type DelegationStoredAgent
 } from './delegation-options'
-import type { DelegationRequestDeps } from './delegation-service-types'
+import type { DelegationParentSession, DelegationRequestDeps } from './delegation-service-types'
 import { waitForDelegationUsageRefresh } from './delegation-usage-refresh'
 
 export type DelegationRequestInput = {
@@ -155,7 +155,7 @@ export class DelegationRequestService {
       agent: string
       /** The model and effort this child must run with, rather than ones sized from its summary. */
       launch?: Readonly<Record<string, string>>
-      /** Which Pi this child runs; absent, the host picks whichever it has. */
+      /** Which Pi this child runs; named, the host must be able to run that one, absent it picks whichever it has. */
       piRuntime?: PiRuntimeSelection
     }
   ): Promise<string> {
@@ -167,11 +167,11 @@ export class DelegationRequestService {
         { effectsApplied: false }
       )
     }
-    const agents = await this.deps.listAgents(parent)
+    const agents = await this.deps.listAgents(parent, input.piRuntime)
     if (!agents.some((entry) => entry.agent === input.agent)) {
       throw new OrchestrationError(
         'delegation_no_agent',
-        `${input.agent} cannot run a chat in this workspace, so no child session can start. No effects were applied.`,
+        `${input.agent} cannot run a chat in this workspace, so no child session can start. No effects were applied.${await this.refusalNote(parent, input.piRuntime, input.agent)}`,
         { effectsApplied: false }
       )
     }
@@ -192,6 +192,19 @@ export class DelegationRequestService {
             })
           : null
     }).id
+  }
+
+  /** The reasons the agent checks gave, as ` Reason: …` for a refusal to name; empty when no check refused. */
+  private async refusalNote(
+    parent: DelegationParentSession,
+    piRuntime?: PiRuntimeSelection,
+    agent?: string
+  ): Promise<string> {
+    const refused = (await this.deps.explainRefusals?.(parent, piRuntime)) ?? []
+    const named = refused.filter((entry) => agent === undefined || entry.agent === agent)
+    return named.length === 0
+      ? ''
+      : ` Reason: ${named.map((entry) => `${entry.label} (${entry.reason})`).join(', ')}.`
   }
 
   /** A bot run's hand-off whose work is a prototype is filed with the run's room choice, as its own requests are. */
@@ -225,7 +238,7 @@ export class DelegationRequestService {
     if (agents.length === 0) {
       throw new OrchestrationError(
         'delegation_no_agent',
-        'No agent that can run a chat is usable in this workspace, so no child session can start. No effects were applied.',
+        `No agent that can run a chat is usable in this workspace, so no child session can start. No effects were applied.${await this.refusalNote(parent)}`,
         { effectsApplied: false }
       )
     }
