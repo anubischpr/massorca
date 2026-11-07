@@ -1,9 +1,5 @@
 import { hasAppEnvironment } from '../../shared/app-environment'
-import type { StructuredAgentId } from '../../shared/agent-session-provider-handle'
 import type { RateLimitState } from '../../shared/rate-limit-types'
-import { GENTLE_SHELL_LABEL } from '../../shared/agent-type-label'
-import { isTuiAgent } from '../../shared/tui-agent-config'
-import { TUI_AGENT_DISPLAY_NAMES } from '../../shared/tui-agent-display-names'
 import { getStructuredAgentSessionHost } from '../native-chat/agent-session-wire/structured-agent-session-registry'
 import type { StructuredAgentSessionHost } from '../native-chat/agent-session-wire/structured-agent-session-host'
 import { structuredAgentSessionHostRows } from '../native-chat/agent-session-wire/structured-agent-session-host-rows'
@@ -17,7 +13,6 @@ import {
 import { observeDispatchSettlements } from '../runtime/orchestration/db/dispatch-settlement-observers'
 import type { OrchestrationDb } from '../runtime/orchestration/db'
 import type { OrcaRuntimeService } from '../runtime/orca-runtime'
-import { STRUCTURED_AGENT_RUNTIME_REGISTRATIONS } from '../runtime/structured-agent-runtime-registrations'
 import { declaredAccessForStructuredAgent } from '../runtime/rpc/methods/orchestration/worker/worker-start-access-mode'
 import type { ChildBringBackPolicy } from '../../shared/child-bring-back'
 import { launchedAccessPosture } from '../native-chat/agent-session-wire/structured-agent-session-access-posture'
@@ -26,11 +21,11 @@ import { ChildBringBackAutomatic, childBringBackPolicyOf } from './child-bring-b
 import { storedOptionsWithAutomaticBringBack } from './delegation-stored-request'
 import { readJevApiKey } from '../jev/jev-api-key-store'
 import { AskUserService } from './ask-user-service'
+import { delegationAgentDeps } from './delegation-agent-listing'
 import { DelegationAnswerService } from './delegation-answer-service'
 import { createJevDelegationTierAdvisor } from './delegation-jev-tier'
 import { createDelegationLauncher } from './delegation-launch'
 import { discardFailedDelegatedStart } from './delegation-failed-start'
-import type { DelegationStoredAgent } from './delegation-options'
 import { DelegationRequestService } from './delegation-request-service'
 import { delegatedChildFirstPrompt } from './delegated-child-first-prompt'
 import { delegatedChildPromptDeps } from './delegated-child-prompt-deps'
@@ -47,7 +42,6 @@ type DelegationRuntime = Pick<
   | 'getAccountsSnapshot'
   | 'refreshAccountsForMobileSubscriber'
   | 'isJevDecisionsEnabled'
-  | 'getStructuredAgentSessionCreateSupport'
   | 'resolveStructuredAgentSessionLocalWorkspacePath'
 >
 
@@ -102,43 +96,6 @@ async function readParentDesignSystemCard(sessionId: string): Promise<PrototypeS
   }
   const read = await readDesignSystemOfLaunchDirectory(launchDirectory)
   return read.ok ? prototypeSystemCardOf(read) : null
-}
-
-function agentLabel(agent: string, piRuntime: string | undefined): string {
-  if (agent === 'pi' && piRuntime === 'gentle-shell') {
-    return GENTLE_SHELL_LABEL
-  }
-  return isTuiAgent(agent) ? TUI_AGENT_DISPLAY_NAMES[agent] : agent
-}
-
-/** Every agent this host registers that can start a chat in the parent's workspace right now. */
-async function listUsableAgents(
-  runtime: DelegationRuntime,
-  parent: DelegationParentSession
-): Promise<DelegationStoredAgent[]> {
-  const selector = `id:${parent.workspaceId}`
-  const found = await Promise.all(
-    STRUCTURED_AGENT_RUNTIME_REGISTRATIONS.map(async ({ definition }) => {
-      const agent: StructuredAgentId = definition.agent
-      try {
-        const support = await runtime.getStructuredAgentSessionCreateSupport(selector, agent)
-        return support.supported
-          ? [
-              {
-                agent,
-                label: agentLabel(agent, support.piRuntime),
-                ...(support.piRuntime ? { piRuntime: support.piRuntime } : {})
-              }
-            ]
-          : []
-      } catch (error) {
-        // A check that throws leaves the agent out, and the reason is logged rather than lost.
-        console.warn(`[delegated-session] checking ${agent} for a child session failed`, error)
-        return []
-      }
-    })
-  )
-  return found.flat()
 }
 
 function existingDb(runtime: DelegationRuntime): OrchestrationDb | null {
@@ -220,7 +177,7 @@ export function getDelegationRequestService(runtime: OrcaRuntimeService): Delega
     requireDb: () => runtime.getOrchestrationDb(),
     rows: hostRows(),
     readParent: readParentSession,
-    listAgents: (parent) => listUsableAgents(runtime, parent),
+    ...delegationAgentDeps(runtime),
     readPrototypeCount: () => runtime.readPrototypeCountSetting(),
     readDesignSystemCard: readParentDesignSystemCard,
     readParentUserMessage,

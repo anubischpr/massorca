@@ -35,6 +35,13 @@ export type DelegationStoredAgent = {
   piRuntime?: PiRuntimeSelection
 }
 
+/** An agent this host registers that cannot start a chat in the workspace, with the reason its check gave. */
+export type DelegationAgentRefusal = {
+  agent: string
+  label: string
+  reason: string
+}
+
 export type DelegationRoutingInput = DelegationTaskText & {
   writes: boolean
   workspaceKind: DelegationWorkspaceKind
