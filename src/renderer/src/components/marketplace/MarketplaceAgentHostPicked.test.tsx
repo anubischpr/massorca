@@ -7,9 +7,14 @@ import type { MarketplaceAgentHost } from './MarketplaceAgentHostState'
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true
 
-type Mocks = { detectedIds: string[] | null; detectionFailed: boolean }
+type Probe = { detectedIds: string[] | null; detectionFailed: boolean }
+type Mocks = Probe & { wsl: Probe }
 
-const mocks = vi.hoisted((): Mocks => ({ detectedIds: [], detectionFailed: false }))
+const mocks = vi.hoisted((): Mocks => ({
+  detectedIds: [],
+  detectionFailed: false,
+  wsl: { detectedIds: [], detectionFailed: false }
+}))
 
 vi.mock('react-i18next', () => ({ useTranslation: () => ({}) }))
 vi.mock('@/i18n/i18n', () => ({
@@ -26,6 +31,9 @@ vi.mock('@/hooks/useDetectedAgents', () => ({
   })
 }))
 
+vi.mock('./marketplace-host-wsl', () => ({
+  useWslAgentDetection: () => mocks.wsl
+}))
 vi.mock('@/lib/agent-catalog', () => ({
   AgentIcon: () => null,
   getAgentCatalog: () => [],
@@ -66,6 +74,7 @@ async function render(host: MarketplaceAgentHost, onDetection = vi.fn()): Promis
 beforeEach(() => {
   mocks.detectedIds = []
   mocks.detectionFailed = false
+  mocks.wsl = { detectedIds: [], detectionFailed: false }
 })
 
 afterEach(async () => {
@@ -98,5 +107,43 @@ describe('MarketplaceAgentHostPicked', () => {
     expect(row.textContent).toContain('Could not check')
     expect(row.querySelector('button')).toBeNull()
     expect(onDetection).toHaveBeenCalledWith('ssh:conn-1', 'unverifiable')
+  })
+})
+
+describe('a WSL distro host', () => {
+  const UBUNTU: MarketplaceAgentHost = { kind: 'wsl', distro: 'Ubuntu', label: 'WSL: Ubuntu' }
+
+  it('shows Found, works and a disabled Manage when the distro has the agent', async () => {
+    mocks.wsl = { detectedIds: ['claude'], detectionFailed: false }
+    const row = await render(UBUNTU)
+    expect(row.textContent).toContain('WSL: Ubuntu')
+    expect(row.textContent).toContain('Found, works')
+    expect(row.querySelector('button')?.textContent).toContain('Manage with MassOrca')
+    expect(row.querySelector('button')?.disabled).toBe(true)
+  })
+
+  it('shows Missing and a disabled Install when the distro lacks the agent', async () => {
+    mocks.wsl = { detectedIds: ['codex'], detectionFailed: false }
+    const row = await render(UBUNTU)
+    expect(row.textContent).toContain('Missing')
+    expect(row.querySelector('button')?.textContent).toContain('Install')
+    expect(row.querySelector('button')?.disabled).toBe(true)
+  })
+
+  it('never reads this computer for a WSL distro', async () => {
+    mocks.detectedIds = ['claude']
+    mocks.wsl = { detectedIds: [], detectionFailed: false }
+    const row = await render(UBUNTU)
+    expect(row.textContent).toContain('Missing')
+    expect(row.textContent).not.toContain('Found, works')
+  })
+
+  it('says Could not check when the distro probe fails, and reports it under its WSL key', async () => {
+    mocks.wsl = { detectedIds: null, detectionFailed: true }
+    const onDetection = vi.fn()
+    const row = await render(UBUNTU, onDetection)
+    expect(row.textContent).toContain('Could not check')
+    expect(row.querySelector('button')).toBeNull()
+    expect(onDetection).toHaveBeenCalledWith('wsl:Ubuntu', 'unverifiable')
   })
 })

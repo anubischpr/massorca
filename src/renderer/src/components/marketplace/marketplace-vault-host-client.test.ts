@@ -8,7 +8,8 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('@/runtime/runtime-rpc-client', () => ({ callRuntimeRpc: mocks.callRuntimeRpc }))
 
-const { clearVaultHostToken, setVaultHostToken } = await import('./marketplace-vault-host-client')
+const { clearVaultHostToken, readVaultHost, setVaultHostToken } =
+  await import('./marketplace-vault-host-client')
 
 const TOKEN = 'tok-SECRET-123'
 const PROFILE = { kind: 'openmetadata-profile', name: 'escritura' } as const
@@ -105,5 +106,21 @@ describe('vault host client profile slots', () => {
       slot: 'engram-cloud',
       token: TOKEN
     })
+  })
+})
+
+describe('vault host client on a WSL distro', () => {
+  const UBUNTU = { kind: 'wsl', distro: 'Ubuntu', label: 'WSL: Ubuntu' } as const
+
+  it('answers failed for every vault call, and never reaches a runtime or this computer', async () => {
+    expect(await readVaultHost(UBUNTU)).toEqual({ ok: false, reason: 'failed' })
+    expect(await setVaultHostToken(UBUNTU, 'openmetadata', TOKEN)).toEqual({
+      ok: false,
+      reason: 'failed'
+    })
+    expect(await clearVaultHostToken(UBUNTU, PROFILE)).toEqual({ ok: false, reason: 'failed' })
+    expect(mocks.callRuntimeRpc).not.toHaveBeenCalled()
+    expect(mocks.sshSet).not.toHaveBeenCalled()
+    expect(mocks.sshClear).not.toHaveBeenCalled()
   })
 })

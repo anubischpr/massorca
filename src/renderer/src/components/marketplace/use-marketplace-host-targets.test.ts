@@ -43,4 +43,10 @@ describe('Marketplace host targets', () => {
       { kind: 'ssh', connectionId: 'box', label: 'Box' }
     ])
   })
+
+  it('keys a WSL distro by its name, so a pick keeps its own host', () => {
+    expect(marketplaceHostKey({ kind: 'wsl', distro: 'Ubuntu', label: 'WSL: Ubuntu' })).toBe(
+      'wsl:Ubuntu'
+    )
+  })
 })

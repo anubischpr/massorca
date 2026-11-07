@@ -12,7 +12,8 @@ const mocks = vi.hoisted(() => ({
   callRuntimeRpc: vi.fn(),
   sshStatus: vi.fn(),
   sshSet: vi.fn(),
-  sshClear: vi.fn()
+  sshClear: vi.fn(),
+  wslTargets: [] as { kind: 'wsl'; distro: string; label: string }[]
 }))
 
 vi.mock('react-i18next', () => ({ useTranslation: () => ({}) }))
@@ -23,6 +24,10 @@ vi.mock('@/i18n/i18n', () => ({
     fallback.replace(/\{\{(\w+)\}\}/g, (_all, name: string) => String(values?.[name] ?? ''))
 }))
 vi.mock('@/runtime/runtime-rpc-client', () => ({ callRuntimeRpc: mocks.callRuntimeRpc }))
+vi.mock('./marketplace-host-wsl', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./marketplace-host-wsl')>()),
+  useMarketplaceWslTargets: () => mocks.wslTargets
+}))
 
 const { createTestStore, seedStore } = await import('../../store/slices/store-test-helpers')
 const store = createTestStore()
@@ -116,6 +121,17 @@ describe('MarketplaceVaultHosts', () => {
     const container = await mount()
     expect(container.textContent).toBe('')
     expect(mocks.callRuntimeRpc).not.toHaveBeenCalled()
+  })
+
+  it('leaves WSL distros out, since the vault cannot reach them', async () => {
+    seedHosts({})
+    mocks.wslTargets = [{ kind: 'wsl', distro: 'Ubuntu', label: 'WSL: Ubuntu' }]
+    try {
+      const container = await mount()
+      expect(container.textContent).toBe('')
+    } finally {
+      mocks.wslTargets = []
+    }
   })
 
   it('shows where the paired host keeps the token and never a value', async () => {

@@ -16,9 +16,11 @@ globalThis.IS_REACT_ACT_ENVIRONMENT = true
 const mocks = vi.hoisted(() => {
   const apps: MarketplaceAppStatus[] = []
   const teams: BotTeam[] = []
+  const wslTargets: { kind: 'wsl'; distro: string; label: string }[] = []
   return {
     apps,
     teams,
+    wslTargets,
     listApps: vi.fn(),
     connect: vi.fn(),
     disconnect: vi.fn(),
@@ -56,6 +58,10 @@ vi.mock('@/lib/agent-catalog', () => ({
 }))
 vi.mock('@/lib/agent-icon-gentle-shell', () => ({ GentleShellIcon: () => null }))
 vi.mock('@/lib/pi-agent-display', () => ({ piRuntimeLabel: () => 'Gentle Shell' }))
+vi.mock('./marketplace-host-wsl', async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
+  useMarketplaceWslTargets: () => mocks.wslTargets
+}))
 vi.mock('@/components/bot-teams/use-bot-teams', () => ({
   useBotTeams: () => ({
     teams: mocks.teams,
@@ -854,5 +860,23 @@ describe('MarketplaceAppPage', () => {
       const container = await mount('github')
       expect(buttonWithText(headerOf(container), 'Connect')).toBeUndefined()
     })
+  })
+})
+
+describe('MarketplaceAppPage with a WSL distro picked', () => {
+  afterEach(() => {
+    mocks.wslTargets.length = 0
+  })
+
+  it('says Not available on WSL yet, with no Connect action and none of this computer apps', async () => {
+    mocks.wslTargets.push({ kind: 'wsl', distro: 'Ubuntu', label: 'WSL: Ubuntu' })
+    seedStore(store, {
+      marketplaceHostKey: 'wsl:Ubuntu',
+      marketplaceApps: { status: 'ready', apps: [engram] }
+    })
+    const container = await mount('engram')
+    expect(container.textContent).toContain('Not available on WSL yet')
+    expect(container.textContent).not.toContain('Connected')
+    expect(buttonWithText(headerOf(container), 'Connect')).toBeUndefined()
   })
 })

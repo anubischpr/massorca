@@ -4,6 +4,7 @@ import { parseExecutionHostId } from '../../../../shared/execution-host'
 import { getHostDisplayLabelOverrides } from '../../../../shared/host-setting-overrides'
 import { pickerExecutionHosts } from '../../../../shared/managed-orcad-execution-host'
 import { buildSidebarHostOptions, type SidebarHostOption } from '../sidebar/sidebar-host-options'
+import { useMarketplaceWslTargets } from './marketplace-host-wsl'
 import type { MarketplaceVaultHostTarget } from './marketplace-vault-host-client'
 
 /**
@@ -30,7 +31,10 @@ export function marketplaceHostTargetsFrom(
   })
 }
 
-/** Hosts that run agents of their own, from the same registry the Workspaces sidebar reads. */
+/**
+ * Hosts that run agents of their own, from the same registry the Workspaces sidebar reads, then the
+ * WSL distros of the Windows desktop app.
+ */
 export function useMarketplaceHostTargets(): MarketplaceVaultHostTarget[] {
   const repos = useAppStore((s) => s.repos)
   const settings = useAppStore((s) => s.settings)
@@ -38,9 +42,10 @@ export function useMarketplaceHostTargets(): MarketplaceVaultHostTarget[] {
   const runtimeStatusByEnvironmentId = useAppStore((s) => s.runtimeStatusByEnvironmentId)
   const sshConnectionStates = useAppStore((s) => s.sshConnectionStates)
   const sshTargetLabels = useAppStore((s) => s.sshTargetLabels)
+  const wslTargets = useMarketplaceWslTargets()
   return useMemo(
-    () =>
-      marketplaceHostTargetsFrom(
+    () => [
+      ...marketplaceHostTargetsFrom(
         buildSidebarHostOptions({
           repos,
           sshTargetLabels,
@@ -51,17 +56,27 @@ export function useMarketplaceHostTargets(): MarketplaceVaultHostTarget[] {
           hostLabelOverrides: getHostDisplayLabelOverrides(settings)
         })
       ),
+      ...wslTargets
+    ],
     [
       repos,
       settings,
       runtimeEnvironments,
       runtimeStatusByEnvironmentId,
       sshConnectionStates,
-      sshTargetLabels
+      sshTargetLabels,
+      wslTargets
     ]
   )
 }
 
 export function marketplaceHostKey(target: MarketplaceVaultHostTarget): string {
-  return target.kind === 'ssh' ? `ssh:${target.connectionId}` : `runtime:${target.environmentId}`
+  switch (target.kind) {
+    case 'ssh':
+      return `ssh:${target.connectionId}`
+    case 'runtime':
+      return `runtime:${target.environmentId}`
+    case 'wsl':
+      return `wsl:${target.distro}`
+  }
 }

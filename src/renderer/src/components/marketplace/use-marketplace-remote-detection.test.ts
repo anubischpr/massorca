@@ -230,7 +230,7 @@ describe('the picked host reads in the hook', () => {
 })
 
 describe('the catalog on a picked remote host', () => {
-  it('lists the board agents with Found from that host, and the board skills after the discovered ones', async () => {
+  it('lists the board agents with Found from that host, and only the board skills from its plain skills', async () => {
     const { result } = renderHook(() =>
       useMarketplaceCatalog({
         hostLabel: 'pv-vps',
@@ -253,11 +253,16 @@ describe('the catalog on a picked remote host', () => {
       ['Antigravity', { kind: 'action', label: 'Install' }],
       ['Gentle Shell', { kind: 'found', label: 'Found' }]
     ])
+    // Why: a plain skill on the host is not a Marketplace install, so only the board skills list.
     await waitFor(() =>
-      expect(sectionNamed(result.current.sections, 'Skills').rows[0]?.name).toBe('alpha')
+      expect(rowNamed(result.current.sections, 'Browser use').status).toEqual({
+        kind: 'action',
+        label: 'Install'
+      })
     )
-    expect(sectionNamed(result.current.sections, 'Skills').rows.map((row) => row.name)).toEqual([
-      'alpha',
+    const skillNames = sectionNamed(result.current.sections, 'Skills').rows.map((row) => row.name)
+    expect(skillNames).not.toContain('alpha')
+    expect(skillNames.slice(0, 5)).toEqual([
       'Browser use',
       'Computer use',
       'Linear',
@@ -280,5 +285,51 @@ describe('the catalog on a picked remote host', () => {
       agents.map(() => ({ kind: 'pending', label: 'Could not check' }))
     )
     expect(mocks.callRuntimeRpc).not.toHaveBeenCalled()
+  })
+
+  describe('reading a WSL distro', () => {
+    const UBUNTU: MarketplaceVaultHostTarget = {
+      kind: 'wsl',
+      distro: 'Ubuntu',
+      label: 'WSL: Ubuntu'
+    }
+
+    it('reads its tools and agents from the distro, and its apps, Pi runtimes and skills as failed', async () => {
+      const detectAgents = vi.fn().mockResolvedValue(['codex'])
+      const check = vi.fn().mockResolvedValue({
+        git: { installed: true },
+        gh: { installed: false, authenticated: false }
+      })
+      Object.defineProperty(window, 'api', {
+        value: { preflight: { detectAgents, check } },
+        configurable: true,
+        writable: true
+      })
+      const reads = await readRemoteHostChecks(UBUNTU)
+      expect(detectAgents).toHaveBeenCalledWith({ wslDistro: 'Ubuntu' })
+      expect(check).toHaveBeenCalledWith({ wslDistro: 'Ubuntu' })
+      expect(reads.agents).toEqual({ kind: 'ready', value: new Set(['codex']) })
+      expect(reads.tools).toEqual({
+        kind: 'ready',
+        value: { git: true, gh: { installed: false, authenticated: false } }
+      })
+      expect(reads.apps).toEqual({ kind: 'failed' })
+      expect(reads.piRuntimes).toEqual({ kind: 'failed' })
+      expect(reads.skills).toEqual({ kind: 'failed' })
+      expect(mocks.callRuntimeRpc).not.toHaveBeenCalled()
+      expect(mocks.readHostApps).not.toHaveBeenCalled()
+    })
+
+    it('answers tools and agents as could not check when the distro cannot be probed', async () => {
+      const failing = vi.fn().mockRejectedValue(new Error('probe failed'))
+      Object.defineProperty(window, 'api', {
+        value: { preflight: { detectAgents: failing, check: failing } },
+        configurable: true,
+        writable: true
+      })
+      const reads = await readRemoteHostChecks(UBUNTU)
+      expect(reads.agents).toEqual({ kind: 'failed' })
+      expect(reads.tools).toEqual({ kind: 'failed' })
+    })
   })
 })

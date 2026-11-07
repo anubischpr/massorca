@@ -281,7 +281,8 @@ export function MarketplaceVaultHosts({
   slot: MarketplaceRemoteCredentialSlot
   profiles?: readonly string[]
 }): React.JSX.Element | null {
-  const targets = useMarketplaceHostTargets()
+  // Why: the vault has no WSL path yet, so a distro would only ever show a failed change.
+  const targets = useMarketplaceHostTargets().filter((target) => target.kind !== 'wsl')
   if (targets.length === 0) {
     return null
   }

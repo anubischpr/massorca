@@ -17,9 +17,12 @@ import {
 export type MarketplaceVaultHostTarget =
   | { kind: 'ssh'; connectionId: string; label: string }
   | { kind: 'runtime'; environmentId: string; label: string }
+  | { kind: 'wsl'; distro: string; label: string }
 
 const RPC_TIMEOUT_MS = 30_000
 const NEEDS_UPDATE: MarketplaceVaultHostResult = { ok: false, reason: 'host-needs-update' }
+// Why: no vault runs inside WSL yet, so a distro answers failed rather than with this computer's vault.
+const WSL_UNAVAILABLE: MarketplaceVaultHostResult = { ok: false, reason: 'failed' }
 
 function answerOf(value: unknown): MarketplaceVaultHostResult {
   const parsed = MarketplaceVaultHostAnswerSchema.safeParse(value)
@@ -33,6 +36,9 @@ async function callHost(
   params: Record<string, unknown>,
   viaSsh: () => Promise<MarketplaceVaultHostResult> | undefined
 ): Promise<MarketplaceVaultHostResult> {
+  if (target.kind === 'wsl') {
+    return WSL_UNAVAILABLE
+  }
   try {
     if (target.kind === 'ssh') {
       return (await viaSsh()) ?? NEEDS_UPDATE

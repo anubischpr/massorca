@@ -178,12 +178,24 @@ export default function MarketplacePage(): React.JSX.Element {
               )}
               host={host}
             />
-            <MarketplaceYourAppsPage
-              hostLabel={hostLabel}
-              installed={catalog.installed}
-              connected={catalog.connected}
-              onOpen={openRow}
-            />
+            {host.wslDistro === null ? (
+              <MarketplaceYourAppsPage
+                hostLabel={hostLabel}
+                installed={catalog.installed}
+                connected={catalog.connected}
+                onOpen={openRow}
+              />
+            ) : (
+              // Why: a WSL distro's apps cannot be read yet, so no list of them is claimed.
+              <div className="flex max-w-[1080px] flex-col gap-5 px-10 pb-10">
+                <p className="text-sm text-muted-foreground">
+                  {translate(
+                    'auto.components.marketplace.MarketplacePage.wslNotAvailable',
+                    'Not available on WSL yet'
+                  )}
+                </p>
+              </div>
+            )}
           </>
         ) : (
           <>

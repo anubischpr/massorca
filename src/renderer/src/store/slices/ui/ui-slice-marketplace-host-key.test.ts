@@ -14,7 +14,7 @@ describe('marketplace host pick in the UI slice', () => {
     expect(store.getState().marketplaceHostKey).toBeNull()
   })
 
-  it('hydrates a persisted ssh or runtime host key', () => {
+  it('hydrates a persisted ssh, runtime or wsl host key', () => {
     const store = createUIStore()
 
     store.getState().hydratePersistedUI(makePersistedUI({ marketplaceHostKey: 'ssh:target-1' }))
@@ -22,11 +22,14 @@ describe('marketplace host pick in the UI slice', () => {
 
     store.getState().hydratePersistedUI(makePersistedUI({ marketplaceHostKey: 'runtime:env-1' }))
     expect(store.getState().marketplaceHostKey).toBe('runtime:env-1')
+
+    store.getState().hydratePersistedUI(makePersistedUI({ marketplaceHostKey: 'wsl:Ubuntu' }))
+    expect(store.getState().marketplaceHostKey).toBe('wsl:Ubuntu')
   })
 
   it('sanitizes an invalid persisted host key to null', () => {
     const store = createUIStore()
-    const invalidValues: unknown[] = ['bogus', 'runtime:', 'ssh:', '', 42, { id: 'env-1' }]
+    const invalidValues: unknown[] = ['bogus', 'runtime:', 'ssh:', 'wsl:', '', 42, { id: 'env-1' }]
 
     for (const value of invalidValues) {
       store
