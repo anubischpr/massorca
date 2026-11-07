@@ -25,7 +25,7 @@ vi.mock('@/i18n/i18n', () => ({
 }))
 vi.mock('@/runtime/runtime-rpc-client', () => ({ callRuntimeRpc: mocks.callRuntimeRpc }))
 vi.mock('./marketplace-host-wsl', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('./marketplace-host-wsl')>()),
+  ...(await importOriginal<object>()),
   useMarketplaceWslTargets: () => mocks.wslTargets
 }))
 
