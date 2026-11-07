@@ -252,7 +252,8 @@ describe('the catalog on a picked remote host', () => {
       ['Claude Code', { kind: 'action', label: 'Install' }],
       ['Codex', { kind: 'found', label: 'Found' }],
       ['Antigravity', { kind: 'action', label: 'Install' }],
-      ['Gentle Shell', { kind: 'found', label: 'Found' }]
+      ['Gentle Shell', { kind: 'found', label: 'Found' }],
+      ['Custom agents', { kind: 'pending', label: 'Not available on pv-vps yet' }]
     ])
     // Why: a plain skill on the host is not a Marketplace install, so only the board skills list.
     await waitFor(() =>
@@ -263,7 +264,8 @@ describe('the catalog on a picked remote host', () => {
     )
     const skillNames = sectionNamed(result.current.sections, 'Skills').rows.map((row) => row.name)
     expect(skillNames).not.toContain('alpha')
-    expect(skillNames.slice(0, 5)).toEqual([
+    expect(skillNames.slice(0, 6)).toEqual([
+      'Custom skills',
       'Browser use',
       'Computer use',
       'Linear',
@@ -281,7 +283,9 @@ describe('the catalog on a picked remote host', () => {
         refreshPreflight: false
       })
     )
-    const agents = sectionNamed(result.current.sections, 'Agents').rows
+    const agents = sectionNamed(result.current.sections, 'Agents').rows.filter(
+      (row) => row.customId === null && !row.key.startsWith('custom-')
+    )
     expect(agents.map((row) => row.status)).toEqual(
       agents.map(() => ({ kind: 'pending', label: 'Could not check' }))
     )

@@ -19,7 +19,7 @@ import {
 } from './MarketplaceAgentHostState'
 import { MarketplaceAgentSettings } from './MarketplaceAgentSettings'
 import { MarketplaceBreadcrumb, MarketplaceItemHeader } from './MarketplaceDetail'
-import { MarketplaceHomeHostPicker } from './MarketplaceHomeHostPicker'
+import { MarketplacePageHostRow } from './MarketplacePageHostRow'
 import { useMarketplaceAppHost } from './use-marketplace-app-host'
 import { marketplaceHostKey } from './use-marketplace-host-targets'
 
@@ -73,11 +73,9 @@ export function MarketplaceAgentPage({
   const isFoundHere = detectedIds?.includes(agentId) ?? false
   return (
     <div className={cn(SKILLS_PAGE_COLUMN, 'flex max-w-4xl flex-col gap-6 py-4')}>
-      <div className="flex flex-wrap items-center justify-between gap-2">
+      <MarketplacePageHostRow host={host}>
         <MarketplaceBreadcrumb name={name} onBack={onBack} />
-        {/* Why: same host list as the Marketplace home and app pages. */}
-        {host.targets.length === 0 ? null : <MarketplaceHomeHostPicker host={host} />}
-      </div>
+      </MarketplacePageHostRow>
       <MarketplaceItemHeader
         icon={gentleShell ? <GentleShellIcon size={30} /> : <AgentIcon agent={agentId} size={30} />}
         name={name}

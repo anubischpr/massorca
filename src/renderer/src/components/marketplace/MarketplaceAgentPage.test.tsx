@@ -15,6 +15,7 @@ type Mocks = {
   failedTargets: Set<string>
   updateSettings: (updates: Partial<GlobalSettings>) => Promise<void>
   withWsl: boolean
+  alone: boolean
   wslByDistro: Record<string, WslProbe>
 }
 
@@ -23,6 +24,7 @@ const mocks = vi.hoisted((): Mocks => ({
   failedTargets: new Set<string>(),
   updateSettings: vi.fn(),
   withWsl: false,
+  alone: false,
   wslByDistro: {}
 }))
 
@@ -35,6 +37,7 @@ const TARGETS_WITH_WSL: MarketplaceVaultHostTarget[] = [
   ...TARGETS,
   { kind: 'wsl', distro: 'Ubuntu', label: 'WSL: Ubuntu' }
 ]
+const NO_TARGETS: MarketplaceVaultHostTarget[] = []
 
 vi.mock('react-i18next', () => ({ useTranslation: () => ({}) }))
 vi.mock('@/i18n/i18n', () => ({
@@ -82,7 +85,12 @@ vi.mock('@/hooks/useDetectedAgents', () => ({
 }))
 vi.mock('./use-marketplace-host-targets', async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
-  useMarketplaceHostTargets: () => (mocks.withWsl ? TARGETS_WITH_WSL : TARGETS)
+  useMarketplaceHostTargets: () => {
+    if (mocks.alone) {
+      return NO_TARGETS
+    }
+    return mocks.withWsl ? TARGETS_WITH_WSL : TARGETS
+  }
 }))
 vi.mock('./marketplace-host-wsl', async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
@@ -172,6 +180,7 @@ async function pickHost(scope: ParentNode, label: string): Promise<void> {
 
 beforeEach(() => {
   mocks.withWsl = false
+  mocks.alone = false
   mocks.wslByDistro = {}
   mocks.detectedByTarget = { local: ['claude'], 'runtime:env-1': [], 'ssh:conn-1': null }
   mocks.failedTargets = new Set(['ssh:conn-1'])
@@ -216,6 +225,12 @@ describe('MarketplaceAgentPage', () => {
     const page = await renderPage()
     const backRow = section(page, 'nav').parentElement ?? page
     expect(hostTrigger(backRow)?.textContent).toContain('This computer')
+  })
+
+  it('shows the host dropdown even when this computer is the only host', async () => {
+    mocks.alone = true
+    const page = await renderPage()
+    expect(hostTrigger(page)?.textContent).toContain('This computer')
   })
 
   it('shows only the picked host, with its own state and action', async () => {
