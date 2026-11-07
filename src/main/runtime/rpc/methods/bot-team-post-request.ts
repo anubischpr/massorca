@@ -11,7 +11,7 @@ import type {
   BotTeamMessage,
   BotTeamTask
 } from '../../../../shared/rpc-contract/bot-team-room-params'
-import { botTeamTaskTitle, withoutBotTeamMention } from '../../../../shared/bot-team-request-route'
+import { withoutBotTeamMention } from '../../../../shared/bot-team-request-route'
 import {
   activeTasksByBot,
   botTeamRequestText,
@@ -23,7 +23,11 @@ import {
   botTeamRequestFiles
 } from '../../../bot-teams/bot-team-files-only-carry'
 import { botTeamFilesQuestion } from '../../../bot-teams/bot-team-files-only-question'
-import { botTeamScheduledReply } from '../../../bot-teams/bot-team-filed-reply'
+import {
+  isBotTeamFilesSaveAnswer,
+  postBotTeamFilesSaved
+} from '../../../bot-teams/bot-team-files-save'
+import { scheduleBotTeamRequest } from '../../../bot-teams/bot-team-routine-request'
 import { botTeamReplyTarget } from '../../../bot-teams/bot-team-reply-quote'
 import { replyToBotTeamGreeting } from '../../../bot-teams/bot-team-greeting-reply'
 import { decideBotTeamRequest } from '../../../bot-teams/bot-team-request-flow'
@@ -32,8 +36,6 @@ import { sendBotTeamTaskFollowUp } from '../../../bot-teams/bot-team-task-sessio
 import { askDefaultAgentForBotTeamRequest } from '../../../bot-teams/bot-team-request-query'
 import type { BotTeamPrototypeChoice } from '../../../../shared/bot-team-prototype-choice'
 import { keepBotTeamPrototypeChoice } from '../../../bot-teams/bot-team-task-prototype'
-import { isKnownTimeZone } from '../../../../shared/bot-team-routine-zone'
-import { createBotTeamRoutine } from '../../orchestration/db/bot-teams/bot-team-routine-store'
 import type { RpcContext } from '../core'
 import { startBotTeamConversationReply } from './bot-team-conversation-reply'
 
@@ -123,6 +125,25 @@ export async function postBotTeamRequestOnHost(
   if (answered) {
     return { message, task: answered, startError: null }
   }
+  // A save-only line keeps the files it answers or carries: nothing is filed or classified.
+  if (
+    isBotTeamFilesSaveAnswer({
+      text,
+      files,
+      otherTeams: teams.filter((entry) => entry.id !== teamId)
+    })
+  ) {
+    postBotTeamFilesSaved(db, {
+      team,
+      text,
+      earlier,
+      earlierText: earlierPersonText(earlier),
+      files,
+      quotedBot: reply?.bot ?? null,
+      activeTasksByBot: activeTasksByBot(db, teamId)
+    })
+    return { message, task: null, startError: null, answered: true }
+  }
   // The classify reply also says whether a conversation needs outside knowledge or the project code.
   let classifyReply: string | null = null
   const decision = await decideBotTeamRequest({
@@ -198,35 +219,23 @@ export async function postBotTeamRequestOnHost(
   }
   if (decision.scheduledFor) {
     const { date, time } = decision.scheduledFor
-    const routine = createBotTeamRoutine(
-      db,
-      {
-        teamId,
-        botId: decision.bot.id,
-        name: botTeamTaskTitle(text, team.bots),
-        prompt: botTeamRoomTextWithAttachments(text, files),
-        schedule: {
-          frequency: 'once',
-          time,
-          weekday: null,
-          monthDay: null,
-          date,
-          timeZone: timeZone && isKnownTimeZone(timeZone) ? timeZone : null
-        }
-      },
-      Date.now()
-    )
-    db.postBotTeamMessage({
-      teamId,
-      authorBotId: decision.bot.id,
-      text: botTeamScheduledReply({ date, time, text })
+    const scheduled = scheduleBotTeamRequest(db, {
+      team,
+      botId: decision.bot.id,
+      text,
+      files,
+      moment: decision.scheduledFor,
+      timeZone: timeZone ?? null
     })
+    if (scheduled.kind === 'similar') {
+      return { message, task: null, startError: null, later: true, choice: scheduled.choice }
+    }
     return {
       message,
       task: null,
       startError: null,
       later: true,
-      scheduled: { routineId: routine.id, date, time }
+      scheduled: { routineId: scheduled.routineId, date, time }
     }
   }
   const filed = await fileBotTeamRequest(

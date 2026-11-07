@@ -23,6 +23,7 @@ import { botTeamClockLine } from '../../shared/bot-team-person-clock'
 import type { BotTeam, BotTeamBot } from '../../shared/rpc-contract/bot-team-params'
 import type { BotTeamRoomAttachment } from '../../shared/bot-team-room-attachments'
 import { isBotTeamFilesWithoutWords } from './bot-team-files-only-question'
+import { botTeamFilesAsker } from './bot-team-files-save'
 
 /** `later` is set only when the person wants the work later, so an unset decision means now. */
 type Later = { later?: true }
@@ -150,14 +151,12 @@ async function decideOwner(args: DecideArgs & { now: number }): Promise<BotTeamR
   const { team, text } = args
   // Asked before any other reading: files with no words are never filed or classified.
   if (isBotTeamFilesWithoutWords(text, args.attachments ?? [])) {
-    const asker =
-      findMentionedBot(text, team.bots) ??
-      args.quotedBot ??
-      chooseBotTeamOwner({
-        matchedBotIds: team.bots.map((bot) => bot.id),
-        bots: team.bots,
-        activeTasksByBot: args.activeTasksByBot
-      })
+    const asker = botTeamFilesAsker({
+      text,
+      bots: team.bots,
+      quotedBot: args.quotedBot,
+      activeTasksByBot: args.activeTasksByBot
+    })
     return asker ? { type: 'files', bot: asker } : { type: 'ask' }
   }
   const timing = botTeamRequestTiming(text)
