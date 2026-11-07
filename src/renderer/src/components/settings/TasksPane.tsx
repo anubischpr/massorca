@@ -20,10 +20,6 @@ import {
   getStalledVisibleTaskProviders,
   resolveStickyAutoExpandedTaskProvider
 } from './task-source-setup-state'
-import {
-  JIRA_INTEGRATION_SECTION_ID,
-  LINEAR_INTEGRATION_SECTION_ID
-} from './task-provider-integration-section-ids'
 import { getTasksPaneSearchKeywords } from './tasks-search'
 import { useIntegrationProviderStatusRefresh } from './use-integration-provider-status-refresh'
 import { useTaskSourceProviderReadiness } from './use-task-source-provider-readiness'
@@ -94,8 +90,7 @@ const PROVIDER_META: Record<
 
 export function TasksPane({ settings, updateSettings }: TasksPaneProps): React.JSX.Element {
   const visibleProviders = normalizeVisibleTaskProviders(settings.visibleTaskProviders)
-  const openSettingsPage = useAppStore((s) => s.openSettingsPage)
-  const openSettingsTarget = useAppStore((s) => s.openSettingsTarget)
+  const openMarketplaceSection = useAppStore((s) => s.openMarketplaceSection)
   const checkJiraConnection = useAppStore((s) => s.checkJiraConnection)
   const refreshPreflightStatus = useAppStore((s) => s.refreshPreflightStatus)
   const readinessByProvider = useTaskSourceProviderReadiness(visibleProviders)
@@ -133,13 +128,9 @@ export function TasksPane({ settings, updateSettings }: TasksPaneProps): React.J
     })
   }
 
-  const openIntegrations = (sectionId?: string): void => {
-    openSettingsPage()
-    openSettingsTarget({
-      pane: 'integrations',
-      repoId: null,
-      ...(sectionId ? { sectionId } : {})
-    })
+  // Why: task provider connections live on the Marketplace's Services pages now.
+  const openIntegrations = (): void => {
+    openMarketplaceSection('services')
   }
 
   return (
@@ -215,7 +206,7 @@ export function TasksPane({ settings, updateSettings }: TasksPaneProps): React.J
                     visible={visible}
                     canHide={canHide}
                     onToggleVisible={() => toggleProvider('linear')}
-                    onOpenIntegrations={() => openIntegrations(LINEAR_INTEGRATION_SECTION_ID)}
+                    onOpenIntegrations={() => openIntegrations()}
                   />
                 ) : provider === 'jira' ? (
                   <JiraSetupSteps
@@ -225,7 +216,7 @@ export function TasksPane({ settings, updateSettings }: TasksPaneProps): React.J
                     canHide={canHide}
                     onToggleVisible={() => toggleProvider('jira')}
                     onConnected={() => void checkJiraConnection()}
-                    onOpenIntegrations={() => openIntegrations(JIRA_INTEGRATION_SECTION_ID)}
+                    onOpenIntegrations={() => openIntegrations()}
                   />
                 ) : (
                   <CodeHostSetupSteps

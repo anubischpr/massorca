@@ -15,6 +15,7 @@ type ComposerNavigationActionsInput = Pick<
 >
 
 import { useCallback } from 'react'
+import { useAppStore } from '@/store'
 import { getTaskSourceRuntimeSettings } from '../../../../shared/task-source-context'
 
 export function useComposerNavigationActions(input: ComposerNavigationActionsInput) {
@@ -46,17 +47,11 @@ export function useComposerNavigationActions(input: ComposerNavigationActionsInp
       if (!selected) {
         return
       }
-      openSettingsTarget({ pane: 'integrations', repoId: null })
-      openSettingsPage()
+      // Why: the Jira connection lives on the Marketplace's Services pages now.
+      useAppStore.getState().openMarketplaceSection('services')
       closeModal()
     })
-  }, [
-    closeModal,
-    openSettingsPage,
-    openSettingsTarget,
-    setActiveRuntimeEnvironmentPreference,
-    smartNameJiraSourceContext
-  ])
+  }, [closeModal, setActiveRuntimeEnvironmentPreference, smartNameJiraSourceContext])
 
   const folderCreateDisabled =
     creating ||

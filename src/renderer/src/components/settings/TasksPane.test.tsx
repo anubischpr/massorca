@@ -12,6 +12,7 @@ import { TasksPane } from './TasksPane'
 const mocks = vi.hoisted(() => ({
   readiness: {} as Record<TaskProvider, TaskProviderReadiness>,
   openSettingsTarget: vi.fn(),
+  openMarketplaceSection: vi.fn(),
   openSettingsPage: vi.fn(),
   refreshPreflightStatus: vi.fn(),
   checkLinearConnection: vi.fn(),
@@ -73,6 +74,7 @@ vi.mock('@/store', () => ({
     selector: (state: {
       openSettingsPage: () => void
       openSettingsTarget: (target: unknown) => void
+      openMarketplaceSection: (section: string) => void
       refreshPreflightStatus: () => void
       checkLinearConnection: () => void
       checkJiraConnection: () => void
@@ -82,6 +84,7 @@ vi.mock('@/store', () => ({
     selector({
       openSettingsPage: mocks.openSettingsPage,
       openSettingsTarget: mocks.openSettingsTarget,
+      openMarketplaceSection: mocks.openMarketplaceSection,
       refreshPreflightStatus: mocks.refreshPreflightStatus,
       checkLinearConnection: mocks.checkLinearConnection,
       checkJiraConnection: mocks.checkJiraConnection,
@@ -126,6 +129,7 @@ describe('TasksPane', () => {
     mocks.jiraSetupProps = []
     mocks.openSettingsPage.mockClear()
     mocks.openSettingsTarget.mockClear()
+    mocks.openMarketplaceSection.mockClear()
     mocks.readiness = {
       github: { connected: true, checking: false, visible: true },
       gitlab: { connected: true, checking: false, visible: true },
@@ -220,20 +224,16 @@ describe('TasksPane', () => {
     ])
   })
 
-  it('deep-links connected Linear credential management to its integration card', async () => {
+  it('deep-links connected Linear credential management to the Marketplace services', async () => {
     await renderInteractivePane()
 
     mocks.linearSetupProps.at(-1)?.onOpenIntegrations()
 
-    expect(mocks.openSettingsPage).toHaveBeenCalledOnce()
-    expect(mocks.openSettingsTarget).toHaveBeenCalledWith({
-      pane: 'integrations',
-      repoId: null,
-      sectionId: 'integrations-linear'
-    })
+    expect(mocks.openMarketplaceSection).toHaveBeenCalledWith('services')
+    expect(mocks.openSettingsTarget).not.toHaveBeenCalled()
   })
 
-  it('deep-links connected Jira credential management to its integration card', async () => {
+  it('deep-links connected Jira credential management to the Marketplace services', async () => {
     mocks.readiness.jira = { connected: true, checking: false, visible: true }
     await renderInteractivePane()
     const expandJira = Array.from(container?.querySelectorAll('button') ?? []).find(
@@ -245,12 +245,8 @@ describe('TasksPane', () => {
     })
     mocks.jiraSetupProps.at(-1)?.onOpenIntegrations()
 
-    expect(mocks.openSettingsPage).toHaveBeenCalledOnce()
-    expect(mocks.openSettingsTarget).toHaveBeenCalledWith({
-      pane: 'integrations',
-      repoId: null,
-      sectionId: 'integrations-jira'
-    })
+    expect(mocks.openMarketplaceSection).toHaveBeenCalledWith('services')
+    expect(mocks.openSettingsTarget).not.toHaveBeenCalled()
   })
 
   it('auto-expands only the first incomplete provider', () => {

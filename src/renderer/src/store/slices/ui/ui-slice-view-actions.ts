@@ -177,6 +177,16 @@ export function createUiViewActions(set: UISliceSet, get: UISliceGet): Partial<U
         marketplaceSelectedItemId:
           state.activeView === 'marketplace' ? state.marketplaceSelectedItemId : null
       })),
+    openMarketplaceSection: (section) =>
+      set((state) => ({
+        activeView: 'marketplace',
+        previousViewBeforeMarketplace:
+          state.activeView === 'marketplace'
+            ? state.previousViewBeforeMarketplace
+            : state.activeView,
+        marketplaceSection: section,
+        marketplaceSelectedItemId: null
+      })),
     closeMarketplacePage: () =>
       set((state) => ({
         activeView: state.previousViewBeforeMarketplace

@@ -17,7 +17,6 @@ import { LinearAgentSkillNotes } from './LinearAgentSkillNotes'
 import { getLinearAgentSkillPaneSearchEntries } from './linear-agent-skill-search'
 import { SearchableSetting } from './SearchableSetting'
 import { SkillUsageExamplesSection } from './SkillUsageExamplesSection'
-import { LINEAR_INTEGRATION_SECTION_ID } from './task-provider-integration-section-ids'
 import { useLinearAgentSkillSetup } from './use-linear-agent-skill-setup'
 import { translate } from '@/i18n/i18n'
 
@@ -37,6 +36,7 @@ function resolveLinearExampleIcon(example: SkillUsageExample): LucideIcon {
 export function LinearAgentSkillPane(): React.JSX.Element {
   const openSettingsPage = useAppStore((state) => state.openSettingsPage)
   const openSettingsTarget = useAppStore((state) => state.openSettingsTarget)
+  const openMarketplaceSection = useAppStore((state) => state.openMarketplaceSection)
   const settings = useAppStore((state) => state.settings)
   const linearStatusChecked = useAppStore((state) => state.linearStatusChecked)
   const linearStatusContextKey = useAppStore((state) => state.linearStatusContextKey)
@@ -50,13 +50,9 @@ export function LinearAgentSkillPane(): React.JSX.Element {
     openSettingsTarget({ pane: 'tasks', repoId: null })
   }
 
+  // Why: the Linear connection lives on the Marketplace's Services pages now.
   const openIntegrationSettings = (): void => {
-    openSettingsPage()
-    openSettingsTarget({
-      pane: 'integrations',
-      repoId: null,
-      sectionId: LINEAR_INTEGRATION_SECTION_ID
-    })
+    openMarketplaceSection('services')
   }
 
   const visibleInTasks = normalizeVisibleTaskProviders(settings?.visibleTaskProviders).includes(
@@ -148,8 +144,8 @@ export function LinearAgentSkillPane(): React.JSX.Element {
           onClick={openIntegrationSettings}
         >
           {translate(
-            'auto.components.settings.LinearAgentSkillPane.manageConnectionLink',
-            'Integrations'
+            'auto.components.settings.LinearAgentSkillPane.manageConnectionMarketplaceLink',
+            'Marketplace'
           )}
         </Button>
       </p>
