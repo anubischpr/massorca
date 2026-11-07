@@ -1,8 +1,7 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { useActiveSkillDiscoveryRuntimeTarget } from '@/hooks/use-active-skill-discovery-runtime-target'
 import { translate } from '@/i18n/i18n'
-import { discoverSkillsForRuntimeTarget } from '@/runtime/runtime-skills-client'
 import { useAppStore } from '@/store'
 import type { DiscoveredSkill } from '../../../../shared/skills'
 import type { TuiAgent } from '../../../../shared/tui-agent'
@@ -26,6 +25,7 @@ import {
 } from './MarketplaceSkillPageModel'
 import { MarketplaceYourAppsPage } from './MarketplaceYourAppsPage'
 import { MARKETPLACE_CATALOG } from './marketplace-catalog'
+import { discoverSkillsForPickedHost } from './marketplace-skill-host-scan'
 import { marketplaceHostKey } from './use-marketplace-host-targets'
 import { useMarketplaceAppHost } from './use-marketplace-app-host'
 
@@ -33,7 +33,16 @@ import { useMarketplaceAppHost } from './use-marketplace-app-host'
 type OpenPage =
   | { kind: 'agent'; agent: TuiAgent }
   | { kind: 'integration'; id: MarketplaceIntegrationId }
-  | { kind: 'skill'; skill: MarketplaceSkillPageSkill }
+  | { kind: 'skill'; skill: MarketplaceSkillPageSkill; listed: DiscoveredSkill }
+
+function reportSkillOpenFailed(): void {
+  toast.error(
+    translate(
+      'auto.components.marketplace.MarketplacePage.skillOpenFailed',
+      'Could not open this skill.'
+    )
+  )
+}
 
 export default function MarketplacePage(): React.JSX.Element {
   const section = useAppStore((s) => s.marketplaceSection)
@@ -79,33 +88,55 @@ export default function MarketplacePage(): React.JSX.Element {
   useIntegrationProviderStatusRefresh()
 
   // Why: the catalog keeps only the skill list, so the page takes one fresh scan for the agents that hold it.
-  const openSkill = (listed: DiscoveredSkill): void => {
-    if (skillTarget === null) {
+  // Why: a picked host's page scans that host; this computer keeps scanning the focused runtime.
+  const openSkill = useCallback(
+    (listed: DiscoveredSkill): void => {
+      const scan = discoverSkillsForPickedHost(pickedTarget ?? null, skillTarget)
+      if (scan === null) {
+        if (pickedTarget !== undefined) {
+          reportSkillOpenFailed()
+        }
+        return
+      }
+      const request = ++openRequest.current
+      void scan.then(
+        (result) => {
+          const skill = result.skills.find((candidate) => candidate.id === listed.id)
+          if (request === openRequest.current && skill !== undefined) {
+            setOpenPage({
+              kind: 'skill',
+              listed,
+              skill: marketplaceSkillFromDiscovered(skill, skillAgentByRootPath(result))
+            })
+          }
+        },
+        () => {
+          if (request === openRequest.current) {
+            reportSkillOpenFailed()
+          }
+        }
+      )
+    },
+    [pickedTarget, skillTarget]
+  )
+
+  // Why: the open skill page's host picker moves its scan to the newly picked host, so it is read again.
+  const openPageRef = useRef<OpenPage | null>(null)
+  useEffect(() => {
+    openPageRef.current = openPage
+  }, [openPage])
+  const scannedHostKey = useRef(host.selectedKey)
+  useEffect(() => {
+    if (scannedHostKey.current === host.selectedKey) {
       return
     }
-    const request = ++openRequest.current
-    void discoverSkillsForRuntimeTarget(skillTarget).then(
-      (result) => {
-        const skill = result.skills.find((candidate) => candidate.id === listed.id)
-        if (request === openRequest.current && skill !== undefined) {
-          setOpenPage({
-            kind: 'skill',
-            skill: marketplaceSkillFromDiscovered(skill, skillAgentByRootPath(result))
-          })
-        }
-      },
-      () => {
-        if (request === openRequest.current) {
-          toast.error(
-            translate(
-              'auto.components.marketplace.MarketplacePage.skillOpenFailed',
-              'Could not open this skill.'
-            )
-          )
-        }
-      }
-    )
-  }
+    scannedHostKey.current = host.selectedKey
+    const open = openPageRef.current
+    if (open?.kind === 'skill') {
+      setOpenPage(null)
+      openSkill(open.listed)
+    }
+  }, [host.selectedKey, openSkill])
 
   const openRow = (row: CatalogRow): void => {
     const target = row.target

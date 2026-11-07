@@ -1,7 +1,15 @@
-import { describe, expect, it } from 'vitest'
+// @vitest-environment happy-dom
+
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ManagedSkillInstall } from '../../../../shared/skill-install-contract'
 import type { DiscoveredSkill } from '../../../../shared/skills'
-import { markMarketplaceManagedSkills } from './marketplace-managed-skills'
+import {
+  markMarketplaceManagedSkills,
+  readManagedSkillInstalls,
+  wslInstallsOf
+} from './marketplace-managed-skills'
+
+const listManagedInstalls = vi.fn()
 
 function skill(name: string, overrides: Partial<DiscoveredSkill> = {}): DiscoveredSkill {
   return {
@@ -107,5 +115,49 @@ describe('markMarketplaceManagedSkills', () => {
   it('returns the same skill objects when no install matches', () => {
     const skills = [skill('sdd-init')]
     expect(markMarketplaceManagedSkills(skills, [install('calendar')])[0]).toBe(skills[0])
+  })
+})
+
+describe('wslInstallsOf', () => {
+  it('keeps the global installs placed on that WSL distro only', () => {
+    const installs = [
+      install('calendar', {
+        destination: { scope: 'global', executionTarget: { kind: 'wsl', distro: 'Ubuntu' } }
+      }),
+      install('notes', {
+        destination: { scope: 'global', executionTarget: { kind: 'wsl', distro: 'Debian' } }
+      }),
+      install('mail', { destination: { scope: 'global' } }),
+      install('sheets', {
+        scope: 'workspace',
+        destination: { scope: 'workspace', worktreeId: 'wt-1' }
+      })
+    ]
+    expect(wslInstallsOf(installs, 'Ubuntu').map((item) => item.name)).toEqual(['calendar'])
+  })
+})
+
+describe('readManagedSkillInstalls', () => {
+  beforeEach(() => {
+    listManagedInstalls.mockReset()
+    Object.defineProperty(window, 'api', {
+      configurable: true,
+      value: { skills: { listManagedInstalls } }
+    })
+  })
+
+  it('asks the host it is given, or this computer when none is given', async () => {
+    listManagedInstalls.mockResolvedValue({ status: 'ok', value: [install('calendar')] })
+    expect(await readManagedSkillInstalls('env-vps')).toEqual([install('calendar')])
+    expect(listManagedInstalls).toHaveBeenLastCalledWith('env-vps')
+    await readManagedSkillInstalls()
+    expect(listManagedInstalls).toHaveBeenLastCalledWith(undefined)
+  })
+
+  it('reads no installs when the listing is unsupported or fails, so the scan still lands', async () => {
+    listManagedInstalls.mockResolvedValueOnce({ status: 'unsupported', message: 'update' })
+    expect(await readManagedSkillInstalls('env-old')).toEqual([])
+    listManagedInstalls.mockRejectedValueOnce(new Error('offline'))
+    expect(await readManagedSkillInstalls('env-old')).toEqual([])
   })
 })

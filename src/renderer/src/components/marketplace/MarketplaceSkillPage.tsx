@@ -22,13 +22,23 @@ import {
   type MarketplaceSkillPageSkill
 } from './MarketplaceSkillPageModel'
 import { MarketplaceSkillTeams } from './MarketplaceSkillTeams'
-import { useWslAgentDetection } from './marketplace-host-wsl'
-import { useMarketplaceAppHost } from './use-marketplace-app-host'
+import type { MarketplaceVaultHostTarget } from './marketplace-vault-host-client'
+import { marketplaceHostKey } from './use-marketplace-host-targets'
+import { useMarketplaceAppHost, type MarketplaceAppHost } from './use-marketplace-app-host'
+import { useMarketplaceRemoteDetection } from './use-marketplace-remote-detection'
 
 const ORIGIN_ICONS: Record<MarketplaceSkillOrigin['kind'], typeof Store> = {
   pool: Store,
   folder: FolderOpen,
   plugin: Puzzle
+}
+
+/** The picked host when it is not this computer; the page reads and acts on that host only. */
+function pickedRemoteTarget(host: MarketplaceAppHost): MarketplaceVaultHostTarget | null {
+  if (host.selectedKey === null) {
+    return null
+  }
+  return host.targets.find((target) => marketplaceHostKey(target) === host.selectedKey) ?? null
 }
 
 /** A skill's page ("Skill" board): install state, the agents that get it, bot teams and its source. */
@@ -47,8 +57,7 @@ export function MarketplaceSkillPage({
   const [installOpen, setInstallOpen] = useState(false)
   const host = useMarketplaceAppHost()
   const OriginIcon = ORIGIN_ICONS[skill.origin.kind]
-  // Why: a WSL distro's install state is not read yet, so this computer's copy is never shown for it.
-  const wslDistro = host.wslDistro
+  const remoteTarget = pickedRemoteTarget(host)
   return (
     <div className={cn(SKILLS_PAGE_COLUMN, 'flex max-w-4xl flex-col gap-6 py-4')}>
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -60,28 +69,31 @@ export function MarketplaceSkillPage({
         icon={<BookOpen className="size-6" aria-hidden />}
         name={skill.name}
         description={skill.description}
-        statusTone={wslDistro !== null ? 'pending' : skill.installed ? 'ok' : 'warn'}
+        statusTone={skill.installed ? 'ok' : 'warn'}
         status={
-          wslDistro !== null
+          skill.installed
             ? translate(
-                'auto.components.marketplace.MarketplaceSkillPage.couldNotCheckOn',
-                'Could not check {{host}}',
+                'auto.components.marketplace.MarketplaceSkillPage.installedOn',
+                'Installed on {{host}}',
                 { host: hostName }
               )
-            : skill.installed
-              ? translate(
-                  'auto.components.marketplace.MarketplaceSkillPage.installedOn',
-                  'Installed on {{host}}',
-                  { host: hostName }
-                )
-              : translate(
-                  'auto.components.marketplace.MarketplaceSkillPage.notInstalledOn',
-                  'Not installed on {{host}}',
-                  { host: hostName }
-                )
+            : translate(
+                'auto.components.marketplace.MarketplaceSkillPage.notInstalledOn',
+                'Not installed on {{host}}',
+                { host: hostName }
+              )
         }
         action={
-          wslDistro !== null || skill.installed ? undefined : (
+          skill.installed ? undefined : remoteTarget !== null ? (
+            // Why: the install dialog only installs on this computer; a picked host waits for its own install path.
+            <span className="text-sm text-muted-foreground">
+              {translate(
+                'auto.components.marketplace.MarketplaceSkillPage.installUnavailableOn',
+                'Installing on {{host}} is not available yet.',
+                { host: hostName }
+              )}
+            </span>
+          ) : (
             <Button type="button" onClick={() => setInstallOpen(true)}>
               {translate(
                 'auto.components.marketplace.MarketplaceSkillPage.installOn',
@@ -92,7 +104,11 @@ export function MarketplaceSkillPage({
           )
         }
       />
-      <MarketplaceSkillAgents agentIds={skill.agentIds} hostName={hostName} wslDistro={wslDistro} />
+      <MarketplaceSkillAgents
+        agentIds={skill.agentIds}
+        hostName={hostName}
+        remoteTarget={remoteTarget}
+      />
       <MarketplaceSkillTeams skillName={skill.name} />
       <section data-marketplace-skill-origin>
         <MarketplaceCard>
@@ -124,45 +140,88 @@ type SkillAgentsProps = { agentIds: readonly string[]; hostName: string }
 function MarketplaceSkillAgents({
   agentIds,
   hostName,
-  wslDistro
-}: SkillAgentsProps & { wslDistro: string | null }): React.JSX.Element {
-  return wslDistro === null ? (
+  remoteTarget
+}: SkillAgentsProps & { remoteTarget: MarketplaceVaultHostTarget | null }): React.JSX.Element {
+  return remoteTarget === null ? (
     <LocalSkillAgents agentIds={agentIds} hostName={hostName} />
   ) : (
-    <WslSkillAgents agentIds={agentIds} hostName={hostName} distro={wslDistro} />
+    <RemoteSkillAgents agentIds={agentIds} hostName={hostName} target={remoteTarget} />
   )
 }
 
 function LocalSkillAgents({ agentIds, hostName }: SkillAgentsProps): React.JSX.Element {
   const detected = useSkillInstallDetectedAgents({ environmentId: 'local' })
   return (
-    <SkillAgentsList agentIds={agentIds} hostName={hostName} detected={detected} failed={false} />
+    <SkillAgentsList agentIds={agentIds} hostName={hostName} detected={detected} notice={null} />
   )
 }
 
-function WslSkillAgents({
+/** A picked host's agents, read through its own probe; a host that cannot answer says so instead. */
+function RemoteSkillAgents({
   agentIds,
   hostName,
-  distro
-}: SkillAgentsProps & { distro: string }): React.JSX.Element {
-  const { detectedIds, detectionFailed } = useWslAgentDetection(distro)
+  target
+}: SkillAgentsProps & { target: MarketplaceVaultHostTarget }): React.JSX.Element {
+  const { agents } = useMarketplaceRemoteDetection(target)
+  if (agents.kind === 'ready') {
+    return (
+      <SkillAgentsList
+        agentIds={agentIds}
+        hostName={hostName}
+        detected={[...agents.value]}
+        notice={null}
+      />
+    )
+  }
   return (
     <SkillAgentsList
       agentIds={agentIds}
       hostName={hostName}
-      detected={detectedIds}
-      failed={detectionFailed}
+      detected={null}
+      notice={remoteAgentsNotice(agents.kind, hostName)}
     />
   )
 }
 
-/** The agents a host has as toggles; a host whose probe failed says so instead of listing none. */
+function remoteAgentsNotice(
+  kind: 'loading' | 'failed' | 'update-required',
+  hostName: string
+): string {
+  if (kind === 'loading') {
+    return translate(
+      'auto.components.marketplace.MarketplaceSkillPage.checkingOn',
+      'Checking {{host}}…',
+      {
+        host: hostName
+      }
+    )
+  }
+  if (kind === 'update-required') {
+    return translate(
+      'auto.components.marketplace.MarketplaceSkillPage.updateToCheck',
+      'Update {{host}} to check its agents.',
+      { host: hostName }
+    )
+  }
+  return translate(
+    'auto.components.marketplace.MarketplaceSkillPage.couldNotCheckOn',
+    'Could not check {{host}}',
+    {
+      host: hostName
+    }
+  )
+}
+
+/** The agents a host has as toggles; a notice replaces them when the host could not list its agents. */
 function SkillAgentsList({
   agentIds,
   hostName,
   detected,
-  failed
-}: SkillAgentsProps & { detected: readonly string[] | null; failed: boolean }): React.JSX.Element {
+  notice
+}: SkillAgentsProps & {
+  detected: readonly string[] | null
+  notice: string | null
+}): React.JSX.Element {
   const agents = installableSkillProviders(detected ?? [])
   // Why: a press is held here; placing or removing one agent's copy has no backend yet.
   const [picked, setPicked] = useState<ReadonlySet<string> | null>(null)
@@ -195,14 +254,8 @@ function SkillAgentsList({
               )}
             </span>
           </div>
-          {failed ? (
-            <span className="text-sm text-muted-foreground">
-              {translate(
-                'auto.components.marketplace.MarketplaceSkillPage.couldNotCheckOn',
-                'Could not check {{host}}',
-                { host: hostName }
-              )}
-            </span>
+          {notice !== null ? (
+            <span className="text-sm text-muted-foreground">{notice}</span>
           ) : (
             <div className="flex flex-wrap gap-1.5">
               {agents.map((provider) => (

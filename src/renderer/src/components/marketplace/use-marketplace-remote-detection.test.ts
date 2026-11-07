@@ -2,6 +2,7 @@
 
 import { renderHook, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import type { ManagedSkillInstall } from '../../../../shared/skill-install-contract'
 import type { DiscoveredSkill } from '../../../../shared/skills'
 import { useMarketplaceCatalog } from './MarketplaceCatalogData'
 import type { CatalogRow, CatalogSection } from './MarketplaceCatalogRows'
@@ -330,6 +331,90 @@ describe('the catalog on a picked remote host', () => {
       const reads = await readRemoteHostChecks(UBUNTU)
       expect(reads.agents).toEqual({ kind: 'failed' })
       expect(reads.tools).toEqual({ kind: 'failed' })
+    })
+  })
+})
+
+const listManagedInstalls = vi.fn()
+const discoverWslSkills = vi.fn()
+const UBUNTU_HOST: MarketplaceVaultHostTarget = {
+  kind: 'wsl',
+  distro: 'Ubuntu',
+  label: 'WSL: Ubuntu'
+}
+
+function managedInstall(
+  name: string,
+  overrides: Partial<ManagedSkillInstall> = {}
+): ManagedSkillInstall {
+  return {
+    name,
+    packageId: `pkg-${name}`,
+    versionId: 'v1',
+    packageDigest: 'a'.repeat(64),
+    scope: 'global',
+    destinationIdentity: 'global:local',
+    destination: { scope: 'global' },
+    installedAt: '2026-11-01T00:00:00.000Z',
+    state: 'unchanged',
+    ...overrides
+  }
+}
+
+describe('marking the skills a picked host has from Marketplace', () => {
+  beforeEach(() => {
+    listManagedInstalls.mockReset().mockResolvedValue({ status: 'ok', value: [] })
+    discoverWslSkills.mockReset().mockResolvedValue({ skills: [], sources: [], scannedAt: 1 })
+    Object.defineProperty(window, 'api', {
+      value: {
+        preflight: { detectRemoteAgents: mocks.detectRemoteAgents },
+        skills: { listManagedInstalls, discover: discoverWslSkills }
+      },
+      configurable: true,
+      writable: true
+    })
+  })
+
+  it('marks a runtime host skill that a managed install on that host placed', async () => {
+    mocks.discoverSkills.mockResolvedValue({
+      skills: [skill('calendar'), skill('hand-made')],
+      sources: [],
+      scannedAt: 1
+    })
+    listManagedInstalls.mockResolvedValue({
+      status: 'ok',
+      value: [managedInstall('calendar')]
+    })
+    const reads = await readRemoteHostChecks(PV_VPS)
+    expect(listManagedInstalls).toHaveBeenCalledWith('env-vps')
+    expect(reads.skills).toEqual({
+      kind: 'ready',
+      value: [{ ...skill('calendar'), source: 'marketplace' }, skill('hand-made')]
+    })
+  })
+
+  it('reads a picked WSL distro through its own discovery and marks only that distro installs', async () => {
+    discoverWslSkills.mockResolvedValue({
+      skills: [skill('calendar'), skill('notes')],
+      sources: [],
+      scannedAt: 1
+    })
+    listManagedInstalls.mockResolvedValue({
+      status: 'ok',
+      value: [
+        managedInstall('calendar', {
+          destination: { scope: 'global', executionTarget: { kind: 'wsl', distro: 'Ubuntu' } }
+        }),
+        managedInstall('notes', {
+          destination: { scope: 'global', executionTarget: { kind: 'wsl', distro: 'Debian' } }
+        })
+      ]
+    })
+    const reads = await readRemoteHostChecks(UBUNTU_HOST)
+    expect(discoverWslSkills).toHaveBeenCalledWith({ runtime: 'wsl', wslDistro: 'Ubuntu' })
+    expect(reads.skills).toEqual({
+      kind: 'ready',
+      value: [{ ...skill('calendar'), source: 'marketplace' }, skill('notes')]
     })
   })
 })

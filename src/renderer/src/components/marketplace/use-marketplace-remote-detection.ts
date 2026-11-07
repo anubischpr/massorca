@@ -11,6 +11,12 @@ import {
 import type { DiscoveredSkill } from '../../../../shared/skills'
 import { readHostApps } from './marketplace-apps-host-client'
 import { detectWslAgents } from './marketplace-host-wsl'
+import {
+  markMarketplaceManagedSkills,
+  readManagedSkillInstalls,
+  wslInstallsOf
+} from './marketplace-managed-skills'
+import { discoverSkillsOnWslDistro } from './marketplace-skill-host-scan'
 import type { CatalogCheck, HostUnanswered } from './MarketplaceCatalogRows'
 import type { MarketplaceVaultHostTarget } from './marketplace-vault-host-client'
 
@@ -117,14 +123,34 @@ async function readRuntimeCall<T>(
   }
 }
 
+/** A runtime host's skills, marked with the ones MassOrca installed on that host. */
 async function readRuntimeSkills(
   environmentId: string
 ): Promise<CatalogCheck<readonly DiscoveredSkill[]>> {
   try {
-    const result = await discoverSkillsForRuntimeTarget({ kind: 'environment', environmentId })
-    return { kind: 'ready', value: result.skills }
+    const [result, installs] = await Promise.all([
+      discoverSkillsForRuntimeTarget({ kind: 'environment', environmentId }),
+      readManagedSkillInstalls(environmentId)
+    ])
+    return { kind: 'ready', value: markMarketplaceManagedSkills(result.skills, installs) }
   } catch (error) {
     return failureOf(error)
+  }
+}
+
+/** A WSL distro's skills, marked with the global installs MassOrca placed on that distro. */
+async function readWslSkills(distro: string): Promise<CatalogCheck<readonly DiscoveredSkill[]>> {
+  try {
+    const [result, installs] = await Promise.all([
+      discoverSkillsOnWslDistro(distro),
+      readManagedSkillInstalls()
+    ])
+    return {
+      kind: 'ready',
+      value: markMarketplaceManagedSkills(result.skills, wslInstallsOf(installs, distro))
+    }
+  } catch {
+    return FAILED
   }
 }
 
@@ -147,10 +173,14 @@ async function readApps(
   return result.reason === 'host-needs-update' ? { kind: 'update-required' } : FAILED
 }
 
-/** A WSL distro answers its git, GitHub CLI and agents through its own probes; the rest has no WSL path yet. */
+/** A WSL distro answers its git, GitHub CLI, agents and skills through its own probes; the rest has no WSL path yet. */
 async function readWslHostChecks(distro: string): Promise<RemoteHostReads> {
-  const [tools, agents] = await Promise.all([readWslTools(distro), readWslAgents(distro)])
-  return { ...FAILED_READS, tools, agents }
+  const [tools, agents, skills] = await Promise.all([
+    readWslTools(distro),
+    readWslAgents(distro),
+    readWslSkills(distro)
+  ])
+  return { ...FAILED_READS, tools, agents, skills }
 }
 
 async function readWslTools(distro: string): Promise<CatalogCheck<RemoteTools>> {
