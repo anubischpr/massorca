@@ -32,6 +32,28 @@ export function botTeamFilesAwaitingInstruction(
   return waiting.flat()
 }
 
+/** The bot whose question waits for the files a save-only line keeps: the one that asked the newest waiting line. */
+export function botTeamFilesAskedBy(messages: readonly BotTeamMessage[]): string | null {
+  const asked = new Map<string, string>()
+  for (const message of messages.toReversed()) {
+    if (message.authorBotId !== null) {
+      if (!asked.has(message.text)) {
+        asked.set(message.text, message.authorBotId)
+      }
+      continue
+    }
+    const attachments = message.attachments ?? []
+    if (!isBotTeamFilesWithoutWords(message.text, attachments)) {
+      return null
+    }
+    const question = botTeamFilesQuestionLines(attachments).find((line) => asked.has(line))
+    if (question !== undefined) {
+      return asked.get(question) ?? null
+    }
+  }
+  return null
+}
+
 /**
  * The files a request is read with. A line of only files keeps its own; a line with words also
  * takes the files still waiting before it, each file once.

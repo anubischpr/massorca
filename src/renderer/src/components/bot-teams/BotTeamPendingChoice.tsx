@@ -9,6 +9,7 @@ import type { BotTeam } from '../../../../shared/rpc-contract/bot-team-params'
 import type { BotTeamProject } from '../../../../shared/rpc-contract/bot-team-room-params'
 import { BotTeamProjectQuestion } from './BotTeamProjectQuestion'
 import { BotTeamRequestChoiceCard } from './BotTeamRequestChoiceCard'
+import { BotTeamSimilarRoutineChoice } from './BotTeamSimilarRoutineChoice'
 
 export type BotTeamPendingChoiceRequest = {
   choice: BotTeamRequestChoice
@@ -90,6 +91,9 @@ export function BotTeamPendingChoice({
         }
       />
     )
+  }
+  if (pending.choice.kind === 'similar-routine') {
+    return <BotTeamSimilarRoutineChoice choice={pending.choice} team={team} onDone={onFiled} />
   }
   return (
     <BotTeamRequestChoiceCard

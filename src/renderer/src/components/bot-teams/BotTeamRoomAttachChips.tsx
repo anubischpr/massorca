@@ -36,6 +36,7 @@ export function BotTeamRoomAttachChips({
           </>
         )
         // Why: the hover card names the file, so the native tooltip would only repeat the path.
+        // The chip's own background keeps hover visible on a person's bubble, where accent equals muted.
         const chip = onOpen ? (
           <button
             type="button"
@@ -43,7 +44,7 @@ export function BotTeamRoomAttachChips({
             aria-label={translate('components.botTeams.openFile', 'Open {{file}}', {
               file: file.name
             })}
-            className="flex max-w-full items-center rounded-md border border-input px-2 py-0.5 text-xs hover:bg-accent"
+            className="flex max-w-full items-center rounded-md border border-input bg-background px-2 py-0.5 text-xs hover:border-ring hover:bg-accent"
             onClick={() => onOpen(file.path)}
           >
             {label}
@@ -51,7 +52,7 @@ export function BotTeamRoomAttachChips({
         ) : (
           <span
             title={teamId ? undefined : file.path}
-            className="flex max-w-full items-center rounded-md border border-input px-2 py-0.5 text-xs"
+            className="flex max-w-full items-center rounded-md border border-input bg-background px-2 py-0.5 text-xs hover:border-ring"
           >
             {label}
           </span>

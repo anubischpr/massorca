@@ -1,5 +1,6 @@
 import { isBotTeamGreeting } from './bot-team-greeting'
 import { findMentionedBot } from './bot-team-owner-selection'
+import type { BotTeamTask } from './rpc-contract/bot-team-room-params'
 
 export type BotTeamTypingAuthor<TBot> =
   | { kind: 'all' }
@@ -32,6 +33,29 @@ export function botTeamReplyingAuthor<TBot extends { id: string }>(
   }
   const bot = bots.find((candidate) => candidate.id === first.botId)
   return bot ? { kind: 'bot', bot } : { kind: 'team' }
+}
+
+export type BotTeamAnsweringTask = Pick<
+  BotTeamTask,
+  'ownerBotId' | 'sessionId' | 'lastStatus' | 'awaitingPerson' | 'answersMessageId' | 'createdAt'
+>
+
+/**
+ * The bots a reply task still works for. The room shows each one typing in place of the task's card,
+ * until the task ends or waits for the person.
+ */
+export function botTeamAnsweringReplying(
+  tasks: readonly BotTeamAnsweringTask[]
+): { botId: string; since: number }[] {
+  return tasks
+    .filter(
+      (task) =>
+        task.answersMessageId !== undefined &&
+        task.sessionId !== null &&
+        !task.lastStatus &&
+        !task.awaitingPerson
+    )
+    .map((task) => ({ botId: task.ownerBotId, since: task.createdAt ?? 0 }))
 }
 
 /** One id per send; a client reuses it when it retries that same send, so the host posts it once. */

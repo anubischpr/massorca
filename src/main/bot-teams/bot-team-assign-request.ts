@@ -72,7 +72,7 @@ export type BotTeamRequestFiling = {
   originMessageId?: string
   /** The sender's zone: the task's start notes keep the clock the request was asked on. */
   timeZone?: string | null
-  /** The room message the request answers; the task's start notes quote it. */
+  /** The room message the request answers; the task's start notes quote it, and a reply never asks the project question. */
   quote?: BotTeamReplyQuote
 }
 
@@ -149,9 +149,13 @@ export async function fileBotTeamRequest(
   const alsoNeeds = input.alsoNeeds ?? []
   const projects = db.listBotTeamProjects(receiving.id, { includeLinked: true })
   const named = findNamedProject(text, projects)
-  // Asked only of this team: a request sent to another team takes that team's own reading.
+  // A reply inherits the project of the task that posted the line it answers, if that project is still here.
+  const quotedProjectId =
+    projects.find((project) => project.id === input.quote?.sourceTask?.projectId)?.id ?? null
+  // Asked only of this team, and never of a reply: a request sent to another team takes that team's own reading.
   if (
     input.askProject &&
+    input.quote === undefined &&
     input.toTeamId === undefined &&
     input.projectId === undefined &&
     projects.length > 0 &&
@@ -163,7 +167,7 @@ export async function fileBotTeamRequest(
       choice: { kind: 'project', botId: owner.id, ...(alsoNeeds.length > 0 ? { alsoNeeds } : {}) }
     }
   }
-  const projectId = input.projectId !== undefined ? input.projectId : (named?.id ?? null)
+  const projectId = input.projectId !== undefined ? input.projectId : (named?.id ?? quotedProjectId)
   if (projectId !== null && !projects.some((project) => project.id === projectId)) {
     throw new Error(`Project ${projectId} is not on team ${receiving.id}.`)
   }
@@ -175,6 +179,11 @@ export async function fileBotTeamRequest(
   })
   if (projectId !== null) {
     db.setBotTeamTaskProject(created.id, projectId)
+  }
+  // A task that answers a room message is shown as the bot typing there, not as a card.
+  const answered = input.quote?.messageId
+  if (answered !== undefined) {
+    db.setBotTeamTaskAnswers(created.id, answered)
   }
   // The asking team's room tracks a task another team holds for it.
   if (receiving.id !== input.teamId) {

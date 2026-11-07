@@ -25,7 +25,9 @@ export const BotTeamTaskSchema = z.object({
   fromRoutine: z.coerce.boolean().optional(),
   // The bot ended its turn on a question the room carries; set only while the person owes an answer.
   // A separate field, not a new `lastStatus` value: a client from before it rejects an unknown one.
-  awaitingPerson: z.boolean().optional()
+  awaitingPerson: z.boolean().optional(),
+  // The room message this task answers, set for a reply; absent for any other task and from an older host.
+  answersMessageId: z.string().optional()
 })
 
 /** Where a project's code comes from: a repository that exists, or a new folder set up with git. */
@@ -155,7 +157,9 @@ export const BotTeamMessageSchema = z.object({
   /** Set when another team's bot reports a finished request here; absent for a message of this room. */
   fromTeamId: z.string().optional(),
   /** The room message this one answers; absent for a line that answers none, and from an older host. */
-  replyToMessageId: z.string().optional()
+  replyToMessageId: z.string().optional(),
+  /** The task that posted this line, when a task did; absent for a line no task posted, and from an older host. */
+  sourceTaskId: z.string().optional()
 })
 
 /** A task another team took for a request this team sent, with the message that asked for it. */
@@ -273,4 +277,6 @@ export type BotTeamMessageInput = {
   attachments?: BotTeamRoomAttachment[]
   /** The room message this one answers. */
   replyToMessageId?: string
+  /** The task that posted this line, so the room can open it. */
+  sourceTaskId?: string
 }

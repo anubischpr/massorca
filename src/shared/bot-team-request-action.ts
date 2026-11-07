@@ -1,5 +1,5 @@
 /** Lowercase words with accents dropped and punctuation as spaces. */
-function plainWords(text: string): string[] {
+export function plainWords(text: string): string[] {
   return text
     .normalize('NFD')
     .replace(/\p{Diacritic}/gu, '')

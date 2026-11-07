@@ -112,12 +112,22 @@ export async function postBotTeamTaskQuestion(
       (line) => !isBotTeamStartAcknowledgement(line.text)
     )
     if (spoken !== null && own.length === 0) {
-      db.postBotTeamMessage({ teamId: task.teamId, authorBotId: task.ownerBotId, text: spoken })
+      db.postBotTeamMessage({
+        teamId: task.teamId,
+        authorBotId: task.ownerBotId,
+        text: spoken,
+        sourceTaskId: task.id
+      })
     }
     return
   }
   db.markBotTeamTaskWaiting(task.id)
   if (!alreadyAsked(question, lines)) {
-    db.postBotTeamMessage({ teamId: task.teamId, authorBotId: task.ownerBotId, text: question })
+    db.postBotTeamMessage({
+      teamId: task.teamId,
+      authorBotId: task.ownerBotId,
+      text: question,
+      sourceTaskId: task.id
+    })
   }
 }
