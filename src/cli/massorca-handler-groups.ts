@@ -52,6 +52,11 @@ export const MASSORCA_HANDLER_GROUPS: readonly HandlerGroup[] = [
     load: async () => (await import('./handlers/prototypes.js')).PROTOTYPES_HANDLERS
   },
   {
+    name: 'chat',
+    keys: ['chat results'],
+    load: async () => (await import('./handlers/chat.js')).CHAT_HANDLERS
+  },
+  {
     name: 'jev',
     keys: ['jev status', 'jev enable', 'jev disable', 'jev set-key', 'jev clear-key'],
     load: async () => (await import('./handlers/jev.js')).JEV_HANDLERS

@@ -8,6 +8,7 @@ import { BOT_TEAMS_ROUTINE_COMMAND_SPECS } from './bot-teams-routines'
 import { FOLDER_WORKSPACE_COMMAND_SPECS } from './folder-workspace'
 import { JEV_COMMAND_SPECS } from './jev'
 import { PROTOTYPES_COMMAND_SPECS } from './prototypes'
+import { CHAT_COMMAND_SPECS } from './chat'
 import { BROWSER_ADVANCED_COMMAND_SPECS } from './browser-advanced'
 import { BROWSER_BASIC_COMMAND_SPECS } from './browser-basic'
 import { AUTOMATION_COMMAND_SPECS } from './automations'
@@ -61,5 +62,6 @@ export const COMMAND_SPECS: CommandSpec[] = [
   ...BOT_TEAMS_ROUTINE_COMMAND_SPECS,
   ...FOLDER_WORKSPACE_COMMAND_SPECS,
   ...JEV_COMMAND_SPECS,
-  ...PROTOTYPES_COMMAND_SPECS
+  ...PROTOTYPES_COMMAND_SPECS,
+  ...CHAT_COMMAND_SPECS
 ]
