@@ -4,6 +4,31 @@ import type { DiscoveredSkill } from '../../../../shared/skills'
 
 type InstallScope = ManagedSkillInstall['scope']
 
+/** The installs MassOrca placed on a host; a listing that fails or is unsupported reads as none. */
+export async function readManagedSkillInstalls(
+  environmentId?: string
+): Promise<readonly ManagedSkillInstall[]> {
+  try {
+    const operation = await window.api.skills.listManagedInstalls(environmentId)
+    return operation.status === 'ok' ? operation.value : []
+  } catch (cause) {
+    console.warn('[skills] managed install listing failed:', cause)
+    return []
+  }
+}
+
+/** The global installs placed on one WSL distro; the local listing carries every distro's installs too. */
+export function wslInstallsOf(
+  installs: readonly ManagedSkillInstall[],
+  distro: string
+): ManagedSkillInstall[] {
+  return installs.filter((install) => {
+    const target =
+      install.destination.scope === 'global' ? install.destination.executionTarget : undefined
+    return target?.kind === 'wsl' && target.distro === distro
+  })
+}
+
 /** Home roots are the global scope and repo roots the workspace scope. */
 function scopeOf(skill: DiscoveredSkill): InstallScope | null {
   if (skill.sourceKind === 'home') {

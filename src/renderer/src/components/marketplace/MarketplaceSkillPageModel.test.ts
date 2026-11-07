@@ -100,6 +100,7 @@ describe('marketplaceSkillFromDiscovered', () => {
       installed: true,
       agentIds: ['claude', 'shared'],
       installLink: '',
+      folder: 'browser-use',
       origin: {
         kind: 'folder',
         name: 'Claude home',

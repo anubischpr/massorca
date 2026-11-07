@@ -4,6 +4,8 @@ import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { BotTeam, BotTeamBot } from '../../../../shared/rpc-contract/bot-team-params'
+import type { CatalogCheck } from './MarketplaceCatalogRows'
+import { INSTALLED_AGENT_SKILLS_CHANGED_EVENT } from '@/hooks/installed-agent-skills-change-event'
 import type { MarketplaceVaultHostTarget } from './marketplace-vault-host-client'
 import type { MarketplaceSkillPageSkill } from './MarketplaceSkillPageModel'
 
@@ -13,14 +15,14 @@ type Mocks = {
   teams: BotTeam[]
   detected: string[] | null
   targets: MarketplaceVaultHostTarget[]
-  wsl: { detectedIds: string[] | null; detectionFailed: boolean }
+  remoteAgents: CatalogCheck<ReadonlySet<string>>
 }
 
 const mocks = vi.hoisted((): Mocks => ({
   teams: [],
   detected: ['claude', 'codex', 'pi'],
   targets: [],
-  wsl: { detectedIds: null, detectionFailed: false }
+  remoteAgents: { kind: 'ready', value: new Set(['codex']) }
 }))
 
 vi.mock('@/runtime/runtime-bot-team-client', () => ({
@@ -30,17 +32,25 @@ vi.mock('../skills/use-skill-install-detected-agents', () => ({
   useSkillInstallDetectedAgents: () => mocks.detected
 }))
 vi.mock('../skills/SkillInstallDialog', () => ({
-  SkillInstallDialog: ({ initialLink }: { initialLink?: string }) => (
-    <div data-install-dialog={initialLink ?? ''} />
+  SkillInstallDialog: ({
+    initialLink,
+    initialTarget
+  }: {
+    initialLink?: string
+    initialTarget?: unknown
+  }) => (
+    <div
+      data-install-dialog={initialLink ?? ''}
+      data-install-target={JSON.stringify(initialTarget ?? null)}
+    />
   )
 }))
 vi.mock('./use-marketplace-host-targets', async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
   useMarketplaceHostTargets: () => mocks.targets
 }))
-vi.mock('./marketplace-host-wsl', async (importOriginal) => ({
-  ...(await importOriginal<Record<string, unknown>>()),
-  useWslAgentDetection: () => mocks.wsl
+vi.mock('./use-marketplace-remote-detection', () => ({
+  useMarketplaceRemoteDetection: () => ({ agents: mocks.remoteAgents })
 }))
 vi.mock('./marketplace-apps-host-client', () => ({
   readHostApps: () => Promise.resolve({ ok: true, apps: [] }),
@@ -288,33 +298,156 @@ describe('MarketplaceSkillPage', () => {
   })
 })
 
-describe('MarketplaceSkillPage with a WSL distro picked', () => {
+describe('MarketplaceSkillPage with a remote host picked', () => {
   const UBUNTU: MarketplaceVaultHostTarget = { kind: 'wsl', distro: 'Ubuntu', label: 'WSL: Ubuntu' }
 
   afterEach(() => {
-    mocks.targets = []
-    mocks.wsl = { detectedIds: null, detectionFailed: false }
+    mocks.targets = [VPS]
+    mocks.remoteAgents = { kind: 'ready', value: new Set(['codex']) }
+    Reflect.deleteProperty(window, 'api')
   })
 
-  it('lists the agents the distro has and says its install state cannot be checked', async () => {
-    mocks.targets = [UBUNTU]
-    mocks.wsl = { detectedIds: ['codex'], detectionFailed: false }
-    seedStore(store, { marketplaceHostKey: 'wsl:Ubuntu' })
+  async function renderOn(
+    hostKey: string,
+    hostName: string,
+    skill: MarketplaceSkillPageSkill,
+    onRescan?: () => void
+  ): Promise<HTMLDivElement> {
+    seedStore(store, { marketplaceHostKey: hostKey })
     container = document.createElement('div')
     document.body.appendChild(container)
     root = createRoot(container)
     await act(async () => {
       root?.render(
         <TooltipProvider>
-          <MarketplaceSkillPage skill={POOL_SKILL} hostName="WSL: Ubuntu" onBack={vi.fn()} />
+          <MarketplaceSkillPage
+            skill={skill}
+            hostName={hostName}
+            onBack={vi.fn()}
+            onRescan={onRescan}
+          />
         </TooltipProvider>
       )
     })
-    expect(container.textContent).toContain('Could not check WSL: Ubuntu')
-    expect(container.textContent).not.toContain('Install on')
+    await act(async () => {})
+    return container
+  }
+
+  function startingTarget(page: ParentNode): unknown {
+    const raw = page.querySelector('[data-install-target]')?.getAttribute('data-install-target')
+    return raw ? JSON.parse(raw) : null
+  }
+
+  it('reads the install state and the agents of the picked runtime host, never this computer', async () => {
+    const page = await renderOn('runtime:env-1', 'VPS', POOL_SKILL)
+    expect(page.querySelector('[data-marketplace-status-line]')?.textContent).toBe(
+      'Not installed on VPS'
+    )
+    expect(page.textContent).not.toContain('Install on This computer')
+    expect(page.textContent).not.toContain('is not available yet')
     const agents = section('agents')
+    expect(agents.textContent).toContain('Only agents installed on VPS are listed.')
     expect([...agents.querySelectorAll('button')].map((button) => button.textContent)).toEqual([
       'Codex'
     ])
+  })
+
+  it('opens the install dialog on the picked runtime host with the agents its switches show', async () => {
+    const page = await renderOn('runtime:env-1', 'VPS', POOL_SKILL)
+    await act(async () => buttonIn(page, 'Install on VPS').click())
+    expect(startingTarget(page)).toEqual({ environmentId: 'env-1', providers: ['codex'] })
+  })
+
+  it('says the agents of a picked host could not be checked, and lists none', async () => {
+    mocks.remoteAgents = { kind: 'failed' }
+    const page = await renderOn('runtime:env-1', 'VPS', POOL_SKILL)
+    expect(section('agents').textContent).toContain('Could not check VPS')
+    expect(section('agents').querySelectorAll('button')).toHaveLength(0)
+    expect(buttonIn(page, 'Install on VPS')).toBeTruthy()
+  })
+
+  it('shows the installed state the WSL distro reports and lists the agents it has', async () => {
+    mocks.targets = [UBUNTU]
+    const page = await renderOn('wsl:Ubuntu', 'WSL: Ubuntu', { ...POOL_SKILL, installed: true })
+    expect(page.querySelector('[data-marketplace-status-line]')?.textContent).toBe(
+      'Installed on WSL: Ubuntu'
+    )
+    expect(page.textContent).not.toContain('Could not check WSL: Ubuntu')
+    expect([...section('agents').querySelectorAll('button')].map((b) => b.textContent)).toEqual([
+      'Codex'
+    ])
+  })
+
+  it('opens the install dialog on the picked WSL distro, through its execution target', async () => {
+    mocks.targets = [UBUNTU]
+    const page = await renderOn('wsl:Ubuntu', 'WSL: Ubuntu', POOL_SKILL)
+    await act(async () => buttonIn(page, 'Install on WSL: Ubuntu').click())
+    expect(startingTarget(page)).toEqual({
+      environmentId: 'local',
+      executionTarget: { kind: 'wsl', distro: 'Ubuntu' },
+      providers: ['codex']
+    })
+  })
+
+  it('starts the next install with the switches the person changed', async () => {
+    mocks.remoteAgents = { kind: 'ready', value: new Set(['codex', 'claude']) }
+    const page = await renderOn('runtime:env-1', 'VPS', POOL_SKILL)
+    await act(async () => buttonIn(section('agents'), 'Claude Code').click())
+    await act(async () => buttonIn(page, 'Install on VPS').click())
+    expect(startingTarget(page)).toEqual({
+      environmentId: 'env-1',
+      providers: ['codex', 'claude']
+    })
+  })
+
+  it('places a copy already on the picked host for the agents the switches now show', async () => {
+    mocks.remoteAgents = { kind: 'ready', value: new Set(['codex', 'claude']) }
+    const installPackageVersion = vi.fn().mockResolvedValue({
+      status: 'ok',
+      value: { operationId: 'op', status: 'installed', name: 'browser-use', placements: [] }
+    })
+    const listManagedInstalls = vi.fn().mockResolvedValue({
+      status: 'ok',
+      value: [
+        {
+          name: 'browser-use',
+          packageId: 'pkg-1',
+          versionId: 'v1',
+          packageDigest: 'a'.repeat(64),
+          scope: 'global',
+          destinationIdentity: 'global:env-1',
+          destination: { scope: 'global' },
+          installedAt: '2026-11-01T00:00:00.000Z',
+          state: 'unchanged'
+        }
+      ]
+    })
+    Object.defineProperty(window, 'api', {
+      configurable: true,
+      value: { skills: { installPackageVersion, listManagedInstalls } }
+    })
+    const page = await renderOn('runtime:env-1', 'VPS', {
+      ...POOL_SKILL,
+      installed: true,
+      folder: 'browser-use',
+      agentIds: ['codex']
+    })
+    await act(async () => buttonIn(section('agents'), 'Claude Code').click())
+    expect(listManagedInstalls).toHaveBeenCalledWith('env-1')
+    expect(installPackageVersion).toHaveBeenCalledWith({
+      packageId: 'pkg-1',
+      versionId: 'v1',
+      environmentId: 'env-1',
+      destination: { scope: 'global' },
+      providers: expect.arrayContaining(['codex', 'claude'])
+    })
+    expect(page.querySelector('[data-install-dialog]')).toBeNull()
+  })
+
+  it('reads the picked host again when an install lands there', async () => {
+    const onRescan = vi.fn()
+    await renderOn('runtime:env-1', 'VPS', POOL_SKILL, onRescan)
+    window.dispatchEvent(new Event(INSTALLED_AGENT_SKILLS_CHANGED_EVENT))
+    expect(onRescan).toHaveBeenCalledTimes(1)
   })
 })
