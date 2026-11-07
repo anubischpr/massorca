@@ -5,7 +5,7 @@ import { postBotTeamRequest } from '@/runtime/runtime-bot-team-client'
 import { useAppStore } from '@/store'
 import { routeBotTeamRequest } from '../../../../shared/bot-team-request-route'
 import type { BotTeam } from '../../../../shared/rpc-contract/bot-team-params'
-import { BotTeamCharacterIcon } from '../bot-teams/BotTeamCharacterIcon'
+import { BOT_CHARACTER_ZONE_ATTR, BotTeamCharacterIcon } from '../bot-teams/BotTeamCharacterIcon'
 import { useBotTeamMentionProjects } from '../bot-teams/bot-team-mention-projects'
 import { useBotTeamComposerDraft } from '../bot-teams/bot-team-room-draft'
 import { useBotTeams } from '../bot-teams/use-bot-teams'
@@ -74,7 +74,9 @@ export function TasksHomeBotTeamSession({
             items: (teams ?? []).map((candidate) => ({
               value: candidate.id,
               label: candidate.name,
-              icon: <BotTeamCharacterIcon character={candidate.character} size={16} />
+              icon: <BotTeamCharacterIcon character={candidate.character} size={16} />,
+              // Why: the row is the character's hover zone, so hovering the row moves it.
+              rowAttributes: { [BOT_CHARACTER_ZONE_ATTR]: '' }
             })),
             onValueChange: setPickedTeamId
           }

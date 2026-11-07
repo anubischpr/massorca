@@ -126,7 +126,8 @@ export function BotTeamFileVersions({
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
+    // Why: the Files page is a block without a height, so the view takes the pane's height itself.
+    <div className="flex h-full min-h-0 flex-1 flex-col">
       <BotTeamFilesBar>
         <Button
           variant="ghost"
