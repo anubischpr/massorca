@@ -351,6 +351,20 @@ orca marketplace skills uninstall <name>
 
 Tokens are read only from stdin (`--token-stdin`) or a named env var (`--token-env <NAME>`); `--token` on the command line is refused, and no output prints a token. `connect` with no flags repairs an app that is already set up, reusing the credentials the host stores. Installing a skill still needs the desktop app, which holds the download grant.
 
+## Fork feature status (read-only)
+
+Read-only entry points for MassOrca features, for agents debugging a host:
+
+```bash
+orca account usage [--refresh]          # the usage rings: session and weekly use per provider
+orca bot-teams list
+orca bot-teams room --team <id>
+orca bot-teams routines --team <id>
+orca prototypes list --worktree <id>
+orca jev status                         # enabled, and whether a key is stored (never the key)
+orca folder-workspace list
+```
+
 ## Artifacts
 
 Publish HTML or Markdown through the signed-in Orca account. Viewing a public link does not require sign-in; create/list/update/delete do. **Publishing is off by default** — a human must enable **Settings → Artifacts → Allow publishing public artifact links** on the device. There is no CLI flag that grants the gate. `list`, `unshare`, and `delete` stay available so you can audit or revoke links after turning publishing off.

@@ -311,5 +311,30 @@ export const HANDLER_GROUPS: readonly HandlerGroup[] = [
     name: 'search',
     keys: ['search'],
     load: async () => (await import('./handlers/search.js')).SEARCH_HANDLERS
+  },
+  {
+    name: 'bot-teams',
+    keys: ['bot-teams list', 'bot-teams room', 'bot-teams routines'],
+    load: async () => (await import('./handlers/bot-teams.js')).BOT_TEAMS_HANDLERS
+  },
+  {
+    name: 'prototypes',
+    keys: ['prototypes list'],
+    load: async () => (await import('./handlers/prototypes.js')).PROTOTYPES_HANDLERS
+  },
+  {
+    name: 'jev',
+    keys: ['jev status'],
+    load: async () => (await import('./handlers/jev.js')).JEV_HANDLERS
+  },
+  {
+    name: 'account-usage',
+    keys: ['account usage'],
+    load: async () => (await import('./handlers/account-usage.js')).ACCOUNT_USAGE_HANDLERS
+  },
+  {
+    name: 'folder-workspace',
+    keys: ['folder-workspace list'],
+    load: async () => (await import('./handlers/folder-workspace.js')).FOLDER_WORKSPACE_HANDLERS
   }
 ]
