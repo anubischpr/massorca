@@ -16,8 +16,18 @@ const { store, readGitConfig } = vi.hoisted(() => {
   const settings: unknown = { activeRuntimeEnvironmentId: null }
   const worktreesByRepo: Record<string, unknown[]> = {}
   const openRightSidebarVisual: (route: unknown) => void = () => {}
+  const runtimeEnvironments: unknown[] = []
   return {
-    store: { repos, settings, worktreesByRepo, openRightSidebarVisual },
+    store: {
+      repos,
+      settings,
+      worktreesByRepo,
+      openRightSidebarVisual,
+      runtimeEnvironments,
+      sshTargetGenerations: new Map(),
+      sshConnectionStates: new Map(),
+      portForwardsByConnection: {}
+    },
     readGitConfig: vi.fn<() => Promise<unknown>>(async () => null)
   }
 })
@@ -577,5 +587,36 @@ it('does not list visuals outside a structured chat owner, where no visual can o
   render(<NativeChatSessionSummary {...props} journalItems={[reply]} />)
   fireEvent.click(screen.getByRole('button', { name: /^Results/ }))
   expect(screen.queryByRole('button', { name: /usage-chart/ })).toBeNull()
-  expect(screen.getByText('No file changes or visuals reported.')).toBeTruthy()
+  expect(screen.getByText('No file changes, visuals or environment URLs reported.')).toBeTruthy()
+})
+
+it('lists the environment URL to test in Results, newest first, with the replaced deploy as previous', () => {
+  const deploy = (itemId: string, sequence: number, url: string): AgentJournalRenderItem => ({
+    itemId,
+    sequence,
+    revision: 1,
+    observedAt: sequence,
+    body: {
+      kind: 'tool-call',
+      name: 'Bash',
+      input: { command: 'vercel deploy' },
+      state: 'completed',
+      output: { head: `Preview: ${url}`, byteLength: 40, digest: 'd', truncated: false }
+    }
+  })
+  render(
+    <NativeChatSessionSummary
+      {...props}
+      journalItems={[
+        deploy('d1', 1, 'https://shop-aaa.vercel.app'),
+        deploy('d2', 2, 'https://shop-bbb.vercel.app')
+      ]}
+    />
+  )
+  expect(screen.getByRole('button', { name: /^Results/ }).textContent).toContain('2 reported')
+  fireEvent.click(screen.getByRole('button', { name: /^Results/ }))
+  const urls = screen.getAllByText(/https:\/\/shop-/).map((node) => node.textContent)
+  expect(urls).toEqual(['https://shop-bbb.vercel.app', 'https://shop-aaa.vercel.app'])
+  expect(screen.getAllByText('Previous')).toHaveLength(1)
+  expect(screen.getAllByRole('button', { name: 'Open' })).toHaveLength(2)
 })

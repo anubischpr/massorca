@@ -18105,9 +18105,12 @@
       }
     },
     "nativeChatSummary": {
-      "loadedResults": "Modifications de fichiers et visuels enregistrées dans l'historique chargé du chat.",
-      "noResults": "Aucune modification de fichier ni visuel signalé.",
-      "visualKind": "Visuel"
+      "loadedResults": "URL d'environnement, modifications de fichiers et visuels enregistrés dans l'historique chargé du chat.",
+      "noResults": "Aucune modification de fichier, visuel ni URL d'environnement signalé.",
+      "visualKind": "Visuel",
+      "openUrl": "Ouvrir",
+      "previousUrl": "Précédente",
+      "remoteUrlOnHost": "Cette URL est sur l'hôte distant. Redirigez son port pour l'ouvrir sur ce PC."
     },
     "native-chat": {
       "reasoning": "Raisonnement",

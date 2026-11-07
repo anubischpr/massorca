@@ -64,6 +64,7 @@ import { STRUCTURED_AGENT_SESSION_PLAN_DOCUMENT_METHODS } from './structured-age
 import { STRUCTURED_AGENT_SESSION_RECORDED_FILE_METHODS } from './structured-agent-session-recorded-file'
 import { STRUCTURED_AGENT_SESSION_AGENTS_METHODS } from './structured-agent-session-agents'
 import { STRUCTURED_AGENT_SESSION_PROTOTYPE_METHODS } from './prototypes'
+import { CHAT_RESULTS_METHODS } from './chat-results'
 import { ARTIFACT_METHODS } from './artifacts'
 import { AGENT_HOOK_METHODS } from './agent-hooks'
 import { AGENT_LAUNCH_METHODS } from './agent-launch'
@@ -98,6 +99,7 @@ export const ALL_RPC_METHODS = [
   ...STRUCTURED_AGENT_SESSION_PLAN_DOCUMENT_METHODS,
   ...STRUCTURED_AGENT_SESSION_RECORDED_FILE_METHODS,
   ...STRUCTURED_AGENT_SESSION_PROTOTYPE_METHODS,
+  ...CHAT_RESULTS_METHODS,
   ...STRUCTURED_AGENT_SESSION_AGENTS_METHODS,
   ...AGENT_LAUNCH_METHODS,
   ...MARKETPLACE_APPS_METHODS,

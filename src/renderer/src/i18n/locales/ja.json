@@ -18038,9 +18038,12 @@
       }
     },
     "nativeChatSummary": {
-      "loadedResults": "読み込んだチャット履歴に記録されたファイル変更とビジュアル",
-      "noResults": "報告されたファイル変更やビジュアルはありません",
-      "visualKind": "ビジュアル"
+      "loadedResults": "読み込んだチャット履歴に記録された環境 URL、ファイル変更、ビジュアル",
+      "noResults": "報告されたファイル変更、ビジュアル、環境 URL はありません",
+      "visualKind": "ビジュアル",
+      "openUrl": "開く",
+      "previousUrl": "以前",
+      "remoteUrlOnHost": "この URL はリモートホスト上にあります。この PC で開くにはポートを転送してください。"
     },
     "native-chat": {
       "reasoning": "推論",

@@ -323,6 +323,11 @@ export const HANDLER_GROUPS: readonly HandlerGroup[] = [
     load: async () => (await import('./handlers/prototypes.js')).PROTOTYPES_HANDLERS
   },
   {
+    name: 'chat',
+    keys: ['chat results'],
+    load: async () => (await import('./handlers/chat.js')).CHAT_HANDLERS
+  },
+  {
     name: 'jev',
     keys: ['jev status'],
     load: async () => (await import('./handlers/jev.js')).JEV_HANDLERS
