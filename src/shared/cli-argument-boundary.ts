@@ -51,6 +51,7 @@ export const CLI_BOOLEAN_FLAGS = new Set([
   'staged',
   'tab',
   'tasks',
+  'token-stdin',
   'text-stdin',
   'unread',
   'value-stdin',

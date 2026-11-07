@@ -23,6 +23,28 @@ export const HANDLER_GROUPS: readonly HandlerGroup[] = [
     load: async () => (await import('./handlers/account.js')).ACCOUNT_HANDLERS
   },
   {
+    name: 'marketplace',
+    keys: [
+      'marketplace list',
+      'marketplace connect',
+      'marketplace disconnect',
+      'marketplace access'
+    ],
+    load: async () => (await import('./handlers/marketplace.js')).MARKETPLACE_HANDLERS
+  },
+  {
+    name: 'marketplace-services',
+    keys: [
+      'marketplace services list',
+      'marketplace services connect',
+      'marketplace services disconnect',
+      'marketplace skills list',
+      'marketplace skills uninstall'
+    ],
+    load: async () =>
+      (await import('./handlers/marketplace-services.js')).MARKETPLACE_SERVICE_HANDLERS
+  },
+  {
     name: 'artifacts',
     keys: [
       'artifacts list',
