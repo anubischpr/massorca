@@ -260,7 +260,8 @@ export async function reportFinishedBotTeamTask(
           teamId: task.teamId,
           authorBotId: task.ownerBotId,
           text: linked.length === 0 ? filesText : `${filesText}\n${linked.join(', ')}`,
-          attachments
+          attachments,
+          sourceTaskId: task.id
         })
         return
       }
@@ -286,6 +287,7 @@ export async function reportFinishedBotTeamTask(
       task.title,
       where ?? pickBotTeamLine(IN_FOLDER, language),
       names.slice(0, MAX_NAMED).join(', ')
-    )
+    ),
+    sourceTaskId: task.id
   })
 }

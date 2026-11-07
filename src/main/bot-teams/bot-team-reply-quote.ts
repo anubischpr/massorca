@@ -1,11 +1,21 @@
 import type { BotTeam, BotTeamBot } from '../../shared/rpc-contract/bot-team-params'
 import type { OrchestrationDb } from '../runtime/orchestration/db/orchestration-db'
-import type { BotTeamReplyQuote } from './bot-team-prompt-notes'
+import type { BotTeamQuotedTask, BotTeamReplyQuote } from './bot-team-prompt-notes'
 
 export type BotTeamReplyTarget = {
   quote: BotTeamReplyQuote
   /** The bot that wrote the quoted line; null for the person's own line. */
   bot: BotTeamBot | null
+}
+
+/** The task that posted a quoted line, read from the same team; null when no task of it is left. */
+function quotedTaskOf(
+  db: OrchestrationDb,
+  team: BotTeam,
+  taskId: string
+): BotTeamQuotedTask | null {
+  const task = db.listBotTeamTasks(team.id).find((entry) => entry.id === taskId)
+  return task ? { title: task.title, prompt: task.prompt, projectId: task.projectId } : null
 }
 
 /**
@@ -21,9 +31,16 @@ export function botTeamReplyTarget(
   if (!message || message.fromTeamId !== undefined || message.text.trim() === '') {
     return null
   }
+  const sourceTask =
+    message.sourceTaskId === undefined ? null : quotedTaskOf(db, team, message.sourceTaskId)
+  const line = {
+    text: message.text,
+    messageId: message.id,
+    ...(sourceTask ? { sourceTask } : {})
+  }
   if (message.authorBotId === null) {
-    return { quote: { authorName: null, text: message.text }, bot: null }
+    return { quote: { authorName: null, ...line }, bot: null }
   }
   const bot = team.bots.find((entry) => entry.id === message.authorBotId)
-  return bot ? { quote: { authorName: bot.name, text: message.text }, bot } : null
+  return bot ? { quote: { authorName: bot.name, ...line }, bot } : null
 }

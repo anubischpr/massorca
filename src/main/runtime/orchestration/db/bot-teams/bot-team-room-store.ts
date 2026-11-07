@@ -32,6 +32,11 @@ import {
   BOT_TEAM_TRACKER_STORE_METHODS,
   type BotTeamTrackerStoreMethods
 } from './bot-team-tracker-store'
+import {
+  BOT_TEAM_TASK_ANSWERS_STORE_METHODS,
+  withAnswersMessage,
+  type BotTeamTaskAnswersStoreMethods
+} from './bot-team-room-store-answers'
 import { findRepeatedBotLine } from './bot-team-message-repeat'
 import type { OrchestrationDb } from '../orchestration-db'
 
@@ -95,16 +100,19 @@ function requireBotTeamTask(db: OrchestrationDb, taskId: string): BotTeamTask {
   if (row === undefined) {
     throw new Error(`Task ${taskId} was not found.`)
   }
-  return withAwaitingPerson(db, [BotTeamTaskSchema.parse(row)])[0]
+  return withAnswersMessage(db, withAwaitingPerson(db, [BotTeamTaskSchema.parse(row)]))[0]
 }
 
 export function listBotTeamTasks(this: OrchestrationDb, teamId: string): BotTeamTask[] {
   linkDelegatedBotTeamTasks(this)
-  return withAwaitingPerson(
+  return withAnswersMessage(
     this,
-    z
-      .array(BotTeamTaskSchema)
-      .parse(this.db.prepare(`${TASK_SELECT} WHERE team_id = ? ORDER BY rowid`).all(teamId))
+    withAwaitingPerson(
+      this,
+      z
+        .array(BotTeamTaskSchema)
+        .parse(this.db.prepare(`${TASK_SELECT} WHERE team_id = ? ORDER BY rowid`).all(teamId))
+    )
   )
 }
 
@@ -145,7 +153,9 @@ export function findBotTeamTaskBySession(
 ): BotTeamTask | null {
   linkDelegatedBotTeamTasks(this)
   const row = this.db.prepare(`${TASK_SELECT} WHERE session_id = ?`).get(sessionId)
-  return row === undefined ? null : withAwaitingPerson(this, [BotTeamTaskSchema.parse(row)])[0]
+  return row === undefined
+    ? null
+    : withAnswersMessage(this, withAwaitingPerson(this, [BotTeamTaskSchema.parse(row)]))[0]
 }
 
 export function postBotTeamMessage(
@@ -271,7 +281,8 @@ export function moveBotTeamTask(
 
 export type BotTeamRoomStoreMethods = BotTeamMemoryStoreMethods &
   BotTeamTrackerStoreMethods &
-  BotTeamTaskWaitingStoreMethods & {
+  BotTeamTaskWaitingStoreMethods &
+  BotTeamTaskAnswersStoreMethods & {
     linkBotTeamTaskDelegation: typeof linkBotTeamTaskDelegation
     getBotTeamTask: typeof getBotTeamTask
     isBotTeamTaskHandedOff: typeof isBotTeamTaskHandedOff
@@ -295,6 +306,7 @@ export function attachBotTeamRoomStore(ctor: { prototype: object }): void {
     BOT_TEAM_MEMORY_STORE_METHODS,
     BOT_TEAM_TRACKER_STORE_METHODS,
     BOT_TEAM_TASK_WAITING_STORE_METHODS,
+    BOT_TEAM_TASK_ANSWERS_STORE_METHODS,
     {
       isBotTeamTaskHandedOff,
       getBotTeamTaskStartNotes,

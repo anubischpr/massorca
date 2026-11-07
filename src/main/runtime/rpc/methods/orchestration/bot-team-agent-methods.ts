@@ -166,7 +166,8 @@ export const ORCHESTRATION_BOT_TEAM_METHODS = [
         message: db.postBotTeamMessage({
           teamId: task.teamId,
           authorBotId: task.ownerBotId,
-          text
+          text,
+          sourceTaskId: task.id
         })
       }
     }

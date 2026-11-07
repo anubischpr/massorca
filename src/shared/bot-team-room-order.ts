@@ -6,8 +6,11 @@ export type BotTeamRoomOrderMessage = Pick<
   'id' | 'authorBotId' | 'text' | 'createdAt'
 >
 
-/** The card fields the room order reads: the request it was made from, and the host's time. */
-export type BotTeamRoomOrderTask = Pick<BotTeamTask, 'id' | 'prompt' | 'createdAt' | 'fromRoutine'>
+/** The card fields the room order reads: the request it was made from, the host's time, and the message it answers. */
+export type BotTeamRoomOrderTask = Pick<
+  BotTeamTask,
+  'id' | 'prompt' | 'createdAt' | 'fromRoutine' | 'answersMessageId'
+>
 
 export type BotTeamRoomPlacement<TTask extends BotTeamRoomOrderTask> = {
   /** Cards that sit right after their request, in the order they were made. */
@@ -21,6 +24,7 @@ export type BotTeamRoomPlacement<TTask extends BotTeamRoomOrderTask> = {
 /**
  * Places each card right after the person's message it came from: the first message with its
  * prompt, else the latest one the host wrote at or before the card. Only host times are compared.
+ * A task that answers a message gets no card: the room shows its bot typing instead.
  */
 export function placeBotTeamRoomTasks<TTask extends BotTeamRoomOrderTask>(
   messages: readonly BotTeamRoomOrderMessage[],
@@ -31,6 +35,9 @@ export function placeBotTeamRoomTasks<TTask extends BotTeamRoomOrderTask>(
   const trailing: TTask[] = []
   const leading: TTask[] = []
   for (const task of tasks) {
+    if (task.answersMessageId !== undefined) {
+      continue
+    }
     // A routine run answers no request, so it stays at the time it ran, after whoever spoke last.
     const requestId = task.fromRoutine
       ? latestAtOrBefore(task, messages)

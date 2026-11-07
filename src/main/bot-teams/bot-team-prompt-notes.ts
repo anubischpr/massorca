@@ -1,6 +1,6 @@
 import { BOT_TEAM_ALL_AUTHOR } from '../../shared/bot-team-greeting'
 import type { BotTeamBot } from '../../shared/rpc-contract/bot-team-params'
-import type { BotTeamMessage } from '../../shared/rpc-contract/bot-team-room-params'
+import type { BotTeamMessage, BotTeamTask } from '../../shared/rpc-contract/bot-team-room-params'
 
 const EXCERPT_MESSAGES = 12
 const EXCERPT_MESSAGE_CHARS = 300
@@ -24,19 +24,44 @@ export const BOT_TEAM_SAVE_FILE_NOTE =
 export const BOT_TEAM_HISTORY_SOURCES_NOTE =
   'For a question about a project\'s history or what was last done on it, check what the team already knows before answering: Engram memory with `mcp__engram__mem_search` and `mcp__engram__mem_context` (read them, do not save from a question), OpenMetadata through its read server named "openmetadata" only (never "openmetadata-escritura" and never a tool that creates or changes anything), and the project itself. Use the sources you have; say once which one you could not reach.'
 
-/** The room message a reply answers: its author's name, or null for the person's own line. */
-export type BotTeamReplyQuote = { authorName: string | null; text: string }
+/** The task that posted a quoted line, as it was filed: its title and its request. */
+export type BotTeamQuotedTask = { title: string; prompt: string; projectId: string | null }
+
+/** The room message a reply answers: its author's name (null for the person's own line), its text, and its id. */
+export type BotTeamReplyQuote = {
+  authorName: string | null
+  text: string
+  /** The room message the reply answers; the reply's task records it, so the room shows the task as typing. */
+  messageId?: string
+  /** The task that posted the quoted line, when a task did. */
+  sourceTask?: BotTeamQuotedTask | null
+}
 
 const REPLY_QUOTE_MAX_CHARS = 500
+const REPLY_TASK_TITLE_MAX_CHARS = 120
+const REPLY_TASK_PROMPT_MAX_CHARS = 1000
 
-/** The message a room reply answers, quoted, and where a request far from the bot's job goes instead. */
+/** The text on one line, cut short with an ellipsis past `max` characters. */
+function oneLineCut(text: string, max: number): string {
+  const flat = text.replace(/\s+/g, ' ').trim()
+  return flat.length > max ? `${flat.slice(0, max - 1)}…` : flat
+}
+
+/** The task that posted the quoted line, by its title and request: a bot cannot open that task from the room. */
+function quotedTaskSentence(task: BotTeamQuotedTask): string {
+  const title = oneLineCut(task.title, REPLY_TASK_TITLE_MAX_CHARS)
+  const request = oneLineCut(task.prompt, REPLY_TASK_PROMPT_MAX_CHARS)
+  const requestPart = request === '' ? '' : `, for the request "${request}"`
+  return `That line came from the task "${title}"${requestPart}.`
+}
+
+/** The message a room reply answers, quoted, the task that posted it, and where a request far from the bot's job goes instead. */
 export function botTeamReplyNote(quote: BotTeamReplyQuote): string {
-  const flat = quote.text.replace(/\s+/g, ' ').trim()
-  const shown =
-    flat.length > REPLY_QUOTE_MAX_CHARS ? `${flat.slice(0, REPLY_QUOTE_MAX_CHARS - 1)}…` : flat
+  const shown = oneLineCut(quote.text, REPLY_QUOTE_MAX_CHARS)
   const whose =
     quote.authorName === null ? 'their own earlier message' : `${quote.authorName}'s message`
-  return `The person is replying to ${whose} in the Conference room: "${shown}". Answer that message. If this request is far from your job, hand it to the right teammate with \`orca orchestration team-delegate --bot <name> --text "<task>"\` instead of answering it yourself.`
+  const note = `The person is replying to ${whose} in the Conference room: "${shown}". Answer that message. If this request is far from your job, hand it to the right teammate with \`orca orchestration team-delegate --bot <name> --text "<task>"\` instead of answering it yourself.`
+  return quote.sourceTask ? `${note} ${quotedTaskSentence(quote.sourceTask)}` : note
 }
 
 function authorOf(
@@ -63,6 +88,15 @@ export function botTeamRoomExcerpt(
       flat.length > EXCERPT_MESSAGE_CHARS ? `${flat.slice(0, EXCERPT_MESSAGE_CHARS - 1)}…` : flat
     return `${authorOf(message, bots)}: ${text}`
   })
+}
+
+/** The room lines a task's prompt carries; a reply carries the message it answers in its notes instead. */
+export function botTeamTaskRoomExcerpt(
+  task: Pick<BotTeamTask, 'answersMessageId'>,
+  messages: readonly BotTeamMessage[],
+  bots: readonly Pick<BotTeamBot, 'id' | 'name'>[]
+): string[] {
+  return task.answersMessageId === undefined ? botTeamRoomExcerpt(messages, bots) : []
 }
 
 /** How a bot speaks in the room: for its own part, in first person, never about who handed what to whom. */

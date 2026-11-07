@@ -42,7 +42,8 @@ import { commitStructuredAgentSessionLaunchPrompt } from './agent-launch-structu
 import { isDefinitiveAgentSessionCreateRefusal } from '../../../../shared/agent-session-definitive-refusal'
 import { createStructuredAgentSessionForWorktree } from './structured-agent-session-create'
 import { structuredCallerFor } from './structured-agent-session-gate'
-import { botTeamRoomExcerpt } from '../../../bot-teams/bot-team-prompt-notes'
+import { botTeamTaskRoomExcerpt } from '../../../bot-teams/bot-team-prompt-notes'
+import { botTeamAnsweringReplying } from '../../../../shared/bot-team-typing'
 import { BOT_TEAM_PROJECT_WORKSPACE_METHODS } from './bot-team-project-workspace'
 import { BOT_TEAM_SESSION_TEAM_METHODS } from './bot-team-session-team-methods'
 
@@ -176,7 +177,7 @@ async function startUnclaimedTaskOnHost(ctx: RpcContext, taskId: string): Promis
       project: task.projectId ? db.getBotTeamProject(task.projectId) : null,
       notes: db.getBotTeamTaskStartNotes(task.id),
       memory: readBotTeamMemoryLines(db, team.id, task.ownerBotId),
-      roomExcerpt: botTeamRoomExcerpt(db.listBotTeamMessages(team.id), team.bots),
+      roomExcerpt: botTeamTaskRoomExcerpt(task, db.listBotTeamMessages(team.id), team.bots),
       deniedMarketplaceApps: await deniedMarketplaceAppIdsForBot({
         botId: task.ownerBotId,
         teamId: team.id
@@ -200,16 +201,17 @@ export const BOT_TEAM_ROOM_METHODS = [
       const db = runtime.getOrchestrationDb()
       // Rooms are read all the time, so this also covers tasks that outlive a restart.
       ensureBotTeamVersionWatcher(() => runtime.getOrchestrationDb())
+      const tasks = db.listBotTeamTasks(teamId)
       return {
-        tasks: db.listBotTeamTasks(teamId),
+        tasks,
         messages: db.listBotTeamMessages(teamId),
         // Tasks other teams hold for this room's requests; a client from before it ignores the field.
         sentRequests: db.listBotTeamSentRequests(teamId),
         ...roomProjectsFor(db, { teamId, withLinkedProjects }),
         // Null until a task starts; a client opens a task's session in this workspace.
         workspaceId: db.getBotTeamWorkspace(teamId),
-        // The bots answering in the background; a client from before it ignores the field.
-        replying: listBotTeamReplying(teamId)
+        // The bots answering in the background, and the bots of reply tasks still running; a client from before it ignores the field.
+        replying: [...listBotTeamReplying(teamId), ...botTeamAnsweringReplying(tasks)]
       }
     }
   }),
