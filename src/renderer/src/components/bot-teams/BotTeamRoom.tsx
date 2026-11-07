@@ -34,6 +34,7 @@ import { useBotTeamRoomMentions } from './bot-team-mention-projects'
 import { BotTeamSentTrackers } from './BotTeamRoomTracker'
 import { BotTeamRoomMessage } from './BotTeamRoomMessage'
 import { botTeamMessageRuns } from './bot-team-message-run'
+import { botAgentNameColor } from './bot-team-agent-color'
 import { useBotTeamRoomPrototypeLinks } from './BotTeamRoomPrototypeLinks'
 import { useBotTeamRoomAttachments } from './bot-team-room-attach-state'
 import type { BotTeamRoomAttachment } from '../../../../shared/bot-team-room-attachments'
@@ -99,6 +100,18 @@ export function BotTeamRoom({
     hasContent: messages.length > 0 || tasks.length > 0
   })
   const botOf = (botId: string | null) => team.bots.find((bot) => bot.id === botId)
+  const quotedOf = (message: BotTeamMessage) => {
+    const target = messages.find((entry) => entry.id === message.replyToMessageId)
+    if (!target) {
+      return null
+    }
+    const bot = botOf(target.authorBotId)
+    return {
+      authorName: bot?.name ?? translate('components.botTeams.you', 'You'),
+      ...(bot ? { color: botAgentNameColor(bot.agent) } : {}),
+      text: target.text
+    }
+  }
   const onAttachFiles = useBotTeamRoomAttachments({ teamId: team.id })
 
   const latestRead = useRef(0)
@@ -327,6 +340,7 @@ export function BotTeamRoom({
                         })
                       }
                       continuesRun={index > 0}
+                      quoted={quotedOf(message)}
                     >
                       {placement.cardsByMessageId.get(message.id)?.map(taskCard)}
                       {trackers(sent.filter((request) => request.messageId === message.id))}
