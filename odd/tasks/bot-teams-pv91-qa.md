@@ -11,11 +11,13 @@ Branch: claude/bot-teams-character-motion. Delivery: ask-on-risk. Runner: `node 
 - S6: "No funciona el hover en los archivos adjuntos." The attachment chip in a room message shows a visible hover.
 
 ## Tasks
-- T1 S1+S4 reply context, no project question, hidden reply tasks with typing line. Route: delegated writer A (parallel units, disjoint surfaces).
-- T2 S2+S5 save-only files and similar-routine question. Route: delegated writer B (parallel units, disjoint surfaces).
-- T3 S6 chip hover. Route: inline (small).
+- [x] T1 S1+S4 reply context, no project question, hidden reply tasks with typing line. Route: delegated writer A (parallel units, disjoint surfaces). Commit 83332169152.
+- [x] T2 S2+S5 save-only files and similar-routine question. Route: delegated writer B (parallel units, disjoint surfaces). Commit 6632a9d24db.
+- [x] T3 S6 chip hover. Route: inline (small). Commit 26028cb5b2e.
 - T4 S3 + live checks on pv-vps. Route: inline, needs a build with these commits and the Bot Teams write CLI from feature-debug-cli.
 
 ## Log
 - L1 2026-11-07 parent relayed pv91 QA (items 7, 8, 10 passed) with the user's words quoted in S1-S6.
 - L2 Mapping: no code archives a routine when another is created (`createBotTeamRoutine` is a plain insert; Archived = a once-routine that already ran). Light-theme `--accent` equals `--muted` (#f5f5f5), so `hover:bg-accent` is invisible on a person's bubble.
+- L3 S5 reproduction through the post path: three scheduled requests made three active routines; none was archived or hidden. A once-routine shows under Archived only after it runs. The similar-routine question was added anyway; it offers only one-time routines that will still run.
+- L4 Gaps: no command lets an agent open another task, so the reply note inlines the source task's title and request. A failed reply task shows only on the board. Older desktop clients show the new-team card for a similar-routine choice; mobile reads it as no choice. Reschedule/Create post no bot confirmation in the room (a toast instead).
