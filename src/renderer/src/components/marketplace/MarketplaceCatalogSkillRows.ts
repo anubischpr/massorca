@@ -44,7 +44,7 @@ function isListedSkill(skill: DiscoveredSkill): boolean {
 /** Listed skills, then custom skills, then the board skills not on disk, then the built-in commands. */
 export function skillRows(inputs: CatalogBuildInputs): CatalogRow[] {
   const { skills, hostLabel } = inputs
-  const listed = skills.kind === 'ready' ? skills.value.filter(isListedSkill) : []
+  const listed = skills.kind === 'ready' ? oneSkillPerName(skills.value.filter(isListedSkill)) : []
   const listedNames = new Set(listed.map((skill) => normalizeSkillName(skill.name)))
   const pending = skills.kind === 'ready' ? null : unansweredStatus(skills, hostLabel)
   return [
@@ -53,6 +53,19 @@ export function skillRows(inputs: CatalogBuildInputs): CatalogRow[] {
     ...boardSkillRows(listedNames, pending),
     ...BUILT_IN_COMMANDS.map(commandRow)
   ]
+}
+
+// Why: one skill can sit in several agents' folders on a host; the list shows it once, installed if any copy is.
+function oneSkillPerName(skills: readonly DiscoveredSkill[]): DiscoveredSkill[] {
+  const byName = new Map<string, DiscoveredSkill>()
+  for (const skill of skills) {
+    const name = normalizeSkillName(skill.name)
+    const kept = byName.get(name)
+    if (kept === undefined || (!kept.installed && skill.installed)) {
+      byName.set(name, skill)
+    }
+  }
+  return [...byName.values()]
 }
 
 function skillRow(skill: DiscoveredSkill): CatalogRow {
