@@ -441,6 +441,10 @@ import {
   MarketplaceAppsSetOpenMetadataToken
 } from './marketplace-apps-params'
 import {
+  MarketplaceServiceConnect,
+  MarketplaceServiceDisconnect
+} from './marketplace-service-params'
+import {
   MarketplaceVaultClear,
   MarketplaceVaultClearProfile,
   MarketplaceVaultSet,
@@ -1188,6 +1192,9 @@ export const RPC_PARAMS_BY_METHOD = {
   'marketplace.apps.setAccessPolicy': MarketplaceAppsSetAccessPolicy,
   'marketplace.apps.setEngramServer': MarketplaceAppsSetEngramServer,
   'marketplace.apps.setOpenMetadataToken': MarketplaceAppsSetOpenMetadataToken,
+  'marketplace.service.connect': MarketplaceServiceConnect,
+  'marketplace.service.disconnect': MarketplaceServiceDisconnect,
+  'marketplace.service.status': null,
   'marketplace.vault.clear': MarketplaceVaultClear,
   'marketplace.vault.clearProfile': MarketplaceVaultClearProfile,
   'marketplace.vault.set': MarketplaceVaultSet,

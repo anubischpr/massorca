@@ -68,6 +68,7 @@ import { AGENT_HOOK_METHODS } from './agent-hooks'
 import { AGENT_LAUNCH_METHODS } from './agent-launch'
 import { MARKETPLACE_APPS_METHODS } from './marketplace-apps-methods'
 import { MARKETPLACE_VAULT_METHODS } from './marketplace-vault-methods'
+import { MARKETPLACE_SERVICE_METHODS } from './marketplace-service-methods'
 
 // Why: a flat manifest keeps registration order explicit and provides one
 // grep-point for "what methods does the RPC server expose?" — useful when
@@ -100,6 +101,7 @@ export const ALL_RPC_METHODS = [
   ...AGENT_LAUNCH_METHODS,
   ...MARKETPLACE_APPS_METHODS,
   ...MARKETPLACE_VAULT_METHODS,
+  ...MARKETPLACE_SERVICE_METHODS,
   ...TERMINAL_METHODS,
   ...TERMINAL_ORPHAN_METHODS,
   ...BROWSER_CORE_METHODS,

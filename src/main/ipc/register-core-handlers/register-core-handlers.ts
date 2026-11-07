@@ -1,6 +1,7 @@
 import { registerMarketplaceHandlers } from '../marketplace'
 import { createDefaultMarketplaceAppsService } from '../../marketplace/marketplace-apps-defaults'
 import { registerMarketplaceAppsHandlers } from '../marketplace-apps'
+import { registerMarketplaceServicesHandlers } from '../marketplace-services'
 import { registerMarketplaceEngramOpsHandlers } from '../marketplace-engram-ops'
 import { registerMarketplaceInstallHandlers } from '../marketplace-install'
 import { registerMarketplaceCustomHandlers } from '../marketplace-custom'
@@ -158,6 +159,7 @@ export function registerCoreHandlers(
   registerPreflightHandlers()
   registerMarketplaceHandlers()
   registerMarketplaceAppsHandlers(createDefaultMarketplaceAppsService())
+  registerMarketplaceServicesHandlers()
   registerMarketplaceEngramOpsHandlers()
   registerMarketplaceInstallHandlers()
   registerMarketplaceCustomHandlers()
