@@ -350,14 +350,15 @@ orca marketplace services disconnect bitbucket
 orca marketplace skills list                   # --host local | wsl:<distro> | ssh:<target-id> | runtime:<environment-id>
 orca marketplace skills list --host wsl:Ubuntu --json
 orca marketplace skills show <name>            # package, agents, and the folder and SKILL.md paths on the host
+orca marketplace skills install --package <id> --version <id> --agents claude,codex   # catalog skill, SSH hosts too
 orca marketplace skills install --file ./caveman.tar.gz --agents claude,codex
-orca marketplace skills agents <name> --agents codex --file ./caveman.tar.gz   # turn agents on or off
+orca marketplace skills agents <name> --agents codex   # turn agents on or off
 orca marketplace skills uninstall <name> --host wsl:Ubuntu
 ```
 
 Tokens are read only from stdin (`--token-stdin`) or a named env var (`--token-env <NAME>`); `--token` on the command line is refused, and no output prints a token. `connect` with no flags repairs an app that is already set up, reusing the credentials the host stores.
 
-`--host` on the `skills` commands picks the machine the way the desktop host picker does: `local` is this computer, `wsl:<distro>` a WSL distro on it, `ssh:<target-id>` an SSH host and `runtime:<environment-id>` a paired MassOrca server. `skills install` and `skills agents` read a skill package file on the computer you run them on and send it to the host, which checks its digest before placing anything. `--agents` lists the agents that read the skill (`none` keeps it in the shared agents folder only); `agents` reinstalls the same package and version with the new list and prints the copies left on the host. Installing a catalog skill by id, and installing a package file on an SSH host, still need the desktop app, which holds the cloud download grant.
+`--host` on the `skills` commands picks the machine the way the desktop host picker does: `local` is this computer, `wsl:<distro>` a WSL distro on it, `ssh:<target-id>` an SSH host and `runtime:<environment-id>` a paired MassOrca server. `skills install --package <id> --version <id>` installs a catalog version: the desktop app on the connected host gets the cloud download grant, which also reaches SSH hosts. `--file` instead reads a skill package file on the computer you run it on and sends it to the host, which checks its digest before placing anything; SSH hosts take only catalog installs. `--agents` lists the agents that read the skill (`none` keeps it in the shared agents folder only); `agents` reinstalls the installed catalog version with the new list and prints the copies left on the host. A headless host without the desktop's Skill Cloud sign-in needs `--file` with the same package instead.
 
 ## Bot Teams
 
