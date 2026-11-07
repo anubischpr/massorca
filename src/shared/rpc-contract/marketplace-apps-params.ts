@@ -60,9 +60,7 @@ const AgentStatusSchema = z.object({
   // Why: without it a client never sees a "Missing" entry on a picked host, so Connect is not offered.
   installed: z.boolean().optional().catch(undefined),
   // Why: an optional flag, not an entry value: an older peer's strict entry enum would reject the whole list.
-  outsideHome: z.boolean().optional().catch(undefined),
-  // Why: without it a remote host's agent can never read as missing its entry.
-  installed: z.boolean().optional().catch(undefined)
+  outsideHome: z.boolean().optional().catch(undefined)
 })
 
 const CredentialSchema = z.object({
