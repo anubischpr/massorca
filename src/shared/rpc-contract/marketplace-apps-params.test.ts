@@ -39,6 +39,22 @@ describe('readMarketplaceAppsListAnswer outside-home flag', () => {
     expect(result.apps[0]?.agents[0]?.outsideHome).toBe(true)
   })
 
+  it('keeps installed, so a remote host can flag an agent missing its entry', () => {
+    const result = readMarketplaceAppsListAnswer(listWith({ installed: true, allowed: true }))
+    if (!result.ok) {
+      throw new Error('the list was rejected')
+    }
+    expect(result.apps[0]?.agents[0]?.installed).toBe(true)
+  })
+
+  it('reads a malformed installed as absent instead of failing the whole list', () => {
+    const result = readMarketplaceAppsListAnswer(listWith({ installed: 'yes' }))
+    if (!result.ok) {
+      throw new Error('the list was rejected')
+    }
+    expect(result.apps[0]?.agents[0]?.installed).toBeUndefined()
+  })
+
   it('still parses a list from a peer that never sends the flag', () => {
     expect(readMarketplaceAppsListAnswer(listWith({})).ok).toBe(true)
   })

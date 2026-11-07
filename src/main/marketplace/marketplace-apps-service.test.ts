@@ -521,6 +521,55 @@ describe('reconnecting a connected app', () => {
     expect(everyFile()).toEqual(before)
   })
 
+  it('flags Codex missing for both apps when only the escritura table is left, and Connect writes the read entries', async () => {
+    await service().connect({ id: 'openmetadata', url: URL_, token: TOKEN })
+    await service().connect({ id: 'engram' })
+    await service().addOpenMetadataProfile({ name: 'escritura', url: ESCRITURA_URL, token: 'esc' })
+    // Why: the state pv-vps was left in: written says engram on Claude only, openmetadata on Claude and Codex.
+    const state = vault.readState()
+    vault.writeState({
+      ...state,
+      written: {
+        ...state.written,
+        engram: { claude: state.written.engram.claude },
+        openmetadata: {
+          claude: state.written.openmetadata.claude,
+          codex: {
+            entries: ['escritura'],
+            instructions: state.written.openmetadata.codex?.instructions ?? false
+          }
+        }
+      }
+    })
+    writeFixture(
+      codexPath(),
+      `[tui]
+theme = "dark"
+
+[tui.model_availability_nux]
+shown = true
+
+${ESCRITURA_TABLE}`
+    )
+
+    const engram = await statusOf('engram')
+    const openMetadata = await statusOf('openmetadata')
+    expect(engram.connected).toBe(true)
+    expect(openMetadata.connected).toBe(true)
+    expect(isMarketplaceAgentEntryMissing('engram', rowOf(engram, 'codex'))).toBe(true)
+    expect(isMarketplaceAgentEntryMissing('openmetadata', rowOf(openMetadata, 'codex'))).toBe(true)
+
+    await service().connect({ id: 'engram' })
+    await service().connect({ id: 'openmetadata', url: URL_, token: TOKEN })
+    const codex = readFileSync(codexPath(), 'utf8')
+    expect(codex).toContain('[mcp_servers.engram]')
+    expect(codex).toContain('[mcp_servers.openmetadata]')
+    expect(codex).toContain('[mcp_servers.escritura]')
+    expect(codex).toContain('[tui.model_availability_nux]')
+    expect(entryOf(await statusOf('engram'), 'codex')).toBe('set')
+    expect(entryOf(await statusOf('openmetadata'), 'codex')).toBe('set')
+  })
+
   it('reports an installed agent whose entry is gone as missing, and one not on this computer as not installed', async () => {
     await service().connect({ id: 'openmetadata', url: URL_, token: TOKEN })
     writeFixture(codexPath(), '')

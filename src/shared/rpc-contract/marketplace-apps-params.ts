@@ -58,7 +58,9 @@ const AgentStatusSchema = z.object({
   entry: z.enum(['set', 'missing', 'unreadable', 'built-in']),
   allowed: z.boolean().optional(),
   // Why: an optional flag, not an entry value: an older peer's strict entry enum would reject the whole list.
-  outsideHome: z.boolean().optional().catch(undefined)
+  outsideHome: z.boolean().optional().catch(undefined),
+  // Why: without it a remote host's agent can never read as missing its entry.
+  installed: z.boolean().optional().catch(undefined)
 })
 
 const CredentialSchema = z.object({
