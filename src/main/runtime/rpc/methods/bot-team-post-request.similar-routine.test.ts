@@ -171,13 +171,13 @@ describe('a scheduled request like a routine the team already runs', () => {
     expect(listBotTeamRoutines(database, team.id)).toHaveLength(1)
   })
 
-  it('a similar request for another bot is created for that bot as before', async () => {
+  it('asks about a similar routine another bot holds too, and creates nothing yet', async () => {
     const { database, team, post } = setup()
     await post('@Ana programa para mañana a las 10 la revisión del front')
     const second = await post('@Leo programa para mañana a las 15 la revisión del front')
-    expect(second.choice).toBeUndefined()
-    expect(second.scheduled).toBeDefined()
-    expect(listBotTeamRoutines(database, team.id)).toHaveLength(2)
+    expect(second.choice?.kind).toBe('similar-routine')
+    expect(second.scheduled).toBeUndefined()
+    expect(listBotTeamRoutines(database, team.id)).toHaveLength(1)
   })
 
   it('a routine that is paused is not offered, so the request is created as before', async () => {

@@ -46,11 +46,7 @@ export function scheduleBotTeamRequest(
       timeZone: args.timeZone && isKnownTimeZone(args.timeZone) ? args.timeZone : null
     }
   }
-  const similar = findSimilarBotTeamRoutine(db, {
-    teamId: args.team.id,
-    botId: args.botId,
-    title: request.name
-  })
+  const similar = findSimilarBotTeamRoutine(db, { teamId: args.team.id, title: request.name })
   if (similar !== null && similar.nextRun !== null) {
     return {
       kind: 'similar',
