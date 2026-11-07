@@ -1,4 +1,5 @@
 import { translate } from '@/i18n/i18n'
+import { basename } from '@/lib/path'
 import type { BotTeam } from '../../../../shared/rpc-contract/bot-team-params'
 import type { SkillInstallProviderDefinition } from '../../../../shared/skill-install-providers'
 import type { DiscoveredSkill } from '../../../../shared/skills'
@@ -19,6 +20,8 @@ export type MarketplaceSkillPageSkill = {
   agentIds: readonly string[]
   /** Share link the skill installs from; empty opens the dialog on its paste step. */
   installLink: string
+  /** The skill's folder name on its host, which its managed install is listed under. */
+  folder?: string
   origin: MarketplaceSkillOrigin
 }
 
@@ -63,6 +66,7 @@ export function marketplaceSkillFromDiscovered(
     installed: skill.installed,
     agentIds,
     installLink: '',
+    folder: basename(skill.directoryPath),
     origin: marketplaceSkillOrigin(skill)
   }
 }

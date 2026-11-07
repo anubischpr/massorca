@@ -191,7 +191,12 @@ export default function MarketplacePage(): React.JSX.Element {
         ) : openPage.kind === 'integration' ? (
           <MarketplaceIntegrationPage integration={openPage.id} onBack={closePage} />
         ) : (
-          <MarketplaceSkillPage skill={openPage.skill} hostName={hostLabel} onBack={closePage} />
+          <MarketplaceSkillPage
+            skill={openPage.skill}
+            hostName={hostLabel}
+            onBack={closePage}
+            onRescan={() => openSkill(openPage.listed)}
+          />
         )}
       </PageFrame>
     )
