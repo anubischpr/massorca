@@ -167,6 +167,26 @@ describe('the Skills section lists only what the person added or MassOrca ships'
     })
   })
 
+  it('lists a skill that sits in two agent folders once, as installed', () => {
+    const claudeCopy = skill('computer-use', {
+      id: 'skill-claude-computer-use',
+      sourceLabel: 'Claude home',
+      rootPath: '/home/dev/.claude/skills',
+      directoryPath: '/home/dev/.claude/skills/computer-use',
+      skillFilePath: '/home/dev/.claude/skills/computer-use/SKILL.md',
+      installed: false
+    })
+    const rows = skillRowsOf({
+      skills: { kind: 'ready', value: [claudeCopy, skill('computer-use')] }
+    })
+    expect(namesOf(rows).filter((name) => name === 'computer-use')).toHaveLength(1)
+    expect(rows[0]).toMatchObject({
+      name: 'computer-use',
+      status: { kind: 'done', label: 'Installed' }
+    })
+    expect(namesOf(rows)).not.toContain('Computer use')
+  })
+
   it('shows the built-in commands as Built-in, with no install action and no page of their own', () => {
     const rows = skillRowsOf({})
     for (const name of COMMANDS) {
