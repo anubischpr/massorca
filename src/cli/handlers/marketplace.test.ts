@@ -314,11 +314,102 @@ describe('orca marketplace services and skills CLI handlers', () => {
     expect(printed()).not.toContain(SECRET)
   })
 
-  it('names the host-side route for a service with no connect method', async () => {
-    await main(['marketplace', 'services', 'connect', 'gitlab'], '/tmp/repo')
+  it('names the old route when the host predates the service vault methods', async () => {
+    process.env.ORCA_TEST_OM_TOKEN = SECRET
+    callMock.mockRejectedValueOnce(
+      new RuntimeRpcFailureError({
+        id: 'req_old',
+        ok: false,
+        error: { code: 'method_not_found', message: 'nope' },
+        _meta: { runtimeId: 'r' }
+      })
+    )
 
-    expect(callMock).not.toHaveBeenCalled()
-    expect(String(vi.mocked(console.error).mock.calls[0]?.[0])).toContain('glab auth login')
+    await main(
+      ['marketplace', 'services', 'connect', 'gitlab', '--token-env', 'ORCA_TEST_OM_TOKEN'],
+      '/tmp/repo'
+    )
+
+    expect(process.exitCode).toBe(1)
+    const errors = String(vi.mocked(console.error).mock.calls[0]?.[0])
+    expect(errors).toContain('glab auth login')
+    expect(errors).not.toContain(SECRET)
+  })
+
+  it('connects Gitea into the host vault with a server URL, never printing the token', async () => {
+    process.env.ORCA_TEST_OM_TOKEN = SECRET
+    callMock.mockImplementation(async (method: string) =>
+      method === 'marketplace.service.connect'
+        ? okFixture('req_c', { ok: true })
+        : okFixture('req_o', null)
+    )
+
+    await main(
+      [
+        'marketplace',
+        'services',
+        'connect',
+        'gitea',
+        '--site',
+        'https://git.example.com',
+        '--token-env',
+        'ORCA_TEST_OM_TOKEN',
+        '--json'
+      ],
+      '/tmp/repo'
+    )
+
+    expect(callMock).toHaveBeenCalledWith('marketplace.service.connect', {
+      service: 'gitea',
+      token: SECRET,
+      baseUrl: 'https://git.example.com'
+    })
+    expect(printed()).not.toContain(SECRET)
+    expect(process.exitCode).toBeUndefined()
+  })
+
+  it('exits 1 with the host reason when the vault rejects a token', async () => {
+    process.env.ORCA_TEST_OM_TOKEN = SECRET
+    queueFixtures(
+      callMock,
+      okFixture('req_c', { ok: false, reason: 'rejected', message: 'bad credentials' })
+    )
+
+    await main(
+      [
+        'marketplace',
+        'services',
+        'connect',
+        'bitbucket',
+        '--email',
+        'me@example.com',
+        '--token-env',
+        'ORCA_TEST_OM_TOKEN'
+      ],
+      '/tmp/repo'
+    )
+
+    expect(callMock).toHaveBeenCalledWith('marketplace.service.connect', {
+      service: 'bitbucket',
+      token: SECRET,
+      email: 'me@example.com'
+    })
+    expect(process.exitCode).toBe(1)
+    const errors = String(vi.mocked(console.error).mock.calls[0]?.[0])
+    expect(errors).toContain('rejected (bad credentials)')
+    expect(errors).not.toContain(SECRET)
+  })
+
+  it('disconnects Azure DevOps through the vault and keeps Linear on its own method', async () => {
+    callMock.mockImplementation(async () => okFixture('req_x', { ok: true }))
+
+    await main(['marketplace', 'services', 'disconnect', 'azure-devops'], '/tmp/repo')
+    expect(callMock).toHaveBeenCalledWith('marketplace.service.disconnect', {
+      service: 'azure-devops'
+    })
+
+    await main(['marketplace', 'services', 'disconnect', 'linear'], '/tmp/repo')
+    expect(callMock).toHaveBeenCalledWith('linear.disconnect', {})
   })
 
   it('uninstalls a skill globally and fails when the host does not remove it', async () => {
