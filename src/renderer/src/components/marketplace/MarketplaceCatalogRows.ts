@@ -4,6 +4,7 @@ import type { MarketplaceCustomItemStatus } from '../../../../shared/marketplace
 import type { DiscoveredSkill } from '../../../../shared/skills'
 import type { TuiAgent } from '../../../../shared/tui-agent'
 import { MARKETPLACE_CATALOG, type MarketplaceItemId } from './marketplace-catalog'
+import { BUILT_IN_SKILL_COMMANDS, type BuiltInSkillCommandId } from './marketplace-skill-built-in'
 import { customRows } from './MarketplaceCatalogCustomRows'
 import { integrationRows } from './MarketplaceCatalogIntegrations'
 import type {
@@ -30,11 +31,13 @@ import { skillRows } from './MarketplaceCatalogSkillRows'
 export type MarketplaceCatalogFilter = 'all' | 'tools' | 'agents' | 'skills' | 'services'
 export type MarketplaceCatalogSectionId = Exclude<MarketplaceCatalogFilter, 'all'>
 
-/** What opening a row leads to. Custom items have no page of their own. */
+/** What opening a row leads to. Custom tools and agents have no page of their own. */
 export type CatalogRowTarget =
   | { kind: 'item'; id: MarketplaceItemId }
   | { kind: 'agent'; agent: TuiAgent }
   | { kind: 'skill'; skill: DiscoveredSkill }
+  | { kind: 'custom-skill'; item: MarketplaceCustomItemStatus }
+  | { kind: 'built-in'; id: BuiltInSkillCommandId }
   | { kind: 'integration'; id: MarketplaceIntegrationId }
 
 export type CatalogRowIcon =
@@ -185,7 +188,24 @@ export function rowMatchesQuery(row: CatalogRow, query: string): boolean {
   if (needle === '') {
     return true
   }
-  return row.name.toLowerCase().includes(needle) || row.description.toLowerCase().includes(needle)
+  // Why: a skill's real name still finds its row, though the row shows the display name.
+  return [row.name, row.description, rowRealName(row)].some((text) =>
+    text.toLowerCase().includes(needle)
+  )
+}
+
+function rowRealName(row: CatalogRow): string {
+  const target = row.target
+  if (target?.kind === 'skill') {
+    return target.skill.name
+  }
+  if (target?.kind === 'custom-skill') {
+    return target.item.name
+  }
+  if (target?.kind === 'built-in') {
+    return BUILT_IN_SKILL_COMMANDS[target.id].name
+  }
+  return ''
 }
 
 function itemRow(

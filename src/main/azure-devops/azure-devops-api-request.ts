@@ -1,6 +1,7 @@
 import { Buffer } from 'node:buffer'
 import type { AzureDevOpsRepoRef } from './repository-ref'
 import { cancelUnreadResponseBody } from '../lib/unread-response-body'
+import { readStoredServiceCredential } from '../marketplace/marketplace-service-credentials'
 
 const REQUEST_TIMEOUT_MS = 5000
 const DEFAULT_API_VERSION = '7.1'
@@ -64,11 +65,14 @@ export function normalizeAzureDevOpsApiBaseUrl(value: string): string {
     .replace(/\/_apis$/i, '')
 }
 
+/** The Azure DevOps address and token: what the Marketplace saved on this host first, then the environment. */
 export function getAzureDevOpsAuthConfig(): AzureDevOpsAuthConfig {
+  const stored = readStoredServiceCredential('azure-devops')
   return {
-    apiBaseUrl: envValue('ORCA_AZURE_DEVOPS_API_BASE_URL'),
-    pat: envValue('ORCA_AZURE_DEVOPS_TOKEN') ?? envValue('ORCA_AZURE_DEVOPS_PAT'),
-    accessToken: envValue('ORCA_AZURE_DEVOPS_ACCESS_TOKEN'),
+    apiBaseUrl: stored.baseUrl ?? envValue('ORCA_AZURE_DEVOPS_API_BASE_URL'),
+    pat: stored.token ?? envValue('ORCA_AZURE_DEVOPS_TOKEN') ?? envValue('ORCA_AZURE_DEVOPS_PAT'),
+    // Why: a bearer token outranks a PAT when both exist, so a saved token must not lose to it.
+    accessToken: stored.token ? null : envValue('ORCA_AZURE_DEVOPS_ACCESS_TOKEN'),
     username: envValue('ORCA_AZURE_DEVOPS_USERNAME')
   }
 }

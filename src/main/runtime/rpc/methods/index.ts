@@ -48,6 +48,7 @@ import { CLIENT_EVENT_METHODS } from './client-events'
 import { WORKSPACE_PORT_METHODS } from './workspace-ports'
 import { PLUGIN_METHODS } from './plugins'
 import { SKILL_METHODS } from './skills'
+import { SKILL_PACKAGE_INSTALL_METHODS } from './skill-package-install-methods'
 import { CLIPBOARD_METHODS } from './clipboard'
 import { HOST_CAPABILITY_METHODS } from './host-capabilities'
 import { MOBILE_WEB_BUNDLE_METHODS } from './mobile-web-bundle'
@@ -69,6 +70,7 @@ import { AGENT_HOOK_METHODS } from './agent-hooks'
 import { AGENT_LAUNCH_METHODS } from './agent-launch'
 import { MARKETPLACE_APPS_METHODS } from './marketplace-apps-methods'
 import { MARKETPLACE_VAULT_METHODS } from './marketplace-vault-methods'
+import { MARKETPLACE_SERVICE_METHODS } from './marketplace-service-methods'
 
 // Why: a flat manifest keeps registration order explicit and provides one
 // grep-point for "what methods does the RPC server expose?" — useful when
@@ -102,6 +104,7 @@ export const ALL_RPC_METHODS = [
   ...AGENT_LAUNCH_METHODS,
   ...MARKETPLACE_APPS_METHODS,
   ...MARKETPLACE_VAULT_METHODS,
+  ...MARKETPLACE_SERVICE_METHODS,
   ...TERMINAL_METHODS,
   ...TERMINAL_ORPHAN_METHODS,
   ...BROWSER_CORE_METHODS,
@@ -136,6 +139,7 @@ export const ALL_RPC_METHODS = [
   ...WORKSPACE_PORT_METHODS,
   ...PLUGIN_METHODS,
   ...SKILL_METHODS,
+  ...SKILL_PACKAGE_INSTALL_METHODS,
   ...CLIPBOARD_METHODS,
   ...HOST_CAPABILITY_METHODS,
   ...MOBILE_WEB_BUNDLE_METHODS,

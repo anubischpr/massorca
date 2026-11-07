@@ -1,3 +1,4 @@
+import { translate } from '@/i18n/i18n'
 import type { MarketplaceCustomItemStatus } from '../../../../shared/marketplace-custom'
 import type {
   CatalogBuildInputs,
@@ -18,6 +19,9 @@ export function customRows(
   itemKind: MarketplaceCustomItemStatus['kind'],
   section: MarketplaceCatalogSectionId
 ): CatalogRow[] {
+  if (inputs.custom.kind === 'unavailable') {
+    return [unavailableCustomRow(inputs.hostLabel, itemKind, section)]
+  }
   if (inputs.custom.kind !== 'ready') {
     return []
   }
@@ -38,6 +42,53 @@ export function customRows(
         customId: item.id
       }
     })
+}
+
+/** A picked host has no custom check of its own yet, so its custom row says so instead of listing this computer's. */
+function unavailableCustomRow(
+  host: string,
+  itemKind: MarketplaceCustomItemStatus['kind'],
+  section: MarketplaceCatalogSectionId
+): CatalogRow {
+  return {
+    key: `custom-unavailable-${section}`,
+    section,
+    name: unavailableCustomName(itemKind),
+    description: '',
+    icon: { kind: 'custom', itemKind },
+    status: {
+      kind: 'pending',
+      label: translate(
+        'auto.components.marketplace.MarketplaceCatalogCustomRows.notAvailableOn',
+        'Not available on {{host}} yet',
+        { host }
+      )
+    },
+    target: null,
+    owned: false,
+    service: false,
+    customId: null
+  }
+}
+
+function unavailableCustomName(itemKind: MarketplaceCustomItemStatus['kind']): string {
+  switch (itemKind) {
+    case 'agent':
+      return translate(
+        'auto.components.marketplace.MarketplaceCatalogCustomRows.customAgents',
+        'Custom agents'
+      )
+    case 'skill':
+      return translate(
+        'auto.components.marketplace.MarketplaceCatalogCustomRows.customSkills',
+        'Custom skills'
+      )
+    case 'tool':
+      return translate(
+        'auto.components.marketplace.MarketplaceCatalogCustomRows.customTools',
+        'Custom tools'
+      )
+  }
 }
 
 function customStatus(

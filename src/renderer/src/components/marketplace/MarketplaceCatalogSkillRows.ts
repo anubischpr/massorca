@@ -9,32 +9,12 @@ import {
   unansweredStatus
 } from './MarketplaceCatalogPlaceholders'
 import { builtInLabel, installedLabel, installLabel } from './MarketplaceCatalogStatusCopy'
-
-type BuiltInCommand = {
-  id: string
-  name: string
-  description: { key: string; fallback: string }
-}
-
-// Why: built into MassOrca, so each row shows Built-in, with no install action and no page.
-const BUILT_IN_COMMANDS: readonly BuiltInCommand[] = [
-  {
-    id: 'prototype',
-    name: '/prototype',
-    description: {
-      key: 'auto.components.marketplace.MarketplaceCatalogSkillRows.prototypeDescription',
-      fallback: 'Make HTML prototypes of an idea'
-    }
-  },
-  {
-    id: 'orchestration-delegate',
-    name: 'orca orchestration delegate',
-    description: {
-      key: 'auto.components.marketplace.MarketplaceCatalogSkillRows.orchestrationDelegateDescription',
-      fallback: 'Ask which agent should run a child session of this chat'
-    }
-  }
-]
+import {
+  BUILT_IN_SKILL_COMMAND_ORDER,
+  BUILT_IN_SKILL_COMMANDS,
+  type BuiltInSkillCommand
+} from './marketplace-skill-built-in'
+import { skillDisplayName } from './marketplace-skill-display-name'
 
 /** A discovered skill the list shows: one added from the Marketplace, or a MassOrca board skill. */
 function isListedSkill(skill: DiscoveredSkill): boolean {
@@ -49,9 +29,9 @@ export function skillRows(inputs: CatalogBuildInputs): CatalogRow[] {
   const pending = skills.kind === 'ready' ? null : unansweredStatus(skills, hostLabel)
   return [
     ...listed.map(skillRow),
-    ...customRows(inputs, 'skill', 'skills'),
+    ...customSkillRows(inputs),
     ...boardSkillRows(listedNames, pending),
-    ...BUILT_IN_COMMANDS.map(commandRow)
+    ...BUILT_IN_SKILL_COMMAND_ORDER.map((id) => commandRow(BUILT_IN_SKILL_COMMANDS[id]))
   ]
 }
 
@@ -72,7 +52,7 @@ function skillRow(skill: DiscoveredSkill): CatalogRow {
   return {
     key: `skill-${skill.id}`,
     section: 'skills',
-    name: skill.name,
+    name: skillDisplayName(skill.name),
     description: skill.description || skill.sourceLabel,
     icon: { kind: 'skill' },
     status: skill.installed
@@ -85,15 +65,28 @@ function skillRow(skill: DiscoveredSkill): CatalogRow {
   }
 }
 
-function commandRow(command: BuiltInCommand): CatalogRow {
+/** Custom skills open their own page; the custom list still decides their install state. */
+function customSkillRows(inputs: CatalogBuildInputs): CatalogRow[] {
+  const items = inputs.custom.kind === 'ready' ? inputs.custom.items : []
+  return customRows(inputs, 'skill', 'skills').map((row): CatalogRow => {
+    const item = items.find((candidate) => candidate.id === row.customId)
+    return {
+      ...row,
+      name: skillDisplayName(row.name),
+      target: item === undefined ? null : { kind: 'custom-skill', item }
+    }
+  })
+}
+
+function commandRow(command: BuiltInSkillCommand): CatalogRow {
   return {
     key: `command-${command.id}`,
     section: 'skills',
-    name: command.name,
+    name: skillDisplayName(command.name),
     description: translate(command.description.key, command.description.fallback),
     icon: { kind: 'skill' },
     status: { kind: 'done', label: builtInLabel() },
-    target: null,
+    target: { kind: 'built-in', id: command.id },
     // Why: built in rather than installed, so it stays out of Your apps and the sidebar.
     owned: false,
     service: false,

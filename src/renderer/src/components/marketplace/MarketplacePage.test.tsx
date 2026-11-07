@@ -4,15 +4,29 @@ import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
 import type { MarketplaceAppStatus } from '../../../../shared/marketplace-apps'
+import type { MarketplaceCustomItemStatus } from '../../../../shared/marketplace-custom'
 import type { DiscoveredSkill } from '../../../../shared/skills'
 import { getDefaultSettings } from '../../../../shared/constants'
+import type { CatalogRow } from './MarketplaceCatalogRows'
+import { requestSkillRowOpen } from './marketplace-skill-open-request'
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true
 
 const mocks = vi.hoisted(
-  (): { detected: string[] | null; discover: Mock<(...args: unknown[]) => unknown> } => ({
+  (): {
+    detected: string[] | null
+    discover: Mock<(...args: unknown[]) => unknown>
+    custom: MarketplaceCustomItemStatus[]
+    preview: Mock<(...args: unknown[]) => unknown>
+    remove: Mock<(...args: unknown[]) => unknown>
+    confirm: Mock<(...args: unknown[]) => unknown>
+  } => ({
     detected: [],
-    discover: vi.fn()
+    discover: vi.fn(),
+    custom: [],
+    preview: vi.fn(),
+    remove: vi.fn(),
+    confirm: vi.fn()
   })
 )
 
@@ -56,7 +70,21 @@ vi.mock('@/hooks/use-active-skill-discovery-runtime-target', () => ({
   useActiveSkillDiscoveryRuntimeTarget: () => ({ kind: 'local' })
 }))
 vi.mock('@/runtime/runtime-skills-client', () => ({
-  discoverSkillsForRuntimeTarget: (...args: unknown[]) => mocks.discover(...args)
+  discoverSkillsForRuntimeTarget: (...args: unknown[]) => mocks.discover(...args),
+  runtimeTargetSupportsSkillDelete: () => Promise.resolve(true),
+  previewSkillDeletionOnRuntimeTarget: (...args: unknown[]) => mocks.preview(...args),
+  deleteSkillsOnRuntimeTarget: (...args: unknown[]) => mocks.remove(...args)
+}))
+vi.mock('@/components/confirmation-dialog-context', () => ({
+  useConfirmationDialog: () => mocks.confirm
+}))
+vi.mock('./MarketplaceCatalogCustom', async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
+  useMarketplaceCustomItems: () => ({
+    items: mocks.custom,
+    installingIds: new Set<string>(),
+    install: vi.fn()
+  })
 }))
 vi.mock('../skills/SkillInstallDialog', () => ({
   SkillInstallDialog: (props: { open: boolean; initialLink: string }) =>
@@ -175,6 +203,39 @@ function addedSkill(name: string): DiscoveredSkill {
   return { ...skill(name), source: 'marketplace' }
 }
 
+function customSkillItem(
+  id: string,
+  name: string,
+  presence: MarketplaceCustomItemStatus['presence']
+): MarketplaceCustomItemStatus {
+  return {
+    id,
+    kind: 'skill',
+    name,
+    checkCommand: null,
+    install: {},
+    skillUrl: `https://example.com/skills/${id}`,
+    createdAt: 1,
+    presence
+  }
+}
+
+/** The list row a sidebar click hands the Marketplace page for an installed skill. */
+function skillListRow(found: DiscoveredSkill): CatalogRow {
+  return {
+    key: `skill-${found.id}`,
+    section: 'skills',
+    name: found.name,
+    description: '',
+    icon: { kind: 'skill' },
+    status: { kind: 'done', label: 'Installed' },
+    target: { kind: 'skill', skill: found },
+    owned: true,
+    service: false,
+    customId: null
+  }
+}
+
 const connectedEngram: MarketplaceAppStatus = { id: 'engram', connected: true, agents: [] }
 const disconnectedOpenMetadata: MarketplaceAppStatus = {
   id: 'openmetadata',
@@ -189,6 +250,8 @@ describe('MarketplacePage', () => {
     resetMarketplaceInstalledSkillsForTests()
     mocks.detected = ['claude']
     mocks.discover.mockResolvedValue({ skills: [], sources: [], scannedAt: 1 })
+    mocks.custom = []
+    mocks.confirm.mockResolvedValue(true)
     // Why: the web client has no marketplace bridge; the page must still render.
     Object.assign(window, { api: undefined })
     seedStore(store, {
@@ -348,17 +411,17 @@ describe('MarketplacePage', () => {
     await flush()
 
     expect(namesIn(sectionBody(container, 'Skills'))).toEqual([
-      'alpha',
-      'beta',
+      'Alpha',
+      'Beta',
       'Browser use',
       'Computer use',
       'Linear',
       'Orchestration',
       'Price check',
-      '/prototype',
-      'orca orchestration delegate'
+      'Prototype',
+      'Orca orchestration delegate'
     ])
-    expect(statusOf(container, 'alpha')).toBe('Installed')
+    expect(statusOf(container, 'Alpha')).toBe('Installed')
     expect(statusOf(container, 'Browser use')).toBe('Install')
   })
 
@@ -373,8 +436,8 @@ describe('MarketplacePage', () => {
       'Linear',
       'Orchestration',
       'Price check',
-      '/prototype',
-      'orca orchestration delegate'
+      'Prototype',
+      'Orca orchestration delegate'
     ])
     expect(container.textContent).not.toContain('No skills found')
   })
@@ -508,18 +571,143 @@ describe('MarketplacePage', () => {
     await flush()
 
     await act(async () => {
-      itemRow(container, 'alpha')?.querySelector('button')?.click()
+      itemRow(container, 'Alpha')?.querySelector('button')?.click()
     })
     await flush()
 
     expect(store.getState().activeView).toBe('marketplace')
-    expect(container.querySelector('h2')?.textContent).toBe('alpha')
+    expect(container.querySelector('h2')?.textContent).toBe('Alpha')
     expect(container.querySelector('[data-marketplace-status-line]')?.textContent).toBe(
       'Installed on This computer'
     )
     await act(async () => {
       container.querySelector<HTMLButtonElement>('nav button')?.click()
     })
+    expect(container.querySelector('h1')?.textContent).toBe('Marketplace')
+  })
+
+  it('opens each built-in command on its own page, and Marketplace returns to the list', async () => {
+    const container = await renderPage()
+    await flush()
+    await act(async () => {
+      itemRow(container, 'Prototype')?.querySelector('button')?.click()
+    })
+    await flush()
+    expect(container.querySelector('h2')?.textContent).toBe('Prototype')
+    expect(container.querySelector('[data-marketplace-status-line]')?.textContent).toBe(
+      'Built into MassOrca'
+    )
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('nav button')?.click()
+    })
+    expect(container.querySelector('h1')?.textContent).toBe('Marketplace')
+  })
+
+  it('opens an installed custom skill on its own page', async () => {
+    mocks.custom = [customSkillItem('team', 'Team skill', 'found')]
+    const container = await renderPage()
+    await flush()
+    expect(statusOf(container, 'Team skill')).toBe('Installed')
+    await act(async () => {
+      itemRow(container, 'Team skill')?.querySelector('button')?.click()
+    })
+    await flush()
+    expect(container.querySelector('h2')?.textContent).toBe('Team skill')
+    expect(container.querySelector('[data-marketplace-status-line]')?.textContent).toBe(
+      'Installed on This computer'
+    )
+  })
+
+  it('opens the skill a sidebar click asks for, on its own page', async () => {
+    mocks.discover.mockResolvedValue({ skills: [addedSkill('alpha')], sources: [], scannedAt: 1 })
+    const container = await renderPage()
+    await flush()
+    await act(async () => {
+      requestSkillRowOpen(skillListRow(addedSkill('alpha')))
+    })
+    await flush()
+    expect(container.querySelector('h2')?.textContent).toBe('Alpha')
+  })
+
+  it('lists a skill two agent folders hold once, and its page shows every copy', async () => {
+    const claude: DiscoveredSkill = {
+      ...addedSkill('alpha'),
+      id: 'skill-claude-alpha',
+      sourceLabel: 'Claude home',
+      rootPath: '/home/dev/.claude/skills',
+      directoryPath: '/home/dev/.claude/skills/alpha',
+      skillFilePath: '/home/dev/.claude/skills/alpha/SKILL.md'
+    }
+    const codex: DiscoveredSkill = {
+      ...addedSkill('alpha'),
+      id: 'skill-codex-alpha',
+      sourceLabel: 'Codex home',
+      rootPath: '/home/dev/.codex/skills',
+      directoryPath: '/home/dev/.codex/skills/alpha',
+      skillFilePath: '/home/dev/.codex/skills/alpha/SKILL.md'
+    }
+    mocks.discover.mockResolvedValue({ skills: [claude, codex], sources: [], scannedAt: 1 })
+    const container = await renderPage()
+    await flush()
+    expect(
+      namesIn(sectionBody(container, 'Skills')).filter((name) => name === 'Alpha')
+    ).toHaveLength(1)
+    await act(async () => {
+      itemRow(container, 'Alpha')?.querySelector('button')?.click()
+    })
+    await flush()
+    const copies = container.querySelector('[data-marketplace-skill-copies]')
+    expect(copies?.textContent).toContain('/home/dev/.claude/skills/alpha')
+    expect(copies?.textContent).toContain('/home/dev/.codex/skills/alpha')
+  })
+
+  it('removes the skill on this computer through the delete API, then the list rescans', async () => {
+    mocks.discover.mockResolvedValue({ skills: [addedSkill('alpha')], sources: [], scannedAt: 1 })
+    mocks.preview.mockResolvedValue({
+      operationId: 'op-1',
+      skills: [
+        {
+          id: 'skill-alpha',
+          name: 'alpha',
+          canonicalPath: '/home/dev/.agents/skills/alpha',
+          placements: [
+            {
+              path: '/home/dev/.agents/skills/alpha',
+              kind: 'canonical',
+              rootLabel: 'Agent skills home'
+            }
+          ]
+        }
+      ]
+    })
+    mocks.remove.mockResolvedValue({
+      operationId: 'op-1',
+      skills: [
+        {
+          id: 'skill-alpha',
+          name: 'alpha',
+          status: 'deleted',
+          removedPaths: ['/home/dev/.agents/skills/alpha']
+        }
+      ]
+    })
+    const container = await renderPage()
+    await flush()
+    const scansBefore = mocks.discover.mock.calls.length
+    await act(async () => {
+      itemRow(container, 'Alpha')?.querySelector('button')?.click()
+    })
+    await flush()
+    await clickButtonWithText(container, 'Remove from This computer')
+    await flush()
+    expect(mocks.confirm).toHaveBeenCalledTimes(1)
+    expect(mocks.remove).toHaveBeenCalledWith(
+      { kind: 'local' },
+      expect.objectContaining({
+        skills: [expect.objectContaining({ id: 'skill-alpha' })]
+      })
+    )
+    expect(mocks.discover.mock.calls.length).toBeGreaterThan(scansBefore)
     expect(container.querySelector('h1')?.textContent).toBe('Marketplace')
   })
 })

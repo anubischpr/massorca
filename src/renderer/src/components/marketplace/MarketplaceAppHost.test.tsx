@@ -16,6 +16,9 @@ const mocks = vi.hoisted(() => ({
   remoteConnect: vi.fn(),
   listHostBindableAccounts: vi.fn()
 }))
+const wsl = vi.hoisted((): { targets: { kind: 'wsl'; distro: string; label: string }[] } => ({
+  targets: []
+}))
 
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 vi.mock('react-i18next', () => ({ useTranslation: () => ({}) }))
@@ -37,6 +40,10 @@ vi.mock('@/lib/agent-catalog', () => ({
 }))
 vi.mock('@/lib/agent-icon-gentle-shell', () => ({ GentleShellIcon: () => null }))
 vi.mock('@/lib/pi-agent-display', () => ({ piRuntimeLabel: () => 'Gentle Shell' }))
+vi.mock('./marketplace-host-wsl', async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
+  useMarketplaceWslTargets: () => wsl.targets
+}))
 vi.mock('@/components/bot-teams/use-bot-teams', () => ({
   useBotTeams: () => ({
     teams: [],
@@ -153,6 +160,7 @@ function seedHosts(hosts: { runtime?: boolean; ssh?: boolean }): void {
 
 beforeEach(() => {
   vi.clearAllMocks()
+  wsl.targets.length = 0
   mocks.localListApps.mockResolvedValue([localEngram])
   mocks.localConnect.mockResolvedValue({ ok: true, status: localEngram })
   mocks.remoteListApps.mockResolvedValue({ ok: true, apps: [remoteEngram] })
@@ -196,10 +204,19 @@ afterEach(() => {
 })
 
 describe('the host picker on an app page', () => {
-  it('shows no picker when this computer is the only host', async () => {
+  it('shows the picker with This computer when this computer is the only host', async () => {
     const container = await mount('engram')
-    expect(hostTrigger(container)).toBeUndefined()
+    expect(hostTrigger(container)?.textContent).toContain('This computer')
     expect(container.textContent).toContain('0.1.0-local')
+  })
+
+  it('shows the picker when the only other host is a WSL distro', async () => {
+    wsl.targets.push({ kind: 'wsl', distro: 'Ubuntu', label: 'WSL: Ubuntu' })
+    const container = await mount('engram')
+    expect(hostTrigger(container)?.textContent).toContain('This computer')
+    const labels = (await openHostList(container)).map((item) => item.textContent ?? '')
+    expect(labels).toHaveLength(2)
+    expect(labels[1]).toContain('WSL: Ubuntu')
   })
 
   it('lists this computer, the paired server and the connected SSH hosts', async () => {
@@ -213,10 +230,30 @@ describe('the host picker on an app page', () => {
     expect(labels[2]).toContain('build-box')
   })
 
-  it('never offers the picker on the GitHub page', async () => {
+  it('offers the same picker on the GitHub page', async () => {
     seedHosts({ ssh: true })
     const container = await mount('github')
-    expect(hostTrigger(container)).toBeUndefined()
+    expect(hostTrigger(container)?.textContent).toContain('This computer')
+    const labels = (await openHostList(container)).map((item) => item.textContent ?? '')
+    expect(labels).toHaveLength(2)
+  })
+
+  it('reads the GitHub CLI of the picked host and never shows this computer accounts', async () => {
+    seedHosts({ runtime: true })
+    mocks.callRuntimeRpc.mockImplementation(async (_target: unknown, method: string) => {
+      if (method === 'preflight.check') {
+        return { git: { installed: true }, gh: { installed: false, authenticated: false } }
+      }
+      return method === 'marketplace.apps.list'
+        ? { ok: true, apps: [{ id: 'github', connected: true, agents: [] }] }
+        : undefined
+    })
+    const container = await mount('github')
+    await pickHost(container, 'srv2056164')
+    expect(container.textContent).toContain('The GitHub CLI (gh) is not installed on srv2056164.')
+    expect(container.textContent).toContain('Not available on srv2056164 yet')
+    expect(container.textContent).not.toContain('on this computer')
+    expect(buttonWithText(container, 'Add account')).toBeUndefined()
   })
 
   it('shows the SSH host status and sends every action to that host, not this computer', async () => {

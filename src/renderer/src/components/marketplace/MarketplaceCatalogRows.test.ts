@@ -32,7 +32,7 @@ vi.mock('@/lib/pi-agent-display', () => ({ piRuntimeLabel: () => 'Gentle Shell' 
 
 const PV_VPS = 'pv-vps'
 const BOARD_SKILL_NAMES = ['Browser use', 'Computer use', 'Linear', 'Orchestration', 'Price check']
-const COMMAND_NAMES = ['/prototype', 'orca orchestration delegate']
+const COMMAND_NAMES = ['Prototype', 'Orca orchestration delegate']
 const BUILT_IN_STATUS = { kind: 'done', label: 'Built-in' } as const
 const BOARD_AGENTS: readonly { id: TuiAgent; label: string }[] = [
   { id: 'claude', label: 'Claude Code' },
@@ -276,7 +276,7 @@ describe('the board-only rows, the CLI rows and skill rows', () => {
     const listed = addedSkill('alpha')
     const row = rowNamed(
       buildCatalogSections(inputs({ skills: { kind: 'ready', value: [listed] } })),
-      'alpha'
+      'Alpha'
     )
     expect(row.target).toEqual({ kind: 'skill', skill: listed })
   })
@@ -386,7 +386,7 @@ describe('agents, skills and custom items on this computer', () => {
       buildCatalogSections(inputs({ skills: { kind: 'ready', value: [addedSkill('alpha')] } })),
       'Skills'
     )
-    const alpha = skills.rows.find((row) => row.name === 'alpha')
+    const alpha = skills.rows.find((row) => row.name === 'Alpha')
     expect(alpha?.description).toBe('Agent skills home')
     expect(alpha?.status).toEqual({ kind: 'done', label: 'Installed' })
     expect(skills.placeholder).toBeNull()
@@ -581,8 +581,8 @@ describe('a picked remote host', () => {
       'Skills'
     )
     expect(skills.rows.map((row) => row.name)).toEqual([
-      'browser-use',
-      'alpha',
+      'Browser use',
+      'Alpha',
       'Computer use',
       'Linear',
       'Orchestration',
@@ -630,7 +630,7 @@ describe('owned rows and search', () => {
         skills: { kind: 'ready', value: [addedSkill('alpha')] }
       })
     )
-    expect(ownedRows(sections).map((row) => row.name)).toEqual(['Git', 'Codex', 'alpha', 'GitHub'])
+    expect(ownedRows(sections).map((row) => row.name)).toEqual(['Git', 'Codex', 'Alpha', 'GitHub'])
   })
 
   it('matches the name or the description, ignoring case, and matches everything when empty', () => {

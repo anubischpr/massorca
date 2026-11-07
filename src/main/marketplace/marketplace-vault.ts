@@ -27,6 +27,11 @@ export type VaultSlot =
   | { kind: 'openmetadata' }
   | { kind: 'openmetadata-profile'; name: string }
   | { kind: 'engram-cloud' }
+  // Why: read by MassOrca's own source-control calls on this host, never handed to an agent.
+  | { kind: 'service-token'; service: VaultTokenService }
+  | { kind: 'service-url'; service: VaultTokenService }
+
+export type VaultTokenService = 'azure-devops' | 'gitea'
 
 const agentWritesSchema = z.object({ entries: z.array(z.string()), instructions: z.boolean() })
 const writtenSchema = z.partialRecord(z.enum(MARKETPLACE_APP_AGENTS), agentWritesSchema)
@@ -76,6 +81,10 @@ function slotFileName(slot: VaultSlot): string {
       return `openmetadata-profile-${Buffer.from(slot.name).toString('base64url')}.enc`
     case 'engram-cloud':
       return 'engram-cloud-token.enc'
+    case 'service-token':
+      return `service-${slot.service}-token.enc`
+    case 'service-url':
+      return `service-${slot.service}-url.enc`
   }
 }
 

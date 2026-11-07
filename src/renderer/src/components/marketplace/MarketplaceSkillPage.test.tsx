@@ -2,8 +2,9 @@
 
 import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
 import type { BotTeam, BotTeamBot } from '../../../../shared/rpc-contract/bot-team-params'
+import type { DiscoveredSkill } from '../../../../shared/skills'
 import type { CatalogCheck } from './MarketplaceCatalogRows'
 import { INSTALLED_AGENT_SKILLS_CHANGED_EVENT } from '@/hooks/installed-agent-skills-change-event'
 import type { MarketplaceVaultHostTarget } from './marketplace-vault-host-client'
@@ -16,13 +17,28 @@ type Mocks = {
   detected: string[] | null
   targets: MarketplaceVaultHostTarget[]
   remoteAgents: CatalogCheck<ReadonlySet<string>>
+  preview: Mock<(...args: unknown[]) => unknown>
+  remove: Mock<(...args: unknown[]) => unknown>
+  confirm: Mock<(...args: unknown[]) => unknown>
 }
 
 const mocks = vi.hoisted((): Mocks => ({
   teams: [],
   detected: ['claude', 'codex', 'pi'],
   targets: [],
-  remoteAgents: { kind: 'ready', value: new Set(['codex']) }
+  remoteAgents: { kind: 'ready', value: new Set(['codex']) },
+  preview: vi.fn(),
+  remove: vi.fn(),
+  confirm: vi.fn()
+}))
+
+vi.mock('@/runtime/runtime-skills-client', () => ({
+  runtimeTargetSupportsSkillDelete: () => Promise.resolve(true),
+  previewSkillDeletionOnRuntimeTarget: (...args: unknown[]) => mocks.preview(...args),
+  deleteSkillsOnRuntimeTarget: (...args: unknown[]) => mocks.remove(...args)
+}))
+vi.mock('@/components/confirmation-dialog-context', () => ({
+  useConfirmationDialog: () => mocks.confirm
 }))
 
 vi.mock('@/runtime/runtime-bot-team-client', () => ({
@@ -95,6 +111,7 @@ const POOL_SKILL: MarketplaceSkillPageSkill = {
   installed: false,
   agentIds: ['shared'],
   installLink: 'https://app.orca.dev/skills/share/abc',
+  folders: [],
   origin: {
     kind: 'pool',
     name: 'MassOrca skills pool',
@@ -210,10 +227,10 @@ describe('MarketplaceSkillPage', () => {
     expect(store.getState().marketplaceHostKey).toBe('runtime:env-1')
   })
 
-  it('leaves out the host dropdown when there is no other host to pick', async () => {
+  it('keeps the host dropdown when This computer is the only host', async () => {
     mocks.targets = []
     const page = await renderPage()
-    expect(hostTrigger(page)).toBeNull()
+    expect(hostTrigger(page)).not.toBeNull()
   })
 
   it('heads a skill that is not installed and opens the install flow on its link', async () => {
@@ -429,7 +446,7 @@ describe('MarketplaceSkillPage with a remote host picked', () => {
     const page = await renderOn('runtime:env-1', 'VPS', {
       ...POOL_SKILL,
       installed: true,
-      folder: 'browser-use',
+      folders: ['browser-use'],
       agentIds: ['codex']
     })
     await act(async () => buttonIn(section('agents'), 'Claude Code').click())
@@ -449,5 +466,212 @@ describe('MarketplaceSkillPage with a remote host picked', () => {
     await renderOn('runtime:env-1', 'VPS', POOL_SKILL, onRescan)
     window.dispatchEvent(new Event(INSTALLED_AGENT_SKILLS_CHANGED_EVENT))
     expect(onRescan).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('MarketplaceSkillPage for a skill already installed', () => {
+  const UBUNTU: MarketplaceVaultHostTarget = { kind: 'wsl', distro: 'Ubuntu', label: 'WSL: Ubuntu' }
+  const LOCAL_INSTALL = {
+    name: 'browser-use',
+    packageId: 'pkg-1',
+    versionId: 'v1',
+    packageDigest: 'a'.repeat(64),
+    scope: 'global',
+    destinationIdentity: 'global:local',
+    destination: { scope: 'global' },
+    installedAt: '2026-11-01T00:00:00.000Z',
+    state: 'unchanged'
+  }
+  const INSTALLED: MarketplaceSkillPageSkill = {
+    ...POOL_SKILL,
+    installed: true,
+    agentIds: ['codex'],
+    folders: ['browser-use']
+  }
+
+  function copyOf(
+    id: string,
+    sourceLabel: string,
+    root: string,
+    installed = true
+  ): DiscoveredSkill {
+    return {
+      id,
+      name: 'browser-use',
+      description: 'Opens pages.',
+      providers: ['agent-skills'],
+      sourceKind: 'home',
+      sourceLabel,
+      rootPath: root,
+      directoryPath: `${root}/browser-use`,
+      skillFilePath: `${root}/browser-use/SKILL.md`,
+      installed,
+      updatedAt: null
+    }
+  }
+
+  const CLAUDE_COPY = copyOf('copy-claude', 'Claude home', '/home/dev/.claude/skills')
+  const CODEX_COPY = copyOf('copy-codex', 'Codex home', '/home/dev/.codex/skills', false)
+
+  function stubBridge(installs: unknown[]): {
+    installPackageVersion: Mock
+    listManagedInstalls: Mock
+  } {
+    const installPackageVersion = vi.fn().mockResolvedValue({
+      status: 'ok',
+      value: { operationId: 'op', status: 'installed', name: 'browser-use', placements: [] }
+    })
+    const listManagedInstalls = vi.fn().mockResolvedValue({ status: 'ok', value: installs })
+    Object.defineProperty(window, 'api', {
+      configurable: true,
+      value: { skills: { installPackageVersion, listManagedInstalls } }
+    })
+    return { installPackageVersion, listManagedInstalls }
+  }
+
+  async function renderSkill(props: {
+    skill?: MarketplaceSkillPageSkill
+    copies?: DiscoveredSkill[]
+    hostName?: string
+    focusedRuntime?: { kind: 'local' } | null
+    onBack?: () => void
+    onRescan?: () => void
+  }): Promise<HTMLDivElement> {
+    container = document.createElement('div')
+    document.body.appendChild(container)
+    root = createRoot(container)
+    await act(async () => {
+      root?.render(
+        <TooltipProvider>
+          <MarketplaceSkillPage
+            skill={props.skill ?? INSTALLED}
+            copies={props.copies}
+            hostName={props.hostName}
+            focusedRuntime={props.focusedRuntime ?? null}
+            onBack={props.onBack ?? vi.fn()}
+            onRescan={props.onRescan}
+          />
+        </TooltipProvider>
+      )
+    })
+    await act(async () => {})
+    await act(async () => {})
+    return container
+  }
+
+  beforeEach(() => {
+    mocks.preview.mockReset()
+    mocks.remove.mockReset()
+    mocks.confirm.mockResolvedValue(true)
+  })
+
+  afterEach(() => {
+    mocks.targets = [VPS]
+    Reflect.deleteProperty(window, 'api')
+  })
+
+  it('lists every copy of the skill, each with the folder it sits in', async () => {
+    await renderSkill({ copies: [CLAUDE_COPY, CODEX_COPY] })
+    expect(section('copies').textContent).toContain('Claude home')
+    expect(section('copies').textContent).toContain('/home/dev/.claude/skills/browser-use')
+    expect(section('copies').textContent).toContain('/home/dev/.codex/skills/browser-use')
+  })
+
+  it('changes the agents of an installed skill through its Marketplace install', async () => {
+    const bridge = stubBridge([LOCAL_INSTALL])
+    await renderSkill({ copies: [CODEX_COPY] })
+    await act(async () => buttonIn(section('agents'), 'Claude Code').click())
+    expect(bridge.installPackageVersion).toHaveBeenCalledWith({
+      packageId: 'pkg-1',
+      versionId: 'v1',
+      providers: expect.arrayContaining(['codex', 'claude']),
+      destination: { scope: 'global' }
+    })
+    expect(pressedLabels(section('agents'))).toEqual(['Codex', 'Claude Code'])
+  })
+
+  it('locks the switches of an installed copy that MassOrca did not install, and says why', async () => {
+    const bridge = stubBridge([])
+    await renderSkill({ copies: [CLAUDE_COPY] })
+    expect(section('agents').textContent).toContain(
+      'MassOrca did not install this copy, so its agents cannot be changed here.'
+    )
+    expect(buttonIn(section('agents'), 'Claude Code').disabled).toBe(true)
+    expect(buttonIn(section('agents'), 'Codex').disabled).toBe(true)
+    expect(bridge.installPackageVersion).not.toHaveBeenCalled()
+  })
+
+  it('keeps the last agent that reads an installed skill switched on', async () => {
+    stubBridge([LOCAL_INSTALL])
+    await renderSkill({ copies: [CODEX_COPY] })
+    expect(buttonIn(section('agents'), 'Codex').disabled).toBe(true)
+    expect(buttonIn(section('agents'), 'Claude Code').disabled).toBe(false)
+  })
+
+  it('removes every copy from the Danger zone through the delete API, then rescans the list', async () => {
+    mocks.preview.mockResolvedValue({
+      operationId: 'op-1',
+      skills: [
+        {
+          id: 'copy-claude',
+          name: 'browser-use',
+          canonicalPath: CLAUDE_COPY.skillFilePath,
+          placements: []
+        },
+        {
+          id: 'copy-codex',
+          name: 'browser-use',
+          canonicalPath: CODEX_COPY.skillFilePath,
+          placements: []
+        }
+      ]
+    })
+    mocks.remove.mockResolvedValue({
+      operationId: 'op-1',
+      skills: [
+        { id: 'copy-claude', name: 'browser-use', status: 'deleted', removedPaths: [] },
+        { id: 'copy-codex', name: 'browser-use', status: 'deleted', removedPaths: [] }
+      ]
+    })
+    const onBack = vi.fn()
+    const onRescan = vi.fn()
+    const page = await renderSkill({
+      copies: [CLAUDE_COPY, CODEX_COPY],
+      focusedRuntime: { kind: 'local' },
+      onBack,
+      onRescan
+    })
+    expect(page.textContent).toContain('Danger zone')
+    await act(async () => buttonIn(page, 'Remove from This computer').click())
+    await act(async () => {})
+    expect(mocks.remove).toHaveBeenCalledWith(
+      { kind: 'local' },
+      expect.objectContaining({
+        skills: [
+          expect.objectContaining({ id: 'copy-claude' }),
+          expect.objectContaining({ id: 'copy-codex' })
+        ]
+      })
+    )
+    expect(onBack).toHaveBeenCalledTimes(1)
+    expect(onRescan).toHaveBeenCalled()
+  })
+
+  it('keeps Remove unavailable on a WSL distro, and says why', async () => {
+    mocks.targets = [UBUNTU]
+    seedStore(store, { marketplaceHostKey: 'wsl:Ubuntu' })
+    const page = await renderSkill({
+      copies: [CLAUDE_COPY],
+      hostName: 'WSL: Ubuntu',
+      focusedRuntime: { kind: 'local' }
+    })
+    expect(page.textContent).toContain('Removing skills on WSL is not available yet.')
+    expect(page.textContent).not.toContain('Remove from WSL: Ubuntu')
+    expect(mocks.remove).not.toHaveBeenCalled()
+  })
+
+  it('offers no Remove for a skill that is not installed', async () => {
+    const page = await renderSkill({ skill: POOL_SKILL })
+    expect(page.textContent).not.toContain('Danger zone')
   })
 })

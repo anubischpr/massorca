@@ -167,8 +167,8 @@ describe('the installed skills the Marketplace lists', () => {
     const skills = readySkills()
     expect(skills.find((entry) => entry.name === 'calendar')?.source).toBe('marketplace')
     expect(skills.find((entry) => entry.name === 'sdd-init')?.source).toBeUndefined()
-    expect(listedSkillNames(skills)).toContain('calendar')
-    expect(listedSkillNames(skills)).not.toContain('sdd-init')
+    expect(listedSkillNames(skills)).toContain('Calendar')
+    expect(listedSkillNames(skills)).not.toContain('Sdd init')
   })
 
   it('keeps a skill that no managed install names hidden', async () => {
@@ -178,7 +178,7 @@ describe('the installed skills the Marketplace lists', () => {
 
     const skills = readySkills()
     expect(skills[0]?.source).toBeUndefined()
-    expect(listedSkillNames(skills)).not.toContain('calendar')
+    expect(listedSkillNames(skills)).not.toContain('Calendar')
   })
 
   it('reads the managed installs for the same environment the scan reads', async () => {
@@ -200,7 +200,7 @@ describe('the installed skills the Marketplace lists', () => {
 
     expect(latest.status).toBe('ready')
     expect(readySkills()[0]?.source).toBeUndefined()
-    expect(listedSkillNames(readySkills())).not.toContain('calendar')
+    expect(listedSkillNames(readySkills())).not.toContain('Calendar')
     warn.mockRestore()
   })
 
@@ -213,7 +213,7 @@ describe('the installed skills the Marketplace lists', () => {
     await mount()
 
     expect(readySkills()[0]?.source).toBeUndefined()
-    expect(listedSkillNames(readySkills())).not.toContain('calendar')
+    expect(listedSkillNames(readySkills())).not.toContain('Calendar')
   })
 
   it('keeps the skills hidden, without a crash, when this client has no managed-install bridge', async () => {

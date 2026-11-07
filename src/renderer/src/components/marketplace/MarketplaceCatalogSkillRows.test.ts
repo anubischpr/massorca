@@ -21,7 +21,7 @@ vi.mock('@/lib/agent-catalog', () => ({
 vi.mock('@/lib/pi-agent-display', () => ({ piRuntimeLabel: () => 'Gentle Shell' }))
 
 const BOARD_SKILLS = ['Browser use', 'Computer use', 'Linear', 'Orchestration', 'Price check']
-const COMMANDS = ['/prototype', 'orca orchestration delegate']
+const COMMANDS = ['Prototype', 'Orca orchestration delegate']
 const BUILT_IN_STATUS = { kind: 'done', label: 'Built-in' } as const
 
 function integrationStates(): MarketplaceIntegrationStates {
@@ -133,8 +133,8 @@ describe('the Skills section lists only what the person added or MassOrca ships'
       skills: { kind: 'ready', value: [addedFromMarketplace('calendar'), skill('sdd-init')] },
       custom: { kind: 'ready', items: [customSkill('team', 'Team skill')] }
     })
-    expect(namesOf(rows)).toEqual(['calendar', 'Team skill', ...BOARD_SKILLS, ...COMMANDS])
-    expect(rows.find((row) => row.name === 'calendar')).toMatchObject({
+    expect(namesOf(rows)).toEqual(['Calendar', 'Team skill', ...BOARD_SKILLS, ...COMMANDS])
+    expect(rows.find((row) => row.name === 'Calendar')).toMatchObject({
       status: { kind: 'done', label: 'Installed' },
       owned: true,
       target: { kind: 'skill' }
@@ -143,14 +143,14 @@ describe('the Skills section lists only what the person added or MassOrca ships'
       status: { kind: 'done', label: 'Installed' },
       owned: true,
       customId: 'team',
-      target: null
+      target: { kind: 'custom-skill' }
     })
   })
 
   it('shows a board skill the disk has as its discovered row, and the other board skills as Install', () => {
     const rows = skillRowsOf({ skills: { kind: 'ready', value: [skill('browser-use')] } })
     expect(namesOf(rows)).toEqual([
-      'browser-use',
+      'Browser use',
       'Computer use',
       'Linear',
       'Orchestration',
@@ -179,28 +179,31 @@ describe('the Skills section lists only what the person added or MassOrca ships'
     const rows = skillRowsOf({
       skills: { kind: 'ready', value: [claudeCopy, skill('computer-use')] }
     })
-    expect(namesOf(rows).filter((name) => name === 'computer-use')).toHaveLength(1)
+    expect(namesOf(rows).filter((name) => name === 'Computer use')).toHaveLength(1)
     expect(rows[0]).toMatchObject({
-      name: 'computer-use',
+      name: 'Computer use',
       status: { kind: 'done', label: 'Installed' }
     })
-    expect(namesOf(rows)).not.toContain('Computer use')
   })
 
-  it('shows the built-in commands as Built-in, with no install action and no page of their own', () => {
+  it('opens each built-in command on its own page, as Built-in, with no install action', () => {
     const rows = skillRowsOf({})
-    for (const name of COMMANDS) {
-      expect(rows.find((row) => row.name === name)).toMatchObject({
-        section: 'skills',
-        status: BUILT_IN_STATUS,
-        target: null,
-        customId: null
-      })
-    }
-    expect(rows.find((row) => row.name === '/prototype')?.description).toBe(
+    expect(rows.find((row) => row.name === 'Prototype')).toMatchObject({
+      section: 'skills',
+      status: BUILT_IN_STATUS,
+      target: { kind: 'built-in', id: 'prototype' },
+      owned: false,
+      customId: null
+    })
+    expect(rows.find((row) => row.name === 'Orca orchestration delegate')).toMatchObject({
+      status: BUILT_IN_STATUS,
+      target: { kind: 'built-in', id: 'orchestration-delegate' },
+      owned: false
+    })
+    expect(rows.find((row) => row.name === 'Prototype')?.description).toBe(
       'Make HTML prototypes of an idea'
     )
-    expect(rows.find((row) => row.name === 'orca orchestration delegate')?.description).toBe(
+    expect(rows.find((row) => row.name === 'Orca orchestration delegate')?.description).toBe(
       'Ask which agent should run a child session of this chat'
     )
   })
@@ -208,6 +211,13 @@ describe('the Skills section lists only what the person added or MassOrca ships'
   it('keeps the commands listed while the host skills are still being checked', () => {
     const rows = skillRowsOf({ skills: { kind: 'loading' } })
     expect(namesOf(rows).slice(-COMMANDS.length)).toEqual(COMMANDS)
+  })
+
+  it('shows a skill folder name as readable words', () => {
+    const rows = skillRowsOf({
+      skills: { kind: 'ready', value: [addedFromMarketplace('my-skill_v2')] }
+    })
+    expect(rows.find((row) => row.target?.kind === 'skill')?.name).toBe('My skill v2')
   })
 
   it('keeps Your apps to the same skills the Skills section lists as installed', () => {
@@ -227,6 +237,6 @@ describe('the Skills section lists only what the person added or MassOrca ships'
         })
       )
     )
-    expect(namesOf(owned)).toEqual(['calendar', 'Team skill'])
+    expect(namesOf(owned)).toEqual(['Calendar', 'Team skill'])
   })
 })

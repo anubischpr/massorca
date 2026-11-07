@@ -13,6 +13,8 @@ import {
 import { readHostedPullRequestTemplate } from '../source-control/pull-request-template'
 import {
   azureDevOpsApiVersionForOrigin,
+  azureDevOpsTokenConfigured,
+  getAzureDevOpsAuthConfig,
   isAzureDevOpsPreviewVersionRejection,
   markAzureDevOpsPreviewApiVersionOrigin,
   resolveAzureDevOpsGitApiBaseUrl
@@ -23,28 +25,10 @@ import { getAzureDevOpsRepoRef, type AzureDevOpsRepoRef } from './repository-ref
 
 const CREATE_REQUEST_TIMEOUT_MS = 60_000
 
-type AzureDevOpsCreateAuthConfig = {
-  pat: string | null
-  accessToken: string | null
-  username: string | null
-}
-
-function envValue(name: string): string | null {
-  const value = process.env[name]?.trim() ?? ''
-  return value.length > 0 ? value : null
-}
-
-function getAuthConfig(): AzureDevOpsCreateAuthConfig {
-  return {
-    pat: envValue('ORCA_AZURE_DEVOPS_TOKEN') ?? envValue('ORCA_AZURE_DEVOPS_PAT'),
-    accessToken: envValue('ORCA_AZURE_DEVOPS_ACCESS_TOKEN'),
-    username: envValue('ORCA_AZURE_DEVOPS_USERNAME')
-  }
-}
+type AzureDevOpsCreateAuthConfig = ReturnType<typeof getAzureDevOpsAuthConfig>
 
 export function isAzureDevOpsReviewCreationAuthenticated(): boolean {
-  const config = getAuthConfig()
-  return Boolean(config.pat || config.accessToken)
+  return azureDevOpsTokenConfigured(getAzureDevOpsAuthConfig())
 }
 
 function authHeaders(config: AzureDevOpsCreateAuthConfig): Record<string, string> {
@@ -232,7 +216,7 @@ export async function createAzureDevOpsPullRequest(
         headers: {
           Accept: 'application/json',
           'Content-Type': 'application/json',
-          ...authHeaders(getAuthConfig())
+          ...authHeaders(getAzureDevOpsAuthConfig())
         },
         body: JSON.stringify(requestBody)
       }

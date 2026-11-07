@@ -9,31 +9,31 @@ import {
   getRuntimeEnvironmentStatus,
   resetSharedControlSupport
 } from './runtime-environment-transport-routing'
+import {
+  createRendererHostStatusSender,
+  setRuntimeHostStatusSender
+} from './runtime-environment-status-owner'
 
 const { request, publish } = vi.hoisted(() => ({ request: vi.fn(), publish: vi.fn() }))
 vi.mock('../../shared/remote-runtime-client', () => ({
   sendRemoteRuntimeRequest: request,
   subscribeRemoteRuntimeRequest: vi.fn()
 }))
-vi.mock('electron', () => ({
-  BrowserWindow: {
-    getAllWindows: () => [
-      {
-        isDestroyed: () => false,
-        webContents: { send: publish }
-      }
-    ]
-  }
-}))
-
 let profile: string
 beforeEach(() => {
   vi.useFakeTimers()
   request.mockReset()
   publish.mockReset()
+  // Why: the desktop installs this sender at IPC registration, which this test skips.
+  setRuntimeHostStatusSender(
+    createRendererHostStatusSender(() => [
+      { isDestroyed: () => false, webContents: { send: publish } }
+    ])
+  )
   profile = mkdtempSync(join(tmpdir(), 'orca-status-recovery-'))
 })
 afterEach(() => {
+  setRuntimeHostStatusSender(() => undefined)
   resetSharedControlSupport()
   vi.useRealTimers()
   rmSync(profile, { recursive: true, force: true })
