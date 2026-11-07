@@ -1,5 +1,10 @@
 import type { CommandSpec } from '../args'
 import { ACCOUNT_COMMAND_SPECS } from './account'
+import { ACCOUNT_USAGE_COMMAND_SPECS } from './account-usage'
+import { BOT_TEAMS_COMMAND_SPECS } from './bot-teams'
+import { FOLDER_WORKSPACE_COMMAND_SPECS } from './folder-workspace'
+import { JEV_COMMAND_SPECS } from './jev'
+import { PROTOTYPES_COMMAND_SPECS } from './prototypes'
 import { BROWSER_ADVANCED_COMMAND_SPECS } from './browser-advanced'
 import { BROWSER_BASIC_COMMAND_SPECS } from './browser-basic'
 import { AUTOMATION_COMMAND_SPECS } from './automations'
@@ -15,6 +20,7 @@ import { DIAGNOSTICS_COMMAND_SPECS } from './diagnostics'
 import { EMULATOR_COMMAND_SPECS } from './emulator'
 import { INTROSPECTION_COMMAND_SPECS } from './introspection'
 import { LINEAR_COMMAND_SPECS } from './linear'
+import { MARKETPLACE_COMMAND_SPECS, MARKETPLACE_SERVICE_COMMAND_SPECS } from './marketplace'
 import { VM_COMMAND_SPECS } from './vm'
 import { SKILL_COMMAND_SPECS } from './skills'
 import { ARTIFACT_COMMAND_SPECS } from './artifacts'
@@ -25,6 +31,8 @@ export const COMMAND_SPECS: CommandSpec[] = [
   ...CORE_COMMAND_SPECS,
   ...ARTIFACT_COMMAND_SPECS,
   ...ACCOUNT_COMMAND_SPECS,
+  ...MARKETPLACE_COMMAND_SPECS,
+  ...MARKETPLACE_SERVICE_COMMAND_SPECS,
   ...PROJECT_COMMAND_SPECS,
   ...FILE_COMMAND_SPECS,
   ...AUTOMATION_COMMAND_SPECS,
@@ -42,5 +50,10 @@ export const COMMAND_SPECS: CommandSpec[] = [
   ...EMULATOR_COMMAND_SPECS,
   ...SKILL_COMMAND_SPECS,
   ...SEARCH_COMMAND_SPECS,
-  ...PROFILE_STATE_COMMAND_SPECS
+  ...PROFILE_STATE_COMMAND_SPECS,
+  ...ACCOUNT_USAGE_COMMAND_SPECS,
+  ...BOT_TEAMS_COMMAND_SPECS,
+  ...FOLDER_WORKSPACE_COMMAND_SPECS,
+  ...JEV_COMMAND_SPECS,
+  ...PROTOTYPES_COMMAND_SPECS
 ]
