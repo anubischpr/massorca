@@ -8,10 +8,17 @@ import type { MarketplaceInstalledSkills } from '../marketplace/MarketplaceCatal
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true
 
-const mocks = vi.hoisted((): { detected: string[] | null; skills: MarketplaceInstalledSkills } => ({
-  detected: [],
-  skills: { status: 'loading' }
-}))
+const mocks = vi.hoisted(
+  (): {
+    detected: string[] | null
+    skills: MarketplaceInstalledSkills
+    requestOpen: (row: unknown) => void
+  } => ({
+    detected: [],
+    skills: { status: 'loading' },
+    requestOpen: () => undefined
+  })
+)
 
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 vi.mock('react-i18next', () => ({ useTranslation: () => ({}) }))
@@ -59,6 +66,9 @@ vi.mock('@/runtime/runtime-skills-client', () => ({
 }))
 vi.mock('../marketplace/MarketplaceCatalogSkills', () => ({
   useMarketplaceInstalledSkills: () => mocks.skills
+}))
+vi.mock('../marketplace/marketplace-skill-open-request', () => ({
+  requestSkillRowOpen: (row: unknown) => mocks.requestOpen(row)
 }))
 vi.mock('./SidebarSearchRow', () => ({
   SidebarSearchRow: () => <button type="button">Search</button>
@@ -214,13 +224,22 @@ describe('the Marketplace sidebar', () => {
     expect(store.getState().marketplaceSection).toBe('agents')
   })
 
-  it('a skill click opens the Skills section inside the Marketplace, not the Skills page', async () => {
+  it('a skill click opens that skill on its own page inside the Marketplace', async () => {
     mocks.skills = { status: 'ready', skills: [installedSkill('alpha')] }
+    const requestOpen = vi.fn()
+    mocks.requestOpen = requestOpen
     const container = await mount()
-    expect(rowLabels(container)).toContain('alpha')
-    await clickRow(container, 'alpha')
+    expect(rowLabels(container)).toContain('Alpha')
+    await clickRow(container, 'Alpha')
     expect(store.getState().marketplaceSection).toBe('skills')
     expect(store.getState().activeView).toBe('marketplace')
+    expect(requestOpen).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: 'Alpha',
+        section: 'skills',
+        target: { kind: 'skill', skill: installedSkill('alpha') }
+      })
+    )
   })
 
   it('without the desktop bridge, Engram is not listed as installed', async () => {

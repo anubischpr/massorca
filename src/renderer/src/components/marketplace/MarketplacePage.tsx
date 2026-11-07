@@ -3,7 +3,6 @@ import { toast } from 'sonner'
 import { useActiveSkillDiscoveryRuntimeTarget } from '@/hooks/use-active-skill-discovery-runtime-target'
 import { translate } from '@/i18n/i18n'
 import { useAppStore } from '@/store'
-import type { DiscoveredSkill } from '../../../../shared/skills'
 import type { TuiAgent } from '../../../../shared/tui-agent'
 import { useIntegrationProviderStatusRefresh } from '../settings/use-integration-provider-status-refresh'
 import { skillAgentByRootPath } from '../skills/skill-agent-filter'
@@ -17,23 +16,28 @@ import type { CatalogRow } from './MarketplaceCatalogRows'
 import { MarketplaceDetail } from './MarketplaceDetail'
 import { MarketplaceHeader } from './MarketplaceHeader'
 import { MarketplaceIntegrationPage } from './MarketplaceIntegrationPage'
-import type { MarketplaceIntegrationId } from './marketplace-integrations'
+import { MarketplaceSkillBuiltInPage } from './MarketplaceSkillBuiltInPage'
 import { MarketplaceSkillPage } from './MarketplaceSkillPage'
 import {
-  marketplaceSkillFromDiscovered,
-  type MarketplaceSkillPageSkill
+  marketplaceSkillPageFromScan,
+  type MarketplaceSkillListing,
+  type MarketplaceSkillPageData
 } from './MarketplaceSkillPageModel'
 import { MarketplaceYourAppsPage } from './MarketplaceYourAppsPage'
+import { BUILT_IN_SKILL_COMMANDS, type BuiltInSkillCommand } from './marketplace-skill-built-in'
+import { clearSkillRowOpenRequest, useSkillRowOpenRequest } from './marketplace-skill-open-request'
 import { MARKETPLACE_CATALOG } from './marketplace-catalog'
 import { discoverSkillsForPickedHost } from './marketplace-skill-host-scan'
+import type { MarketplaceIntegrationId } from './marketplace-integrations'
 import { marketplaceHostKey } from './use-marketplace-host-targets'
 import { useMarketplaceAppHost } from './use-marketplace-app-host'
 
-/** A page a list opened: an agent, a Settings integration, or a skill with the copy its page reads. */
+/** A page a list opened: an agent, a Settings integration, a built-in command, or a skill with the copies its page reads. */
 type OpenPage =
   | { kind: 'agent'; agent: TuiAgent }
   | { kind: 'integration'; id: MarketplaceIntegrationId }
-  | { kind: 'skill'; skill: MarketplaceSkillPageSkill; listed: DiscoveredSkill }
+  | { kind: 'built-in'; command: BuiltInSkillCommand }
+  | { kind: 'skill'; listing: MarketplaceSkillListing; page: MarketplaceSkillPageData }
 
 function reportSkillOpenFailed(): void {
   toast.error(
@@ -87,10 +91,10 @@ export default function MarketplacePage(): React.JSX.Element {
   // Why: the Services rows read the Settings checks, which nothing else refreshes while Marketplace is open.
   useIntegrationProviderStatusRefresh()
 
-  // Why: the catalog keeps only the skill list, so the page takes one fresh scan for the agents that hold it.
+  // Why: the catalog keeps only the skill list, so the page takes one fresh scan for the copies it shows.
   // Why: a picked host's page scans that host; this computer keeps scanning the focused runtime.
-  const openSkill = useCallback(
-    (listed: DiscoveredSkill): void => {
+  const openSkillPage = useCallback(
+    (listing: MarketplaceSkillListing): void => {
       const scan = discoverSkillsForPickedHost(pickedTarget ?? null, skillTarget)
       if (scan === null) {
         if (pickedTarget !== undefined) {
@@ -101,14 +105,19 @@ export default function MarketplacePage(): React.JSX.Element {
       const request = ++openRequest.current
       void scan.then(
         (result) => {
-          const skill = result.skills.find((candidate) => candidate.id === listed.id)
-          if (request === openRequest.current && skill !== undefined) {
-            setOpenPage({
-              kind: 'skill',
-              listed,
-              skill: marketplaceSkillFromDiscovered(skill, skillAgentByRootPath(result))
-            })
+          if (request !== openRequest.current) {
+            return
           }
+          const page = marketplaceSkillPageFromScan(
+            listing,
+            result.skills,
+            skillAgentByRootPath(result)
+          )
+          if (page === null) {
+            reportSkillOpenFailed()
+            return
+          }
+          setOpenPage({ kind: 'skill', listing, page })
         },
         () => {
           if (request === openRequest.current) {
@@ -134,28 +143,47 @@ export default function MarketplacePage(): React.JSX.Element {
     const open = openPageRef.current
     if (open?.kind === 'skill') {
       setOpenPage(null)
-      openSkill(open.listed)
+      openSkillPage(open.listing)
     }
-  }, [host.selectedKey, openSkill])
+  }, [host.selectedKey, openSkillPage])
 
-  const openRow = (row: CatalogRow): void => {
-    const target = row.target
-    if (target === null) {
+  const openRow = useCallback(
+    (row: CatalogRow): void => {
+      const target = row.target
+      if (target === null) {
+        return
+      }
+      if (target.kind === 'skill') {
+        openSkillPage({ kind: 'discovered', skill: target.skill })
+        return
+      }
+      if (target.kind === 'custom-skill') {
+        openSkillPage({ kind: 'custom', item: target.item })
+        return
+      }
+      openRequest.current += 1
+      if (target.kind === 'item') {
+        selectItem(target.id)
+      } else if (target.kind === 'integration') {
+        setOpenPage({ kind: 'integration', id: target.id })
+      } else if (target.kind === 'built-in') {
+        setOpenPage({ kind: 'built-in', command: BUILT_IN_SKILL_COMMANDS[target.id] })
+      } else {
+        setOpenPage({ kind: 'agent', agent: target.agent })
+      }
+    },
+    [openSkillPage, selectItem]
+  )
+
+  // Why: the sidebar cannot scan skills itself, so it hands over the row it opened and the page opens it here.
+  const skillRowRequest = useSkillRowOpenRequest()
+  useEffect(() => {
+    if (skillRowRequest === null) {
       return
     }
-    if (target.kind === 'skill') {
-      openSkill(target.skill)
-      return
-    }
-    openRequest.current += 1
-    if (target.kind === 'item') {
-      selectItem(target.id)
-    } else if (target.kind === 'integration') {
-      setOpenPage({ kind: 'integration', id: target.id })
-    } else {
-      setOpenPage({ kind: 'agent', agent: target.agent })
-    }
-  }
+    clearSkillRowOpenRequest()
+    openRow(skillRowRequest.row)
+  }, [skillRowRequest, openRow])
 
   const onRowAction = (row: CatalogRow): void => {
     if (row.customId !== null && row.status.kind === 'action') {
@@ -165,7 +193,11 @@ export default function MarketplacePage(): React.JSX.Element {
     openRow(row)
   }
 
-  const closePage = (): void => setOpenPage(null)
+  // Why: a scan still in flight, such as the rescan a removal starts, must not reopen the page it left.
+  const closePage = (): void => {
+    openRequest.current += 1
+    setOpenPage(null)
+  }
 
   if (selectedItem !== undefined) {
     return (
@@ -190,12 +222,16 @@ export default function MarketplacePage(): React.JSX.Element {
           <MarketplaceAgentPage agentId={openPage.agent} onBack={closePage} />
         ) : openPage.kind === 'integration' ? (
           <MarketplaceIntegrationPage integration={openPage.id} onBack={closePage} />
+        ) : openPage.kind === 'built-in' ? (
+          <MarketplaceSkillBuiltInPage command={openPage.command} onBack={closePage} />
         ) : (
           <MarketplaceSkillPage
-            skill={openPage.skill}
+            skill={openPage.page.skill}
+            copies={openPage.page.copies}
             hostName={hostLabel}
+            focusedRuntime={skillTarget}
             onBack={closePage}
-            onRescan={() => openSkill(openPage.listed)}
+            onRescan={() => openSkillPage(openPage.listing)}
           />
         )}
       </PageFrame>

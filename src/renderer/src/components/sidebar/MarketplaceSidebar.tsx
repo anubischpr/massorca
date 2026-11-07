@@ -12,6 +12,7 @@ import type {
   MarketplaceCatalogFilter
 } from '../marketplace/MarketplaceCatalogRows'
 import { MarketplaceItemIcon } from '../marketplace/MarketplaceItemIcon'
+import { requestSkillRowOpen } from '../marketplace/marketplace-skill-open-request'
 import { SidebarRow } from './BotTeamsSidebarProjectsRow'
 import { SidebarSearchRow } from './SidebarSearchRow'
 
@@ -50,7 +51,13 @@ export function MarketplaceSidebar(): React.JSX.Element {
       selectItem(target.id)
       return
     }
-    // Why: an agent or a skill opens its section here; its page is opened from the list itself.
+    if (row.section === 'skills' && target !== null) {
+      // Why: the Marketplace page scans the skill and opens its own page in the Skills section.
+      showSection('skills')
+      requestSkillRowOpen(row)
+      return
+    }
+    // Why: an agent opens its section here; its page is opened from the list itself.
     showSection(row.section)
   }
 
