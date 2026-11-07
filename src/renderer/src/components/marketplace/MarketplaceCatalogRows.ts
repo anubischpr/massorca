@@ -19,13 +19,12 @@ import {
   installedLabel
 } from './MarketplaceCatalogStatusCopy'
 import {
-  boardSkillRows,
   cliRow,
-  normalizeSkillName,
   pendingStatus,
   unansweredStatus,
   unsetBoardRows
 } from './MarketplaceCatalogPlaceholders'
+import { skillRows } from './MarketplaceCatalogSkillRows'
 
 /** The sidebar's choice: every section, or one section. */
 export type MarketplaceCatalogFilter = 'all' | 'tools' | 'agents' | 'skills' | 'services'
@@ -267,30 +266,4 @@ function agentStatus(check: CatalogCheck<boolean>, host: string): ItemState {
   return check.value
     ? { status: { kind: 'found', label: foundLabel() }, owned: true }
     : { status: { kind: 'action', label: installLabel() }, owned: false }
-}
-
-function skillRows(inputs: CatalogBuildInputs): CatalogRow[] {
-  const { skills, hostLabel } = inputs
-  if (skills.kind !== 'ready') {
-    return boardSkillRows(new Set(), unansweredStatus(skills, hostLabel))
-  }
-  const listedNames = new Set(skills.value.map((skill) => normalizeSkillName(skill.name)))
-  return [...skills.value.map(skillRow), ...boardSkillRows(listedNames, null)]
-}
-
-function skillRow(skill: DiscoveredSkill): CatalogRow {
-  return {
-    key: `skill-${skill.id}`,
-    section: 'skills',
-    name: skill.name,
-    description: skill.description || skill.sourceLabel,
-    icon: { kind: 'skill' },
-    status: skill.installed
-      ? { kind: 'done', label: installedLabel() }
-      : { kind: 'action', label: installLabel() },
-    target: { kind: 'skill', skill },
-    owned: skill.installed,
-    service: false,
-    customId: null
-  }
 }

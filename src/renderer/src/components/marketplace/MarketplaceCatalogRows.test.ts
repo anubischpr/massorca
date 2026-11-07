@@ -32,6 +32,8 @@ vi.mock('@/lib/pi-agent-display', () => ({ piRuntimeLabel: () => 'Gentle Shell' 
 
 const PV_VPS = 'pv-vps'
 const BOARD_SKILL_NAMES = ['Browser use', 'Computer use', 'Linear', 'Orchestration', 'Price check']
+const COMMAND_NAMES = ['/prototype', 'orca orchestration delegate']
+const BUILT_IN_STATUS = { kind: 'done', label: 'Built-in' } as const
 const BOARD_AGENTS: readonly { id: TuiAgent; label: string }[] = [
   { id: 'claude', label: 'Claude Code' },
   { id: 'codex', label: 'Codex' },
@@ -123,6 +125,11 @@ function skill(name: string, installed = true): DiscoveredSkill {
     installed,
     updatedAt: null
   }
+}
+
+/** A skill the person added from the Marketplace, which the Skills section lists. */
+function addedSkill(name: string): DiscoveredSkill {
+  return { ...skill(name), source: 'marketplace' }
 }
 
 function custom(
@@ -266,7 +273,7 @@ describe('the board-only rows, the CLI rows and skill rows', () => {
   })
 
   it('opens a skill row with the skill it lists', () => {
-    const listed = skill('alpha')
+    const listed = addedSkill('alpha')
     const row = rowNamed(
       buildCatalogSections(inputs({ skills: { kind: 'ready', value: [listed] } })),
       'alpha'
@@ -376,7 +383,7 @@ describe('agents, skills and custom items on this computer', () => {
 
   it('lists the skills found, each as Installed with its source when it has no description', () => {
     const skills = sectionNamed(
-      buildCatalogSections(inputs({ skills: { kind: 'ready', value: [skill('alpha')] } })),
+      buildCatalogSections(inputs({ skills: { kind: 'ready', value: [addedSkill('alpha')] } })),
       'Skills'
     )
     const alpha = skills.rows.find((row) => row.name === 'alpha')
@@ -387,10 +394,15 @@ describe('agents, skills and custom items on this computer', () => {
 
   it('keeps the board skills listed when the scan finds none, each with Install', () => {
     const skills = sectionNamed(buildCatalogSections(inputs()), 'Skills')
-    expect(skills.rows.map((row) => row.name)).toEqual(BOARD_SKILL_NAMES)
+    expect(skills.rows.map((row) => row.name)).toEqual([...BOARD_SKILL_NAMES, ...COMMAND_NAMES])
     expect(
-      skills.rows.every((row) => row.status.kind === 'action' && row.status.label === 'Install')
+      skills.rows
+        .slice(0, BOARD_SKILL_NAMES.length)
+        .every((row) => row.status.kind === 'action' && row.status.label === 'Install')
     ).toBe(true)
+    expect(skills.rows.slice(BOARD_SKILL_NAMES.length).map((row) => row.status)).toEqual(
+      COMMAND_NAMES.map(() => BUILT_IN_STATUS)
+    )
     expect(skills.placeholder).toBeNull()
   })
 
@@ -550,10 +562,11 @@ describe('a picked remote host', () => {
         buildCatalogSections(inputs({ hostLabel: PV_VPS, skills })),
         'Skills'
       )
-      expect(section.rows.map((row) => row.name)).toEqual(BOARD_SKILL_NAMES)
-      expect(section.rows.map((row) => row.status)).toEqual(
-        BOARD_SKILL_NAMES.map(() => ({ kind: 'pending', label }))
-      )
+      expect(section.rows.map((row) => row.name)).toEqual([...BOARD_SKILL_NAMES, ...COMMAND_NAMES])
+      expect(section.rows.map((row) => row.status)).toEqual([
+        ...BOARD_SKILL_NAMES.map(() => ({ kind: 'pending', label })),
+        ...COMMAND_NAMES.map(() => BUILT_IN_STATUS)
+      ])
     }
   })
 
@@ -562,7 +575,7 @@ describe('a picked remote host', () => {
       buildCatalogSections(
         inputs({
           hostLabel: PV_VPS,
-          skills: { kind: 'ready', value: [skill('browser-use'), skill('alpha')] }
+          skills: { kind: 'ready', value: [skill('browser-use'), addedSkill('alpha')] }
         })
       ),
       'Skills'
@@ -573,7 +586,8 @@ describe('a picked remote host', () => {
       'Computer use',
       'Linear',
       'Orchestration',
-      'Price check'
+      'Price check',
+      ...COMMAND_NAMES
     ])
     expect(skills.rows[0]?.status).toEqual({ kind: 'done', label: 'Installed' })
     expect(skills.rows[2]?.status).toEqual({ kind: 'action', label: 'Install' })
@@ -613,7 +627,7 @@ describe('owned rows and search', () => {
     const sections = buildCatalogSections(
       inputs({
         badgeFor: badges({ git: 'installed', github: 'signed-in' }),
-        skills: { kind: 'ready', value: [skill('alpha')] }
+        skills: { kind: 'ready', value: [addedSkill('alpha')] }
       })
     )
     expect(ownedRows(sections).map((row) => row.name)).toEqual(['Git', 'Codex', 'alpha', 'GitHub'])

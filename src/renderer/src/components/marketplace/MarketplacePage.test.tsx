@@ -170,6 +170,11 @@ function skill(name: string): DiscoveredSkill {
   }
 }
 
+/** A skill the person added from the Marketplace, which the Skills section lists. */
+function addedSkill(name: string): DiscoveredSkill {
+  return { ...skill(name), source: 'marketplace' }
+}
+
 const connectedEngram: MarketplaceAppStatus = { id: 'engram', connected: true, agents: [] }
 const disconnectedOpenMetadata: MarketplaceAppStatus = {
   id: 'openmetadata',
@@ -335,7 +340,7 @@ describe('MarketplacePage', () => {
 
   it('lists the skills found on this computer, each as Installed', async () => {
     mocks.discover.mockResolvedValue({
-      skills: [skill('alpha'), skill('beta')],
+      skills: [addedSkill('alpha'), addedSkill('beta'), skill('sdd-init')],
       sources: [],
       scannedAt: 1
     })
@@ -349,7 +354,9 @@ describe('MarketplacePage', () => {
       'Computer use',
       'Linear',
       'Orchestration',
-      'Price check'
+      'Price check',
+      '/prototype',
+      'orca orchestration delegate'
     ])
     expect(statusOf(container, 'alpha')).toBe('Installed')
     expect(statusOf(container, 'Browser use')).toBe('Install')
@@ -365,7 +372,9 @@ describe('MarketplacePage', () => {
       'Computer use',
       'Linear',
       'Orchestration',
-      'Price check'
+      'Price check',
+      '/prototype',
+      'orca orchestration delegate'
     ])
     expect(container.textContent).not.toContain('No skills found')
   })
@@ -494,7 +503,7 @@ describe('MarketplacePage', () => {
   })
 
   it('opens a skill row on its own page inside the Marketplace, and Marketplace returns to the list', async () => {
-    mocks.discover.mockResolvedValue({ skills: [skill('alpha')], sources: [], scannedAt: 1 })
+    mocks.discover.mockResolvedValue({ skills: [addedSkill('alpha')], sources: [], scannedAt: 1 })
     const container = await renderPage()
     await flush()
 
