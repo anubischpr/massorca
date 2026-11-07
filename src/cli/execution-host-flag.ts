@@ -45,6 +45,23 @@ export function parseHostFlag(
   return parsed
 }
 
+const WSL_HOST_PREFIX = 'wsl:'
+
+// Why: a WSL distro is not an ExecutionHostId (it never owns rows or a runtime), so only commands
+// that act on a distro read it, here; every other `--host` consumer keeps going through
+// `parseHostFlag`, which still refuses it.
+export function parseWslHostFlag(flags: Map<string, string | boolean>): string | null {
+  const raw = flags.get('host')
+  if (typeof raw !== 'string' || !raw.startsWith(WSL_HOST_PREFIX)) {
+    return null
+  }
+  const distro = raw.slice(WSL_HOST_PREFIX.length).trim()
+  if (distro.length === 0) {
+    throw new RuntimeClientError('invalid_argument', 'Missing distro name in --host wsl:<distro>')
+  }
+  return distro
+}
+
 // Why: `runtime:<environment-id>` ids are minted by this machine's pairing store, so they
 // only name a machine relative to it. Filtering or mutating the locally connected runtime
 // with one answers for the wrong host, and an id that matches nothing is indistinguishable
@@ -53,6 +70,10 @@ export async function resolveHostFlagEnvironmentId(
   flags: Map<string, string | boolean>,
   selection: HostFlagRoutingSelection
 ): Promise<string | null> {
+  // A WSL distro lives on the connected runtime's machine, so it never retargets the connection.
+  if (parseWslHostFlag(flags) !== null) {
+    return null
+  }
   const host = parseHostFlag(flags)
   if (host?.kind !== 'runtime') {
     return null

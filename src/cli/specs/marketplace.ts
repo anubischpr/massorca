@@ -1,6 +1,12 @@
 import { GLOBAL_FLAGS, type CommandSpec } from '../args'
+import { SKILL_INSTALL_PROVIDERS } from '../../shared/skill-install-providers'
 
 const TOKEN_FLAGS = ['token', 'token-stdin', 'token-env']
+
+const SKILL_HOST_USAGE = '--host local|wsl:<distro>|ssh:<target-id>|runtime:<environment-id>'
+const SKILL_HOST_NOTE =
+  '--host picks the machine, as the desktop host picker does: local is this computer, wsl:<distro> a WSL distro on it, ssh:<target-id> an SSH host, runtime:<environment-id> a paired MassOrca server.'
+const SKILL_AGENT_IDS = SKILL_INSTALL_PROVIDERS.map((provider) => provider.id).join(', ')
 
 // Why: the Marketplace page is GUI-only otherwise; these let an agent on a headless host inspect
 // and repair app entries through the same host RPC methods the page calls.
@@ -79,16 +85,18 @@ export const MARKETPLACE_SERVICE_COMMAND_SPECS: CommandSpec[] = [
   },
   {
     path: ['marketplace', 'services', 'connect'],
-    summary: 'Connect Linear or Jira on this host with a token from stdin or an env var',
+    summary: 'Connect a service on this host with a token from stdin or an env var',
     usage:
-      'orca marketplace services connect <linear|jira> (--token-stdin | --token-env <NAME>) [--site <url>] [--email <address>] [--auth-type cloud|server] [--json]',
+      'orca marketplace services connect <gitlab|bitbucket|azure-devops|gitea|linear|jira> (--token-stdin | --token-env <NAME>) [--site <url>] [--email <address>] [--auth-type cloud|server] [--json]',
     allowedFlags: [...GLOBAL_FLAGS, 'service', 'site', 'email', 'auth-type', ...TOKEN_FLAGS],
     positionalArgs: ['service'],
     notes: [
       'Linear takes an API key. Jira needs --site, plus --email for Jira Cloud.',
-      'GitLab connects with `glab auth login` on the host. Bitbucket, Azure DevOps and Gitea have no host connect method yet; use Marketplace › Services in the desktop app.'
+      'GitLab, Bitbucket, Azure DevOps and Gitea store the token in the host’s Marketplace vault; --site sets a self-hosted server URL and --email is for Bitbucket.',
+      'A host that predates those methods gets the old route: `glab auth login` for GitLab, Marketplace › Services in the desktop app for the rest.'
     ],
     examples: [
+      'orca marketplace services connect gitea --site https://git.example.com --token-env GITEA_TOKEN',
       'orca marketplace services connect linear --token-env LINEAR_API_KEY',
       'printf %s "$JIRA_TOKEN" | orca marketplace services connect jira --site https://acme.atlassian.net --email me@acme.com --token-stdin'
     ]
@@ -96,28 +104,81 @@ export const MARKETPLACE_SERVICE_COMMAND_SPECS: CommandSpec[] = [
   {
     path: ['marketplace', 'services', 'disconnect'],
     destructive: true,
-    summary: 'Disconnect Linear or Jira on this host',
-    usage: 'orca marketplace services disconnect <linear|jira> [--json]',
+    summary: 'Disconnect a service on this host',
+    usage:
+      'orca marketplace services disconnect <bitbucket|azure-devops|gitea|linear|jira> [--json]',
+    notes: ['GitLab accounts belong to glab; sign out with `glab auth logout` on the host.'],
     allowedFlags: [...GLOBAL_FLAGS, 'service'],
     positionalArgs: ['service']
   },
   {
     path: ['marketplace', 'skills', 'list'],
-    summary: 'List Marketplace skills installed on this host and the agents that read them',
-    usage: 'orca marketplace skills list [--json]',
-    allowedFlags: [...GLOBAL_FLAGS],
-    notes: ['Lists global installs; WSL distros on this host are tagged.'],
-    examples: ['orca marketplace skills list']
+    summary: 'List Marketplace skills installed on a host and the agents that read them',
+    usage: `orca marketplace skills list [${SKILL_HOST_USAGE}] [--json]`,
+    allowedFlags: [...GLOBAL_FLAGS, 'host'],
+    notes: [
+      SKILL_HOST_NOTE,
+      'Without --host, lists every global install on the connected host, with WSL distros and SSH hosts tagged.'
+    ],
+    examples: [
+      'orca marketplace skills list',
+      'orca marketplace skills list --host wsl:Ubuntu --json'
+    ]
+  },
+  {
+    path: ['marketplace', 'skills', 'show'],
+    summary: "Show one skill's package, agents and the folders that hold it on a host",
+    usage: `orca marketplace skills show <name> [${SKILL_HOST_USAGE}] [--json]`,
+    allowedFlags: [...GLOBAL_FLAGS, 'host', 'name'],
+    positionalArgs: ['name'],
+    notes: [
+      SKILL_HOST_NOTE,
+      'Prints each folder and SKILL.md path on the host so an agent there can open and read it. SSH hosts have no folder listing yet, so only the package record shows.'
+    ],
+    examples: ['orca marketplace skills show caveman --json']
+  },
+  {
+    path: ['marketplace', 'skills', 'install'],
+    summary: 'Install a skill from a package file on a host, for chosen agents',
+    usage: `orca marketplace skills install --file <package.tar.gz> [--agents <id,id>|none] [--conflict replace-unmodified|replace-and-discard-local|cancel] [${SKILL_HOST_USAGE}] [--json]`,
+    allowedFlags: [...GLOBAL_FLAGS, 'host', 'file', 'agents', 'conflict'],
+    notes: [
+      SKILL_HOST_NOTE,
+      'The package file is read on this computer and sent to the host, so it works for a paired host too. The host checks its digest before placing anything.',
+      `--agents picks the agents that read the skill (${SKILL_AGENT_IDS}); leave it out for every detected agent, or pass none for the shared agents folder only.`,
+      'Installing a catalog skill by id needs a cloud download grant only the signed-in desktop app can request, and an SSH host takes only that kind of grant; use the Marketplace skill page for both.',
+      'Exits 1 when the host reports anything other than installed, updated or unchanged.'
+    ],
+    examples: [
+      'orca marketplace skills install --file ./caveman.tar.gz --agents claude,codex',
+      'orca marketplace skills install --file ./caveman.tar.gz --host wsl:Ubuntu --json'
+    ]
+  },
+  {
+    path: ['marketplace', 'skills', 'agents'],
+    summary: 'Turn agents on or off for an installed skill and show the copies left on the host',
+    usage: `orca marketplace skills agents <name> --agents <id,id>|none --file <package.tar.gz> [--conflict replace-unmodified|replace-and-discard-local|cancel] [${SKILL_HOST_USAGE}] [--json]`,
+    allowedFlags: [...GLOBAL_FLAGS, 'host', 'name', 'agents', 'file', 'conflict'],
+    positionalArgs: ['name'],
+    notes: [
+      SKILL_HOST_NOTE,
+      `--agents is the full list of agents that should read the skill (${SKILL_AGENT_IDS}); an agent left out loses its copy on that host.`,
+      '--file must be the same package and version that is installed: the host cannot re-place a skill from its own files yet, so this reinstalls the package with the new list.',
+      'Prints the placements the host changed and the folders that remain; exits 1 when the host did not record the new list.'
+    ],
+    examples: ['orca marketplace skills agents caveman --agents codex --file ./caveman.tar.gz']
   },
   {
     path: ['marketplace', 'skills', 'uninstall'],
     destructive: true,
-    summary: 'Remove a Marketplace skill installed globally on this host',
-    usage: 'orca marketplace skills uninstall <name> [--json]',
-    allowedFlags: [...GLOBAL_FLAGS, 'name'],
+    summary: 'Remove a Marketplace skill installed globally on a host',
+    usage: `orca marketplace skills uninstall <name> [--conflict replace-and-discard-local|cancel] [${SKILL_HOST_USAGE}] [--json]`,
+    allowedFlags: [...GLOBAL_FLAGS, 'host', 'name', 'conflict'],
     positionalArgs: ['name'],
     notes: [
-      'Installing a skill needs a download grant from the signed-in desktop app; use the Marketplace skill page for that.'
+      SKILL_HOST_NOTE,
+      'Without --host the skill is removed from the connected host, as before.',
+      'Exits 1 unless the host reports the skill removed; a locally edited copy is reported as a conflict until --conflict says what to do.'
     ]
   }
 ]

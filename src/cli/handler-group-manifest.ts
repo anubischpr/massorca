@@ -1,5 +1,6 @@
 import type { CommandHandler } from './dispatch'
 import { BROWSER_HANDLER_GROUPS } from './browser-handler-groups'
+import { MASSORCA_HANDLER_GROUPS } from './massorca-handler-groups'
 
 export type HandlerGroup = {
   name: string
@@ -19,30 +20,14 @@ export const HANDLER_GROUPS: readonly HandlerGroup[] = [
   },
   {
     name: 'account',
-    keys: ['account add', 'account list', 'account select', 'account rm'],
+    keys: [
+      'account add',
+      'account list',
+      'account select',
+      'account rm',
+      'account codex-reset-credit'
+    ],
     load: async () => (await import('./handlers/account.js')).ACCOUNT_HANDLERS
-  },
-  {
-    name: 'marketplace',
-    keys: [
-      'marketplace list',
-      'marketplace connect',
-      'marketplace disconnect',
-      'marketplace access'
-    ],
-    load: async () => (await import('./handlers/marketplace.js')).MARKETPLACE_HANDLERS
-  },
-  {
-    name: 'marketplace-services',
-    keys: [
-      'marketplace services list',
-      'marketplace services connect',
-      'marketplace services disconnect',
-      'marketplace skills list',
-      'marketplace skills uninstall'
-    ],
-    load: async () =>
-      (await import('./handlers/marketplace-services.js')).MARKETPLACE_SERVICE_HANDLERS
   },
   {
     name: 'artifacts',
@@ -312,29 +297,5 @@ export const HANDLER_GROUPS: readonly HandlerGroup[] = [
     keys: ['search'],
     load: async () => (await import('./handlers/search.js')).SEARCH_HANDLERS
   },
-  {
-    name: 'bot-teams',
-    keys: ['bot-teams list', 'bot-teams room', 'bot-teams routines'],
-    load: async () => (await import('./handlers/bot-teams.js')).BOT_TEAMS_HANDLERS
-  },
-  {
-    name: 'prototypes',
-    keys: ['prototypes list'],
-    load: async () => (await import('./handlers/prototypes.js')).PROTOTYPES_HANDLERS
-  },
-  {
-    name: 'jev',
-    keys: ['jev status'],
-    load: async () => (await import('./handlers/jev.js')).JEV_HANDLERS
-  },
-  {
-    name: 'account-usage',
-    keys: ['account usage'],
-    load: async () => (await import('./handlers/account-usage.js')).ACCOUNT_USAGE_HANDLERS
-  },
-  {
-    name: 'folder-workspace',
-    keys: ['folder-workspace list'],
-    load: async () => (await import('./handlers/folder-workspace.js')).FOLDER_WORKSPACE_HANDLERS
-  }
+  ...MASSORCA_HANDLER_GROUPS
 ]

@@ -2,6 +2,9 @@ import type { CommandSpec } from '../args'
 import { ACCOUNT_COMMAND_SPECS } from './account'
 import { ACCOUNT_USAGE_COMMAND_SPECS } from './account-usage'
 import { BOT_TEAMS_COMMAND_SPECS } from './bot-teams'
+import { BOT_TEAMS_PROJECT_COMMAND_SPECS } from './bot-teams-projects'
+import { BOT_TEAMS_ADMIN_COMMAND_SPECS } from './bot-teams-admin'
+import { BOT_TEAMS_ROUTINE_COMMAND_SPECS } from './bot-teams-routines'
 import { FOLDER_WORKSPACE_COMMAND_SPECS } from './folder-workspace'
 import { JEV_COMMAND_SPECS } from './jev'
 import { PROTOTYPES_COMMAND_SPECS } from './prototypes'
@@ -53,6 +56,9 @@ export const COMMAND_SPECS: CommandSpec[] = [
   ...PROFILE_STATE_COMMAND_SPECS,
   ...ACCOUNT_USAGE_COMMAND_SPECS,
   ...BOT_TEAMS_COMMAND_SPECS,
+  ...BOT_TEAMS_PROJECT_COMMAND_SPECS,
+  ...BOT_TEAMS_ADMIN_COMMAND_SPECS,
+  ...BOT_TEAMS_ROUTINE_COMMAND_SPECS,
   ...FOLDER_WORKSPACE_COMMAND_SPECS,
   ...JEV_COMMAND_SPECS,
   ...PROTOTYPES_COMMAND_SPECS

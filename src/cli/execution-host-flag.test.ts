@@ -23,7 +23,9 @@ import {
   assertEnvironmentSelectorResolvable,
   hostFilterMatchesHostId,
   parseHostFlag,
-  resolveHostFlagEnvironmentId
+  parseWslHostFlag,
+  resolveHostFlagEnvironmentId,
+  resolveHostFlagTarget
 } from './execution-host-flag'
 import { parseExecutionHostId } from '../shared/execution-host'
 
@@ -63,6 +65,40 @@ describe('parseHostFlag', () => {
       id: 'runtime:env-1',
       environmentId: 'env-1'
     })
+  })
+
+  it('still refuses a WSL distro, which only distro-aware commands read', () => {
+    expect(() => parseHostFlag(flags({ host: 'wsl:Ubuntu' }))).toThrow(
+      'Invalid --host value: wsl:Ubuntu'
+    )
+  })
+})
+
+describe('parseWslHostFlag', () => {
+  it('reads the distro name, and nothing for other host kinds', () => {
+    expect(parseWslHostFlag(flags({ host: 'wsl:Ubuntu-22.04' }))).toBe('Ubuntu-22.04')
+    expect(parseWslHostFlag(flags({ host: 'local' }))).toBeNull()
+    expect(parseWslHostFlag(flags({ host: 'ssh:box-1' }))).toBeNull()
+    expect(parseWslHostFlag(flags({}))).toBeNull()
+  })
+
+  it('rejects a wsl: host with no distro', () => {
+    expect(() => parseWslHostFlag(flags({ host: 'wsl:  ' }))).toThrow('Missing distro name')
+  })
+})
+
+describe('resolveHostFlagEnvironmentId with a WSL distro', () => {
+  it('keeps the current connection without reading the pairing store', async () => {
+    await expect(
+      resolveHostFlagEnvironmentId(flags({ host: 'wsl:Ubuntu' }), NO_SELECTION)
+    ).resolves.toBe(null)
+    expect(listEnvironmentsMock).not.toHaveBeenCalled()
+  })
+
+  it('keeps host-filter commands refusing it', async () => {
+    await expect(resolveHostFlagTarget(flags({ host: 'wsl:Ubuntu' }), {} as never)).rejects.toThrow(
+      'Invalid --host value: wsl:Ubuntu'
+    )
   })
 })
 

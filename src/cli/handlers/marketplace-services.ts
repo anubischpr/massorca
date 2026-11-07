@@ -1,13 +1,12 @@
-import { randomUUID } from 'node:crypto'
 import type { CommandHandler, HandlerContext } from '../dispatch'
 import { getOptionalStringFlag, getRequiredStringFlag } from '../flags'
 import { printResult } from '../format'
 import { RuntimeClientError } from '../runtime-client'
 import type { JiraConnectionStatus } from '../../shared/jira-types'
 import type { LinearConnectionStatus } from '../../shared/linear/workspace-types'
-import type { ManagedSkillInstall, SkillInstallResult } from '../../shared/skill-install-contract'
 import { callMarketplaceHost, callMarketplaceHostOptional } from './marketplace-host-call'
 import { readSecretInput } from './marketplace-secret-input'
+import { MARKETPLACE_SKILL_HANDLERS } from './marketplace-skills'
 
 const SERVICE_IDS = ['gitlab', 'bitbucket', 'azure-devops', 'gitea', 'linear', 'jira'] as const
 type ServiceId = (typeof SERVICE_IDS)[number]
@@ -20,8 +19,15 @@ export type MarketplaceServiceRow = {
   detail?: string
 }
 
-// Why: these have no host RPC to connect yet, so the CLI names the host-side route instead.
-const NO_HOST_CONNECT: Partial<Record<ServiceId, string>> = {
+const VAULT_SERVICES = ['gitlab', 'bitbucket', 'azure-devops', 'gitea'] as const
+type VaultServiceId = (typeof VAULT_SERVICES)[number]
+
+function isVaultService(id: ServiceId): id is VaultServiceId {
+  return VAULT_SERVICES.some((service) => service === id)
+}
+
+// Why: a host that predates `marketplace.service.*` still needs a way, so the CLI names that route.
+const NO_HOST_CONNECT: Record<VaultServiceId, string> = {
   gitlab: 'Run `glab auth login` on the host, then check `orca marketplace services list`.',
   bitbucket: 'Connect Bitbucket from Marketplace › Services in the desktop app for now.',
   'azure-devops': 'Connect Azure DevOps from Marketplace › Services in the desktop app for now.',
@@ -157,32 +163,46 @@ async function serviceRows(ctx: HandlerContext) {
   return { ...envelope, result: rows }
 }
 
+/** `marketplace.service.*` answers `{ok:false, reason, message?}`; only those fields reach the error. */
+function readVaultAnswer(result: unknown, action: string): void {
+  if (typeof result !== 'object' || result === null || !('ok' in result) || result.ok !== false) {
+    return
+  }
+  const reason = 'reason' in result && typeof result.reason === 'string' ? result.reason : 'failed'
+  const message = 'message' in result && typeof result.message === 'string' ? result.message : ''
+  throw new RuntimeClientError(
+    'runtime_error',
+    `The host could not ${action}: ${reason}${message ? ` (${message})` : ''}`
+  )
+}
+
+async function callVaultService(
+  ctx: HandlerContext,
+  id: VaultServiceId,
+  method: 'connect' | 'disconnect',
+  params: Record<string, unknown>
+): Promise<void> {
+  const answer = await callMarketplaceHostOptional(ctx, `marketplace.service.${method}`, params)
+  if (!answer) {
+    throw new RuntimeClientError('method_not_found', NO_HOST_CONNECT[id])
+  }
+  readVaultAnswer(answer.result, method)
+}
+
+async function printServiceRow(ctx: HandlerContext, id: ServiceId): Promise<void> {
+  const rows = await serviceRows(ctx)
+  printResult(
+    { ...rows, result: rows.result.filter((row) => row.id === id) },
+    ctx.json,
+    formatServiceRows
+  )
+}
+
 function readConnectAnswer(result: unknown): void {
   if (typeof result === 'object' && result !== null && 'ok' in result && result.ok === false) {
     const error = 'error' in result && typeof result.error === 'string' ? result.error : 'failed'
     throw new RuntimeClientError('runtime_error', `The host could not connect: ${error}`)
   }
-}
-
-function formatSkillInstalls(installs: readonly ManagedSkillInstall[]): string {
-  const global = installs.filter((install) => install.scope === 'global')
-  if (global.length === 0) {
-    return 'No Marketplace skills installed on this host.'
-  }
-  return global
-    .map((install) => {
-      const where =
-        install.destination.scope === 'global' ? install.destination.executionTarget : undefined
-      const target =
-        where && where.kind !== 'host'
-          ? ` [${where.kind}${where.kind === 'wsl' ? ` ${where.distro}` : ''}]`
-          : ''
-      const agents = install.providers?.length
-        ? install.providers.join(', ')
-        : 'every detected agent'
-      return `${install.name}${target}: ${install.state}; agents: ${agents}`
-    })
-    .join('\n')
 }
 
 export const MARKETPLACE_SERVICE_HANDLERS: Record<string, CommandHandler> = {
@@ -191,16 +211,24 @@ export const MARKETPLACE_SERVICE_HANDLERS: Record<string, CommandHandler> = {
   },
   'marketplace services connect': async (ctx) => {
     const id = readServiceId(ctx)
-    const hint = NO_HOST_CONNECT[id]
-    if (hint) {
-      throw new RuntimeClientError('invalid_argument', hint)
-    }
     const token = await readSecretInput(ctx.flags, 'token')
     if (token === undefined) {
       throw new RuntimeClientError(
         'invalid_argument',
-        `${id === 'linear' ? 'Linear' : 'Jira'} needs a token: --token-stdin or --token-env <NAME>.`
+        `${id} needs a token: --token-stdin or --token-env <NAME>.`
       )
+    }
+    if (isVaultService(id)) {
+      const baseUrl = getOptionalStringFlag(ctx.flags, 'site')
+      const email = getOptionalStringFlag(ctx.flags, 'email')
+      await callVaultService(ctx, id, 'connect', {
+        service: id,
+        token,
+        ...(baseUrl ? { baseUrl } : {}),
+        ...(email ? { email } : {})
+      })
+      await printServiceRow(ctx, id)
+      return
     }
     const params =
       id === 'linear'
@@ -212,44 +240,14 @@ export const MARKETPLACE_SERVICE_HANDLERS: Record<string, CommandHandler> = {
             authType: getOptionalStringFlag(ctx.flags, 'auth-type')
           }
     readConnectAnswer((await callMarketplaceHost(ctx, `${id}.connect`, params)).result)
-    const rows = await serviceRows(ctx)
-    printResult(
-      { ...rows, result: rows.result.filter((row) => row.id === id) },
-      ctx.json,
-      formatServiceRows
-    )
+    await printServiceRow(ctx, id)
   },
   'marketplace services disconnect': async (ctx) => {
     const id = readServiceId(ctx)
-    if (id !== 'linear' && id !== 'jira') {
-      throw new RuntimeClientError('invalid_argument', NO_HOST_CONNECT[id] ?? 'Not supported.')
-    }
-    await callMarketplaceHost(ctx, `${id}.disconnect`, {})
-    const rows = await serviceRows(ctx)
-    printResult(
-      { ...rows, result: rows.result.filter((row) => row.id === id) },
-      ctx.json,
-      formatServiceRows
-    )
+    await (isVaultService(id)
+      ? callVaultService(ctx, id, 'disconnect', { service: id })
+      : callMarketplaceHost(ctx, `${id}.disconnect`, {}))
+    await printServiceRow(ctx, id)
   },
-  'marketplace skills list': async (ctx) => {
-    const response = await callMarketplaceHost<ManagedSkillInstall[]>(
-      ctx,
-      'skills.listManagedInstalls'
-    )
-    const installs = Array.isArray(response.result) ? response.result : []
-    printResult({ ...response, result: installs }, ctx.json, formatSkillInstalls)
-  },
-  'marketplace skills uninstall': async (ctx) => {
-    const name = getRequiredStringFlag(ctx.flags, 'name')
-    const response = await callMarketplaceHost<SkillInstallResult>(ctx, 'skills.removeInstall', {
-      operationId: randomUUID(),
-      name,
-      destination: { scope: 'global' }
-    })
-    if (response.result.status !== 'removed') {
-      process.exitCode = 1
-    }
-    printResult(response, ctx.json, (value) => `${value.name}: ${value.status}`)
-  }
+  ...MARKETPLACE_SKILL_HANDLERS
 }

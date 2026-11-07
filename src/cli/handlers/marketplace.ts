@@ -2,6 +2,7 @@ import type { CommandHandler, HandlerContext } from '../dispatch'
 import { getOptionalStringFlag, getRequiredStringFlag } from '../flags'
 import { printResult } from '../format'
 import { RuntimeClientError, type RuntimeRpcSuccess } from '../runtime-client'
+import { parseCommaList } from '../marketplace-comma-list'
 import {
   formatMarketplaceAccess,
   formatMarketplaceApp,
@@ -165,21 +166,16 @@ async function connectEngram(
 }
 
 function readAgentPicks(ctx: HandlerContext): MarketplaceAppAgent[] {
-  const list = getOptionalStringFlag(ctx.flags, 'agents') ?? ''
-  return list
-    .split(',')
-    .map((value) => value.trim())
-    .filter(Boolean)
-    .map((value) => {
-      const agent = MARKETPLACE_APP_AGENTS.find((candidate) => candidate === value)
-      if (!agent) {
-        throw new RuntimeClientError(
-          'invalid_argument',
-          `Unknown agent "${value}". Agents: ${MARKETPLACE_APP_AGENTS.join(', ')}`
-        )
-      }
-      return agent
-    })
+  return parseCommaList(getOptionalStringFlag(ctx.flags, 'agents')).map((value) => {
+    const agent = MARKETPLACE_APP_AGENTS.find((candidate) => candidate === value)
+    if (!agent) {
+      throw new RuntimeClientError(
+        'invalid_argument',
+        `Unknown agent "${value}". Agents: ${MARKETPLACE_APP_AGENTS.join(', ')}`
+      )
+    }
+    return agent
+  })
 }
 
 export const MARKETPLACE_HANDLERS: Record<string, CommandHandler> = {
