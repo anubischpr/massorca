@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { setAppEnvironment, type AppEnvironment } from '../../shared/app-environment'
 import type { SkillCloudDownloadGrant } from '../../shared/skill-cloud-contract'
 import type { OrcaRuntimeService } from '../runtime/orca-runtime'
 
@@ -8,9 +9,6 @@ const mocks = vi.hoisted(() => ({
   installSkillOnRemoteRuntime: vi.fn()
 }))
 
-vi.mock('electron', () => ({
-  app: { getPath: () => '/state', isPackaged: true }
-}))
 vi.mock('../ipc/runtime-environment-transport-routing', () => ({
   getRuntimeEnvironmentStatus: mocks.getRuntimeEnvironmentStatus
 }))
@@ -23,6 +21,17 @@ import {
   installSkillBundleCloudGrant,
   installSkillCloudGrant
 } from './skill-cloud-grant-installation'
+
+const testAppEnvironment: AppEnvironment = {
+  getPath: () => '/state',
+  getAppPath: () => '/app',
+  getVersion: () => '0.0.0-test',
+  isPackaged: () => true,
+  onWillQuit: () => {},
+  exit: () => {},
+  getAppMetrics: () => []
+}
+setAppEnvironment(testAppEnvironment)
 
 const grant = {
   grant: {

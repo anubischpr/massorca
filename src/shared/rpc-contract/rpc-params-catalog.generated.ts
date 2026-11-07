@@ -570,6 +570,7 @@ import {
   UpdatePaneLayout,
   WorktreeTabSelector
 } from './session-tabs-schemas-params'
+import { SkillPackageVersionInstallParams } from './skill-package-install-params'
 import {
   SkillsCancelInstallParams,
   SkillsDiscoverParams,
@@ -1359,6 +1360,7 @@ export const RPC_PARAMS_BY_METHOD = {
   'skills.getInstallProgress': SkillsGetInstallProgressParams,
   'skills.install': SkillInstallRequestSchema,
   'skills.installBundle': SkillBundleInstallRequestSchema,
+  'skills.installPackageVersion': SkillPackageVersionInstallParams,
   'skills.listManagedInstalls': null,
   'skills.previewDelete': SkillDeleteRequestSchema,
   'skills.previewInstall': SkillInstallPreviewRequestSchema,

@@ -1,20 +1,16 @@
 import { z } from 'zod'
 import { SkillBundleInstallRequestSchema } from '../../shared/skill-bundle-install-contract'
 import { SkillInstallDestinationSchema } from '../../shared/skill-install-contract'
+import {
+  installDestinationFields,
+  skillCloudInstallEnvironmentIdSchema,
+  skillCloudInstallProvidersSchema,
+  SkillPackageVersionInstallParams
+} from '../../shared/rpc-contract/skill-package-install-params'
 
-export const skillCloudInstallEnvironmentIdSchema = z.string().min(1).max(128)
-
-const skillCloudInstallProvidersSchema = z.array(z.string().min(1).max(64)).max(64)
-
-const installDestinationFields = {
-  operationId: z.string().min(1).max(128).optional(),
-  environmentId: skillCloudInstallEnvironmentIdSchema.optional(),
-  destination: SkillInstallDestinationSchema,
-  providers: skillCloudInstallProvidersSchema.optional(),
-  conflictResolution: z
-    .enum(['replace-unmodified', 'replace-and-discard-local', 'cancel'])
-    .optional()
-} as const
+export { skillCloudInstallEnvironmentIdSchema }
+// Why: the package-version params are defined once in the RPC contract; the IPC keeps its old name.
+export { SkillPackageVersionInstallParams as skillCloudPackageVersionInstallSchema }
 
 export const skillCloudShareInstallSchema = z
   .object({
@@ -34,14 +30,6 @@ export const skillCloudBundleShareInstallSchema = z
     destination: SkillInstallDestinationSchema,
     providers: skillCloudInstallProvidersSchema.optional(),
     conflictDecisions: SkillBundleInstallRequestSchema.shape.conflictDecisions.optional()
-  })
-  .strict()
-
-export const skillCloudPackageVersionInstallSchema = z
-  .object({
-    packageId: z.string().min(1).max(128),
-    versionId: z.string().min(1).max(128),
-    ...installDestinationFields
   })
   .strict()
 

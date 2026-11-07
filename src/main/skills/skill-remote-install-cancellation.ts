@@ -22,3 +22,6 @@ export class SkillRemoteInstallCancellation {
     return Boolean(controller)
   }
 }
+
+// Why: the desktop IPC and the RPC share this registry so one cancel reaches every remote install.
+export const skillRemoteInstallCancellation = new SkillRemoteInstallCancellation()

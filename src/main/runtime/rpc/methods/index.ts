@@ -47,6 +47,7 @@ import { CLIENT_EVENT_METHODS } from './client-events'
 import { WORKSPACE_PORT_METHODS } from './workspace-ports'
 import { PLUGIN_METHODS } from './plugins'
 import { SKILL_METHODS } from './skills'
+import { SKILL_PACKAGE_INSTALL_METHODS } from './skill-package-install-methods'
 import { CLIPBOARD_METHODS } from './clipboard'
 import { HOST_CAPABILITY_METHODS } from './host-capabilities'
 import { MOBILE_WEB_BUNDLE_METHODS } from './mobile-web-bundle'
@@ -136,6 +137,7 @@ export const ALL_RPC_METHODS = [
   ...WORKSPACE_PORT_METHODS,
   ...PLUGIN_METHODS,
   ...SKILL_METHODS,
+  ...SKILL_PACKAGE_INSTALL_METHODS,
   ...CLIPBOARD_METHODS,
   ...HOST_CAPABILITY_METHODS,
   ...MOBILE_WEB_BUNDLE_METHODS,

@@ -1,4 +1,4 @@
-import { app } from 'electron'
+import { getAppEnvironment } from '../../shared/app-environment'
 import {
   SKILL_BUNDLE_INSTALL_CAPABILITY,
   SKILL_INSTALL_CAPABILITY,
@@ -103,7 +103,7 @@ export async function installSkillBundleCloudGrant(
         value: await runtime.installSharedSkillBundleRequest(request, undefined, onProgress)
       }
     }
-    const userDataPath = app.getPath('userData')
+    const userDataPath = getAppEnvironment().getPath('userData')
     const status = await getRuntimeEnvironmentStatus(userDataPath, input.environmentId, 15_000)
     if (
       status.ok !== true ||
@@ -124,7 +124,7 @@ export async function installSkillBundleCloudGrant(
         environmentId: input.environmentId,
         request,
         capabilities: status.result.capabilities ?? [],
-        requireHttps: app.isPackaged,
+        requireHttps: getAppEnvironment().isPackaged(),
         signal,
         onProgress
       })
@@ -169,7 +169,7 @@ export async function installSkillCloudGrant(
     if (!input.environmentId) {
       return { status: 'ok' as const, value: await runtime.installSharedSkillRequest(request) }
     }
-    const userDataPath = app.getPath('userData')
+    const userDataPath = getAppEnvironment().getPath('userData')
     const status = await getRuntimeEnvironmentStatus(userDataPath, input.environmentId, 15_000)
     if (
       status.ok !== true ||
@@ -190,7 +190,7 @@ export async function installSkillCloudGrant(
         environmentId: input.environmentId,
         request,
         capabilities: status.result.capabilities ?? [],
-        requireHttps: app.isPackaged,
+        requireHttps: getAppEnvironment().isPackaged(),
         signal
       })
     }
