@@ -41,18 +41,17 @@ describe('finding the routine a one-time request is like', () => {
     const existing = routine(ana.id, 'Revisa el front de la web')
     const found = findSimilarBotTeamRoutine(db, {
       teamId: team.id,
-      botId: ana.id,
       title: 'Revisa el front, pasado mañana a las 15'
     })
     expect(found?.id).toBe(existing.id)
   })
 
-  it('never offers a routine another bot has', () => {
-    const { db, team, ana, leo, routine } = setup()
-    routine(leo.id, 'Revisa el front de la web')
-    expect(
-      findSimilarBotTeamRoutine(db, { teamId: team.id, botId: ana.id, title: 'Revisa el front' })
-    ).toBeNull()
+  it('offers a teammate’s routine too, since the room may have routed the first request elsewhere', () => {
+    const { db, team, leo, routine } = setup()
+    const made = routine(leo.id, 'Revisa el front de la web')
+    expect(findSimilarBotTeamRoutine(db, { teamId: team.id, title: 'Revisa el front' })?.id).toBe(
+      made.id
+    )
   })
 
   it('never offers a paused routine, a recurring one, or one that already passed', () => {
@@ -78,23 +77,19 @@ describe('finding the routine a one-time request is like', () => {
       NOW
     )
     routine(ana.id, 'Revisa el front del lunes', once('2026-11-01'))
-    expect(
-      findSimilarBotTeamRoutine(db, { teamId: team.id, botId: ana.id, title: 'Revisa el front' })
-    ).toBeNull()
+    expect(findSimilarBotTeamRoutine(db, { teamId: team.id, title: 'Revisa el front' })).toBeNull()
   })
 
   it('offers the closest of several similar routines, and nothing for a title that differs', () => {
     const { db, team, ana, routine } = setup()
     const closest = routine(ana.id, 'Revisa el front')
     routine(ana.id, 'Revisa el front de la web y las pruebas de humo')
-    expect(
-      findSimilarBotTeamRoutine(db, { teamId: team.id, botId: ana.id, title: 'Revisa el front' })
-        ?.id
-    ).toBe(closest.id)
+    expect(findSimilarBotTeamRoutine(db, { teamId: team.id, title: 'Revisa el front' })?.id).toBe(
+      closest.id
+    )
     expect(
       findSimilarBotTeamRoutine(db, {
         teamId: team.id,
-        botId: ana.id,
         title: 'Revisión del backend'
       })
     ).toBeNull()
@@ -103,8 +98,6 @@ describe('finding the routine a one-time request is like', () => {
   it('finds nothing for a title made only of a day and a time', () => {
     const { db, team, ana, routine } = setup()
     routine(ana.id, 'Revisa el front')
-    expect(
-      findSimilarBotTeamRoutine(db, { teamId: team.id, botId: ana.id, title: 'mañana a las 10' })
-    ).toBeNull()
+    expect(findSimilarBotTeamRoutine(db, { teamId: team.id, title: 'mañana a las 10' })).toBeNull()
   })
 })

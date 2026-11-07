@@ -78,23 +78,19 @@ function titleSimilarity(a: string, b: string): number {
 const SIMILAR_AT_LEAST = 0.5
 
 /**
- * The one-time routine of the same bot that a new one-time request is like, when the team still has it to
- * run. A routine counts only while it will run again: a paused, recurring or passed one is never offered,
- * because moving it would drop its repeats or revive a run that is over.
+ * The team's one-time routine that a new one-time request is like, when the team still has it to run, of
+ * any bot: the room may route two alike requests to different bots. A routine counts only while it will run
+ * again: a paused, recurring or passed one is never offered, because moving it would drop its repeats or
+ * revive a run that is over.
  */
 export function findSimilarBotTeamRoutine(
   db: OrchestrationDb,
-  args: { teamId: string; botId: string; title: string }
+  args: { teamId: string; title: string }
 ): BotTeamRoutine | null {
   let best: BotTeamRoutine | null = null
   let bestScore = 0
   for (const routine of listBotTeamRoutines(db, args.teamId)) {
-    if (
-      routine.botId !== args.botId ||
-      routine.schedule.frequency !== 'once' ||
-      routine.paused ||
-      routine.nextRun === null
-    ) {
+    if (routine.schedule.frequency !== 'once' || routine.paused || routine.nextRun === null) {
       continue
     }
     const score = titleSimilarity(args.title, routine.name)
