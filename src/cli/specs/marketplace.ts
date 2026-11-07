@@ -86,7 +86,7 @@ export const MARKETPLACE_SERVICE_COMMAND_SPECS: CommandSpec[] = [
     positionalArgs: ['service'],
     notes: [
       'Linear takes an API key. Jira needs --site, plus --email for Jira Cloud.',
-      'GitLab connects with `glab auth login` on the host. Bitbucket, Azure DevOps and Gitea have no host connect method yet; use Settings > Integrations in the desktop app.'
+      'GitLab connects with `glab auth login` on the host. Bitbucket, Azure DevOps and Gitea have no host connect method yet; use Marketplace › Services in the desktop app.'
     ],
     examples: [
       'orca marketplace services connect linear --token-env LINEAR_API_KEY',

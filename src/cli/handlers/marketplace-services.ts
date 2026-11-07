@@ -23,9 +23,9 @@ export type MarketplaceServiceRow = {
 // Why: these have no host RPC to connect yet, so the CLI names the host-side route instead.
 const NO_HOST_CONNECT: Partial<Record<ServiceId, string>> = {
   gitlab: 'Run `glab auth login` on the host, then check `orca marketplace services list`.',
-  bitbucket: 'Connect Bitbucket from Settings > Integrations in the desktop app for now.',
-  'azure-devops': 'Connect Azure DevOps from Settings > Integrations in the desktop app for now.',
-  gitea: 'Connect Gitea from Settings > Integrations in the desktop app for now.'
+  bitbucket: 'Connect Bitbucket from Marketplace › Services in the desktop app for now.',
+  'azure-devops': 'Connect Azure DevOps from Marketplace › Services in the desktop app for now.',
+  gitea: 'Connect Gitea from Marketplace › Services in the desktop app for now.'
 }
 
 type TokenPreflight = { configured?: boolean; authenticated: boolean; account?: string | null }
