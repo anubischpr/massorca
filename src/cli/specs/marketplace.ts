@@ -139,17 +139,18 @@ export const MARKETPLACE_SERVICE_COMMAND_SPECS: CommandSpec[] = [
   },
   {
     path: ['marketplace', 'skills', 'install'],
-    summary: 'Install a skill from a package file on a host, for chosen agents',
-    usage: `orca marketplace skills install --file <package.tar.gz> [--agents <id,id>|none] [--conflict replace-unmodified|replace-and-discard-local|cancel] [${SKILL_HOST_USAGE}] [--json]`,
-    allowedFlags: [...GLOBAL_FLAGS, 'host', 'file', 'agents', 'conflict'],
+    summary: 'Install a catalog skill or a package file on a host, for chosen agents',
+    usage: `orca marketplace skills install (--package <id> --version <id> | --file <package.tar.gz>) [--agents <id,id>|none] [--conflict replace-unmodified|replace-and-discard-local|cancel] [${SKILL_HOST_USAGE}] [--json]`,
+    allowedFlags: [...GLOBAL_FLAGS, 'host', 'file', 'package', 'version', 'agents', 'conflict'],
     notes: [
       SKILL_HOST_NOTE,
-      'The package file is read on this computer and sent to the host, so it works for a paired host too. The host checks its digest before placing anything.',
+      '--package with --version installs that catalog version; the desktop app on the connected host gets the cloud download grant, so SSH hosts work too. A headless host without the desktop’s sign-in answers that Skill Cloud is unavailable.',
+      'A package file is read on this computer and sent to the host, so it works for a paired host too; the host checks its digest before placing anything. SSH hosts take only catalog installs.',
       `--agents picks the agents that read the skill (${SKILL_AGENT_IDS}); leave it out for every detected agent, or pass none for the shared agents folder only.`,
-      'Installing a catalog skill by id needs a cloud download grant only the signed-in desktop app can request, and an SSH host takes only that kind of grant; use the Marketplace skill page for both.',
       'Exits 1 when the host reports anything other than installed, updated or unchanged.'
     ],
     examples: [
+      'orca marketplace skills install --package pkg_123 --version ver_456 --agents claude,codex',
       'orca marketplace skills install --file ./caveman.tar.gz --agents claude,codex',
       'orca marketplace skills install --file ./caveman.tar.gz --host wsl:Ubuntu --json'
     ]
@@ -157,16 +158,16 @@ export const MARKETPLACE_SERVICE_COMMAND_SPECS: CommandSpec[] = [
   {
     path: ['marketplace', 'skills', 'agents'],
     summary: 'Turn agents on or off for an installed skill and show the copies left on the host',
-    usage: `orca marketplace skills agents <name> --agents <id,id>|none --file <package.tar.gz> [--conflict replace-unmodified|replace-and-discard-local|cancel] [${SKILL_HOST_USAGE}] [--json]`,
+    usage: `orca marketplace skills agents <name> --agents <id,id>|none [--file <package.tar.gz>] [--conflict replace-unmodified|replace-and-discard-local|cancel] [${SKILL_HOST_USAGE}] [--json]`,
     allowedFlags: [...GLOBAL_FLAGS, 'host', 'name', 'agents', 'file', 'conflict'],
     positionalArgs: ['name'],
     notes: [
       SKILL_HOST_NOTE,
       `--agents is the full list of agents that should read the skill (${SKILL_AGENT_IDS}); an agent left out loses its copy on that host.`,
-      '--file must be the same package and version that is installed: the host cannot re-place a skill from its own files yet, so this reinstalls the package with the new list.',
+      'Reinstalls the installed catalog version with the new list, as the desktop agent switches do. On a host without the desktop’s Skill Cloud sign-in, pass --file with the same package and version instead.',
       'Prints the placements the host changed and the folders that remain; exits 1 when the host did not record the new list.'
     ],
-    examples: ['orca marketplace skills agents caveman --agents codex --file ./caveman.tar.gz']
+    examples: ['orca marketplace skills agents caveman --agents codex']
   },
   {
     path: ['marketplace', 'skills', 'uninstall'],

@@ -459,7 +459,22 @@ describe('orca marketplace skills CLI', () => {
       )
       expect(errors()).toContain('Unknown agent "pi"')
       await main(['marketplace', 'skills', 'install'], '/tmp/repo')
-      expect(errors()).toContain('Missing required --file')
+      expect(errors()).toContain('--package <id> --version <id>')
+      await main(
+        [
+          'marketplace',
+          'skills',
+          'install',
+          '--file',
+          archivePath,
+          '--package',
+          'p',
+          '--version',
+          'v'
+        ],
+        '/tmp/repo'
+      )
+      expect(errors()).toContain('not both')
       await main(['marketplace', 'skills', 'install', '--file', notPackage], '/tmp/repo')
       expect(errors()).toContain('not a MassOrca skill package')
       await main(
@@ -470,6 +485,62 @@ describe('orca marketplace skills CLI', () => {
 
       expect(callMock).not.toHaveBeenCalled()
       expect(process.exitCode).toBe(1)
+    })
+
+    it('installs a catalog version on an SSH host through the desktop grant', async () => {
+      route({
+        'ssh.listTargetSummaries': () => ({ targets: [{ id: 'box-1', label: 'VPS' }] }),
+        'skills.installPackageVersion': () => installResult({ status: 'installed' })
+      })
+
+      await main(
+        [
+          'marketplace',
+          'skills',
+          'install',
+          '--package',
+          'pkg-caveman',
+          '--version',
+          'v1',
+          '--agents',
+          'codex',
+          '--host',
+          'ssh:box-1',
+          '--json'
+        ],
+        '/tmp/repo'
+      )
+
+      expect(callsOf('skills.installPackageVersion')[0]?.[1]).toEqual({
+        operationId: expect.any(String),
+        packageId: 'pkg-caveman',
+        versionId: 'v1',
+        destination: {
+          scope: 'global',
+          executionTarget: { kind: 'ssh', connectionId: 'box-1' }
+        },
+        providers: ['codex']
+      })
+      expect(callsOf('skills.beginUpload')).toHaveLength(0)
+      expect(JSON.parse(printed()).result.status).toBe('installed')
+      expect(process.exitCode).toBeUndefined()
+    })
+
+    it('exits 1 with the host message when the catalog grant is refused', async () => {
+      route({
+        'skills.installPackageVersion': () => ({
+          status: 'unavailable',
+          message: 'Skill Cloud service is unavailable'
+        })
+      })
+
+      await main(
+        ['marketplace', 'skills', 'install', '--package', 'pkg-caveman', '--version', 'v1'],
+        '/tmp/repo'
+      )
+
+      expect(process.exitCode).toBe(1)
+      expect(errors()).toContain('unavailable (Skill Cloud service is unavailable)')
     })
 
     it('cancels the upload when a chunk fails', async () => {
@@ -561,6 +632,25 @@ describe('orca marketplace skills CLI', () => {
       expect(result.copies.map((copy: { directoryPath: string }) => copy.directoryPath)).toEqual([
         '/home/u/.agents/skills/caveman'
       ])
+      expect(process.exitCode).toBeUndefined()
+    })
+
+    it('re-places the installed catalog version without a package file', async () => {
+      const routes = agentRoutes(['codex'])
+      route({ ...routes, 'skills.installPackageVersion': routes['skills.install'] })
+
+      await main(['marketplace', 'skills', 'agents', 'caveman', '--agents', 'codex'], '/tmp/repo')
+
+      expect(callsOf('skills.installPackageVersion')[0]?.[1]).toEqual(
+        expect.objectContaining({
+          packageId: 'pkg-caveman',
+          versionId: 'v1',
+          destination: { scope: 'global' },
+          providers: ['codex']
+        })
+      )
+      expect(callsOf('skills.beginUpload')).toHaveLength(0)
+      expect(printed()).toContain('Claude Code: removed (/home/u/.claude/skills/caveman)')
       expect(process.exitCode).toBeUndefined()
     })
 

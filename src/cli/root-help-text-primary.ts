@@ -74,7 +74,7 @@ export const ROOT_HELP_TEXT_PRIMARY = [
   '  marketplace services disconnect Disconnect a service on this host',
   '  marketplace skills list   List Marketplace skills on a host (--host local|wsl:<distro>|ssh:<id>|runtime:<id>)',
   '  marketplace skills show   Show a skill package, its agents and its folders on a host',
-  '  marketplace skills install Install a skill from a package file for chosen agents',
+  '  marketplace skills install Install a catalog skill or package file for chosen agents',
   '  marketplace skills agents Turn agents on or off for an installed skill',
   '  marketplace skills uninstall Remove a Marketplace skill from a host',
   '',

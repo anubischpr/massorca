@@ -1,5 +1,4 @@
 import { randomUUID } from 'node:crypto'
-import { resolve } from 'node:path'
 import type { CommandHandler, HandlerContext } from '../dispatch'
 import { getOptionalStringFlag, getRequiredStringFlag } from '../flags'
 import { printResult } from '../format'
@@ -22,41 +21,10 @@ import {
   isSkillInstallProviderId,
   SKILL_INSTALL_PROVIDERS
 } from '../../shared/skill-install-providers'
-import {
-  SkillInstallResultSchema,
-  type ManagedSkillInstall,
-  type SkillInstallResult
-} from '../../shared/skill-install-contract'
-import {
-  SKILL_UPLOAD_CHUNK_MAX_BYTES,
-  SkillUploadBeginResultSchema
-} from '../../shared/skill-upload-session-contract'
+import type { ManagedSkillInstall, SkillInstallResult } from '../../shared/skill-install-contract'
 import type { SkillDiscoveryResult } from '../../shared/skills'
 import { callMarketplaceHost, callMarketplaceHostOptional } from './marketplace-host-call'
-import { readSkillPackageFile, type ReadSkillPackageFile } from './marketplace-skill-package-file'
-
-const INSTALL_CONFLICTS = ['replace-unmodified', 'replace-and-discard-local', 'cancel'] as const
-const REMOVE_CONFLICTS = ['replace-and-discard-local', 'cancel'] as const
-const SUCCESS_STATUSES: readonly SkillInstallResult['status'][] = [
-  'installed',
-  'updated',
-  'unchanged'
-]
-
-function readConflict<T extends string>(ctx: HandlerContext, allowed: readonly T[]): T | undefined {
-  const value = getOptionalStringFlag(ctx.flags, 'conflict')
-  if (value === undefined) {
-    return undefined
-  }
-  const choice = allowed.find((candidate) => candidate === value)
-  if (!choice) {
-    throw new RuntimeClientError(
-      'invalid_argument',
-      `Unknown --conflict "${value}". Choices: ${allowed.join(', ')}`
-    )
-  }
-  return choice
-}
+import { installRequested, readConflict, REMOVE_CONFLICTS } from './marketplace-skill-install'
 
 /** `--agents a,b`: absent means every detected agent; `none` means the shared folder only. */
 function readSkillAgents(ctx: HandlerContext): string[] | undefined {
@@ -163,77 +131,6 @@ async function skillDetail(
   }
 }
 
-/** Streams a local package file to the host's staging area; the host re-verifies every byte. */
-async function stagePackage(ctx: HandlerContext, pkg: ReadSkillPackageFile): Promise<string> {
-  const begin = SkillUploadBeginResultSchema.parse(
-    (await callMarketplaceHost(ctx, 'skills.beginUpload', { package: pkg.identity })).result
-  )
-  const chunkBytes = Math.min(begin.chunkBytes, SKILL_UPLOAD_CHUNK_MAX_BYTES)
-  let offset = begin.acknowledgedOffset
-  try {
-    while (offset < pkg.bytes.length) {
-      const chunk = pkg.bytes.subarray(offset, offset + chunkBytes)
-      const answer = await callMarketplaceHost<{ acknowledgedOffset?: number }>(
-        ctx,
-        'skills.uploadChunk',
-        { uploadId: begin.uploadId, offset, bytesBase64: chunk.toString('base64') }
-      )
-      const acknowledged = answer.result.acknowledgedOffset
-      if (typeof acknowledged !== 'number' || acknowledged <= offset) {
-        throw new RuntimeClientError('runtime_error', 'The host did not accept the package upload.')
-      }
-      offset = acknowledged
-    }
-    await callMarketplaceHost(ctx, 'skills.commitUpload', { uploadId: begin.uploadId })
-  } catch (error) {
-    await callMarketplaceHost(ctx, 'skills.cancelUpload', { uploadId: begin.uploadId }).catch(
-      () => undefined
-    )
-    throw error
-  }
-  return begin.uploadId
-}
-
-async function installPackage(
-  ctx: HandlerContext,
-  host: MarketplaceSkillHost,
-  pkg: ReadSkillPackageFile,
-  providers: string[] | undefined
-): Promise<RuntimeRpcSuccess<SkillInstallResult>> {
-  // Why: a host's SSH relay only takes cloud download grants, so a local package file cannot reach it.
-  if (host.kind === 'ssh') {
-    throw new RuntimeClientError(
-      'invalid_argument',
-      'Installing a package file on an SSH host is not supported yet: the SSH relay only accepts a cloud download grant. Install it from Marketplace in the desktop app.'
-    )
-  }
-  const conflict = readConflict(ctx, INSTALL_CONFLICTS)
-  const uploadId = await stagePackage(ctx, pkg)
-  const response = await callMarketplaceHost(ctx, 'skills.install', {
-    operationId: randomUUID(),
-    package: pkg.identity,
-    ingress: { kind: 'staged-upload', uploadId },
-    destination: host.destination,
-    ...(providers !== undefined ? { providers } : {}),
-    ...(conflict !== undefined ? { conflictResolution: conflict } : {})
-  })
-  const result = SkillInstallResultSchema.safeParse(response.result)
-  if (!result.success) {
-    throw new RuntimeClientError(
-      'runtime_error',
-      'The host answered the install in an unknown shape.'
-    )
-  }
-  if (!SUCCESS_STATUSES.includes(result.data.status)) {
-    process.exitCode = 1
-  }
-  return { ...response, result: result.data }
-}
-
-async function readPackageFlag(ctx: HandlerContext): Promise<ReadSkillPackageFile> {
-  return readSkillPackageFile(resolve(ctx.cwd, getRequiredStringFlag(ctx.flags, 'file')))
-}
-
 function sameAgents(recorded: readonly string[] | undefined, wanted: readonly string[]): boolean {
   const left = [...(recorded ?? [])].sort().join(',')
   return left === [...wanted].sort().join(',')
@@ -260,8 +157,7 @@ export const MARKETPLACE_SKILL_HANDLERS: Record<string, CommandHandler> = {
   'marketplace skills install': async (ctx) => {
     const host = await resolveMarketplaceSkillHost(ctx.flags, ctx.client)
     const providers = readSkillAgents(ctx)
-    const pkg = await readPackageFlag(ctx)
-    const response = await installPackage(ctx, host, pkg, providers)
+    const response = await installRequested(ctx, host, providers)
     printResult(response, ctx.json, formatSkillInstallOutcome)
   },
   'marketplace skills agents': async (ctx) => {
@@ -277,20 +173,11 @@ export const MARKETPLACE_SKILL_HANDLERS: Record<string, CommandHandler> = {
     if (!before) {
       throw new RuntimeClientError('not_found', `${name} is not installed on ${host.label}.`)
     }
-    // Why: no RPC changes a copy's agents from the host's own files, so this reinstalls the same package.
-    const pkg = await readPackageFlag(ctx)
-    const { packageId, versionId, packageDigest } = pkg.identity
-    if (
-      packageId !== before.packageId ||
-      versionId !== before.versionId ||
-      packageDigest !== before.packageDigest
-    ) {
-      throw new RuntimeClientError(
-        'invalid_argument',
-        `${name} on ${host.label} is package ${before.packageId} version ${before.versionId}; --file is a different package or version. Use \`orca marketplace skills install\` to change versions.`
-      )
-    }
-    const outcome = await installPackage(ctx, host, pkg, providers)
+    // Why: the desktop's agent switches re-place a copy by reinstalling the same version with new agents.
+    const outcome = await installRequested(ctx, host, providers, {
+      packageId: before.packageId,
+      versionId: before.versionId
+    })
     const { response, detail } = await skillDetail(ctx, host, name)
     if (detail.install && !sameAgents(detail.install.providers, providers)) {
       process.exitCode = 1
