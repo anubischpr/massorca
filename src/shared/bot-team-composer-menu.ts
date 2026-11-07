@@ -84,11 +84,10 @@ export function botTeamComposerMenu(args: {
   const apps: BotTeamComposerItem[] = (args.apps ?? [])
     .filter((app) => app.name.toLowerCase().includes(query))
     .map((app) => ({ kind: 'app', app, insert: `@${app.name} ` }))
-  // Why: the few apps keep their room at the end, so a long file list never pushes them out.
-  const items = [
-    ...[...bots, ...teams, ...projects, ...files].slice(0, MAX_ITEMS - apps.length),
-    ...apps
-  ]
+  // Why: apps keep their room at the end, and up to 3 files keep theirs before the long groups.
+  const room = MAX_ITEMS - apps.length
+  const groups = [...bots, ...teams, ...projects].slice(0, room - Math.min(files.length, 3))
+  const items = [...groups, ...files.slice(0, room - groups.length), ...apps]
   return items.length > 0
     ? { items, start: args.caret - mention[1].length - 1, end: args.caret }
     : null

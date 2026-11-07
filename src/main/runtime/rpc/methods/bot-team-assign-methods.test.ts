@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { OrchestrationDb } from '../../orchestration/db/orchestration-db'
 import type { RpcContext } from '../core'
 import { BotTeamTaskReassign } from '../../../../shared/rpc-contract/bot-team-room-params'
+import { botTeamPrototypeChoiceIn } from '../../../../shared/bot-team-prototype-choice'
 import { botTeamAssignRequestMethod, botTeamReassignTaskMethod } from './bot-team-assign-methods'
 
 describe('botTeams.assignRequest', () => {
@@ -93,6 +94,23 @@ describe('botTeams.assignRequest', () => {
       ctx
     )
     expect(db?.getBotTeamTaskStartNotes(result.task!.id)).toContain('attachments/logo.png')
+  })
+
+  it('keeps the prototype choice with the task before it starts', async () => {
+    let notesAtStart: string | null = null
+    const { method, ctx, team } = setup(
+      vi.fn(async (_ctx: RpcContext, taskId: string) => {
+        notesAtStart = db!.getBotTeamTaskStartNotes(taskId)
+        return db!.getBotTeamTask(taskId)
+      })
+    )
+    const params = { teamId: team.id, text: 'crea 3 prototipos', prototypeChoice: { count: 3 } }
+    expect(method.params?.parse(params)).toMatchObject({ prototypeChoice: { count: 3 } })
+    await method.handler(
+      { ...params, start: true, prototypeChoice: { count: 3, designSystem: 'use' } },
+      ctx
+    )
+    expect(botTeamPrototypeChoiceIn(notesAtStart)).toEqual({ count: 3, designSystem: 'use' })
   })
 
   it('does not start a task when asked to only save it', async () => {

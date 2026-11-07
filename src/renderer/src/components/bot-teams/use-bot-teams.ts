@@ -5,6 +5,7 @@ import { useBotTeamHost } from '@/runtime/bot-team-host'
 import { listBotTeams } from '@/runtime/runtime-bot-team-client'
 import { isBotTeamFolderPath } from '../../../../shared/bot-team-folder'
 import type { BotTeam, BotTeamCharacter } from '../../../../shared/rpc-contract/bot-team-params'
+import { botTeamAgentSwitchRefusalText, botTeamChangeErrorText } from './bot-team-change-error-text'
 import { botTeamForFolderPath } from './bot-team-folder-team'
 
 const HOST_CHECK_MS = 20_000
@@ -17,8 +18,16 @@ export type BotTeamsState = {
   lastSeenAt: number | null
   reload: () => void
   /** Runs a change on the host, then shows the team it returned; a refusal becomes a toast. */
-  applyChange: (change: () => Promise<unknown>) => Promise<boolean>
+  applyChange: (change: () => Promise<unknown>) => Promise<BotTeamChangeResult>
 }
+
+/**
+ * How a change ended. A refusal carries the text the toast shows; `agentSwitch` marks the
+ * Antigravity refusal that belongs beside the bot editor's agent picker.
+ */
+export type BotTeamChangeResult =
+  | { done: true }
+  | { done: false; refusal: string; agentSwitch: boolean }
 
 type BotTeamsList = Pick<BotTeamsState, 'teams' | 'failed' | 'lastSeenAt'>
 
@@ -82,16 +91,25 @@ export function useBotTeams(): BotTeamsState {
     return closeSurface
   }, [host])
 
-  const applyChange = useCallback(async (change: () => Promise<unknown>) => {
-    try {
-      await change()
-      reloadBotTeams()
-      return true
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : String(error))
-      return false
-    }
-  }, [])
+  const applyChange = useCallback(
+    async (change: () => Promise<unknown>): Promise<BotTeamChangeResult> => {
+      try {
+        await change()
+        reloadBotTeams()
+        return { done: true }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error)
+        const refusal = botTeamChangeErrorText(message)
+        toast.error(refusal)
+        return {
+          done: false,
+          refusal,
+          agentSwitch: botTeamAgentSwitchRefusalText(message) !== null
+        }
+      }
+    },
+    []
+  )
 
   return { teams, failed, lastSeenAt, reload: reloadBotTeams, applyChange }
 }

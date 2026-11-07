@@ -10,7 +10,7 @@ export const UNREPORTED_SESSION_GRACE_MS = 10_000
  * feed has not reported counts as open once it is in `expired`, which the grace period fills in.
  */
 export function openBotTeamTaskCount(
-  tasks: readonly { sessionId: string | null }[],
+  tasks: readonly { sessionId: string | null; awaitingPerson?: boolean }[],
   statuses: ReadonlyMap<string, Pick<AgentSessionStatusSummary, 'status' | 'turnOutcome'>>,
   expired: ReadonlySet<string> = new Set()
 ): number | null {
@@ -26,7 +26,8 @@ export function openBotTeamTaskCount(
     }
     const status = botTeamTaskStatus(
       sessionId,
-      sessionId === null ? undefined : statuses.get(sessionId)
+      sessionId === null ? undefined : statuses.get(sessionId),
+      task.awaitingPerson === true
     )
     if (botTeamBoardColumn(status) !== 'Done') {
       open += 1

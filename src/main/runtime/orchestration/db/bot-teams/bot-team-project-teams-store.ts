@@ -4,6 +4,7 @@ import {
   type BotTeamTask
 } from '../../../../../shared/rpc-contract/bot-team-room-params'
 import type { OrchestrationDb } from '../orchestration-db'
+import { withAwaitingPerson } from './bot-team-task-waiting-store'
 
 const LinkRows = z.array(z.object({ projectId: z.string(), teamId: z.string() }))
 
@@ -68,10 +69,12 @@ export function listBotTeamProjectTasksOfOtherTeams(
   this: OrchestrationDb,
   teamId: string
 ): BotTeamTask[] {
-  return z.array(BotTeamTaskSchema).parse(
-    this.db
-      .prepare(
-        `SELECT id, team_id AS teamId, title, prompt, owner_bot_id AS ownerBotId,
+  return withAwaitingPerson(
+    this,
+    z.array(BotTeamTaskSchema).parse(
+      this.db
+        .prepare(
+          `SELECT id, team_id AS teamId, title, prompt, owner_bot_id AS ownerBotId,
            session_id AS sessionId, project_id AS projectId, created_at AS createdAt,
            last_status AS lastStatus
          FROM bot_team_tasks
@@ -79,7 +82,8 @@ export function listBotTeamProjectTasksOfOtherTeams(
            SELECT id FROM bot_team_projects WHERE team_id = ?
            UNION SELECT project_id FROM bot_team_project_teams WHERE team_id = ?
          ) ORDER BY rowid`
-      )
-      .all(teamId, teamId, teamId)
+        )
+        .all(teamId, teamId, teamId)
+    )
   )
 }

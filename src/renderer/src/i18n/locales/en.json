@@ -19800,6 +19800,8 @@
     },
     "botTeams": {
       "conferenceRoom": "Conference room",
+      "replyingTo": "Replying to {{name}}",
+      "cancelReply": "Cancel reply",
       "newFile": "New file",
       "openToPreview": "Open the file to see it.",
       "unreadFiles": "{{count}} new files",
@@ -19813,6 +19815,7 @@
       "addBotConfirm": "Add bot",
       "back": "Back",
       "deleteTeam": "Delete team",
+      "accessHelp": "What this team can do without asking.",
       "bots": "Bots",
       "removeBot": "Remove bot",
       "allTeams": "All teams",

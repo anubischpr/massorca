@@ -228,4 +228,26 @@ describe('comparing a version with the current file', () => {
     await act(async () => chip?.click())
     expect(container.textContent).toContain('First layout, Iris')
   })
+
+  it('lets a page fill the area left of the versions instead of a fixed box', async () => {
+    const container = await mount()
+    const frame = container.querySelector('iframe')
+    const scroller = frame?.closest('.overflow-y-auto')
+
+    expect(frame?.className).toContain('size-full')
+    expect(frame?.getAttribute('style') ?? '').not.toMatch(/width|height/)
+    // A flex column gives the frame's flex-1 wrapper a definite height to fill.
+    expect(scroller?.className).toContain('flex')
+    expect(scroller?.className).toContain('flex-col')
+  })
+
+  it('takes the pane height itself, so an HTML page is not cut off by a parent with no height', async () => {
+    const container = await mount()
+    const view = container.firstElementChild as HTMLElement
+    // Why: the Files page is a block with no height, so flex-1 alone gives the view nothing to fill.
+    expect(view.className).toContain('h-full')
+    const frame = container.querySelector('iframe')
+    expect(frame?.parentElement?.className).toContain('flex-1')
+    expect(frame?.parentElement?.parentElement?.className).toContain('flex-1')
+  })
 })

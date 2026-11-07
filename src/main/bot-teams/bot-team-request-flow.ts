@@ -21,6 +21,9 @@ import {
 } from '../../shared/bot-team-request-schedule'
 import { botTeamClockLine } from '../../shared/bot-team-person-clock'
 import type { BotTeam, BotTeamBot } from '../../shared/rpc-contract/bot-team-params'
+import type { BotTeamRoomAttachment } from '../../shared/bot-team-room-attachments'
+import { isBotTeamFilesWithoutWords } from './bot-team-files-only-question'
+import { botTeamFilesAsker } from './bot-team-files-save'
 
 /** `later` is set only when the person wants the work later, so an unset decision means now. */
 type Later = { later?: true }
@@ -43,6 +46,8 @@ export type BotTeamRequestDecision =
   | ({ type: 'conversation'; subjectBotIds: string[] } & Later)
   /** The team has no bot to take anything. */
   | { type: 'ask' }
+  /** Files with no words: the bot asks in the room what to do with them, and nothing is filed. */
+  | { type: 'files'; bot: BotTeamBot }
 
 function laterOf(later: boolean): Later {
   return later ? { later: true } : {}
@@ -112,6 +117,10 @@ type DecideArgs = {
   now?: number
   /** The asking person's zone: a named day and time are read on their clock. */
   timeZone?: string | null
+  /** The bot whose room message this request replies to; it takes the request unless a bot or team is named. */
+  quotedBot?: BotTeamBot | null
+  /** The files the line carries; a line of only files, or only a mention, is asked about instead. */
+  attachments?: readonly BotTeamRoomAttachment[]
 }
 
 /**
@@ -140,6 +149,16 @@ export async function decideBotTeamRequest(args: DecideArgs): Promise<BotTeamReq
 
 async function decideOwner(args: DecideArgs & { now: number }): Promise<BotTeamRequestDecision> {
   const { team, text } = args
+  // Asked before any other reading: files with no words are never filed or classified.
+  if (isBotTeamFilesWithoutWords(text, args.attachments ?? [])) {
+    const asker = botTeamFilesAsker({
+      text,
+      bots: team.bots,
+      quotedBot: args.quotedBot,
+      activeTasksByBot: args.activeTasksByBot
+    })
+    return asker ? { type: 'files', bot: asker } : { type: 'ask' }
+  }
   const timing = botTeamRequestTiming(text)
   const mentioned = findMentionedBot(text, team.bots)
   if (mentioned) {
@@ -148,6 +167,10 @@ async function decideOwner(args: DecideArgs & { now: number }): Promise<BotTeamR
   const mentionedTeam = findMentionedBot(text, args.otherTeams)
   if (mentionedTeam) {
     return { type: 'team', teamId: mentionedTeam.id, ...laterOf(timing.later) }
+  }
+  // A reply goes to the bot it quotes, which hands on what is far from its job.
+  if (args.quotedBot) {
+    return { type: 'task', bot: args.quotedBot, alsoNeeds: [], ...laterOf(timing.later) }
   }
   if (team.bots.length === 0) {
     return { type: 'ask' }

@@ -187,7 +187,8 @@ export async function acquireClaudeSession({
               launch.claudeConfigDir,
               launch.env ? { env: launch.env } : {}
             )
-          }
+          },
+          ...(launch.envToDelete ? { envToDelete: launch.envToDelete } : {})
         },
         {
           onMessage,

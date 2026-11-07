@@ -15,6 +15,8 @@ import { replySuggestionCommandOverride } from '../native-chat/reply-suggestion-
 import { queryBotTeamLead } from '../text-generation/bot-team-lead-generation-request'
 import type { CommitMessageAgentEnvironmentResolvers } from '../text-generation/commit-message-agent-environment'
 import { spawnSourceControlAgent } from '../text-generation/source-control-agent-launch'
+import { botRunOptions, resolveBotRunDenial } from '../marketplace/marketplace-bot-run-denial'
+import { withBotRunDeniedSpawn } from './bot-team-query-denial'
 
 type RequestQuerySettings = Pick<GlobalSettings, 'defaultTuiAgent' | 'disabledTuiAgents'> &
   Partial<Pick<GlobalSettings, 'agentCmdOverrides'>>
@@ -27,6 +29,8 @@ type QueryArgs = {
   research?: boolean
   /** A code question: the agent runs in this checkout and reads it, never writes (agents with a code read mode only). */
   codeRead?: { cwd: string }
+  /** The bot answering: its agent runs without the Marketplace apps that bot is kept out of. */
+  botRun?: { botId: string; teamId: string }
 }
 
 /** A bot's own agent for one reply, at the model and effort chosen for it. */
@@ -119,7 +123,11 @@ async function runAgentQuery(args: QueryArgs, bot: BotQueryAgent | null): Promis
       ...(override ? { agentCommandOverride: override } : {})
     },
     target,
-    spawnAgent: spawnSourceControlAgent,
+    spawnAgent: withBotRunDeniedSpawn(
+      spawnSourceControlAgent,
+      agentId,
+      args.botRun ? await resolveBotRunDenial(botRunOptions(args.botRun)) : null
+    ),
     ...(args.research ? { webResearch: true } : {}),
     ...(codeRead ? { codeRead: true } : {}),
     ...(codeReadHostArgs ? { codeReadHostArgs } : {})

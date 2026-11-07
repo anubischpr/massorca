@@ -14,6 +14,7 @@ import {
 import {
   renderArtifactsSettingsSection,
   renderBotTeamsSettingsSection,
+  renderMarketplaceSettingsSection,
   renderPrototypesSettingsSection,
   renderSessionHistorySettingsSection,
   renderAutomationsSettingsSection,
@@ -131,6 +132,7 @@ export function renderSettingsPage(context: SettingsRenderContext): React.JSX.El
                 {renderShareSkillsSettingsSection(context)}
                 {renderPrototypesSettingsSection(context)}
                 {renderBotTeamsSettingsSection(context)}
+                {renderMarketplaceSettingsSection(context)}
                 {renderSessionHistorySettingsSection(context)}
                 {renderGitSettingsSection(context)}
                 {renderTasksSettingsSection(context)}

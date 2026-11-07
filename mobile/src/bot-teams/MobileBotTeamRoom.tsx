@@ -2,7 +2,6 @@ import { useMemo, useRef, useState } from 'react'
 import { Alert, Pressable, Text, View } from 'react-native'
 import { ChevronDown, ChevronLeft, Ellipsis } from 'lucide-react-native'
 import { useMobileDictation } from '../hooks/use-mobile-dictation'
-import { MobileNativeChatComposer } from '../session/MobileNativeChatComposer'
 import { useMobileNativeChatFileSearch } from '../session/use-mobile-native-chat-file-search'
 import { colors } from '../theme/mobile-theme'
 import type { RpcClient } from '../transport/rpc-client'
@@ -37,13 +36,13 @@ import { useMobileBotTeamTaskStatus } from './use-mobile-bot-team-task-status'
 import { RoomWho } from './MobileBotTeamRoomWho'
 import { MobileBotTeamSentTrackers } from './MobileBotTeamRoomTracker'
 import { MobileBotTeamAttachChips } from './MobileBotTeamAttachChips'
+import { MobileBotTeamRoomComposer } from './MobileBotTeamRoomComposer'
 import { useBotTeamMentionRenderer } from './MobileBotTeamMentionChip'
 import { useBotTeamMentionProjects } from './use-mobile-bot-team-mention-projects'
 import { useMobileBotTeamRoomAttachments } from './mobile-bot-team-attach-room'
 import { MarkdownPlainTextContext } from '../components/MobileMarkdownPlainText'
 import { useBotTeamRoomPrototypeLinks } from './MobileBotTeamRoomPrototypeLinks'
 
-const NO_GENERATION = () => 0
 const NOT_WORKING = () => false
 const NO_FILES: readonly string[] = []
 
@@ -121,11 +120,11 @@ export function MobileBotTeamRoom({
 
   const sending = useRef(false)
   const attachments = useMobileBotTeamRoomAttachments({ client, workspaceId, enabled: !offline })
-  const renderMentions = useBotTeamMentionRenderer(team, teams, mentionProjects)
 
   // The phone has no Sessions panel to open, so the room's two commands stay on the desktop.
   const files = workspaceId === null ? NO_FILES : nativeChatFilePaths
-  const roomSuggestions = useBotTeamComposerSuggestions(team, teams, mentionProjects, files)
+  const menu = useBotTeamComposerSuggestions(client, team, teams, mentionProjects, files, offline)
+  const renderMentions = useBotTeamMentionRenderer(team, teams, mentionProjects, menu.apps)
 
   const send = async (typed: string): Promise<boolean> => {
     if (sending.current) {
@@ -294,6 +293,7 @@ export function MobileBotTeamRoom({
             Ask {team.name} for something. Each request becomes one or more tasks.
           </Text>
         ) : null}
+        {placement.leading.map(card)}
         <MarkdownPlainTextContext.Provider value={renderMentions}>
           {messages.map((message) => {
             const from = teams.find((entry) => entry.id === message.fromTeamId)
@@ -304,6 +304,7 @@ export function MobileBotTeamRoom({
                 <MobileBotTeamAttachChips
                   files={message.attachments ?? []}
                   tag={from ? `From ${from.name}` : undefined}
+                  onOpen={(path) => onOpenWork({ name: 'file', teamId: team.id, path })}
                 />
                 {prototypeLinks(message.id)}
                 {placement.cardsByMessageId.get(message.id)?.map(card)}
@@ -352,20 +353,19 @@ export function MobileBotTeamRoom({
         ) : null}
       </MobileBotTeamRoomScroll>
       <MobileBotTeamAttachChips inset files={attachments.files} onRemove={attachments.removeFile} />
-      <MobileNativeChatComposer
+      <MobileBotTeamRoomComposer
+        team={team}
+        teams={teams}
+        projects={mentionProjects}
+        apps={menu.apps}
         value={text}
         onChangeText={setText}
         onSend={send}
-        sendSurfaceId={team.id}
-        getSendCompletionGeneration={NO_GENERATION}
-        getComposerEditGeneration={NO_GENERATION}
         disabled={offline}
-        placeholder="Message the team"
-        customSuggestions={roomSuggestions}
+        customSuggestions={menu.suggest}
         onNeedFiles={workspaceId === null ? undefined : loadNativeChatFiles}
         onMicPress={() => void (dictation.isRecording ? dictation.stop() : dictation.start())}
         micActive={dictation.isRecording}
-        layout="single-line"
         isAttaching={attachments.attaching}
         onAttachFile={attachments.attachFile}
         sendWithoutText={attachments.postable.length > 0}

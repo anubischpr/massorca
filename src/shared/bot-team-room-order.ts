@@ -6,19 +6,25 @@ export type BotTeamRoomOrderMessage = Pick<
   'id' | 'authorBotId' | 'text' | 'createdAt'
 >
 
-/** The card fields the room order reads: the request it was made from, and the host's time. */
-export type BotTeamRoomOrderTask = Pick<BotTeamTask, 'id' | 'prompt' | 'createdAt'>
+/** The card fields the room order reads: the request it was made from, the host's time, and the message it answers. */
+export type BotTeamRoomOrderTask = Pick<
+  BotTeamTask,
+  'id' | 'prompt' | 'createdAt' | 'fromRoutine' | 'answersMessageId'
+>
 
 export type BotTeamRoomPlacement<TTask extends BotTeamRoomOrderTask> = {
   /** Cards that sit right after their request, in the order they were made. */
   cardsByMessageId: ReadonlyMap<string, TTask[]>
   /** Cards with no request in the room: they sit after the conversation, as before. */
   trailing: TTask[]
+  /** Routine runs from before every message: they sit before the conversation. */
+  leading: TTask[]
 }
 
 /**
  * Places each card right after the person's message it came from: the first message with its
  * prompt, else the latest one the host wrote at or before the card. Only host times are compared.
+ * A task that answers a message gets no card: the room shows its bot typing instead.
  */
 export function placeBotTeamRoomTasks<TTask extends BotTeamRoomOrderTask>(
   messages: readonly BotTeamRoomOrderMessage[],
@@ -27,8 +33,19 @@ export function placeBotTeamRoomTasks<TTask extends BotTeamRoomOrderTask>(
   const people = messages.filter((message) => message.authorBotId === null)
   const cardsByMessageId = new Map<string, TTask[]>()
   const trailing: TTask[] = []
+  const leading: TTask[] = []
   for (const task of tasks) {
-    const requestId = requestIdOf(task, people)
+    if (task.answersMessageId !== undefined) {
+      continue
+    }
+    // A routine run answers no request, so it stays at the time it ran, after whoever spoke last.
+    const requestId = task.fromRoutine
+      ? latestAtOrBefore(task, messages)
+      : requestIdOf(task, people)
+    if (requestId === null && task.fromRoutine && task.createdAt != null) {
+      leading.push(task)
+      continue
+    }
     if (requestId === null) {
       trailing.push(task)
       continue
@@ -40,7 +57,7 @@ export function placeBotTeamRoomTasks<TTask extends BotTeamRoomOrderTask>(
       cardsByMessageId.set(requestId, [task])
     }
   }
-  return { cardsByMessageId, trailing }
+  return { cardsByMessageId, trailing, leading }
 }
 
 function requestIdOf(
@@ -51,12 +68,19 @@ function requestIdOf(
   if (sameText !== undefined) {
     return sameText.id
   }
+  return latestAtOrBefore(task, people)
+}
+
+function latestAtOrBefore(
+  task: BotTeamRoomOrderTask,
+  messages: readonly BotTeamRoomOrderMessage[]
+): string | null {
   const cardTime = task.createdAt
   if (cardTime === null || cardTime === undefined) {
     return null
   }
   let latest: { id: string; time: number } | null = null
-  for (const message of people) {
+  for (const message of messages) {
     const time = message.createdAt
     if (time === null || time === undefined || time > cardTime) {
       continue

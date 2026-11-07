@@ -8,7 +8,8 @@ import {
   isWorktreeHostIdentity
 } from '../../shared/worktree/host-qualified-identity'
 import { gitExecFileAsync } from '../git/command-runner/git-exec-file'
-import { isCopyableFile } from './bot-team-deliverables-copyable'
+import { isCopyableFile, type DeliverableFile } from './bot-team-deliverables-copyable'
+import { listRecentWorkspaceFiles } from './bot-team-workspace-scan'
 
 /** A worktree a session ran in: its folder, and whether this host can read it. */
 export type WorktreeLocation = { path: string; local: boolean }
@@ -72,22 +73,55 @@ export async function readWorktreeChanges(worktreePath: string): Promise<Worktre
   }
 }
 
+/**
+ * The files a folder shows were written since a task began, which git does not track. A checkout made
+ * at the task's start is tracked, so it is left out; what remains is what git ignores. A folder that is
+ * not a linked worktree has nothing tracked, so it is listed by time alone.
+ */
+export async function listRecentUntrackedFiles(
+  worktreePath: string,
+  since: number
+): Promise<string[]> {
+  if (!isLinkedWorktree(worktreePath)) {
+    return listRecentWorkspaceFiles(worktreePath, since)
+  }
+  try {
+    const tracked = new Set(splitNul(await gitOutput(worktreePath, ['ls-files', '-z'])))
+    return listRecentWorkspaceFiles(worktreePath, since, tracked)
+  } catch {
+    // Why: without the index, every file of the checkout would look like the task's own work.
+    return []
+  }
+}
+
+/** Splits files into those copied into the asking team (at most `limit`) and those only linked by name. */
+export function splitDeliverableFiles(
+  files: readonly DeliverableFile[],
+  limit: number
+): { copy: DeliverableFile[]; linked: string[] } {
+  const copy: DeliverableFile[] = []
+  const linked: string[] = []
+  for (const file of files) {
+    if (copy.length < limit && isCopyableFile(path.join(file.root, file.relative))) {
+      copy.push(file)
+    } else {
+      linked.push(file.relative)
+    }
+  }
+  return { copy, linked }
+}
+
 /** Splits the changed files into those copied into the asking team (at most `limit`) and those only linked. */
 export function splitWorktreeFiles(
   worktreePath: string,
   files: readonly string[],
   limit: number
 ): { copy: string[]; linked: string[] } {
-  const copy: string[] = []
-  const linked: string[] = []
-  for (const name of files) {
-    if (copy.length < limit && isCopyableFile(path.join(worktreePath, name))) {
-      copy.push(name)
-    } else {
-      linked.push(name)
-    }
-  }
-  return { copy, linked }
+  const split = splitDeliverableFiles(
+    files.map((relative) => ({ root: worktreePath, relative })),
+    limit
+  )
+  return { copy: split.copy.map((file) => file.relative), linked: split.linked }
 }
 
 /** Records the workspace each session ran in, from the host's status feed, for a finish to read. */

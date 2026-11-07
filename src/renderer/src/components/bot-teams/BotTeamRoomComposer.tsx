@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { ArrowUp, Plus, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { translate } from '@/i18n/i18n'
@@ -12,12 +12,16 @@ import {
   type BotTeamRoomAttachment
 } from '../../../../shared/bot-team-room-attachments'
 import type { BotTeam } from '../../../../shared/rpc-contract/bot-team-params'
+import { BotTeamRoomReplyBar } from './BotTeamRoomReplyBar'
 import { useBotTeamRoomDraft } from './bot-team-room-draft'
 import { openBotTeamRoomSessions } from './open-bot-team-room-sessions'
 import { useBotTeamMentionField } from './use-bot-team-mention-field'
 
 const NO_TEAMS: readonly BotTeam[] = []
 const NO_PROJECTS: readonly BotTeamMentionProject[] = []
+
+/** A Reply: the message it quotes above the box, and the bot that wrote it. A new object asks again. */
+export type BotTeamRoomReply = { messageId: string; botName: string; quote: string }
 
 /** The files already picked, then the new ones not yet listed, up to the message's limit. */
 function mergeAttachments(
@@ -40,7 +44,8 @@ export function BotTeamRoomComposer({
   projects = NO_PROJECTS,
   offline,
   onSend,
-  onAttachFiles
+  onAttachFiles,
+  replyTo = null
 }: {
   team: BotTeam
   /** `@Name` of one of these sends the request to that team. */
@@ -48,12 +53,21 @@ export function BotTeamRoomComposer({
   /** The team's projects `@` can name, each with its logo or none. */
   projects?: readonly BotTeamMentionProject[]
   offline: boolean
-  onSend: (text: string, attachments: BotTeamRoomAttachment[]) => Promise<boolean>
+  /** Resolves true once the host took the text; a reply passes the id of the message it answers. */
+  onSend: (
+    text: string,
+    attachments: BotTeamRoomAttachment[],
+    replyToMessageId?: string
+  ) => Promise<boolean>
   /** Picks files into the team folder; without it the room takes no files and the "+" stays hidden. */
   onAttachFiles?: () => Promise<BotTeamRoomAttachment[]>
+  /** A bot's Reply: its message is quoted above the box, which takes focus. */
+  replyTo?: BotTeamRoomReply | null
 }): React.JSX.Element {
   const [pending, setPending] = useState<BotTeamRoomAttachment[]>([])
   const [attaching, setAttaching] = useState(false)
+  const appliedReply = useRef<BotTeamRoomReply | null>(null)
+  const [reply, setReply] = useState<BotTeamRoomReply | null>(null)
   const { editor, text, containerRef, menu, field } = useBotTeamMentionField({
     team,
     otherTeams,
@@ -71,6 +85,15 @@ export function BotTeamRoomComposer({
     onCommand: () => void openBotTeamRoomSessions()
   })
   useBotTeamRoomDraft(editor, team.id)
+  // Why: the ref keeps a StrictMode remount from quoting the same reply twice.
+  useEffect(() => {
+    if (!replyTo || replyTo === appliedReply.current) {
+      return
+    }
+    appliedReply.current = replyTo
+    setReply(replyTo)
+    editor?.commands.focus('end')
+  }, [editor, replyTo])
   // Hoisted: the field's Enter calls it, after the editor exists.
   async function send(): Promise<void> {
     if (!editor) {
@@ -83,15 +106,22 @@ export function BotTeamRoomComposer({
     }
     const snapshot = editor.getJSON()
     const files = pending
+    const replied = reply
     // Clears at once, as Workspaces does; a refused send puts the text and files back unless more was added.
     editor.commands.clearContent(true)
     setPending([])
-    if (!(await onSend(sent.trim(), files))) {
+    // Only a send after Reply names a message, so every other send keeps the two-argument call.
+    const delivered = replied
+      ? await onSend(sent.trim(), files, replied.messageId)
+      : await onSend(sent.trim(), files)
+    if (!delivered) {
       if (editor.isEmpty) {
         editor.commands.setContent(snapshot, { emitUpdate: true })
       }
       setPending((current) => (current.length === 0 ? files : current))
+      return
     }
+    setReply((current) => (current === replied ? null : current))
   }
 
   const attach = async (): Promise<void> => {
@@ -139,6 +169,13 @@ export function BotTeamRoomComposer({
               </li>
             ))}
           </ul>
+        ) : null}
+        {reply ? (
+          <BotTeamRoomReplyBar
+            botName={reply.botName}
+            quote={reply.quote}
+            onCancel={() => setReply(null)}
+          />
         ) : null}
         <div
           ref={containerRef}

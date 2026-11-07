@@ -225,7 +225,8 @@ export class OrcaRuntimeWithGetStructuredAgentSessionCreateSupport extends OrcaR
     // importers for. Antigravity is adoptable only from a client that negotiated its capability.
     if (!support.supported || (input.resumeFrom && !isAgentSessionAdoptableProvider(input.agent))) {
       throw agentSessionRefusalError('structured_agent_session_unsupported', {
-        reason: 'hostUnsupported'
+        // The agent's own check named why it cannot run here (e.g. cliMissing); say so.
+        reason: support.cause ?? 'hostUnsupported'
       })
     }
     const currentSettings = this.requireStore().getSettings()

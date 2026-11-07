@@ -46,7 +46,11 @@ function OpenTeamRows({
   const waiting = tasks.some(
     (task) =>
       task.sessionId !== null &&
-      botTeamTaskStatus(task.sessionId, statuses.get(task.sessionId)) === 'Waiting for you'
+      botTeamTaskStatus(
+        task.sessionId,
+        statuses.get(task.sessionId),
+        task.awaitingPerson === true
+      ) === 'Waiting for you'
   )
   const inRoom = onPage && selection.taskId === null && !section
   return (

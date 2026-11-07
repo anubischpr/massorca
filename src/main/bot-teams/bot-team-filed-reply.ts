@@ -75,3 +75,10 @@ export function botTeamScheduledReply(input: {
     language
   )
 }
+
+const START_ACKNOWLEDGEMENT = /^(?:on it|en ello)\b/i
+
+/** Whether a bot line is only the room's "On it." that says its task started. */
+export function isBotTeamStartAcknowledgement(text: string): boolean {
+  return START_ACKNOWLEDGEMENT.test(text.trim())
+}

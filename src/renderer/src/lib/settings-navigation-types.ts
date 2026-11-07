@@ -43,6 +43,7 @@ const SETTINGS_NAV_TARGETS = [
   'share-skills',
   'prototypes',
   'bot-teams',
+  'marketplace',
   'automations',
   'orca-account',
   'linear',

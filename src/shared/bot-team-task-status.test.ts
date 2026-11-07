@@ -25,4 +25,18 @@ describe('botTeamTaskStatus', () => {
   it('says Stuck when the turn failed', () => {
     expect(botTeamTaskStatus('s', { status: 'idle', turnOutcome: 'failure' })).toBe('Stuck')
   })
+
+  it('says Waiting for you, not Done, when the bot ended its turn asking the person', () => {
+    expect(botTeamTaskStatus('s', { status: 'idle', turnOutcome: 'success' }, true)).toBe(
+      'Waiting for you'
+    )
+    expect(botTeamTaskStatus('s', { status: 'idle' }, true)).toBe('Waiting for you')
+  })
+
+  it('keeps every other status as it is while a question is open', () => {
+    expect(botTeamTaskStatus('s', { status: 'working' }, true)).toBe('Working')
+    expect(botTeamTaskStatus('s', { status: 'idle', turnOutcome: 'failure' }, true)).toBe('Stuck')
+    expect(botTeamTaskStatus('s', undefined, true)).toBe('Unknown')
+    expect(botTeamTaskStatus(null, undefined, true)).toBe('Not started')
+  })
 })

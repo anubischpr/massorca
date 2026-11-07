@@ -1,5 +1,5 @@
 /** Lowercase words with accents dropped and punctuation as spaces. */
-function plainWords(text: string): string[] {
+export function plainWords(text: string): string[] {
   return text
     .normalize('NFD')
     .replace(/\p{Diacritic}/gu, '')
@@ -48,6 +48,22 @@ const MAKING_VERBS = new Set([
   'add'
 ])
 
+// Imperatives that ask for something to be kept; an order only when the message names a file or document.
+const SAVING_VERBS = new Set([
+  'guarda',
+  'guardar',
+  'guarden',
+  'guardalo',
+  'guardala',
+  'guardame',
+  'save',
+  'store',
+  'archiva',
+  'archivar'
+])
+const SAVED_THINGS =
+  /\b(?:archivos?|files?|documentos?|documents?|documentacion|documentation|informes?|reports?)\b/
+
 // What may come before the verb: courtesy, or a question that asks for the action.
 const LEADING_WORDS = new Set([
   'por',
@@ -83,8 +99,9 @@ const MAX_LEADING = 4
  */
 export function isBotTeamActionRequest(text: string): boolean {
   const words = plainWords(text)
+  const namesFile = SAVED_THINGS.test(words.join(' '))
   for (let index = 0; index < Math.min(words.length, MAX_LEADING + 1); index += 1) {
-    if (MAKING_VERBS.has(words[index])) {
+    if (MAKING_VERBS.has(words[index]) || (namesFile && SAVING_VERBS.has(words[index]))) {
       return true
     }
     if (!LEADING_WORDS.has(words[index])) {
@@ -103,8 +120,13 @@ const UNIVERSAL_THINGS = [
   /\bartifacts?\b/
 ]
 
+/** Saving a file for later is every bot's job, whatever its description says. */
+const SAVE_FILE_ORDER = new RegExp(
+  `\\b(?:${[...SAVING_VERBS].join('|')})\\b.*${SAVED_THINGS.source}`
+)
+
 /** Whether the message asks for something every bot can make: an option card or a MassOrca artifact. */
 export function asksForUniversalBotCapability(text: string): boolean {
   const plain = plainWords(text).join(' ')
-  return UNIVERSAL_THINGS.some((pattern) => pattern.test(plain))
+  return UNIVERSAL_THINGS.some((pattern) => pattern.test(plain)) || SAVE_FILE_ORDER.test(plain)
 }

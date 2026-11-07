@@ -15,7 +15,11 @@ import {
 } from '../../shared/marketplace-apps'
 import { getSecretStore, hasSecretStore } from '../../shared/secret-store'
 import { credentialFileHasContent, writeCredentialFileAtomic } from '../integration-credential-file'
-import { everyoneAccessByApp, storedAccessSchema } from './marketplace-access'
+import {
+  everyoneAccessByApp,
+  storedAccessSchema,
+  storedAccessStrictSchema
+} from './marketplace-access'
 import { isSealedV2, openSecret, sealSecret, sealedUpdatedAt } from './marketplace-vault-crypto'
 import { createMasterKeyProvider, type KeychainSealer } from './marketplace-vault-master-key'
 
@@ -245,6 +249,28 @@ export class MarketplaceVault {
     } catch {
       return emptyMarketplaceState()
     }
+  }
+
+  /**
+   * The state a bot run's denial is decided from. No file means nothing was ever stored; any other
+   * read or parse failure throws, so the caller can deny every app instead of allowing them.
+   */
+  readStateForDenial(): MarketplaceState {
+    let raw: string
+    try {
+      raw = readFileSync(join(this.dir, 'state.json'), 'utf8')
+    } catch (error) {
+      if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
+        return emptyMarketplaceState()
+      }
+      throw error
+    }
+    const json: unknown = JSON.parse(raw)
+    const state = stateSchema.parse(json)
+    const access = storedAccessStrictSchema.parse(
+      typeof json === 'object' && json !== null && 'access' in json ? json.access : undefined
+    )
+    return access ? { ...state, access } : state
   }
 
   writeState(state: MarketplaceState): void {

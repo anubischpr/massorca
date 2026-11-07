@@ -1,5 +1,8 @@
 import { resolveLocalOpenCodeModelLaunchSupport } from './worker-opencode-model-preflight'
-import { resolveWorkerConfiguredAgentParams } from './worker-configured-agent-preflight'
+import {
+  callerWorkerAgentTarget,
+  resolveWorkerConfiguredAgentParams
+} from './worker-configured-agent-preflight'
 import { waitForWorkerAgentReady } from '../../../../launched-agent-composer-readiness'
 import type { OrcaRuntimeService } from '../../../../orca-runtime'
 import { describeTerminalWaitBlockedReason } from '../../../../../../shared/terminal-wait-blocked-reason-legacy-alias'
@@ -33,15 +36,9 @@ import { CHAT_WORKER_AUTHORITY, chatAssigneeOf, chatWorkerMode } from '../chat-a
 import { recordCreatedWorkerTerminalCustody } from './created-worker-terminal-custody'
 import { tearDownFailedWorkerStart } from './failed-worker-start-teardown'
 import { requireWorkerAuthority, type WorkerEffect } from './worker-topology'
-import { prepareLocalWorkerStart } from './worker-start-validation'
+import { nestedWorkerMaxDepthForCaller, workerNesting } from './worker-bot-run'
+import { prepareLocalWorkerStart, type WorkerStartMutation } from './worker-start-validation'
 import { deliverAndSettleWorkerStartReadiness } from './worker-start-readiness-settlement'
-
-type WorkerStartMutation = {
-  callerFingerprint: string
-  requestId: string
-  method: string
-  payloadHash: string
-}
 
 export async function startLocalWorker(args: {
   params: WorkerStartInput
@@ -51,6 +48,8 @@ export async function startLocalWorker(args: {
   coordinator: OrchestrationCallerIdentity | null
   callerSession?: OrchestrationSessionCaller
   existingTask?: TaskRow
+  /** The bot whose session started this worker, so the worker is kept out of what that bot is. */
+  botRun?: { botId: string; teamId: string }
   orchestrationMutation?: WorkerStartMutation
   /** Settings-driven; the executing host still gets to refuse below. */
   mode: WorkerStartModeReceipt
@@ -66,21 +65,11 @@ export async function startLocalWorker(args: {
   const coordinatorPane = coordinator?.paneKey ?? null
   const requestedWorktree = params.worktree ?? 'current'
   const createsWorktree = requestedWorktree === 'new-child' || requestedWorktree === 'new-top-level'
-  const launchParams = await resolveWorkerConfiguredAgentParams(runtime, params, async () => {
-    const callerWorkspaceId = await resolveDispatchCallerWorktreeId(
-      runtime,
-      params.from,
-      callerSession
-    )
-    const parent = createsWorktree
-      ? await runtime.showManagedWorktree(`id:${callerWorkspaceId}`)
-      : undefined
-    return createsWorktree
-      ? { repo: params.repo ?? parent?.repoId }
-      : {
-          worktree: requestedWorktree === 'current' ? `id:${callerWorkspaceId}` : requestedWorktree
-        }
-  })
+  const launchParams = await resolveWorkerConfiguredAgentParams(
+    runtime,
+    params,
+    callerWorkerAgentTarget({ runtime, params, callerSession, createsWorktree, requestedWorktree })
+  )
   const openCodeModelLaunchSupported = await resolveLocalOpenCodeModelLaunchSupport(
     runtime,
     launchParams,
@@ -159,7 +148,7 @@ export async function startLocalWorker(args: {
   }
   const started = db.createStartingWorkerDispatch({
     creator: resolveDispatchCreator(runtime, params.from, callerSession),
-    maxDepth: runtime.getNestedWorkerMaxDepth(),
+    maxDepth: nestedWorkerMaxDepthForCaller(args),
     taskId: existingTask?.id,
     taskSpec: params.spec,
     taskTitle: params.taskTitle,
@@ -203,6 +192,7 @@ export async function startLocalWorker(args: {
       agent,
       launchPreferences: launch.preferences,
       accessMode: access.accessMode,
+      ...(args.botRun ? { botRun: args.botRun } : {}),
       ...(params.piRuntime ? { piRuntime: params.piRuntime } : {}),
       effects,
       onStage: (stage) => {
@@ -287,7 +277,7 @@ export async function startLocalWorker(args: {
       task,
       firstPrompt: args.firstPrompt,
       dispatchId: started.dispatch.id,
-      dispatchDepth: started.dispatch.depth,
+      ...workerNesting(args, started.dispatch),
       structuredSession,
       terminalHandle,
       coordinatorHandle: params.from,

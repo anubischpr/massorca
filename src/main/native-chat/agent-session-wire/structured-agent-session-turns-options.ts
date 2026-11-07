@@ -1,4 +1,5 @@
 import { refuse, type AgentSessionOptionResult } from '../../../shared/agent-session-wire'
+import { BOT_RUN_OPTION_KEYS } from '../../../shared/bot-run-session-options'
 import { isAgentSessionOptionRejectedError } from './structured-agent-session-option-error'
 import type { AgentSessionTurnContext, TurnOutcome } from './structured-agent-session-turns'
 
@@ -39,10 +40,19 @@ export async function performSetOption(
       kept[key] = value
     }
   }
+  // Why: the bot-run marker keeps a bot's denied Marketplace apps away at every later start.
+  const marker: Record<string, string> = {}
+  for (const key of BOT_RUN_OPTION_KEYS) {
+    const value = ctx.persistedOptions?.[key]
+    if (value !== undefined) {
+      marker[key] = value
+    }
+  }
   const persisted = {
     ...kept,
     ...(applied ?? { [input.key]: input.value }),
-    ...(input.key === 'accessMode' ? { accessMode: input.value } : {})
+    ...(input.key === 'accessMode' ? { accessMode: input.value } : {}),
+    ...marker
   }
   await ctx.persistOptions(persisted)
   ctx.publish()

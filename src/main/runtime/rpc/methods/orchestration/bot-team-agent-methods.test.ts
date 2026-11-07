@@ -112,6 +112,45 @@ describe('orchestration.botTeamTaskCreate', () => {
   })
 })
 
+describe('orchestration.botTeamPost', () => {
+  it('stores the task a room line came from, so a reply can open it', async () => {
+    const { OrchestrationDb } = await import('../../../orchestration/db/orchestration-db')
+    const { ORCHESTRATION_BOT_TEAM_METHODS } = await import('./bot-team-agent-methods')
+    const open = new OrchestrationDb(':memory:')
+    try {
+      const team = open.createBotTeam({
+        name: 'Dev',
+        purpose: '',
+        character: 'circle',
+        workspacesEnabled: false,
+        bots: [{ name: 'José', job: 'Front', agent: 'claude' }]
+      })
+      const running = open.createBotTeamTask({
+        teamId: team.id,
+        title: 'Designs',
+        prompt: 'Make the designs',
+        ownerBotId: team.bots[0].id
+      })
+      open.setBotTeamTaskSession(running.id, 'session-1')
+      const method = ORCHESTRATION_BOT_TEAM_METHODS.find(
+        (entry) => entry.name === 'orchestration.botTeamPost'
+      )!
+      const ctx = {
+        runtime: { getOrchestrationDb: () => open },
+        orchestrationCaller: { sessionId: 'session-1' }
+      }
+      // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the handler only reads the db and caller session.
+      await method.handler({ text: 'Designs are done.' } as never, ctx as never)
+
+      const posted = open.listBotTeamMessages(team.id).at(-1)
+      expect(posted?.text).toBe('Designs are done.')
+      expect(posted?.sourceTaskId).toBe(running.id)
+    } finally {
+      open.close()
+    }
+  })
+})
+
 describe('waitForDelegationLaunch', () => {
   const rows = (...statuses: { status: string; failure?: string | null }[]) => {
     let call = 0

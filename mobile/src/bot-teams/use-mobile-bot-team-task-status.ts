@@ -15,6 +15,7 @@ export function useMobileBotTeamTaskStatus(
   return (task) =>
     botTeamTaskStatus(
       task.sessionId,
-      task.sessionId === null ? undefined : statuses.get(task.sessionId)
+      task.sessionId === null ? undefined : statuses.get(task.sessionId),
+      task.awaitingPerson === true
     )
 }

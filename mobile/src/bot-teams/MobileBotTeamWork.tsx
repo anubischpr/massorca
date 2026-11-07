@@ -122,6 +122,8 @@ export function MobileBotTeamWork({
       <MobileBotTeamFile
         client={client}
         workspaceId={workspaceId}
+        folderKnown={room !== null}
+        offline={offline}
         path={screen.path}
         onBack={() => onOpen({ name: 'files', teamId: team.id })}
       />

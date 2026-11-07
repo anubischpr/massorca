@@ -1,4 +1,5 @@
 import { defineMethod } from '../core'
+import { assertBotAgentSwitchAllowed } from '../../../bot-teams/bot-team-agent-switch-guard'
 import {
   BotTeamAddBot,
   BotTeamCreate,
@@ -21,9 +22,13 @@ export const BOT_TEAM_METHODS = [
     name: 'botTeams.create',
     permission: 'workspace',
     params: BotTeamCreate,
-    handler: (params, { runtime }) => ({
-      team: runtime.getOrchestrationDb().createBotTeam(params)
-    })
+    handler: async (params, { runtime }) => {
+      // A new team and its bots have no ids yet, so only "only these" rules can block them.
+      for (const bot of params.bots) {
+        await assertBotAgentSwitchAllowed({ teams: [], teamId: '', botId: '', agent: bot.agent })
+      }
+      return { team: runtime.getOrchestrationDb().createBotTeam(params) }
+    }
   }),
   defineMethod({
     name: 'botTeams.update',
@@ -46,17 +51,31 @@ export const BOT_TEAM_METHODS = [
     name: 'botTeams.addBot',
     permission: 'workspace',
     params: BotTeamAddBot,
-    handler: (params, { runtime }) => ({
-      team: runtime.getOrchestrationDb().addBotToTeam(params.teamId, params.bot)
-    })
+    handler: async (params, { runtime }) => {
+      const db = runtime.getOrchestrationDb()
+      await assertBotAgentSwitchAllowed({
+        teams: db.listBotTeams(),
+        teamId: params.teamId,
+        botId: '',
+        agent: params.bot.agent
+      })
+      return { team: db.addBotToTeam(params.teamId, params.bot) }
+    }
   }),
   defineMethod({
     name: 'botTeams.updateBot',
     permission: 'workspace',
     params: BotTeamUpdateBot,
-    handler: (params, { runtime }) => ({
-      team: runtime.getOrchestrationDb().updateBotOnTeam(params.teamId, params.botId, params.bot)
-    })
+    handler: async (params, { runtime }) => {
+      const db = runtime.getOrchestrationDb()
+      await assertBotAgentSwitchAllowed({
+        teams: db.listBotTeams(),
+        teamId: params.teamId,
+        botId: params.botId,
+        agent: params.bot.agent
+      })
+      return { team: db.updateBotOnTeam(params.teamId, params.botId, params.bot) }
+    }
   }),
   defineMethod({
     name: 'botTeams.removeBot',

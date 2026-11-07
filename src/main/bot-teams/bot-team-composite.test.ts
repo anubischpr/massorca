@@ -24,8 +24,27 @@ describe('botTeamCompositeNotes', () => {
     expect(notes).toContain('If that command fails, the part did not start')
   })
 
+  it("has the owner post only its own deliverable, never a teammate's files", () => {
+    const notes = botTeamCompositeNotes(BOTS, ['max']) ?? ''
+    expect(notes).toContain('post your own deliverable once, by file name, never a path')
+    expect(notes).toContain('never re-list or re-attach files a teammate made')
+  })
+
   it('is empty when no other bot is needed, or the ids are not on the team', () => {
     expect(botTeamCompositeNotes(BOTS, [])).toBeNull()
     expect(botTeamCompositeNotes(BOTS, ['ghost'])).toBeNull()
+  })
+
+  it('has the owner run waits and independent parts at the same time, and report each outcome', () => {
+    const notes = botTeamCompositeNotes(BOTS, ['max']) ?? ''
+    expect(notes).toContain('Run waits and other independent parts at the same time, not blocking')
+    expect(notes).toContain('list the outcome of each part, including any background wait')
+  })
+
+  it('applies the failed hand-off rule to orchestration delegate too', () => {
+    const notes = botTeamCompositeNotes(BOTS, ['max']) ?? ''
+    expect(notes).toContain(
+      '`orca orchestration delegate` when it files a child session for a part: if it fails, the part did not start'
+    )
   })
 })

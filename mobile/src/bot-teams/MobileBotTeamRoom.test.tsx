@@ -62,6 +62,7 @@ vi.mock('../transport/runtime-capability-probe', () => ({
 }))
 vi.mock('../session/MobileNativeChatMessage', () => ({ MobileNativeChatMessage: 'ChatMessage' }))
 vi.mock('./MobileBotTeamRoomQuestion', () => ({ MobileBotTeamRoomQuestions: () => null }))
+vi.mock('./use-mobile-bot-team-mention-apps', () => ({ useBotTeamMentionApps: () => [] }))
 vi.mock('../session/mobile-structured-session-status-feed', () => ({
   mobileStructuredSessionStatusFeed: () => ({
     subscribe: () => () => {},

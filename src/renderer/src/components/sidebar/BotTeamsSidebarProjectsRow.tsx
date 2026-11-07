@@ -23,6 +23,7 @@ export function SidebarRow({
   return (
     <button
       type="button"
+      data-bot-character-zone=""
       onClick={onClick}
       aria-current={active ? 'page' : undefined}
       className={cn(

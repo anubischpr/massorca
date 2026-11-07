@@ -296,12 +296,12 @@ describe('postMobileBotTeamRequest', () => {
     })
   })
 
-  it('reports a choice it cannot read as not sent', async () => {
+  it('reads a choice kind newer than the app as sent with no choice, so it is not resent', async () => {
     const { client } = clientAnswering({
       ok: true,
-      result: { task: null, startError: null, choice: { kind: 'elsewhere' } }
+      result: { task: null, startError: null, choice: { kind: 'similar-routine' } }
     })
-    expect(await postMobileBotTeamRequest(client, POST)).toEqual({ ok: false })
+    expect(await postMobileBotTeamRequest(client, POST)).toMatchObject({ ok: true, choice: null })
   })
 })
 

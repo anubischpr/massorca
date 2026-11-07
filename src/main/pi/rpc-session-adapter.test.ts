@@ -73,6 +73,9 @@ class FakeConnection implements PiRpcConnection {
     if (override) {
       return override
     }
+    if (command === 'set_model' && params?.modelId === 'unlisted') {
+      throw new Error('model not found')
+    }
     if (command === 'set_model') {
       this.model = { provider: String(params?.provider), id: String(params?.modelId) }
       return {}
@@ -509,6 +512,15 @@ describe('Pi RPC session ownership and delivery', () => {
     })
     expect(h.adapter.readOptionRestoreFailures(sessionId)).toEqual(['effort', 'unknown'])
     expect(h.connection.requests).toContain('get_commands')
+  })
+
+  it('still starts when Pi refuses a bot’s chosen model, keeping its default', async () => {
+    const h = await setup({ model: 'nan/unlisted' })
+
+    expect(h.connection.requests).toContain('set_model')
+    expect(h.connection.model).toEqual(state.model)
+    expect(h.adapter.readOptionRestoreFailures(sessionId)).toEqual(['model'])
+    expect(h.connection.closed).toBe(false)
   })
 
   it('admits a send before Pi confirms it and settles only after journal acceptance', async () => {

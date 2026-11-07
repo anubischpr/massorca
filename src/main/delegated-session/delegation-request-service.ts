@@ -1,4 +1,7 @@
 import type { PiRuntimeSelection } from '../../shared/pi-runtime-selection'
+import type { BotTeamPrototypeChoice } from '../../shared/bot-team-prototype-choice'
+import { botTeamPrototypeChoiceOfSession } from '../bot-teams/bot-team-session-prototype-choice'
+import type { PrototypeDesignSystemMode } from '../../shared/prototype-design-system-files'
 import { boundJournalPromptBody } from '../native-chat/agent-session-journal/journal-prompt-body-bounds'
 import { OrchestrationError } from '../runtime/orchestration/orchestration-error'
 import {
@@ -23,7 +26,7 @@ import {
   routeDelegationRequestWithAdvice,
   type DelegationStoredAgent
 } from './delegation-options'
-import type { DelegationRequestDeps } from './delegation-service-types'
+import type { DelegationParentSession, DelegationRequestDeps } from './delegation-service-types'
 import { waitForDelegationUsageRefresh } from './delegation-usage-refresh'
 
 export type DelegationRequestInput = {
@@ -128,6 +131,20 @@ async function designSystemFor(
   }
 }
 
+/**
+ * The answers a bot run's prototype child is filed with. No person answers a bot task's cards, so the room's
+ * count stands in for the count card, and a design system a person would have to review ('propose') becomes 'use'.
+ */
+function botRunPrototypeAnswers(choice: BotTeamPrototypeChoice | null): {
+  count?: number
+  designSystem?: PrototypeDesignSystemMode
+} {
+  if (choice === null) {
+    return {}
+  }
+  return { count: choice.count, designSystem: choice.designSystem === 'skip' ? 'skip' : 'use' }
+}
+
 /** Files delegated-session requests and posts their agent-choice cards to the parent chat. */
 export class DelegationRequestService {
   constructor(private readonly deps: DelegationRequestDeps) {}
@@ -138,7 +155,7 @@ export class DelegationRequestService {
       agent: string
       /** The model and effort this child must run with, rather than ones sized from its summary. */
       launch?: Readonly<Record<string, string>>
-      /** Which Pi this child runs; absent, the host picks whichever it has. */
+      /** Which Pi this child runs; named, the host must be able to run that one, absent it picks whichever it has. */
       piRuntime?: PiRuntimeSelection
     }
   ): Promise<string> {
@@ -150,14 +167,15 @@ export class DelegationRequestService {
         { effectsApplied: false }
       )
     }
-    const agents = await this.deps.listAgents(parent)
+    const agents = await this.deps.listAgents(parent, input.piRuntime)
     if (!agents.some((entry) => entry.agent === input.agent)) {
       throw new OrchestrationError(
         'delegation_no_agent',
-        `${input.agent} cannot run a chat in this workspace, so no child session can start. No effects were applied.`,
+        `${input.agent} cannot run a chat in this workspace, so no child session can start. No effects were applied.${await this.refusalNote(parent, input.piRuntime, input.agent)}`,
         { effectsApplied: false }
       )
     }
+    const handOff = await this.botRunHandOffAnswers(input, agents, parent.sessionId)
     return this.deps.requireDb().createDelegationRequest({
       parentSessionId: parent.sessionId,
       title: titleFor(input),
@@ -165,7 +183,7 @@ export class DelegationRequestService {
       prompt: input.prompt,
       writes: input.writes,
       workspaceKind: parent.workspaceKind,
-      optionsJson: JSON.stringify({ agents }),
+      optionsJson: JSON.stringify({ agents, ...handOff }),
       decisionJson:
         input.launch || input.piRuntime
           ? JSON.stringify({
@@ -174,6 +192,36 @@ export class DelegationRequestService {
             })
           : null
     }).id
+  }
+
+  /** The reasons the agent checks gave, as ` Reason: …` for a refusal to name; empty when no check refused. */
+  private async refusalNote(
+    parent: DelegationParentSession,
+    piRuntime?: PiRuntimeSelection,
+    agent?: string
+  ): Promise<string> {
+    const refused = (await this.deps.explainRefusals?.(parent, piRuntime)) ?? []
+    const named = refused.filter((entry) => agent === undefined || entry.agent === agent)
+    return named.length === 0
+      ? ''
+      : ` Reason: ${named.map((entry) => `${entry.label} (${entry.reason})`).join(', ')}.`
+  }
+
+  /** A bot run's hand-off whose work is a prototype is filed with the run's room choice, as its own requests are. */
+  private async botRunHandOffAnswers(
+    input: DelegationRequestInput,
+    agents: readonly DelegationStoredAgent[],
+    parentSessionId: string
+  ): Promise<{ prototype?: true; count?: number; designSystem?: PrototypeDesignSystemMode }> {
+    if (this.deps.isBotRunSession?.(parentSessionId) !== true) {
+      return {}
+    }
+    const userMessage = await userMessageOf(this.deps.readParentUserMessage, parentSessionId)
+    if (!asksForPrototypes(input, agents, userMessage)) {
+      return {}
+    }
+    const choice = botTeamPrototypeChoiceOfSession(this.deps.requireDb(), parentSessionId)
+    return { prototype: true, ...botRunPrototypeAnswers(choice) }
   }
 
   /** Files a request and posts its card to the parent chat; returns without waiting for a choice. */
@@ -190,7 +238,7 @@ export class DelegationRequestService {
     if (agents.length === 0) {
       throw new OrchestrationError(
         'delegation_no_agent',
-        'No agent that can run a chat is usable in this workspace, so no child session can start. No effects were applied.',
+        `No agent that can run a chat is usable in this workspace, so no child session can start. No effects were applied.${await this.refusalNote(parent)}`,
         { effectsApplied: false }
       )
     }
@@ -212,6 +260,7 @@ export class DelegationRequestService {
     )
     const userMessage = await userMessageOf(this.deps.readParentUserMessage, input.parentSessionId)
     const prototypeTask = asksForPrototypes(input, agents, userMessage)
+    const botRun = this.deps.isBotRunSession?.(parent.sessionId) === true
     const prototypeCount = prototypeCountFor(
       input,
       agents,
@@ -228,16 +277,18 @@ export class DelegationRequestService {
       writes: input.writes,
       workspaceKind: parent.workspaceKind,
       // Why stored: the child's first prompt makes its request from this decision, not from the wording again.
-      optionsJson: JSON.stringify({ agents, ...(prototypeTask ? { prototype: true } : {}) }),
+      optionsJson: JSON.stringify({
+        agents,
+        ...(prototypeTask ? { prototype: true } : {}),
+        ...(botRun && prototypeTask
+          ? botRunPrototypeAnswers(botTeamPrototypeChoiceOfSession(db, parent.sessionId))
+          : {})
+      }),
       decisionJson: route.status === 'routed' ? JSON.stringify(route.decision) : null
     })
     // Why: no person answers a bot task's cards, so its child waited on one for good.
     const startAutomatic = this.deps.startAutomatic
-    if (
-      route.status === 'routed' &&
-      startAutomatic &&
-      this.deps.isBotRunSession?.(parent.sessionId) === true
-    ) {
+    if (route.status === 'routed' && startAutomatic && botRun) {
       try {
         startAutomatic(row.id)
       } catch (error) {

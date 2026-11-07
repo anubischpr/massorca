@@ -8,6 +8,8 @@ import type { OrchestrationDb } from '../../../../orchestration/db'
 import { OrchestrationError } from '../../../../orchestration/orchestration-error'
 import { structuredAgentRuntimeRegistration } from '../../../../structured-agent-runtime-registrations'
 import { createStructuredWorkerSession } from '../../orchestration-structured-worker-session'
+import { botRunOfDelegatedDispatch } from '../../../../../bot-teams/bot-team-delegated-run'
+import { botRunOptions } from '../../../../../marketplace/marketplace-bot-run-denial'
 
 export type WorkerEffect = {
   kind: 'worktree' | 'terminal' | 'setup' | 'dispatch_input'
@@ -101,6 +103,10 @@ export async function createStructuredWorkerSessionForWorktree(args: {
   worktreeId: string
   agent: TuiAgent
   dispatchId: string
+  /** Where the dispatch's hand-over to a bot teammate is read, so that run keeps its denied apps out. */
+  db: Pick<OrchestrationDb, 'db'>
+  /** The bot whose session started the worker directly; a hand-over's own teammate wins over it. */
+  botRun?: { botId: string; teamId: string }
   /** `--model`/`--effort`; the session seeds them exactly as a saved selection is seeded. */
   launchPreferences?: AgentLaunchPreferences
   /** Already resolved against the agent's declared modes, so it never widens the request. */
@@ -114,10 +120,14 @@ export async function createStructuredWorkerSessionForWorktree(args: {
       `${args.agent} has no structured session on this host.`
     )
   }
-  const options = narrowStructuredLaunchSeedOptions({
+  const seeded = narrowStructuredLaunchSeedOptions({
     ...args.launchPreferences,
     ...(args.accessMode ? { accessMode: args.accessMode } : {})
   })
+  // Added after narrowing, which keeps only the options a person can pick: the marker is the
+  // teammate's (the bot doing the work), so the child's launch denies what that bot is denied.
+  const botRun = botRunOfDelegatedDispatch(args.db, args.dispatchId) ?? args.botRun
+  const options = botRun ? { ...seeded, ...botRunOptions(botRun) } : seeded
   const created = await createStructuredWorkerSession({
     runtime: args.runtime,
     worktreeId: args.worktreeId,

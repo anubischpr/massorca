@@ -48,7 +48,8 @@ export function useMobileBotTeamStatus(
       (tasksByTeam[teamId] ?? []).map((task) =>
         botTeamTaskStatus(
           task.sessionId,
-          task.sessionId === null ? undefined : statuses.get(task.sessionId)
+          task.sessionId === null ? undefined : statuses.get(task.sessionId),
+          task.awaitingPerson === true
         )
       )
     )

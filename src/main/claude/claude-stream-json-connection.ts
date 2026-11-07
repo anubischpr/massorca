@@ -9,6 +9,7 @@ import {
 } from '../claude-accounts/live-pty-gate'
 import { buildClaudeChildProcessEnv } from './claude-child-process-environment'
 import { withoutInheritedClaudeConfigDir } from './claude-config-dir-pin'
+import { deleteEnvKeys } from '../marketplace/marketplace-bot-run-denial'
 import {
   ClaudeControlRequestError,
   createClaudeControlSurface,
@@ -58,6 +59,8 @@ export type ClaudeStreamJsonLaunch = {
   options: ClaudeStructuredSdkOptions
   cwd: string
   env?: Record<string, string>
+  /** Env vars to drop from what the child would inherit from Orca's own process. */
+  envToDelete?: readonly string[]
 }
 
 export type ClaudeStreamJsonConnectionHandlers = {
@@ -146,7 +149,10 @@ export async function openClaudeStreamJsonConnection(
       // Orca's own CLAUDE_CONFIG_DIR is dropped for the same reason the launch drops the
       // shell's: the record's pin in `launch.env` must be the only home the child sees.
       env: buildClaudeChildProcessEnv(launch.env, {
-        inheritedEnv: withoutInheritedClaudeConfigDir(process.env),
+        inheritedEnv: deleteEnvKeys(
+          withoutInheritedClaudeConfigDir(process.env),
+          launch.envToDelete ?? []
+        ),
         scrubConfiguredChildSessionStamps: true
       }),
       pathToClaudeCodeExecutable: launch.pathToClaudeCodeExecutable,

@@ -28,7 +28,20 @@ import { useConnectedMarketplaceApps } from '../marketplace/use-connected-market
 import { BotTeamComposerMenu } from './BotTeamComposerMenu'
 import { botTeamComposerChipAttrs } from './bot-team-composer-document'
 import { useBotTeamComposerEditor } from './bot-team-composer-editor'
+import { whenBotTeamEditorMounted } from './bot-team-editor-mount'
 import { useBotTeamFilePaths } from './use-bot-team-files'
+
+/** How far PageUp and PageDown move the highlight in the open @ or / menu. */
+const MENU_PAGE_STEP = 10
+
+/** The item a page key lands on, clamped to the menu's ends; null for other keys. */
+function pagedMenuIndex(index: number, count: number, key: string): number | null {
+  if (key !== 'PageDown' && key !== 'PageUp') {
+    return null
+  }
+  const step = key === 'PageDown' ? MENU_PAGE_STEP : -MENU_PAGE_STEP
+  return Math.min(Math.max(index + step, 0), count - 1)
+}
 
 /**
  * The room's message field: its TipTap box, the @ and / menu over it and the keys, shared by the
@@ -62,7 +75,8 @@ export function useBotTeamMentionField(args: {
   const [menuDismissed, setMenuDismissed] = useState(false)
   const menuId = useId()
   const files = useBotTeamFilePaths(team.id, !offline && botTeamMentionOpen(text, caret))
-  const apps = useConnectedMarketplaceApps()
+  // Why: the menu is team-wide while a mention targets one bot, so only an app no bot may use is hidden.
+  const apps = useConnectedMarketplaceApps(team)
   const mentionNames = useMemo<BotTeamMentionName[]>(
     () => [
       ...team.bots.map((bot) => ({ name: bot.name, kind: 'bot' as const })),
@@ -116,18 +130,19 @@ export function useBotTeamMentionField(args: {
   }, [menuOpen])
   // The ARIA links follow the open menu, so a screen reader reads the option the caret is on.
   useLayoutEffect(() => {
-    const dom = editor?.view.dom
-    if (!dom) {
+    if (!editor) {
       return
     }
-    dom.setAttribute('aria-expanded', String(menu !== null))
-    if (menu) {
-      dom.setAttribute('aria-controls', menuId)
-      dom.setAttribute('aria-activedescendant', `${menuId}-option-${menuIndex}`)
-    } else {
-      dom.removeAttribute('aria-controls')
-      dom.removeAttribute('aria-activedescendant')
-    }
+    return whenBotTeamEditorMounted(editor, (dom) => {
+      dom.setAttribute('aria-expanded', String(menu !== null))
+      if (menu) {
+        dom.setAttribute('aria-controls', menuId)
+        dom.setAttribute('aria-activedescendant', `${menuId}-option-${menuIndex}`)
+      } else {
+        dom.removeAttribute('aria-controls')
+        dom.removeAttribute('aria-activedescendant')
+      }
+    })
   }, [editor, menu, menuId, menuIndex])
   const chooseMenuItem = (item: BotTeamComposerItem): void => {
     if (!menu || !editor) {
@@ -231,6 +246,12 @@ export function useBotTeamMentionField(args: {
           if (event.key === 'Enter' && event.shiftKey && !imeEnterGesture.isComposing()) {
             event.preventDefault()
             editor?.commands.setHardBreak()
+            return
+          }
+          const paged = menu ? pagedMenuIndex(menuIndex, menu.items.length, event.key) : null
+          if (paged !== null && !imeEnterGesture.isComposing()) {
+            event.preventDefault()
+            setMenuIndex(paged)
             return
           }
           if (!removeMentionBeforeCaret(event)) {

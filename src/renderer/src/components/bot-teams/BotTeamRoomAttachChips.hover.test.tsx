@@ -46,4 +46,19 @@ describe('a room chip that previews its file on hover', () => {
 
     expect(container.querySelector('button')?.getAttribute('title')).toBeNull()
   })
+
+  it('sits on its own background so hover shows on a muted bubble', () => {
+    const container = mount({ files: [FLYER], onOpen: vi.fn(), teamId: 't1' })
+    const classes = container.querySelector('button')!.classList
+
+    expect(classes).toContain('bg-background')
+    expect(classes).toContain('hover:bg-accent')
+    expect(classes).toContain('hover:border-ring')
+  })
+
+  it('marks hover on a chip that only previews', () => {
+    const container = mount({ files: [FLYER], teamId: 't1' })
+
+    expect(container.querySelector('li > span')!.classList).toContain('hover:border-ring')
+  })
 })

@@ -2,12 +2,14 @@ import { useState } from 'react'
 import { toast } from 'sonner'
 import { translate } from '@/i18n/i18n'
 import { fileBotTeamRequest, type BotTeamRequestFiling } from '@/runtime/runtime-bot-team-client'
+import type { BotTeamPrototypeChoice } from '../../../../shared/bot-team-prototype-choice'
 import type { BotTeamRequestChoice } from '../../../../shared/bot-team-request-choice'
 import type { BotTeamRoomAttachment } from '../../../../shared/bot-team-room-attachments'
 import type { BotTeam } from '../../../../shared/rpc-contract/bot-team-params'
 import type { BotTeamProject } from '../../../../shared/rpc-contract/bot-team-room-params'
 import { BotTeamProjectQuestion } from './BotTeamProjectQuestion'
 import { BotTeamRequestChoiceCard } from './BotTeamRequestChoiceCard'
+import { BotTeamSimilarRoutineChoice } from './BotTeamSimilarRoutineChoice'
 
 export type BotTeamPendingChoiceRequest = {
   choice: BotTeamRequestChoice
@@ -16,6 +18,8 @@ export type BotTeamPendingChoiceRequest = {
   later?: boolean
   /** The files the person attached to the request; they stay with it until it is filed. */
   attachments?: BotTeamRoomAttachment[]
+  /** The count the person chose on the prototype card; the filed task keeps it. */
+  prototypeChoice?: BotTeamPrototypeChoice
 }
 
 /** Puts the room's question to the person and files the request where they decide. */
@@ -53,6 +57,7 @@ export function BotTeamPendingChoice({
         askProject: true,
         ...(pending.later ? { later: true } : {}),
         ...(pending.attachments?.length ? { attachments: pending.attachments } : {}),
+        ...(pending.prototypeChoice ? { prototypeChoice: pending.prototypeChoice } : {}),
         ...target
       })
       if (filed.choice) {
@@ -86,6 +91,9 @@ export function BotTeamPendingChoice({
         }
       />
     )
+  }
+  if (pending.choice.kind === 'similar-routine') {
+    return <BotTeamSimilarRoutineChoice choice={pending.choice} team={team} onDone={onFiled} />
   }
   return (
     <BotTeamRequestChoiceCard

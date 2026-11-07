@@ -68,6 +68,36 @@ describe('botTeamTaskPlacement', () => {
     ).toBe('Done')
   })
 
+  it('places a task whose bot asked the person in Waiting for you, live or from the stored Done', () => {
+    expect(
+      botTeamTaskPlacement({
+        sessionId: 's',
+        live: summary('idle', 'success'),
+        kept: undefined,
+        stored: 'Done',
+        awaitingPerson: true
+      })
+    ).toEqual({ status: 'Waiting for you', placedAs: 'Waiting for you' })
+    expect(
+      botTeamTaskPlacement({
+        sessionId: 's',
+        live: undefined,
+        kept: undefined,
+        stored: 'Done',
+        awaitingPerson: true
+      })
+    ).toEqual({ status: 'Unknown', placedAs: 'Waiting for you' })
+    expect(
+      botTeamTaskPlacement({
+        sessionId: 's',
+        live: summary('working'),
+        kept: undefined,
+        stored: 'Done',
+        awaitingPerson: true
+      }).placedAs
+    ).toBe('Working')
+  })
+
   it('places an unanswered task with nothing known in Todo, never In Progress', () => {
     expect(
       botTeamTaskPlacement({ sessionId: 's', live: undefined, kept: undefined, stored: null })

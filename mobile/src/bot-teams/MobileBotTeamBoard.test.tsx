@@ -1,7 +1,10 @@
 import { createElement } from 'react'
 import { act, create, type ReactTestRenderer } from 'react-test-renderer'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { MobileBotTeamBoard } from './MobileBotTeamBoard'
+
+// The session statuses the board reads; a test sets one to make its task finished.
+const feed = vi.hoisted(() => ({ statuses: new Map<string, unknown>() }))
 
 vi.mock('../components/BottomDrawer', () => ({
   BottomDrawer: ({ visible, children }: { visible: boolean; children: unknown }) =>
@@ -14,13 +17,18 @@ vi.mock('react-native', () => ({
   Text: 'Text',
   View: 'View'
 }))
-vi.mock('lucide-react-native', () => ({ ChevronLeft: 'ChevronLeft', ChevronRight: 'ChevronRight' }))
+vi.mock('lucide-react-native', () => ({
+  Check: 'Check',
+  ChevronDown: 'ChevronDown',
+  ChevronLeft: 'ChevronLeft',
+  ChevronRight: 'ChevronRight'
+}))
 vi.mock('../components/MobileAgentIcon', () => ({ MobileAgentIcon: () => null }))
 vi.mock('./MobileBotTeamCharacterIcon', () => ({ MobileBotTeamCharacterIcon: () => null }))
 vi.mock('../session/mobile-structured-session-status-feed', () => ({
   mobileStructuredSessionStatusFeed: () => ({
     subscribe: () => () => {},
-    getSnapshot: () => new Map()
+    getSnapshot: () => feed.statuses
   })
 }))
 
@@ -119,6 +127,7 @@ async function render(props: Partial<Parameters<typeof MobileBotTeamBoard>[0]> =
   return renderer
 }
 
+/** Presses the control whose accessibility label is `label`, or the first one showing that text. */
 const press = async (renderer: ReactTestRenderer, label: string) => {
   const target = renderer.root.findAll(
     (node) =>
@@ -129,21 +138,62 @@ const press = async (renderer: ReactTestRenderer, label: string) => {
   await act(async () => target.props.onPress())
 }
 
+const pressLabel = async (renderer: ReactTestRenderer, label: string) => {
+  const target = renderer.root.findAll(
+    (node) => typeof node.props.onPress === 'function' && node.props.accessibilityLabel === label
+  )[0]
+  await act(async () => target.props.onPress())
+}
+
 describe('MobileBotTeamBoard', () => {
-  it('filters the team board by project and counts each filter', async () => {
+  beforeEach(() => {
+    feed.statuses.clear()
+  })
+
+  it('opens on Active, hides finished tasks, and lists the statuses in the desktop order', async () => {
+    feed.statuses.set('s2', { status: 'idle' })
     const renderer = await render()
     const text = () => JSON.stringify(renderer.toJSON())
-    expect(text()).toContain('All 2')
-    expect(text()).toContain('Launch 1')
-    expect(text()).toContain('No project 1')
+    expect(text()).toContain('Flyer')
+    expect(text()).not.toContain('Poster')
+    expect(text()).not.toContain('All 2')
+    expect(text().indexOf('Active 1')).toBeGreaterThan(-1)
+    expect(text().indexOf('Active 1')).toBeLessThan(text().indexOf('Stopped 0'))
+    expect(text().indexOf('Stopped 0')).toBeLessThan(text().indexOf('Done 1'))
 
-    await press(renderer, 'Launch 1')
+    await press(renderer, 'Done 1')
+    expect(text()).toContain('Poster')
+    expect(text()).not.toContain('Flyer')
+  })
+
+  it('filters the board by the project selector', async () => {
+    const renderer = await render()
+    const text = () => JSON.stringify(renderer.toJSON())
+    expect(text()).toContain('Flyer')
+    expect(text()).toContain('Poster')
+
+    await pressLabel(renderer, 'Project')
+    await pressLabel(renderer, 'Launch')
     expect(text()).toContain('Flyer')
     expect(text()).not.toContain('Poster')
 
-    await press(renderer, 'No project 1')
+    await pressLabel(renderer, 'Project')
+    await pressLabel(renderer, 'No project')
     expect(text()).toContain('Poster')
     expect(text()).not.toContain('Flyer')
+  })
+
+  it('shows every project again when All projects is chosen', async () => {
+    const renderer = await render()
+    const text = () => JSON.stringify(renderer.toJSON())
+    await pressLabel(renderer, 'Project')
+    await pressLabel(renderer, 'Launch')
+    expect(text()).not.toContain('Poster')
+
+    await pressLabel(renderer, 'Project')
+    await pressLabel(renderer, 'All projects')
+    expect(text()).toContain('Flyer')
+    expect(text()).toContain('Poster')
   })
 
   it('opens a started task in its workspace', async () => {
@@ -153,22 +203,29 @@ describe('MobileBotTeamBoard', () => {
     expect(onOpenTask).toHaveBeenCalledWith('folder:1', POSTER)
   })
 
-  it('says when the board holds no tasks', async () => {
+  it('says when the view holds no tasks', async () => {
     const renderer = await render({ tasks: [] })
-    expect(JSON.stringify(renderer.toJSON())).toContain('No tasks here.')
+    expect(JSON.stringify(renderer.toJSON())).toContain('No active tasks')
   })
 
-  it('shows the scheduled one-time routines under All and No project, never under a project', async () => {
+  it('shows the scheduled one-time routines under Active, and under All or No project only', async () => {
     const renderer = await render({ client: hostWithRoutines([ROUTINE]).client })
     const text = () => JSON.stringify(renderer.toJSON())
     expect(text()).toContain('Wednesday check-in')
     expect(text()).toContain('Scheduled · Wed 4 Nov, 10:00')
 
-    await press(renderer, 'No project 1')
+    await pressLabel(renderer, 'Project')
+    await pressLabel(renderer, 'No project')
     expect(text()).toContain('Wednesday check-in')
 
-    await press(renderer, 'Launch 1')
+    await pressLabel(renderer, 'Project')
+    await pressLabel(renderer, 'Launch')
     expect(text()).not.toContain('Wednesday check-in')
     expect(text()).toContain('Flyer')
+
+    await pressLabel(renderer, 'Project')
+    await pressLabel(renderer, 'All projects')
+    await press(renderer, 'Stopped 0')
+    expect(text()).not.toContain('Wednesday check-in')
   })
 })

@@ -15,10 +15,12 @@ import { botTeamTaskTitle, routeBotTeamRequest } from '../../../../../shared/bot
 import { readBotTeamMemoryLines } from '../../../../bot-teams/bot-team-memory-read'
 import { botTeamRoomExcerpt } from '../../../../bot-teams/bot-team-prompt-notes'
 import { delegateToBotTeammate, findDelegationTeam } from '../../../../bot-teams/bot-team-delegate'
+import { findHandedOverBotTeamTask } from '../../../orchestration/db/bot-teams/bot-team-task-delegation-store'
 import {
   getDelegationAnswerService,
   getDelegationRequestService
 } from '../../../../delegated-session/delegation-runtime'
+import { deniedMarketplaceAppIdsForBot } from '../../../../marketplace/marketplace-bot-run-denial'
 import { defineMethod } from '../../core'
 
 /** The task a calling chat runs, which says which team and bot it speaks for. */
@@ -128,7 +130,13 @@ export const ORCHESTRATION_BOT_TEAM_METHODS = [
             linkTask: (taskId, requestId) => db.linkBotTeamTaskDelegation(taskId, requestId),
             startRequest: (requestId, agent) =>
               getDelegationAnswerService(runtime).startChosenAgent(requestId, agent),
-            launchOutcome: (requestId) => waitForDelegationLaunch(db, requestId)
+            launchOutcome: (requestId) => waitForDelegationLaunch(db, requestId),
+            alreadyHandedOver: (ownerBotId, prompt) =>
+              findHandedOverBotTeamTask(db, {
+                parentSessionId: caller.sessionId ?? '',
+                ownerBotId,
+                prompt
+              })
           },
           {
             team,
@@ -136,7 +144,12 @@ export const ORCHESTRATION_BOT_TEAM_METHODS = [
             text,
             project,
             roomExcerpt: botTeamRoomExcerpt(db.listBotTeamMessages(team.id), team.bots),
-            clock: botTeamClockNoteIn(db.getBotTeamTaskStartNotes(caller.id))
+            clock: botTeamClockNoteIn(db.getBotTeamTaskStartNotes(caller.id)),
+            deniedMarketplaceApps: await deniedMarketplaceAppIdsForBot({
+              botId:
+                team.bots.find((entry) => entry.name.toLowerCase() === bot.toLowerCase())?.id ?? '',
+              teamId: team.id
+            })
           }
         )
       }
@@ -153,7 +166,8 @@ export const ORCHESTRATION_BOT_TEAM_METHODS = [
         message: db.postBotTeamMessage({
           teamId: task.teamId,
           authorBotId: task.ownerBotId,
-          text
+          text,
+          sourceTaskId: task.id
         })
       }
     }

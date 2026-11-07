@@ -58,6 +58,23 @@ describe('botTeamTaskPrompt context', () => {
     expect(prompt).toContain('Your working directory is /work/task-1.')
   })
 
+  it('keeps the room excerpt from reopening finished work, and files what the person asks to keep', () => {
+    const prompt = botTeamTaskPrompt(TEAM, BOT, TASK, { roomExcerpt: ['Person: informe'] })
+    expect(prompt).toContain('Do not redo work that is already finished')
+    expect(prompt).toContain('for future reference')
+    expect(prompt).toContain('say in the Conference room that it is saved')
+  })
+
+  it('tells a teammate child to do the work itself and never to dispatch sub-workers', () => {
+    const child = botTeamTaskPrompt(TEAM, BOT, TASK, { delegated: true })
+    expect(child).toContain('do not dispatch sub-workers')
+    expect(child).not.toContain('To hand work to a teammate, run')
+    expect(child).not.toContain('team-delegate')
+    const owner = botTeamTaskPrompt(TEAM, BOT, TASK)
+    expect(owner).toContain('To hand work to a teammate, run')
+    expect(owner).not.toContain('do not dispatch sub-workers')
+  })
+
   it('tells the bot to write in its current folder when no directory is known', () => {
     const prompt = botTeamTaskPrompt(TEAM, BOT, TASK)
     expect(prompt).not.toContain('Recent Conference room messages')

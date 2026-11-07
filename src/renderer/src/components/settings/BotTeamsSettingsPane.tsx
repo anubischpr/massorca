@@ -1,12 +1,5 @@
 import { useBotTeams } from '@/components/bot-teams/use-bot-teams'
 import { BotTeamCharacterIcon } from '@/components/bot-teams/BotTeamCharacterIcon'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { BotTeamsIntegrations } from './BotTeamsIntegrations'
 import { translate } from '@/i18n/i18n'
@@ -87,32 +80,6 @@ export function BotTeamsSettingsPane(): React.JSX.Element {
               }
             />
           </label>
-          <Select
-            value={team.accessMode}
-            onValueChange={(next) =>
-              void applyChange(() =>
-                updateBotTeam({
-                  teamId: team.id,
-                  accessMode: next === 'default' ? 'default' : 'full-access'
-                })
-              )
-            }
-          >
-            <SelectTrigger
-              size="sm"
-              aria-label={translate('components.botTeams.settings.access', 'Access')}
-            >
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="full-access">
-                {translate('components.botTeams.settings.fullAccess', 'Full access')}
-              </SelectItem>
-              <SelectItem value="default">
-                {translate('components.botTeams.settings.askFirst', 'Ask first')}
-              </SelectItem>
-            </SelectContent>
-          </Select>
         </div>
       ))}
       <BotTeamsIntegrations />

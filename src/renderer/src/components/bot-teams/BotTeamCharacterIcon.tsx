@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, useState } from 'react'
+import { usePrefersReducedMotion } from '@/hooks/usePrefersReducedMotion'
 import { useAppStore } from '@/store'
 import {
   BOT_TEAM_CHARACTER_ART,
@@ -25,6 +26,8 @@ const STAR = 'M0-6l1.6 4.4L6 0 1.6 1.6 0 6-1.6 1.6-6 0-1.6-1.6Z'
 const BOLT = 'M3-9L-4 1h4l-3 8L6-2H2Z'
 const BOLT_COLOR = '#fde047'
 const ORBITS: Record<string, number> = { rainbow: 3, electrons: 2, bands: 2, dashes: 2 }
+/** Put on a row or card: hovering it moves the team character inside. */
+export const BOT_CHARACTER_ZONE_ATTR = 'data-bot-character-zone'
 
 type Layer = 'back' | 'front'
 
@@ -136,16 +139,26 @@ export function BotTeamCharacterIcon({
   const enabled = useAppStore((state) => state.settings?.botTeamCharacterAnimations !== false)
   const animated = enabled && !unreachable && !still
   const id = useId().replace(/:/g, '')
+  const svgRef = useRef<SVGSVGElement>(null)
+  const reduceMotion = usePrefersReducedMotion()
   const [move, setMove] = useState<BotCharacterMove | null>(null)
   const workingRef = useRef(working)
   workingRef.current = working
+
+  // Why: each move ends on its own clock, so a newer move (idle or hover) restarts it.
+  useEffect(() => {
+    if (move === null) {
+      return
+    }
+    const done = setTimeout(() => setMove(null), BOT_CHARACTER_MOVE_MS[move])
+    return () => clearTimeout(done)
+  }, [move])
 
   useEffect(() => {
     if (!animated) {
       return
     }
     let idle: ReturnType<typeof setTimeout>
-    let clear: ReturnType<typeof setTimeout>
     const schedule = (): void => {
       const wait =
         BOT_CHARACTER_IDLE_MIN_MS +
@@ -153,9 +166,7 @@ export function BotTeamCharacterIcon({
       idle = setTimeout(() => {
         // Nothing moves with the app in the background.
         if (document.visibilityState === 'visible') {
-          const next = pickBotCharacterMove(character, workingRef.current, Math.random())
-          setMove(next)
-          clear = setTimeout(() => setMove(null), BOT_CHARACTER_MOVE_MS[next])
+          setMove(pickBotCharacterMove(character, workingRef.current, Math.random()))
         }
         schedule()
       }, wait)
@@ -163,10 +174,30 @@ export function BotTeamCharacterIcon({
     schedule()
     return () => {
       clearTimeout(idle)
-      clearTimeout(clear)
       setMove(null)
     }
   }, [animated, character])
+
+  // Why: a hover is the user's gesture, so it moves even a still character; touch is not hover.
+  const playHover = (pointerType: string): void => {
+    if (!enabled || reduceMotion || pointerType === 'touch' || move !== null) {
+      return
+    }
+    setMove(pickBotCharacterMove(character, working, Math.random()))
+  }
+  const playHoverRef = useRef(playHover)
+  playHoverRef.current = playHover
+
+  // Why: the row or card that holds the character is its hover target too, so entering it moves the character.
+  useEffect(() => {
+    const zone = svgRef.current?.closest<HTMLElement>(`[${BOT_CHARACTER_ZONE_ATTR}]`)
+    if (!zone) {
+      return
+    }
+    const onZoneEnter = (event: PointerEvent): void => playHoverRef.current(event.pointerType)
+    zone.addEventListener('pointerenter', onZoneEnter)
+    return () => zone.removeEventListener('pointerenter', onZoneEnter)
+  }, [])
 
   const effect = botCharacterEffect({
     character,
@@ -179,15 +210,17 @@ export function BotTeamCharacterIcon({
   const orbiting = effect !== null && effect !== 'aura'
   return (
     <svg
+      ref={svgRef}
       width={size}
       height={size}
       viewBox="0 0 64 64"
       aria-hidden="true"
       data-effect={effect ?? undefined}
+      onPointerEnter={(event) => playHover(event.pointerType)}
       className={[
         'bc-root shrink-0 overflow-visible',
-        animated ? '' : 'bc-still',
-        working && !unreachable ? 'bc-working' : '',
+        animated || move ? '' : 'bc-still',
+        working && animated ? 'bc-working' : '',
         move ? `bc-move-${move}` : ''
       ]
         .filter(Boolean)

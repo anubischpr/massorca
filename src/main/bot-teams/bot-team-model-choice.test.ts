@@ -3,6 +3,7 @@ import { resolveLaunchableDelegationModel } from '../delegated-session/delegatio
 import {
   botConversationChoice,
   botLaunchOptions,
+  botSessionLaunchOptions,
   botSessionOptions,
   botTeamTier,
   resolveBotModelChoice
@@ -148,10 +149,30 @@ describe('botLaunchOptions', () => {
     })
   })
 
-  it('leaves the model to Gentle Shell, whose launch cannot take one', () => {
+  it('leaves the model to Gentle Shell, whose worker launch cannot take one', () => {
     expect(
       botLaunchOptions({ agent: 'pi', model: 'nan/deepseek-v4-flash', effort: 'high' })
     ).toBeUndefined()
+  })
+})
+
+describe('botSessionLaunchOptions', () => {
+  it('gives a Gentle Shell bot its model as the session option the chat applies after launch', () => {
+    expect(
+      botSessionLaunchOptions({ agent: 'pi', model: 'nan/deepseek-v4-flash', effort: null })
+    ).toEqual({ model: 'nan/deepseek-v4-flash' })
+    expect(
+      botSessionLaunchOptions({ agent: 'pi', model: 'nan/deepseek-v4-flash', effort: 'high' })
+    ).toEqual({ model: 'nan/deepseek-v4-flash', effort: 'high' })
+  })
+
+  it('leaves a Gentle Shell bot with no chosen model on its own default', () => {
+    expect(botSessionLaunchOptions({ agent: 'pi', model: null, effort: 'high' })).toBeUndefined()
+  })
+
+  it('is the worker launch for every other agent', () => {
+    const bot = { agent: 'claude' as const, model: 'opus', effort: 'high' }
+    expect(botSessionLaunchOptions(bot)).toEqual(botLaunchOptions(bot))
   })
 })
 

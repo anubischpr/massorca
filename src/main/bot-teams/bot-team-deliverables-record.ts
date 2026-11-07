@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { lstatSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
+import { existsSync, lstatSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { z } from 'zod'
 import { getAppEnvironment } from '../../shared/app-environment'
@@ -26,6 +26,8 @@ export type TaskDeliverableRecord = {
   /** When the task began, for a folder project's files written since then. */
   since: number
   recordedAt: number
+  /** Files the finished task wrote or named, listed even when git ignores them or they are old. */
+  files?: string[]
 }
 
 const RecordSchema = z.object({
@@ -36,7 +38,8 @@ const RecordSchema = z.object({
   folder: z.string(),
   kind: z.enum(['worktree', 'folder']),
   since: z.number(),
-  recordedAt: z.number()
+  recordedAt: z.number(),
+  files: z.array(z.string()).optional()
 })
 
 const StoreSchema = z.object({ records: z.array(RecordSchema) })
@@ -93,6 +96,25 @@ export function recordTaskDeliverables(storeDir: string, record: TaskDeliverable
   renameSync(temporary, file)
 }
 
+/** Adds files to a task's record, once each; a task with no record has nothing to list them under. */
+export function addTaskDeliverableFiles(
+  storeDir: string,
+  teamId: string,
+  taskId: string,
+  relativePaths: readonly string[]
+): void {
+  const existing = readTeamDeliverableRecords(storeDir, teamId).find(
+    (entry) => entry.taskId === taskId
+  )
+  if (!existing || relativePaths.length === 0) {
+    return
+  }
+  const files = [...new Set([...(existing.files ?? []), ...relativePaths])].slice(
+    -MAX_PROJECT_FILES
+  )
+  recordTaskDeliverables(storeDir, { ...existing, files })
+}
+
 function isLinkedWorktree(folder: string): boolean {
   try {
     return lstatSync(path.join(folder, '.git')).isFile()
@@ -118,7 +140,11 @@ export function recordFinishedTaskDeliverables(args: {
   if (args.projectId === null || args.workspaceId === null || args.location?.local !== true) {
     return null
   }
+  const earlier = readTeamDeliverableRecords(args.storeDir, args.teamId).find(
+    (entry) => entry.taskId === args.taskId
+  )
   const record: TaskDeliverableRecord = {
+    ...(earlier?.files ? { files: earlier.files } : {}),
     taskId: args.taskId,
     teamId: args.teamId,
     projectId: args.projectId,
@@ -134,13 +160,17 @@ export function recordFinishedTaskDeliverables(args: {
 
 /** The files a record's workspace holds now: what a worktree changed, or a folder's files since the task began. */
 async function listRecordDeliverables(record: TaskDeliverableRecord): Promise<string[]> {
+  const registered = (record.files ?? []).filter((file) =>
+    existsSync(path.join(record.folder, file))
+  )
   if (record.kind === 'folder') {
     // Why: the folder listing uses the host's separators; Files names every file with '/'.
-    return listBotTeamDeliverables(record.folder, record.since).map((file) =>
+    const listed = listBotTeamDeliverables(record.folder, record.since).map((file) =>
       file.split(path.sep).join('/')
     )
+    return [...new Set([...listed, ...registered])]
   }
-  return (await readWorktreeChanges(record.folder))?.files ?? []
+  return [...new Set([...((await readWorktreeChanges(record.folder))?.files ?? []), ...registered])]
 }
 
 /**

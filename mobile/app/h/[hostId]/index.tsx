@@ -75,6 +75,7 @@ export default function HostWorktreeRoute() {
       <MobileBotTeamsScreen
         hostId={firstParam(params.hostId)}
         onShowWorkspaces={() => chooseSpace('workspaces')}
+        onOpenMarketplace={() => router.push('/marketplace')}
         onOpenTask={(workspaceId, task) => {
           // A task's thread is the normal session screen, on that task's chat.
           const paneKey = structuredAgentSessionPaneKey(

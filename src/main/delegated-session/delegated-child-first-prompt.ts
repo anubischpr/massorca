@@ -5,10 +5,10 @@ import { sanitizePrototypeCountSetting } from '../../shared/prototype-count-sett
 import { neutralizePrototypeMarkers } from '../../shared/prototype-hidden-instruction'
 import {
   buildPrototypeRequestParts,
-  classifyPrototypeRequest,
   PROTOTYPE_AGENTS,
   type PrototypeAgent
 } from '../../shared/prototype-request'
+import { delegatedTaskAsksForPrototypes } from '../../shared/prototype-request-decision'
 import type { PiRuntimeSelection } from '../../shared/pi-runtime-selection'
 import type { PrototypeDesignSystemMode } from '../../shared/prototype-design-system-files'
 import type { WorkerFirstPrompt } from '../runtime/rpc/methods/orchestration/worker/worker-start-readiness-settlement'
@@ -88,7 +88,8 @@ async function buildDelegatedChildFirstPrompt(
   }
   const agent = prototypeAgentOfChild(chat.agent, chat.piRuntime)
   const text = neutralizePrototypeMarkers(input.taskSpec)
-  if (classifyPrototypeRequest(text, agent).kind === 'none' && input.prototypeTask !== true) {
+  // Why: the same decision the delegation card made, so standing room rules that mention a prototype make none.
+  if (!delegatedTaskAsksForPrototypes({ text, agents: [agent] }) && input.prototypeTask !== true) {
     return null
   }
   // Why: a count the person answered on the card wins; Settings only counts for a task answered without one.

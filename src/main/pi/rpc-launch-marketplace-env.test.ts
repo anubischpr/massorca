@@ -6,6 +6,7 @@ import type { AgentSessionJournalIdentity } from '../../shared/agent-session-jou
 import { closeTestJournalHostDatabase } from '../native-chat/agent-session-journal/journal-host-database-test-support'
 import { openTestAgentSessionRecordStore } from '../runtime/agent-session-record-store-test-harness'
 import { MarketplaceVault, emptyMarketplaceState } from '../marketplace/marketplace-vault'
+import type { BotRunDenial } from '../marketplace/marketplace-bot-run-denial'
 import { createPiRpcLaunchResolver } from './rpc-launch-resolution'
 import { buildPiRpcLaunch } from './rpc-launch'
 
@@ -55,7 +56,10 @@ async function installGentleShellStub(): Promise<void> {
   }
 }
 
-async function resolve(piRuntime: 'gentle-shell' | 'pi') {
+async function resolve(
+  piRuntime: 'gentle-shell' | 'pi',
+  resolveBotRunDenial?: () => Promise<BotRunDenial | null>
+) {
   const store = await openTestAgentSessionRecordStore(root)
   const { record } = await store.reserveOwner({
     sessionId: identity.sessionId,
@@ -83,6 +87,7 @@ async function resolve(piRuntime: 'gentle-shell' | 'pi') {
   const workspace = join(root, 'workspace')
   await mkdir(workspace, { recursive: true })
   return createPiRpcLaunchResolver({
+    ...(resolveBotRunDenial ? { resolveBotRunDenial } : {}),
     store,
     resolveWorkspacePath: async () => workspace,
     resolveEnvironment: async () => ({ PATH: root, HOME: '/host/home' }),
@@ -93,6 +98,18 @@ async function resolve(piRuntime: 'gentle-shell' | 'pi') {
 }
 
 describe('Gentle Shell structured launch marketplace env', () => {
+  it('keeps the Marketplace tokens of a denied app out of a bot run', async () => {
+    await installGentleShellStub()
+    const launch = await resolve('gentle-shell', async () => ({
+      mcpServers: ['openmetadata', 'escritura'],
+      envNames: ['OPENMETADATA_TOKEN', PROFILE_ENV],
+      envPrefixes: []
+    }))
+    expect(launch.env).not.toHaveProperty(PROFILE_ENV)
+    expect(launch.env).not.toHaveProperty('OPENMETADATA_TOKEN')
+    expect(launch.env?.PI_CODING_AGENT_DIR).toBe('/host/account')
+  })
+
   it('gives the chat every connected profile token under its own name', async () => {
     await installGentleShellStub()
     const launch = await resolve('gentle-shell')

@@ -20,7 +20,14 @@ export const BotTeamTaskSchema = z.object({
   // The host's time the task was made; a host from before it sends none.
   createdAt: z.number().nullable().optional(),
   // The terminal status the host kept for its session; null while the session works or has none yet.
-  lastStatus: z.enum(BOT_TEAM_TASK_LAST_STATUSES).nullable().optional()
+  lastStatus: z.enum(BOT_TEAM_TASK_LAST_STATUSES).nullable().optional(),
+  // A routine run started it, so the room shows it at the time it ran; SQLite reads back 0 or 1.
+  fromRoutine: z.coerce.boolean().optional(),
+  // The bot ended its turn on a question the room carries; set only while the person owes an answer.
+  // A separate field, not a new `lastStatus` value: a client from before it rejects an unknown one.
+  awaitingPerson: z.boolean().optional(),
+  // The room message this task answers, set for a reply; absent for any other task and from an older host.
+  answersMessageId: z.string().optional()
 })
 
 /** Where a project's code comes from: a repository that exists, or a new folder set up with git. */
@@ -148,7 +155,11 @@ export const BotTeamMessageSchema = z.object({
   /** Files from the team folder the message names; absent for a message with none. */
   attachments: z.array(BotTeamRoomAttachmentSchema).optional(),
   /** Set when another team's bot reports a finished request here; absent for a message of this room. */
-  fromTeamId: z.string().optional()
+  fromTeamId: z.string().optional(),
+  /** The room message this one answers; absent for a line that answers none, and from an older host. */
+  replyToMessageId: z.string().optional(),
+  /** The task that posted this line, when a task did; absent for a line no task posted, and from an older host. */
+  sourceTaskId: z.string().optional()
 })
 
 /** A task another team took for a request this team sent, with the message that asked for it. */
@@ -163,6 +174,11 @@ export const BotTeamTaskCreate = z.object({
   title: requiredString('Missing task title'),
   prompt: z.string().trim().default(''),
   ownerBotId: requiredString('Missing bot id')
+})
+
+const BotTeamPrototypeChoiceSchema = z.object({
+  count: z.number().int().min(1).max(4),
+  designSystem: z.enum(['use', 'propose', 'skip']).optional()
 })
 
 export const BotTeamMessagePost = z
@@ -182,7 +198,11 @@ export const BotTeamMessagePost = z
       .max(BOT_TEAM_ROOM_ATTACHMENT_LIMIT)
       .optional(),
     /** The sender's IANA zone, so "mañana a las 10" is read on their clock. An older client sends none. */
-    timeZone: z.string().min(1).max(64).optional()
+    timeZone: z.string().min(1).max(64).optional(),
+    /** The prototype count the person chose on the card; an older host ignores it and sends the text as typed. */
+    prototypeChoice: BotTeamPrototypeChoiceSchema.optional(),
+    /** The room message this one answers, read from the same team; an older host ignores it. */
+    replyToMessageId: z.string().min(1).max(100).optional()
   })
   .refine((value) => value.text.trim() !== '' || (value.attachments?.length ?? 0) > 0, {
     message: 'Missing message text',
@@ -190,24 +210,35 @@ export const BotTeamMessagePost = z
   })
 
 /** Files a request the room could not place by itself: to a bot, and to a team when `toTeamId` is set. */
-export const BotTeamRequestAssign = z.object({
-  teamId: requiredString('Missing team id'),
-  text: requiredString('Missing request text'),
-  /** Absent: the least busy bot of the receiving team takes it. */
-  botId: z.string().min(1).optional(),
-  toTeamId: z.string().min(1).optional(),
-  start: z.boolean().default(true),
-  /** The answer to the project question: a project of the team, or null for none. Absent until asked. */
-  projectId: z.string().min(1).nullable().optional(),
-  /** The other bots a composite task has parts for, as the question carried them. */
-  alsoNeeds: z.array(z.string().min(1)).optional(),
-  later: z.boolean().optional(),
-  askProject: z.boolean().optional(),
-  /** Files the person attached to the request, kept when a choice card answers it. */
-  attachments: z.array(BotTeamRoomAttachmentSchema).max(BOT_TEAM_ROOM_ATTACHMENT_LIMIT).optional(),
-  /** The sender's IANA zone, so a day the request names is read on their clock. An older client sends none. */
-  timeZone: z.string().min(1).max(64).optional()
-})
+export const BotTeamRequestAssign = z
+  .object({
+    teamId: requiredString('Missing team id'),
+    /** Empty only with files: the answer to the project question for a message of only files. */
+    text: requiredStringAllowingEmpty('Missing request text'),
+    /** Absent: the least busy bot of the receiving team takes it. */
+    botId: z.string().min(1).optional(),
+    toTeamId: z.string().min(1).optional(),
+    start: z.boolean().default(true),
+    /** The answer to the project question: a project of the team, or null for none. Absent until asked. */
+    projectId: z.string().min(1).nullable().optional(),
+    /** The other bots a composite task has parts for, as the question carried them. */
+    alsoNeeds: z.array(z.string().min(1)).optional(),
+    later: z.boolean().optional(),
+    askProject: z.boolean().optional(),
+    /** Files the person attached to the request, kept when a choice card answers it. */
+    attachments: z
+      .array(BotTeamRoomAttachmentSchema)
+      .max(BOT_TEAM_ROOM_ATTACHMENT_LIMIT)
+      .optional(),
+    /** The sender's IANA zone, so a day the request names is read on their clock. An older client sends none. */
+    timeZone: z.string().min(1).max(64).optional(),
+    /** The prototype count the person chose before the room asked this question; an older host ignores it. */
+    prototypeChoice: BotTeamPrototypeChoiceSchema.optional()
+  })
+  .refine((value) => value.text.trim() !== '' || (value.attachments?.length ?? 0) > 0, {
+    message: 'Missing request text',
+    path: ['text']
+  })
 
 /** Gives an idle task to a bot of any team; its team follows the bot. Nothing starts: Start does that. */
 export const BotTeamTaskReassign = z.object({
@@ -244,4 +275,8 @@ export type BotTeamMessageInput = {
   text: string
   authorBotId: string | null
   attachments?: BotTeamRoomAttachment[]
+  /** The room message this one answers. */
+  replyToMessageId?: string
+  /** The task that posted this line, so the room can open it. */
+  sourceTaskId?: string
 }

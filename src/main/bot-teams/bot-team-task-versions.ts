@@ -2,10 +2,14 @@ import { randomUUID } from 'node:crypto'
 import { existsSync } from 'node:fs'
 import type { OrchestrationDb } from '../runtime/orchestration/db/orchestration-db'
 import { getStructuredAgentSessionHost } from '../native-chat/agent-session-wire/structured-agent-session-registry'
+import { nativeChatVisualsFolderFor } from '../native-chat/native-chat-visuals-folder'
+import { getProfileUserDataPath } from '../orca-profiles/profile-storage-paths'
 import { botTeamFolderPath, botTeamVersionDeps } from './bot-team-version-deps'
 import { watchBotTeamTaskFinishes } from './bot-team-version-watcher'
 import { watchBotTeamTaskLastStatus } from './bot-team-task-status-record'
 import { reportFinishedBotTeamTask } from './bot-team-finish-report'
+import { postBotTeamTaskQuestion } from './bot-team-task-question'
+import { readBotTeamSessionReply } from './bot-team-task-session-turns'
 import { botTeamReturnDeps, returnFinishedBotTeamTask } from './bot-team-return'
 import { takeBotTeamSnapshot } from './bot-team-snapshots'
 import type { BotTeamSnapshotDeps } from './bot-team-snapshot-types'
@@ -40,6 +44,18 @@ export async function saveVersionOfFinishedTask(
   }
 }
 
+/** A chat's visuals folder on this host, named by the same resolver the chat's launch uses. */
+function chatVisualsFolderOf(sessionId: string): string {
+  return nativeChatVisualsFolderFor(getProfileUserDataPath(), sessionId)
+}
+
+/** The workspace a chat ran in, from the host that holds its record; null when this host does not hold it. */
+function readSessionWorkspaceOf(sessionId: string): string | null {
+  return (
+    getStructuredAgentSessionHost()?.deps.store.getRecord(sessionId)?.location.workspaceId ?? null
+  )
+}
+
 const watchedHosts = new WeakSet<object>()
 
 /** Starts once per host: a task that finishes while its team's room is closed is still saved. */
@@ -64,10 +80,17 @@ export function ensureBotTeamVersionWatcher(getDb: () => OrchestrationDb): void 
     void reportFinishedBotTeamTask(getDb(), sessionId, {
       folderOf: botTeamFolderPath,
       settleMs: 3000,
-      sessionWorkspaceId: workspaceId
+      sessionWorkspaceId: workspaceId,
+      visualsFolderOf: chatVisualsFolderOf,
+      workspaceOfSession: readSessionWorkspaceOf
     }).catch((error: unknown) =>
       console.warn('[bot-teams] reporting a finished task failed', error)
     )
+    // A bot that ended its turn on a question for the person asks it in the room, and its task waits for them.
+    void postBotTeamTaskQuestion(getDb(), sessionId, {
+      settleMs: 3000,
+      lastReplyOf: readBotTeamSessionReply
+    }).catch((error: unknown) => console.warn('[bot-teams] posting a bot question failed', error))
     // A task another team asked for tells that team's room once it is done.
     void returnFinishedBotTeamTask(getDb(), sessionId, botTeamReturnDeps(workspaceId)).catch(
       (error: unknown) => console.warn('[bot-teams] returning a finished task failed', error)
