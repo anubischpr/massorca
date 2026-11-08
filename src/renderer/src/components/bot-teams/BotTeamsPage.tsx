@@ -171,9 +171,11 @@ function TeamDetail({
 /** Losing contact says nothing about the bots, which run on the host: they may still be working. */
 function HostUnreachableNotice({
   lastSeenAt,
+  showHostPicker,
   onRetry
 }: {
   lastSeenAt: number | null
+  showHostPicker: boolean
   onRetry: () => void
 }): React.JSX.Element {
   return (
@@ -195,6 +197,8 @@ function HostUnreachableNotice({
               }
             )}
       </p>
+      {/* Why: a host that never answered hides the grid and its picker, so the choice lives here. */}
+      {showHostPicker ? <BotTeamHostPicker /> : null}
       <Button variant="outline" size="sm" onClick={onRetry}>
         {translate('components.botTeams.tryAgain', 'Try again')}
       </Button>
@@ -330,7 +334,11 @@ export default function BotTeamsPage({
   return (
     <div className="scrollbar-sleek h-full overflow-y-auto bg-chat-canvas">
       {failed && !selection.creating ? (
-        <HostUnreachableNotice lastSeenAt={lastSeenAt} onRetry={reload} />
+        <HostUnreachableNotice
+          lastSeenAt={lastSeenAt}
+          showHostPicker={teams === null && !editingTeam}
+          onRetry={reload}
+        />
       ) : null}
       {/* Before the list: choosing another host in the form must not lose what was typed. */}
       {editingTeam ? (
