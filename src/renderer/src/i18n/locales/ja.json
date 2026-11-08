@@ -6460,6 +6460,7 @@
           "unread": "未読"
         },
         "OneLineSessionMenu": {
+          "clearFromList": "リストから削除",
           "copyTitle": "タイトルをコピー",
           "sleep": "スリープ",
           "splitView": "分割表示"

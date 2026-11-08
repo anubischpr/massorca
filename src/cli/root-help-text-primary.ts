@@ -136,6 +136,8 @@ export const ROOT_HELP_TEXT_PRIMARY = [
   '  worktree set              Update MassOrca metadata for a worktree',
   '  worktree rm               Remove a worktree from MassOrca and git',
   '  worktree ps               Show a compact orchestration summary across worktrees',
+  '  worktree sessions         List agent sessions (chats and terminal agents) under a worktree',
+  '  worktree session-close    Close one agent session under a worktree by its listed id',
   '',
   'Files:',
   '  file open                 Open a file as a tab, view stays put (--focus brings you to it)',

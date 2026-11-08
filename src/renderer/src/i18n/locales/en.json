@@ -6714,6 +6714,7 @@
           "unread": "Unread"
         },
         "OneLineSessionMenu": {
+          "clearFromList": "Clear from List",
           "copyTitle": "Copy Title",
           "sleep": "Sleep",
           "splitView": "Split view"

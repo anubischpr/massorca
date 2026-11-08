@@ -9,7 +9,7 @@ import { getRequiredWorktreeSelector, getTerminalHandle } from '../selectors'
 import { describeUnconfirmedCloseStop } from '../../shared/pty-liveness-verdict'
 
 /** A false stop receipt is an error only when the host supplied a liveness verdict. */
-function terminalCloseFailure(close: RuntimeTerminalClose): RuntimeClientError | null {
+export function terminalCloseFailure(close: RuntimeTerminalClose): RuntimeClientError | null {
   if (close.ptyKilled || close.ptyStopVerdict === undefined) {
     return null
   }

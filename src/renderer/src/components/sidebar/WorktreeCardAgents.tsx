@@ -12,6 +12,7 @@ import { useWorktreeAgentRows } from './useWorktreeAgentRows'
 import { cn } from '@/lib/utils'
 import type { DashboardAgentRow as DashboardAgentRowData } from '@/components/dashboard/useDashboardData'
 import { useActivateAgentRowInOwner, useActivateAgentTab } from './worktree-card-agent-activation'
+import { AgentRowSessionMenu } from './worktree-card-agent-row-session-menu'
 import { useCrossWorktreeChildMetadata } from './use-cross-worktree-child-metadata'
 import { useFocusedAgentPaneKey } from './focused-agent-row-highlight'
 import {
@@ -21,7 +22,7 @@ import {
 } from './worktree-card-compact-agents'
 import { buildAgentRowLineageTree } from '@/components/dashboard/agent-row-lineage-model'
 import { DEFAULT_AGENT_ACTIVITY_DISPLAY_MODE } from '../../../../shared/constants'
-import { revealElementInScrollContainer } from './worktree-sidebar-reveal'
+import { revealCompactAgentCard } from './worktree-sidebar-reveal'
 import { useWorktreeAgentExpansionState } from './worktree-card-agents-expansion-state'
 import { translate } from '@/i18n/i18n'
 import {
@@ -37,15 +38,6 @@ export const SUPPRESS_WORKTREE_LIST_SCROLL_ADJUSTMENT_EVENT =
 
 const dispatchSuppressScrollAdjustment = () => {
   window.dispatchEvent(new CustomEvent(SUPPRESS_WORKTREE_LIST_SCROLL_ADJUSTMENT_EVENT))
-}
-
-function revealCompactAgentCard(agentListRoot: HTMLElement | null): void {
-  const sidebarElement = agentListRoot?.closest('[data-worktree-sidebar]')
-  const worktreeOptionElement = agentListRoot?.closest('[role="option"]')
-  if (!(sidebarElement instanceof HTMLElement) || !worktreeOptionElement) {
-    return
-  }
-  revealElementInScrollContainer(sidebarElement, worktreeOptionElement, 'auto')
 }
 
 type Props = {
@@ -243,32 +235,34 @@ const WorktreeCardAgentsBody = React.memo(function WorktreeCardAgentsBody({
     descendantAncestorPaneKeys.add(agent.paneKey)
     return (
       <React.Fragment key={agent.paneKey}>
-        <DashboardAgentRow
-          agent={agent}
-          onDismiss={handleDismissAgent}
-          onActivate={
-            agent.rowSource === 'retained' ? handleActivateRetainedAgent : handleActivateAgentTab
-          }
-          now={now}
-          // Why: bold the row until the user visits its tab (useAutoAckViewedAgent auto-acks on focus, muting it).
-          isUnvisited={unvisitedByPaneKey[agent.paneKey] ?? false}
-          // Why: inline rows are tight; 'md' reads as a second glyph users confuse with the adjacent identity icon, so use 'sm'.
-          stateDotSize="sm"
-          // Why: clicking the row jumps straight to the agent, so the expand chevron is redundant (keep the identity glyph).
-          hideExpand
-          // Why: child expansion belongs to the parent agent row.
-          childAgentCount={hasChildAgents ? childAgents.length : undefined}
-          childAgentsExpanded={expanded}
-          onToggleChildAgents={
-            hasChildAgents ? () => toggleLineageParent(agent.paneKey) : undefined
-          }
-          isFocusedPane={agent.paneKey === focusedAgentPaneKey}
-          sendTargetStatus={sendTarget?.status}
-          sendTargetDisabledReason={sendTarget?.disabledReason}
-          onSendTargetClick={isAgentSendTargetModeActive ? handleSendTargetClick : undefined}
-          // Why: hierarchy shows via chevron + indent; legacy L-connectors use a fixed offset that mismatches the column and reads as floating fragments.
-          hideLineageConnectors
-        />
+        <AgentRowSessionMenu agent={agent}>
+          <DashboardAgentRow
+            agent={agent}
+            onDismiss={handleDismissAgent}
+            onActivate={
+              agent.rowSource === 'retained' ? handleActivateRetainedAgent : handleActivateAgentTab
+            }
+            now={now}
+            // Why: bold the row until the user visits its tab (useAutoAckViewedAgent auto-acks on focus, muting it).
+            isUnvisited={unvisitedByPaneKey[agent.paneKey] ?? false}
+            // Why: inline rows are tight; 'md' reads as a second glyph users confuse with the adjacent identity icon, so use 'sm'.
+            stateDotSize="sm"
+            // Why: clicking the row jumps straight to the agent, so the expand chevron is redundant (keep the identity glyph).
+            hideExpand
+            // Why: child expansion belongs to the parent agent row.
+            childAgentCount={hasChildAgents ? childAgents.length : undefined}
+            childAgentsExpanded={expanded}
+            onToggleChildAgents={
+              hasChildAgents ? () => toggleLineageParent(agent.paneKey) : undefined
+            }
+            isFocusedPane={agent.paneKey === focusedAgentPaneKey}
+            sendTargetStatus={sendTarget?.status}
+            sendTargetDisabledReason={sendTarget?.disabledReason}
+            onSendTargetClick={isAgentSendTargetModeActive ? handleSendTargetClick : undefined}
+            // Why: hierarchy shows via chevron + indent; legacy L-connectors use a fixed offset that mismatches the column and reads as floating fragments.
+            hideLineageConnectors
+          />
+        </AgentRowSessionMenu>
         {hasChildAgents && expanded ? (
           <div className="worktree-agent-lineage-children">
             {childAgents.map((childAgent) =>
@@ -301,24 +295,26 @@ const WorktreeCardAgentsBody = React.memo(function WorktreeCardAgentsBody({
     descendantAncestorPaneKeys.add(agent.paneKey)
     return (
       <React.Fragment key={agent.paneKey}>
-        <CompactAgentRow
-          agent={agent}
-          now={now}
-          isUnvisited={unvisitedByPaneKey[agent.paneKey] ?? false}
-          onActivate={
-            agent.rowSource === 'retained' ? handleActivateRetainedAgent : handleActivateAgentTab
-          }
-          sendTargetStatus={sendTarget?.status}
-          sendTargetDisabledReason={sendTarget?.disabledReason}
-          onSendTargetClick={isAgentSendTargetModeActive ? handleSendTargetClick : undefined}
-          childAgentCount={hasChildAgents ? childAgents.length : undefined}
-          childAgentsExpanded={expanded}
-          onToggleChildAgents={
-            hasChildAgents ? () => toggleLineageParent(agent.paneKey) : undefined
-          }
-          isFocusedPane={agent.paneKey === focusedAgentPaneKey}
-          cacheTimerActive={cacheTimerActive}
-        />
+        <AgentRowSessionMenu agent={agent}>
+          <CompactAgentRow
+            agent={agent}
+            now={now}
+            isUnvisited={unvisitedByPaneKey[agent.paneKey] ?? false}
+            onActivate={
+              agent.rowSource === 'retained' ? handleActivateRetainedAgent : handleActivateAgentTab
+            }
+            sendTargetStatus={sendTarget?.status}
+            sendTargetDisabledReason={sendTarget?.disabledReason}
+            onSendTargetClick={isAgentSendTargetModeActive ? handleSendTargetClick : undefined}
+            childAgentCount={hasChildAgents ? childAgents.length : undefined}
+            childAgentsExpanded={expanded}
+            onToggleChildAgents={
+              hasChildAgents ? () => toggleLineageParent(agent.paneKey) : undefined
+            }
+            isFocusedPane={agent.paneKey === focusedAgentPaneKey}
+            cacheTimerActive={cacheTimerActive}
+          />
+        </AgentRowSessionMenu>
         {hasChildAgents ? (
           <CompactAgentExpansion expanded={expanded}>
             <div className="worktree-agent-lineage-children flex flex-col gap-0.5">

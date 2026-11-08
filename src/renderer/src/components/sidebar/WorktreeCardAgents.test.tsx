@@ -207,6 +207,15 @@ describe('WorktreeCardAgents', () => {
     expect(markup).not.toContain('aria-expanded')
   }, 30_000)
 
+  it.each(['full', 'compact'] as const)('gives each %s row a session menu', async (mode) => {
+    mockAgentActivityDisplayMode = mode
+    mockAgents = [mockAgent({ agentType: 'claude', startedAt: 1000, prompt: 'Informe' })]
+    const { default: WorktreeCardAgents } = await import('./WorktreeCardAgents')
+    // Why: the worktree menu ignores a right-click inside a nested menu scope.
+    const markup = renderToStaticMarkup(<WorktreeCardAgents worktreeId="wt-1" />)
+    expect(markup).toContain('data-worktree-context-menu-scope="session"')
+  })
+
   it('uses compact mode when the display preference is absent', async () => {
     mockAgents = [mockAgent({ agentType: 'codex', startedAt: 1000, prompt: 'Run tests' })]
     const { default: WorktreeCardAgents } = await import('./WorktreeCardAgents')

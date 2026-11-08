@@ -67,3 +67,13 @@ export function revealElementInScrollContainer(
   container.scrollTo({ top: targetTop, behavior: resolvedBehavior })
   return true
 }
+
+/** Scrolls the sidebar so the worktree card holding this agent list is in view. */
+export function revealCompactAgentCard(agentListRoot: HTMLElement | null): void {
+  const sidebarElement = agentListRoot?.closest('[data-worktree-sidebar]')
+  const worktreeOptionElement = agentListRoot?.closest('[role="option"]')
+  if (!(sidebarElement instanceof HTMLElement) || !worktreeOptionElement) {
+    return
+  }
+  revealElementInScrollContainer(sidebarElement, worktreeOptionElement, 'auto')
+}
