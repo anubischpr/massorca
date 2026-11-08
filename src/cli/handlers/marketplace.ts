@@ -31,6 +31,7 @@ import {
 } from '../../shared/rpc-contract/marketplace-apps-params'
 import { callMarketplaceHost } from './marketplace-host-call'
 import { readSecretInput } from './marketplace-secret-input'
+import { MARKETPLACE_AUDIT_HANDLERS } from './marketplace-audit'
 
 const FAILURE_MESSAGES: Record<string, string> = {
   'invalid-input': 'The host refused the input.',
@@ -179,6 +180,7 @@ function readAgentPicks(ctx: HandlerContext): MarketplaceAppAgent[] {
 }
 
 export const MARKETPLACE_HANDLERS: Record<string, CommandHandler> = {
+  ...MARKETPLACE_AUDIT_HANDLERS,
   'marketplace list': async (ctx) => {
     const response = await listApps(ctx)
     const only = getOptionalStringFlag(ctx.flags, 'app')

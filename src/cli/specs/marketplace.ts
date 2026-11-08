@@ -69,6 +69,19 @@ export const MARKETPLACE_COMMAND_SPECS: CommandSpec[] = [
       'orca marketplace access openmetadata',
       'orca marketplace access engram --mode except --agents antigravity'
     ]
+  },
+  {
+    path: ['marketplace', 'audit'],
+    summary: 'Show which Marketplace pages open or are blocked on a host, and why',
+    usage: `orca marketplace audit [${SKILL_HOST_USAGE}] [--strict] [--json]`,
+    allowedFlags: [...GLOBAL_FLAGS, 'host', 'strict'],
+    notes: [
+      SKILL_HOST_NOTE,
+      'The host’s desktop window computes each row with the same code the Marketplace page uses: whether its page opens, the block code and reason when it does not, the controls the page shows, and whether it is native or needs an outside tool.',
+      'A headless host with no desktop window open answers that it cannot audit.',
+      '--strict exits 1 when any page is blocked.'
+    ],
+    examples: ['orca marketplace audit', 'orca marketplace audit --host wsl:Ubuntu --strict --json']
   }
 ]
 
