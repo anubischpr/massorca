@@ -1,12 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import type { RuntimeWorktreeAgentRow } from '../../../src/shared/runtime-types'
-import {
-  arrangeBranchRowSections,
-  placeCrossWorktreeAgents
-} from './cross-worktree-agent-placement'
+import { placeCrossWorktreeAgents } from './cross-worktree-agent-placement'
 import { getMobileWorkspaceLineageGroupKey } from './mobile-workspace-lineage'
 import { buildSections } from './workspace-list-sections'
-import { getWorktreeRowIdentity } from './worktree-host-row-identity'
 import type { FilterState, Section, Worktree } from './workspace-list-types'
 
 const NO_FILTERS: FilterState = {
@@ -165,53 +161,28 @@ describe('placeCrossWorktreeAgents', () => {
   })
 })
 
-describe('branch rows of worktrees whose sessions run under another parent', () => {
+describe('worktree rows whose sessions run under a parent in another worktree', () => {
   const A = worktree('wt-a', 'main', [agent('pane-p')])
   const B = worktree('wt-b', 'feature', [agent('pane-c', 'pane-p')], { parentWorktreeId: 'wt-a' })
-  const identityOf = (item: Worktree) => getWorktreeRowIdentity(item)
 
-  it('hides the child row when its only session runs under a parent in another worktree', () => {
+  it('keeps the child row when its only session runs under a parent in another worktree', () => {
     const placement = placeCrossWorktreeAgents([section('all', [A, B])])
 
-    expect([...placement.hiddenIdentities]).toEqual([identityOf(B)])
-  })
-
-  it('keeps the child row when it also lists a session of its own', () => {
-    const extra = worktree('wt-b', 'feature', [agent('pane-c', 'pane-p'), agent('pane-own')], {
-      parentWorktreeId: 'wt-a'
-    })
-    const placement = placeCrossWorktreeAgents([section('all', [A, extra])])
-
-    expect(placement.hiddenIdentities.size).toBe(0)
+    expect(placement.sections[0]?.data.map((item) => item.worktreeId)).toEqual(['wt-a', 'wt-b'])
+    expect(listedPaneKeys(placement.sections)).toEqual(['pane-c', 'pane-p'])
   })
 
   it('keeps the child row, unplaced, when its parent session is gone', () => {
     const lonely = worktree('wt-b', 'feature', [agent('pane-c', 'pane-missing')])
     const placement = placeCrossWorktreeAgents([section('all', [A, lonely])])
 
-    expect(placement.hiddenIdentities.size).toBe(0)
     expect(placement.ownersByPaneKey.has('pane-c')).toBe(false)
   })
 
   it('keeps the child row when its parent worktree is not in the list', () => {
     const placement = placeCrossWorktreeAgents([section('all', [B])])
 
-    expect(placement.hiddenIdentities.size).toBe(0)
-  })
-
-  it('keeps the rows of a session loop', () => {
-    const loopA = worktree('wt-a', 'main', [agent('pane-p', 'pane-c')])
-    const loopB = worktree('wt-b', 'feature', [agent('pane-c', 'pane-p')])
-    const placement = placeCrossWorktreeAgents([section('all', [loopA, loopB])])
-
-    expect(placement.hiddenIdentities.size).toBe(0)
-  })
-
-  it('hides the middle of a nested chain and keeps the top-level parent', () => {
-    const C = worktree('wt-c', 'nested', [agent('pane-g', 'pane-c')], { parentWorktreeId: 'wt-b' })
-    const placement = placeCrossWorktreeAgents([section('all', [A, B, C])])
-
-    expect([...placement.hiddenIdentities].sort()).toEqual([identityOf(B), identityOf(C)].sort())
+    expect(placement.sections[0]?.data.map((item) => item.worktreeId)).toEqual(['wt-b'])
   })
 
   it('lists a child under its parent when a folded lineage keeps the child row out of the list', () => {
@@ -257,20 +228,7 @@ describe('branch rows of worktrees whose sessions run under another parent', () 
     const listed = buildSections([asleep, awake], 'recent', filters, '', 'none', new Set())
     const placement = placeCrossWorktreeAgents(listed, [asleep, awake])
 
-    expect(placement.hiddenIdentities.size).toBe(0)
     expect(placement.ownersByPaneKey.has('pane-c')).toBe(false)
     expect(listedPaneKeys(placement.sections)).toEqual(['pane-c'])
-  })
-
-  it('removes a hidden row outside the pinned section and keeps it there', () => {
-    const placement = placeCrossWorktreeAgents([section('all', [A, B]), section('pinned', [B])])
-    const laidOut = arrangeBranchRowSections(placement.sections, placement, new Set())
-
-    expect(laidOut.find((s) => s.key === 'all')?.data.map((item) => item.worktreeId)).toEqual([
-      'wt-a'
-    ])
-    expect(laidOut.find((s) => s.key === 'pinned')?.data.map((item) => item.worktreeId)).toEqual([
-      'wt-b'
-    ])
   })
 })

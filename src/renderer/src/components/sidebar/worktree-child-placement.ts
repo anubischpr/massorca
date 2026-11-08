@@ -33,30 +33,6 @@ type PlacementTopology = {
   liveChildrenByWorktree: ReadonlyMap<string, readonly string[]>
   /** Retained sessions another worktree holds, listed under a parent in this worktree. */
   retainedChildrenByWorktree: ReadonlyMap<string, readonly string[]>
-  /** Worktrees whose every listed session is placed away, mapped to the worktrees those sessions are placed under. */
-  branchRowCandidatesByWorktree: ReadonlyMap<string, readonly string[]>
-}
-
-/** True when the parent links from this session loop back on themselves. */
-function parentChainLoops(
-  start: PlacementRecord,
-  records: Map<string, PlacementRecord>,
-  paneKeyByTerminalHandle: ReturnType<typeof buildPaneKeyByTerminalHandle>
-): boolean {
-  const seen = new Set<string>([start.paneKey])
-  let current = start
-  for (;;) {
-    const parentPaneKey = resolveAgentRowParentPaneKey(current, records, paneKeyByTerminalHandle)
-    const parent = parentPaneKey === undefined ? undefined : records.get(parentPaneKey)
-    if (!parent) {
-      return false
-    }
-    if (seen.has(parent.paneKey)) {
-      return true
-    }
-    seen.add(parent.paneKey)
-    current = parent
-  }
 }
 
 type TopologyCache = {
@@ -149,37 +125,18 @@ function buildTopology(state: AppState): PlacementTopology {
   const placedAway = new Map<string, string[]>()
   const liveChildren = new Map<string, string[]>()
   const retainedChildren = new Map<string, string[]>()
-  const listedWorktreeIds = new Set<string>()
-  const placedUnderByWorktree = new Map<string, Set<string>>()
-  // Why: a worktree with a session in a parent loop keeps its row, so a cycle never hides every row it touches.
-  const loopingWorktreeIds = new Set<string>()
   for (const record of records.values()) {
     const display = displayByPaneKey.get(record.paneKey) ?? record.ownWorktreeId
     if (display === record.ownWorktreeId) {
-      listedWorktreeIds.add(record.ownWorktreeId)
       continue
     }
     appendTo(placedAway, record.ownWorktreeId, record.paneKey)
     appendTo(record.kind === 'live' ? liveChildren : retainedChildren, display, record.paneKey)
-    if (parentChainLoops(record, records, paneKeyByTerminalHandle)) {
-      loopingWorktreeIds.add(record.ownWorktreeId)
-      continue
-    }
-    const under = placedUnderByWorktree.get(record.ownWorktreeId) ?? new Set<string>()
-    under.add(display)
-    placedUnderByWorktree.set(record.ownWorktreeId, under)
-  }
-  const branchRowCandidates = new Map<string, string[]>()
-  for (const [worktreeId, under] of placedUnderByWorktree) {
-    if (!listedWorktreeIds.has(worktreeId) && !loopingWorktreeIds.has(worktreeId)) {
-      branchRowCandidates.set(worktreeId, [...under])
-    }
   }
   return {
     placedAwayByWorktree: placedAway,
     liveChildrenByWorktree: liveChildren,
-    retainedChildrenByWorktree: retainedChildren,
-    branchRowCandidatesByWorktree: branchRowCandidates
+    retainedChildrenByWorktree: retainedChildren
   }
 }
 
@@ -327,15 +284,4 @@ export function selectCrossWorktreeChildLayouts(
     out[tabId] = state.terminalLayoutsByTabId[tabId]
   }
   return out
-}
-
-/**
- * Worktrees whose listed sessions are all placed under a parent in another worktree, keyed by worktree
- * id. The value lists the worktrees those sessions are placed under. A loop in the parent links keeps
- * the worktree out of this map.
- */
-export function selectBranchRowCandidatesByWorktree(
-  state: AppState
-): ReadonlyMap<string, readonly string[]> {
-  return topologyOf(state).branchRowCandidatesByWorktree
 }

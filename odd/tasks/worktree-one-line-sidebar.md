@@ -29,7 +29,7 @@ Out of scope: Environment card content, push, PR, the `custom/pv27-unified` bran
 - Collapsed branch or project shows the worst hidden status.
 - Five sessions visible, then "Show N more". Needs-human, failed, working and unread sessions are never hidden.
 - PR and CI: one tinted icon on the branch row, desktop; existing `#N` badge on mobile.
-- A child in another worktree shows once, under its parent, with a branch icon whose tooltip names the branch. Its own branch row is hidden while every session it lists runs under a parent in another worktree (one-line desktop and mobile). It returns at top level once no such session is left, and it keeps its row while it lists a session of its own, while a session loop or a filtered-out parent would otherwise hide it, and when it is pinned. Open: when that row returns, a lineage-linked child is still nested under its lineage parent (see Progress, change 1).
+- A child in another worktree shows its session under its parent, with a branch icon whose tooltip names the branch. Its own branch row stays listed, nested under its lineage parent, on one-line desktop and mobile (reversed 2026-11-08, see Progress). Closing its last tab closes only the tab.
 - Worktree, host, account and path move to a section in the branch hover card and stay in Environment. Issue, notes, automation, CLI and ports stay in the hover card only.
 - Desktop branch menu is unchanged. New session menu: Rename, Mark Read, Copy Title, Copy Path, Close.
 - Mobile sheets: branch adds Copy Path; Pin and Agent Session History get real icons instead of the pencil fallback; folders get the sheet without Source Control; new session sheet: Rename, Copy Path, Close.
@@ -161,6 +161,12 @@ User QA verbatim: "La sesión hija sigue mostrando su propio worktree"; "3. No f
 
 - Delegation card names its request (38e539f65e3). The real payload of the pending card is titled probe. The render on the VPS client is not yet seen.
 - Delete timing on a local throwaway worktree: dialog closed 2295 ms, row gone 3800 ms, store 4636 ms. The VPS client was not measured: creating a worktree there needs write authorization.
+
+### pv96 production feedback (2026-11-08)
+
+- User, verbatim: "Desde un chat, crear una sesión hija: aparece en el worktree" → "NO, sigue desapareciendo"; "Cuando se renombra sola, sigue visible" → "NO, sigue desapareciendo"; mobile: "Pero los worktrees y las sesiones no aparecen con su nombre autogenerado."
+- Cause: the hidden branch row was the disappearance. The parent link reaches the client with the child's first status, around its auto-rename, so the row showed briefly and then was hidden by design.
+- Change: a child's branch row is never hidden; its session still lists under the parent chat. The hidden-child close path (closing the last tab deleted the worktree) went with it. Mobile rows and sessions show their generated names.
 
 ## Next step
 

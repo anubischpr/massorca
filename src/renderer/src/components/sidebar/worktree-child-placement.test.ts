@@ -14,10 +14,7 @@ import {
 import type { TerminalTab } from '../../../../shared/terminal-tab-types'
 import { buildWorktreeAgentRows } from './worktree-agent-rows'
 import { selectWorktreeAgentRowsFromState } from './worktree-agent-rows-from-state'
-import { resolveBranchRowPlacement } from './worktree-branch-row-placement'
-import type { Worktree } from '../../../../shared/worktree/types'
 import {
-  selectBranchRowCandidatesByWorktree,
   selectCrossWorktreeChildTabs,
   selectCrossWorktreeLiveChildEntries,
   selectCrossWorktreeRetainedChildren,
@@ -288,108 +285,8 @@ describe('worktree agent rows across worktrees', () => {
   })
 })
 
-describe('branch row placement for cross-worktree children', () => {
-  function worktreeStub(id: string): Worktree {
-    // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the placement resolver reads only the worktree id.
-    return { id } as unknown as Worktree
-  }
-
-  function resolveFor(state: AppState, worktreeIds: string[]) {
-    return resolveBranchRowPlacement({
-      candidatesByWorktree: selectBranchRowCandidatesByWorktree(state),
-      worktrees: worktreeIds.map(worktreeStub)
-    })
-  }
-
-  const ALL = ['wt-a', 'wt-b', 'wt-c']
-
-  it('hides the child worktree row when its only session runs under a parent in another worktree', () => {
-    const state = stateWith(parentAndChild())
-    const placement = resolveFor(state, ['wt-a', 'wt-b'])
-
-    expect([...placement.hiddenWorktreeIds]).toEqual(['wt-b'])
-  })
-
-  it('keeps the child worktree row when it also lists a session of its own', () => {
-    const own = makeEntry(makePaneKey('tab-b2', LEAF_C), {})
-    const state = stateWith({
-      ...parentAndChild(),
-      agents: {
-        ...parentAndChild().agents,
-        [makePaneKey('tab-b2', LEAF_C)]: own
-      },
-      tabs: {
-        'wt-a': [makeTab('tab-a', 'wt-a')],
-        'wt-b': [makeTab('tab-b', 'wt-b'), makeTab('tab-b2', 'wt-b')]
-      }
-    })
-    const placement = resolveFor(state, ['wt-a', 'wt-b'])
-
-    expect(placement.hiddenWorktreeIds.has('wt-b')).toBe(false)
-  })
-
-  it('shows the child row again once its session is gone', () => {
-    const state = stateWith({
-      agents: { [PARENT]: makeEntry(PARENT) },
-      tabs: { 'wt-a': [makeTab('tab-a', 'wt-a')], 'wt-b': [] }
-    })
-    const placement = resolveFor(state, ALL.slice(0, 2))
-
-    expect(placement.hiddenWorktreeIds.size).toBe(0)
-  })
-
-  it('keeps the child row when its parent session is gone and nothing places it', () => {
-    const state = stateWith({
-      agents: { [CHILD]: makeEntry(CHILD, { orchestration: parentOf(PARENT) }) },
-      tabs: { 'wt-a': [makeTab('tab-a', 'wt-a')], 'wt-b': [makeTab('tab-b', 'wt-b')] }
-    })
-    const placement = resolveFor(state, ALL.slice(0, 2))
-
-    expect(placement.hiddenWorktreeIds.size).toBe(0)
-  })
-
-  it('keeps the child row when its parent worktree is filtered out of the list', () => {
-    const state = stateWith(parentAndChild())
-    const placement = resolveFor(state, ['wt-b'])
-
-    expect(placement.hiddenWorktreeIds.size).toBe(0)
-  })
-
-  it('hides the middle of a nested chain and keeps the top-level parent row', () => {
-    const state = stateWith({
-      agents: {
-        [PARENT]: makeEntry(PARENT),
-        [CHILD]: makeEntry(CHILD, { orchestration: parentOf(PARENT) }),
-        [GRANDCHILD]: makeEntry(GRANDCHILD, { orchestration: parentOf(CHILD) })
-      },
-      tabs: {
-        'wt-a': [makeTab('tab-a', 'wt-a')],
-        'wt-b': [makeTab('tab-b', 'wt-b')],
-        'wt-c': [makeTab('tab-c', 'wt-c')]
-      }
-    })
-    const placement = resolveFor(state, ALL)
-
-    expect([...placement.hiddenWorktreeIds].sort()).toEqual(['wt-b', 'wt-c'])
-    expect(placement.hiddenWorktreeIds.has('wt-a')).toBe(false)
-  })
-
-  it('keeps the rows of a session cycle so the cycle never hides every row', () => {
-    const state = stateWith({
-      agents: {
-        [PARENT]: makeEntry(PARENT, { orchestration: parentOf(CHILD) }),
-        [CHILD]: makeEntry(CHILD, { orchestration: parentOf(PARENT) })
-      },
-      tabs: { 'wt-a': [makeTab('tab-a', 'wt-a')], 'wt-b': [makeTab('tab-b', 'wt-b')] }
-    })
-    const placement = resolveFor(state, ALL.slice(0, 2))
-
-    expect(placement.hiddenWorktreeIds.size).toBe(0)
-  })
-})
-
 describe('a finished delegated child on a paired host', () => {
-  it('hides the child worktree from the link on its own entry, with no runtime orchestration', () => {
+  it('places the child under its parent from the link on its own entry, with no runtime orchestration', () => {
     const parentTabId = structuredAgentSessionTabId('parent')
     const childTabId = structuredAgentSessionTabId('child')
     const parentKey = structuredAgentSessionPaneKey(parentTabId, 'parent')
@@ -417,9 +314,9 @@ describe('a finished delegated child on a paired host', () => {
       }
     }
     // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the topology reads only the maps set here.
-    const candidates = selectBranchRowCandidatesByWorktree(state as unknown as AppState)
-    expect(candidates.get('wt-child')).toEqual(['wt-parent'])
-    expect(candidates.has('wt-parent')).toBe(false)
+    const appState = state as unknown as AppState
+    expect(selectPlacedAwayPaneKeysForWorktree(appState, 'wt-child')).toEqual([childKey])
+    expect(selectPlacedAwayPaneKeysForWorktree(appState, 'wt-parent')).toEqual([])
   })
 })
 
@@ -439,7 +336,7 @@ describe('a delegated chat child whose chats live only as agent-session tabs', (
     }
   }
 
-  it('lists the child under the parent chat of the worktree whose row it hides', () => {
+  it('lists the child under the parent chat of another worktree', () => {
     const parentTabId = structuredAgentSessionTabId('parent')
     const childTabId = structuredAgentSessionTabId('child')
     const parentKey = structuredAgentSessionPaneKey(parentTabId, 'parent')
@@ -465,7 +362,7 @@ describe('a delegated chat child whose chats live only as agent-session tabs', (
     // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: partial store fixture; the row selectors read only these maps.
     const appState = state as unknown as AppState
 
-    expect(selectBranchRowCandidatesByWorktree(appState).get('wt-child')).toEqual(['wt-parent'])
+    expect(selectPlacedAwayPaneKeysForWorktree(appState, 'wt-child')).toEqual([childKey])
     const rows = selectWorktreeAgentRowsFromState(appState, 'wt-parent', 2000, true)
     expect(rows.map((row) => row.paneKey)).toContain(childKey)
   })

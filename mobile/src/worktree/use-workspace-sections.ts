@@ -1,11 +1,7 @@
 import { useMemo } from 'react'
 import type { WorkspaceStatusDefinition } from '../../../src/shared/worktree/types'
 import { getBranchRowLabels } from './branch-row-label'
-import {
-  arrangeBranchRowSections,
-  placeCrossWorktreeAgents,
-  type AgentRunOwner
-} from './cross-worktree-agent-placement'
+import { placeCrossWorktreeAgents, type AgentRunOwner } from './cross-worktree-agent-placement'
 import type { MobileGroupMode, MobileSortMode } from './workspace-view-settings'
 import {
   buildSections,
@@ -110,11 +106,7 @@ export function useWorkspaceSections(args: {
     () => placeCrossWorktreeAgents(listedSections, displayWorktrees),
     [listedSections, displayWorktrees]
   )
-  // Why: a worktree row whose sessions all run under another parent is dropped here, and its lineage is laid out again.
-  const rawSections = useMemo(
-    () => arrangeBranchRowSections(placement.sections, placement, collapsedGroups),
-    [placement, collapsedGroups]
-  )
+  const rawSections = placement.sections
 
   const branchLabels = useMemo(
     () =>
