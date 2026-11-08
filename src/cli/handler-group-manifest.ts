@@ -203,6 +203,11 @@ export const HANDLER_GROUPS: readonly HandlerGroup[] = [
     load: async () => (await import('./handlers/profile-state.js')).PROFILE_STATE_HANDLERS
   },
   {
+    name: 'theme',
+    keys: ['theme get', 'theme set'],
+    load: async () => (await import('./handlers/theme.js')).THEME_HANDLERS
+  },
+  {
     name: 'diagnostics',
     keys: ['diagnostics memory'],
     load: async () => (await import('./handlers/diagnostics.js')).DIAGNOSTICS_HANDLERS

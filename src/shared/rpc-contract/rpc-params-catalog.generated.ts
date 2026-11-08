@@ -184,7 +184,7 @@ import {
   PRBotAuthorOverrideUpdate,
   SettingsUpdate
 } from './client-settings-params'
-import { FeatureInteractionIdParam, UiUpdate } from './client-ui-params'
+import { FeatureInteractionIdParam, ThemeUpdate, UiUpdate } from './client-ui-params'
 import {
   AbortImageUpload,
   AppendImageUploadChunk,
@@ -738,6 +738,8 @@ export const RPC_PARAMS_BY_METHOD = {
   'aiVault.searchSessions': AiVaultSearchRequestSchema,
   'aiVault.searchStatus': AiVaultSearchStatusRequestSchema,
   'aiVault.setSearchEnabled': AiVaultSetSearchEnabledParamsSchema,
+  'appearance.getTheme': null,
+  'appearance.setTheme': ThemeUpdate,
   'artifacts.delete': ArtifactsDeleteParams,
   'artifacts.getPublishedLink': SourceRequest,
   'artifacts.list': ListOptions,

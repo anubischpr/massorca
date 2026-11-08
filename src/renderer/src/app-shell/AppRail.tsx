@@ -1,5 +1,5 @@
 import React from 'react'
-import { Bot, Calendar, LayoutGrid, ListChecks, Settings, Store } from 'lucide-react'
+import { Bot, Calendar, LayoutGrid, ListChecks, Moon, Settings, Store, Sun } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -15,12 +15,14 @@ function RailButton({
   label,
   active,
   shortcut,
+  dataThemeToggle,
   onClick,
   children
 }: {
   label: string
   active: boolean
   shortcut?: React.ReactNode
+  dataThemeToggle?: boolean
   onClick: () => void
   children: React.ReactNode
 }): React.JSX.Element {
@@ -34,6 +36,7 @@ function RailButton({
           aria-label={label}
           aria-current={active ? 'page' : undefined}
           data-active={active}
+          data-theme-toggle={dataThemeToggle || undefined}
           className="size-9 text-muted-foreground data-[active=true]:bg-accent data-[active=true]:text-foreground"
           onClick={onClick}
         >
@@ -68,6 +71,42 @@ function RailModeIcon({ mode }: { mode: 'workspaces' | 'bot-teams' }): React.JSX
         )}
       />
     </span>
+  )
+}
+
+const DARK_MODE_QUERY = '(prefers-color-scheme: dark)'
+
+function subscribeToSystemTheme(onChange: () => void): () => void {
+  const query = window.matchMedia(DARK_MODE_QUERY)
+  query.addEventListener('change', onChange)
+  return () => query.removeEventListener('change', onChange)
+}
+
+/**
+ * Flips the theme Settings > Appearance saves. On "system" it saves the opposite of what the
+ * system shows, so the click always changes the screen; Settings brings "system" back.
+ */
+function RailThemeButton(): React.JSX.Element {
+  const theme = useAppStore((s) => s.settings?.theme ?? 'system')
+  const updateSettings = useAppStore((s) => s.updateSettings)
+  const systemDark = React.useSyncExternalStore(
+    subscribeToSystemTheme,
+    () => window.matchMedia(DARK_MODE_QUERY).matches
+  )
+  const dark = theme === 'dark' || (theme === 'system' && systemDark)
+  return (
+    <RailButton
+      label={
+        dark
+          ? translate('components.app-rail.switchToLight', 'Switch to light mode')
+          : translate('components.app-rail.switchToDark', 'Switch to dark mode')
+      }
+      active={false}
+      dataThemeToggle
+      onClick={() => void updateSettings({ theme: dark ? 'light' : 'dark' })}
+    >
+      {dark ? <Sun className="size-5" /> : <Moon className="size-5" />}
+    </RailButton>
   )
 }
 
@@ -139,6 +178,7 @@ export function AppRail(): React.JSX.Element {
         <Store className="size-5" />
       </RailButton>
       <div className="flex-1" />
+      <RailThemeButton />
       <AppRailUsage />
       <div className="my-1 h-px w-6 bg-border" />
       <RailButton

@@ -23,6 +23,7 @@ vi.mock('@/hooks/useShortcutLabel', () => ({
 vi.mock('@/components/ShortcutKeyCombo', () => ({ ShortcutKeyCombo: () => null }))
 vi.mock('./AppRailUsage', () => ({ AppRailUsage: () => null }))
 
+const { createGlobalSettingsFixture } = await import('../../../shared/global-settings-test-fixture')
 const { createTestStore, seedStore } = await import('../store/slices/store-test-helpers')
 const store = createTestStore()
 vi.mock('../store', () => ({ useAppStore: store }))
@@ -130,6 +131,59 @@ describe('the Marketplace button', () => {
     act(() => marketplace.click())
     expect(store.getState().activeView).toBe('marketplace')
     expect(marketplace.getAttribute('aria-current')).toBe('page')
+  })
+})
+
+describe('the theme button', () => {
+  function themeButton(container: ParentNode): HTMLButtonElement {
+    const button = container.querySelector<HTMLButtonElement>('button[data-theme-toggle]')
+    if (!button) {
+      throw new Error('Theme button missing')
+    }
+    return button
+  }
+
+  function mountWithTheme(theme: 'system' | 'dark' | 'light', systemDark = false) {
+    const updateSettings = vi.fn(async () => {})
+    seedStore(store, {
+      settings: { ...createGlobalSettingsFixture({ workspaceDir: '/w' }), theme },
+      updateSettings
+    })
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      matches: systemDark && query === '(prefers-color-scheme: dark)',
+      addEventListener: () => {},
+      removeEventListener: () => {}
+    }))
+    return { container: mount(), updateSettings }
+  }
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('sits just above the usage meter and switches a dark app to light', () => {
+    const { container, updateSettings } = mountWithTheme('dark')
+    const labels = [...container.querySelectorAll('nav button')].map((b) =>
+      b.getAttribute('aria-label')
+    )
+    expect(labels.slice(-2)).toEqual(['Switch to light mode', 'Settings'])
+    expect(container.textContent).toContain('Switch to light mode')
+    act(() => themeButton(container).click())
+    expect(updateSettings).toHaveBeenCalledWith({ theme: 'light' })
+  })
+
+  it('switches a light app to dark', () => {
+    const { container, updateSettings } = mountWithTheme('light')
+    expect(themeButton(container).getAttribute('aria-label')).toBe('Switch to dark mode')
+    act(() => themeButton(container).click())
+    expect(updateSettings).toHaveBeenCalledWith({ theme: 'dark' })
+  })
+
+  it('on the system theme, saves the opposite of what the system shows', () => {
+    const dark = mountWithTheme('system', true)
+    expect(themeButton(dark.container).getAttribute('aria-label')).toBe('Switch to light mode')
+    act(() => themeButton(dark.container).click())
+    expect(dark.updateSettings).toHaveBeenCalledWith({ theme: 'light' })
   })
 })
 

@@ -84,6 +84,7 @@ export type RuntimeStore = {
     localBaseRefSuggestionDismissed?: boolean
     branchPrefix: string
     branchPrefixCustom: string
+    theme?: GlobalSettings['theme']
     defaultTuiAgent?: GlobalSettings['defaultTuiAgent']
     disabledTuiAgents?: GlobalSettings['disabledTuiAgents']
     agentCmdOverrides?: GlobalSettings['agentCmdOverrides']

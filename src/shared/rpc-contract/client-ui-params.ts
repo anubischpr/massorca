@@ -109,6 +109,8 @@ export const FeatureInteractionIdParam = z.custom<FeatureInteractionId>(isFeatur
   message: 'Unknown feature interaction id'
 })
 
+export const ThemeUpdate = z.object({ theme: z.enum(['system', 'light', 'dark']) }).strict()
+
 export const TopLevelViewSchema = z.enum([
   'terminal',
   'settings',

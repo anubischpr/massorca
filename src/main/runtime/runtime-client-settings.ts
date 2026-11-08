@@ -178,6 +178,22 @@ export class RuntimeClientSettingsController {
     return this.get()
   }
 
+  getTheme(): GlobalSettings['theme'] {
+    if (!this.store?.getSettings) {
+      throw new Error('runtime_unavailable')
+    }
+    return this.store.getSettings().theme ?? 'system'
+  }
+
+  /** Saves the theme Settings shows; the windows and the native theme follow the settings listeners. */
+  setTheme(theme: GlobalSettings['theme']): GlobalSettings['theme'] {
+    if (!this.store?.getSettings || !this.store.updateSettings) {
+      throw new Error('runtime_unavailable')
+    }
+    this.store.updateSettings({ theme }, { notifyListeners: true })
+    return this.getTheme()
+  }
+
   getTerminalQuickCommands(): TerminalQuickCommand[] {
     if (!this.store?.getSettings) {
       throw new Error('runtime_unavailable')
