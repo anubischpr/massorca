@@ -17,6 +17,7 @@ vi.mock('@/i18n/i18n', () => ({
 vi.mock('./use-bot-team-files', () => ({ useBotTeamFilePaths: () => [] }))
 vi.mock('./open-bot-team-room-sessions', () => ({ openBotTeamRoomSessions: vi.fn() }))
 vi.mock('./BotAgentIcon', () => ({ BotAgentIcon: () => null }))
+vi.mock('./BotTeamFileHoverPreview', () => ({ BotTeamFileHoverPreview: () => null }))
 
 const { BotTeamRoomComposer } = await import('./BotTeamRoomComposer')
 const { clearBotTeamRoomPendingFilesForTests } = await import('./bot-team-room-pending-files')
@@ -72,6 +73,16 @@ function typeText(container: HTMLElement, value: string): void {
 }
 
 describe('bot team room composer attachments', () => {
+  it('previews an attached file on hover before it is sent, as a sent file does', async () => {
+    const { container } = mount({ onAttachFiles: async () => [FLYER] })
+    await act(async () => attachButton(container)!.click())
+
+    const name = [...container.querySelectorAll('li span')].find(
+      (span) => span.textContent === 'flyer.png'
+    )
+    expect(name?.getAttribute('data-state')).toBe('closed')
+  })
+
   it('keeps an attached file after the room is left and opened again', async () => {
     const first = mount({ onAttachFiles: async () => [FLYER] })
     await act(async () => attachButton(first.container)!.click())
