@@ -5,6 +5,7 @@ import {
   type BotTeamRoomAttachment
 } from '../../shared/bot-team-room-attachments'
 import { botTeamFilesOnlyText } from '../../shared/bot-team-room-attachments-line'
+import { PROTOTYPE_FOLDER } from '../../shared/prototype-request-folder'
 import type {
   DelegationRequestRow,
   DelegationRequestStatus
@@ -124,9 +125,13 @@ function visualFilesOf(
   if (folder === undefined) {
     return []
   }
-  return listRecentWorkspaceFiles(folder, since, new Set(), (name) => HTML_FILE.test(name)).map(
-    (relative) => ({ root: folder, relative })
-  )
+  // Why: a prototype shows as its own link in the room, never as a file in Files.
+  return listRecentWorkspaceFiles(
+    folder,
+    since,
+    new Set(),
+    (relative) => HTML_FILE.test(relative) && !relative.startsWith(`${PROTOTYPE_FOLDER}/`)
+  ).map((relative) => ({ root: folder, relative }))
 }
 
 /**
