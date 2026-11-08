@@ -1,4 +1,5 @@
 import type { WorkerDispatchState } from './types'
+import { isStructuredWorkerHandle } from '../../../shared/structured-worker-handle'
 
 export type WorkerTerminalOwnershipState =
   | 'owned'
@@ -112,9 +113,11 @@ export function deriveWorkerTerminalListState(params: {
   if (resource.ownership_state !== 'owned' || resource.release_state === 'retained') {
     return 'retained'
   }
+  // Why: a settled chat stays open as an idle child the parent can send follow-up tasks to.
   if (
     params.workerState !== 'unsupervised' &&
-    WORKER_RELEASABLE_STATES.includes(params.workerState)
+    WORKER_RELEASABLE_STATES.includes(params.workerState) &&
+    !isStructuredWorkerHandle(params.agentTerminalHandle)
   ) {
     return 'reclaimable'
   }

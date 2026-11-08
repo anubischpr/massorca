@@ -8,7 +8,7 @@ decision, stop/abandon request, retention request, or uncertain release.
 | `ready` or active       | Keep waiting; optionally read bounded output                       |
 | `failed` or `stopped`   | Start a replacement with `--retry-of`; repeat placement explicitly |
 | `outcome_unknown`       | Inspect, then choose `worker-stop` or explicit `worker-abandon`    |
-| Accepted `worker_done`  | Reuse, retain, or release                                          |
+| Accepted `worker_done`  | Reuse, retain, or release; a chat child stays open for follow-ups  |
 | Remote contact lost     | Preserve `unverifiable`; do not stop or retry from absence alone   |
 | `unverifiable` liveness | Keep waiting or inspect; never stop, abandon, retry, or release    |
 | Proven `exited` agent   | Enumerate with `worker-list`; follow its `nextAction`              |
@@ -156,6 +156,10 @@ Release works after succeeded and failed reports, archives readable output, and
 closes only the exact terminal owned by that settled Dispatch. Replays may call
 release again safely. Reused, pre-existing, setup, coordinator, active,
 user-taken-over, and unproven terminals are retained.
+
+A settled chat worker (`structworker_…`) is a child session the user keeps open
+for follow-up tasks: it lists as `retained` and is released only when the user
+asks to close it.
 
 A `worker-start` that failed before its agent was ready still owns the terminal
 it created. Its receipt names `worker-release`, and `worker-list` reports that

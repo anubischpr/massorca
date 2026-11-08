@@ -170,6 +170,13 @@ Release is post-settlement cleanup, not cancellation. Only an accepted
 settlement authorizes it; no other observation does. If release is uncertain,
 follow its exact recovery receipt and never substitute `terminal close`.
 
+A chat worker (handle `structworker_…`) is a child session the user keeps:
+after its report it stays open and idle, and `worker-list` shows it `retained`.
+Never release it on your own; release closes the chat and the user loses the
+child. Send it follow-up work with `worker-start --task <next_task_id>
+--terminal <structworker_handle>`, and release it only when the user asks to
+close that child.
+
 A valid `worker_done` settles the Task and Dispatch automatically; do not follow
 it with `task-update --status completed`. Enumerate the terminals still owing a
 decision with `worker-list --run <run_id> --terminal-state reclaimable --json`,

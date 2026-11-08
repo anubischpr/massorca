@@ -1,6 +1,7 @@
 import { AGENT_STATUS_STALE_AFTER_MS } from './agent-status-types'
 import type { FleetAgentStatusEvidence } from './orchestration-fleet-agent-status-evidence'
 import { projectOrchestrationFleetAttention } from './orchestration-fleet-attention'
+import { isStructuredWorkerHandle } from './structured-worker-handle'
 import {
   isUnsupervisedSettledDispatch,
   resolveFleetWorkerOutcome
@@ -143,8 +144,11 @@ export function projectFleetNextAction(
   }
   // A settled worker still owning its terminal owes the release decision. Pointing it at
   // worker-show was a self-loop: the command that reported the settlement.
+  // A settled chat child stays open for follow-up tasks; it owes no release.
   if (SETTLED_WORKER_STATES.has(worker.workerState) && worker.resource) {
-    return worker.resource.ownershipState === 'owned' && worker.resource.releaseState !== 'released'
+    return worker.resource.ownershipState === 'owned' &&
+      worker.resource.releaseState !== 'released' &&
+      !isStructuredWorkerHandle(worker.agentTerminalHandle)
       ? {
           kind: 'release',
           argv: ['orchestration', 'worker-release', '--dispatch', worker.dispatchId]
