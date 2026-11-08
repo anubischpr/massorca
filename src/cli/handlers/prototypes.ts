@@ -11,6 +11,7 @@ import {
   PROTOTYPE_ATTACHMENT_MAX_BYTES,
   type CreatePrototypeRequestResult,
   type ListPrototypeSetsResult,
+  type PrototypeListedDesignSystem,
   type PrototypeListedSet,
   type ReadPrototypeFileResult,
   type RestorePrototypeVersionResult,
@@ -32,11 +33,24 @@ function formatSet(set: PrototypeListedSet): string {
   return `${title}  request ${set.requestId}  chat ${set.sessionId}  ${set.agent}${archived}`
 }
 
+function formatDesignSystem(system: PrototypeListedDesignSystem): string {
+  const chat = system.pendingRequest ?? system.newestRequest ?? system.chat
+  return [
+    `Design system: ${system.projectName}`,
+    `v${system.version}`,
+    system.status,
+    `${system.tokenCount} tokens`,
+    ...(chat !== undefined ? [`chat ${chat.sessionId}`] : []),
+    ...(system.folderPath !== undefined ? [system.folderPath] : [])
+  ].join('  ')
+}
+
 function formatSets(result: ListPrototypeSetsResult): string {
-  if (result.sets.length === 0) {
-    return 'No prototype sets.'
-  }
-  return result.sets.map(formatSet).join('\n')
+  // Why systems apart: a project lists its design system before it has any set.
+  return [
+    ...(result.sets.length === 0 ? ['No prototype sets.'] : result.sets.map(formatSet)),
+    ...(result.designSystems ?? []).map(formatDesignSystem)
+  ].join('\n')
 }
 
 function getRequiredCount(flags: Map<string, string | boolean>): number {

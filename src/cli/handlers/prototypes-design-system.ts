@@ -1,6 +1,8 @@
+import { resolve } from 'node:path'
 import type { CommandHandler } from '../dispatch'
 import { getRequiredStringFlag } from '../flags'
 import { printResult } from '../format'
+import { RuntimeClientError } from '../runtime-client'
 import type {
   DesignSystemVersionListed,
   ListDesignSystemVersionsResult,
@@ -72,11 +74,20 @@ export const PROTOTYPES_DESIGN_SYSTEM_HANDLERS: Record<string, CommandHandler> =
       'Reading the design system'
     ),
   'prototypes design-system check': async ({ flags, client, json }) => {
+    const project = flags.has('project') ? getRequiredStringFlag(flags, 'project') : undefined
+    if (project !== undefined && flags.has('session')) {
+      throw new RuntimeClientError('invalid_argument', 'Pass --session or --project, not both.')
+    }
     const response = await client.call<ReadPrototypeDesignSystemResult>(
       'prototypes.readDesignSystem',
-      { sessionId: getRequiredStringFlag(flags, 'session') }
+      project === undefined
+        ? { sessionId: getRequiredStringFlag(flags, 'session') }
+        : { projectPath: resolve(process.cwd(), project) }
     )
-    const verdict = checkDesignSystemReadability(response.result)
+    const verdict = checkDesignSystemReadability(
+      response.result,
+      project === undefined ? 'chat' : 'project'
+    )
     console.log(json ? JSON.stringify(verdict, null, 2) : formatReadability(verdict))
     // Why: a not-readable verdict exits 1, as `vm recipe doctor` does for a failing check.
     if (!verdict.readable) {

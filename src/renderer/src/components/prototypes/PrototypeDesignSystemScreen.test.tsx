@@ -131,6 +131,53 @@ describe('PrototypeDesignSystemScreen', () => {
     expect(container.querySelector('aside')).toHaveClass('bg-sidebar')
   })
 
+  it('opens a system the list names only a host chat for, and says it is valid with all three files', async () => {
+    mocks.read.mockResolvedValue({
+      ok: true,
+      projectKey: 'landing',
+      projectName: 'landing-site',
+      fileNames: [
+        'design/system/tokens.json',
+        'design/system/components.html',
+        'design/system/system.md'
+      ],
+      tokensJson: JSON.stringify({ color: { primary: { $value: '#2563eb' } } }),
+      componentsHtml: '<main></main>',
+      systemMd: '# System'
+    })
+    render(
+      <PrototypeDesignSystemScreen
+        system={{ ...SYSTEM, chat: { sessionId: 'plain-chat', agent: 'claude' } }}
+        sets={[]}
+        sendText={vi.fn()}
+        onRestored={vi.fn()}
+      />
+    )
+    const check = await screen.findByRole('status', { name: 'Design system check' })
+    expect(mocks.read).toHaveBeenCalledWith({ kind: 'local' }, { sessionId: 'plain-chat' })
+    expect(within(check).getByText('Valid')).toBeInTheDocument()
+    expect(
+      within(check).getByText('MassOrca reads tokens.json, components.html and system.md.')
+    ).toBeInTheDocument()
+  })
+
+  it('names each warning of a valid system that misses a file', async () => {
+    readableSystem()
+    render(
+      <PrototypeDesignSystemScreen
+        system={{ ...SYSTEM, chat: { sessionId: 'plain-chat', agent: 'claude' } }}
+        sets={[]}
+        sendText={vi.fn()}
+        onRestored={vi.fn()}
+      />
+    )
+    const check = await screen.findByRole('status', { name: 'Design system check' })
+    expect(within(check).getByText('Valid')).toBeInTheDocument()
+    expect(
+      within(check).getByText('design/system/system.md is missing (warning, not blocking).')
+    ).toBeInTheDocument()
+  })
+
   it('shows a short message, not an empty pane, when the project names no chat at all', async () => {
     const { container } = render(
       <PrototypeDesignSystemScreen

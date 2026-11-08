@@ -31,13 +31,17 @@ export type PrototypeDesignSystemReadability = {
   reasons: string[]
 }
 
-const NOT_FOUND_REASON = 'The chat was not found on this host, or it is not a local chat.'
+const NOT_FOUND_REASON = {
+  chat: 'The chat was not found on this host, or it is not a local chat.',
+  project: 'The project folder was not found on this host, or this caller may not read it.'
+}
 const FOLDER_PREFIX = `${DESIGN_SYSTEM_FOLDER}/`
 const READ_FILES = `${DESIGN_SYSTEM_TOKENS_FILE}, ${DESIGN_SYSTEM_COMPONENTS_FILE} and ${DESIGN_SYSTEM_SOURCE_FILE}`
 
-/** Why a chat's design system is readable or not; only a valid tokens.json makes it readable. */
+/** Why a chat's or a project folder's design system is readable or not; only a valid tokens.json makes it readable. */
 export function checkDesignSystemReadability(
-  result: ReadPrototypeDesignSystemResult
+  result: ReadPrototypeDesignSystemResult,
+  readThrough: 'chat' | 'project' = 'chat'
 ): PrototypeDesignSystemReadability {
   if (!result.ok) {
     return {
@@ -46,7 +50,7 @@ export function checkDesignSystemReadability(
       missing: [],
       unreadable: [],
       otherFiles: [],
-      reasons: [NOT_FOUND_REASON]
+      reasons: [NOT_FOUND_REASON[readThrough]]
     }
   }
   const unreadable = result.unreadableFileNames ?? []

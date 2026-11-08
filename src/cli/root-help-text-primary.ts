@@ -44,7 +44,7 @@ export const ROOT_HELP_TEXT_PRIMARY = [
   '  bot-teams file            List or restore saved versions of a team file',
   '',
   'Prototypes:',
-  '  prototypes list           List prototype sets on this MassOrca host',
+  '  prototypes list           List prototype sets and design systems on this MassOrca host',
   '  prototypes create         Make a prototype request folder for a chat',
   '  prototypes archive        Archive a request (unarchive and rm take the same flags)',
   '  prototypes restore-version Copy an earlier direction version into its next version',

@@ -12,6 +12,7 @@ import {
 import {
   PrototypeListedDesignSystemSchema,
   type ListPrototypeSetsResult,
+  type PrototypeListedChat,
   type PrototypeListedDesignSystem,
   type PrototypeListedDirection,
   type PrototypeListedPendingRequest,
@@ -23,7 +24,8 @@ import type { DesignSystemSummary } from '../../shared/prototype-design-system-s
 import { nativeChatVisualsFolderName, nativeChatVisualsRootFor } from './native-chat-visuals-folder'
 import { directionNotesFor, withDirectionNotes } from './prototype-direction-notes'
 import { deletableChecker, withDeletable } from './prototype-listed-deletable'
-import { projectsOfLaunchDirectories, type ListedProject } from './prototype-design-system-files'
+import type { ListedProject } from './prototype-design-system-files'
+import { projectsOfRequestsAndChats } from './prototype-host-chat-projects'
 import {
   fileMtime,
   fileNamesIn,
@@ -50,6 +52,8 @@ export type ListPrototypeSetsOptions = {
   isDeletable?: (sessionId: string) => Promise<boolean>
   /** A chat's launch directory from its record; a Gentle Shell design/ folder is read only under it. */
   launchDirectoryOf?: (sessionId: string) => string | undefined | Promise<string | undefined>
+  /** The host's chats, newest first; a project whose chats made no request still lists its design system. */
+  hostChats?: () => readonly PrototypeListedChat[]
 }
 
 /**
@@ -98,7 +102,11 @@ async function withProjects(
       launchDirectories.set(manifest.sessionId, launchDirectory)
     }
   }
-  const projects = await projectsOfLaunchDirectories(launchDirectories.values())
+  const { projects, newestChats } = await projectsOfRequestsAndChats(
+    launchDirectories.values(),
+    options.hostChats?.() ?? [],
+    options.launchDirectoryOf
+  )
   const pendingRequests = new Map<string, PrototypeListedPendingRequest>()
   const newestRequests = new Map<string, PrototypeListedPendingRequest>()
   const proposals: PrototypeListedProposal[] = []
@@ -142,10 +150,12 @@ async function withProjects(
   const designSystems = listedDesignSystemsOf(projects.values()).map((entry) => {
     const pendingRequest = pendingRequests.get(entry.projectKey)
     const newestRequest = newestRequests.get(entry.projectKey)
+    const chat = newestChats.get(entry.projectKey)
     return {
       ...entry,
       ...(pendingRequest === undefined ? {} : { pendingRequest }),
-      ...(newestRequest === undefined ? {} : { newestRequest })
+      ...(newestRequest === undefined ? {} : { newestRequest }),
+      ...(chat === undefined ? {} : { chat })
     }
   })
   return {

@@ -46,7 +46,10 @@ beforeEach(async () => {
   setStructuredAgentSessionHost(
     Object.assign(hostStub(), {
       deps: {
-        store: { getRecord: (id: string) => (record?.sessionId === id ? record : null) }
+        store: {
+          getRecord: (id: string) => (record?.sessionId === id ? record : null),
+          listRecords: () => (record ? [record] : [])
+        }
       }
     })
   )

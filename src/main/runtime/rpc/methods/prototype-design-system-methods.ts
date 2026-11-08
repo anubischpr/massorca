@@ -1,6 +1,8 @@
 // `prototypes.*` for a chat's design system: read it, list its saved versions, open one read-only, and restore one.
-// The host reads the project from the chat's record; a client names a chat and a version, never a path.
+// The host reads the project from the chat's record; a client names a chat and a version, never a path, except
+// this desktop and its CLI, which may read a project folder.
 
+import { isAbsolute } from 'node:path'
 import {
   ListDesignSystemVersionsParams,
   ReadDesignSystemVersionParams,
@@ -54,6 +56,23 @@ async function localLaunchDirectoryOf(
   return launchDirectory
 }
 
+/**
+ * A project's design system read from a folder in it, for `design-system check --project`. Why owner only: any
+ * other caller names a chat, never a path on this host.
+ */
+async function readDesignSystemOfProjectPath(
+  ctx: RpcContext,
+  projectPath: string
+): Promise<ReadPrototypeDesignSystemResult> {
+  if (!isOwnerCaller(ctx) || !isAbsolute(projectPath)) {
+    console.warn(
+      '[prototypes] prototypes.readDesignSystem refused a project folder: not an absolute path from the owner'
+    )
+    return { ok: false, error: 'not_found' }
+  }
+  return readDesignSystemOfLaunchDirectory(projectPath)
+}
+
 export const DESIGN_SYSTEM_PROTOTYPE_METHODS = [
   defineMethod({
     name: 'prototypes.readDesignSystem',
@@ -61,12 +80,13 @@ export const DESIGN_SYSTEM_PROTOTYPE_METHODS = [
     params: ReadPrototypeDesignSystemParams,
     handler: async (params, ctx): Promise<ReadPrototypeDesignSystemResult> => {
       const host = await requireInstalledStructuredHost(ctx)
-      const launchDirectory = await localLaunchDirectoryOf(
-        host,
-        ctx,
-        'prototypes.readDesignSystem',
-        params.sessionId
-      )
+      if (params.projectPath !== undefined) {
+        return readDesignSystemOfProjectPath(ctx, params.projectPath)
+      }
+      const launchDirectory =
+        params.sessionId === undefined
+          ? undefined
+          : await localLaunchDirectoryOf(host, ctx, 'prototypes.readDesignSystem', params.sessionId)
       if (launchDirectory === undefined) {
         return { ok: false, error: 'not_found' }
       }

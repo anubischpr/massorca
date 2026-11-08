@@ -44,7 +44,13 @@ export const ListPrototypeSetsParams = z
 
 export type ListPrototypeSetsParams = z.infer<typeof ListPrototypeSetsParams>
 
-export const ReadPrototypeDesignSystemParams = z.object({ sessionId: SessionId }).strict()
+/** A chat, or for this desktop and its CLI only, an absolute folder of the project; exactly one. */
+export const ReadPrototypeDesignSystemParams = z
+  .object({ sessionId: SessionId.optional(), projectPath: z.string().min(1).max(4096).optional() })
+  .strict()
+  .refine((params) => (params.sessionId === undefined) !== (params.projectPath === undefined), {
+    message: 'Name a chat or a project folder, not both.'
+  })
 
 export type ReadPrototypeDesignSystemParams = z.infer<typeof ReadPrototypeDesignSystemParams>
 
@@ -242,6 +248,13 @@ export const PrototypeListedPendingRequestSchema = z.object({
 
 export type PrototypeListedPendingRequest = z.infer<typeof PrototypeListedPendingRequestSchema>
 
+/** A chat on the host, with or without a request: where a project with no request sends its design system edits. */
+export const PrototypeListedChatSchema = PrototypeListedPendingRequestSchema.omit({
+  requestId: true
+})
+
+export type PrototypeListedChat = z.infer<typeof PrototypeListedChatSchema>
+
 /** The design system of one project: what a list row or request card shows without reading its files. */
 export const PrototypeListedDesignSystemSchema = z.object({
   projectKey: z.string().min(1).max(TEXT_MAX_LENGTH),
@@ -256,6 +269,8 @@ export const PrototypeListedDesignSystemSchema = z.object({
   pendingRequest: PrototypeListedPendingRequestSchema.optional(),
   /** The chat of the project's newest request, of any mode and with or without a set; absent from a host that predates it. */
   newestRequest: PrototypeListedPendingRequestSchema.optional(),
+  /** The newest host chat launched in the project, request or not; absent from a host that predates it. */
+  chat: PrototypeListedChatSchema.optional(),
   /** The system's folder on the host, absolute; a client quotes it to the agent. Absent from a host that predates it. */
   folderPath: z.string().min(1).optional()
 })

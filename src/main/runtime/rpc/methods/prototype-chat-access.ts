@@ -2,10 +2,25 @@
 
 import type { AgentSessionRecord } from '../../../../shared/agent-session-record'
 import { LOCAL_EXECUTION_HOST_ID } from '../../../../shared/execution-host'
+import type { PrototypeListedChat } from '../../../../shared/rpc-contract/prototype-params'
+import { prototypeAgentOfChild } from '../../../delegated-session/delegated-child-first-prompt'
 import type { RpcContext } from '../core'
 import type { requireInstalledStructuredHost } from './structured-agent-session-gate'
 
 export type InstalledHost = Awaited<ReturnType<typeof requireInstalledStructuredHost>>
+
+/** The local chats this host keeps, newest first, as the list names them; a Pi chat lists as 'other'. */
+export function listedHostChatsOf(
+  records: readonly Pick<AgentSessionRecord, 'sessionId' | 'location' | 'provider' | 'updatedAt'>[]
+): PrototypeListedChat[] {
+  return records
+    .filter(isLocalStructuredChat)
+    .sort((left, right) => right.updatedAt - left.updatedAt)
+    .map((record) => ({
+      sessionId: record.sessionId,
+      agent: prototypeAgentOfChild(record.provider)
+    }))
+}
 
 /** Structured chats run on their owning runtime's own filesystem; any other location has no folder here. */
 export function isLocalStructuredChat(record: Pick<AgentSessionRecord, 'location'>): boolean {

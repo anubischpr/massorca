@@ -3,12 +3,16 @@ import {
   designSystemContentOf,
   type DesignSystemContent
 } from '../../../../shared/prototype-design-system-content'
+import {
+  checkDesignSystemReadability,
+  type PrototypeDesignSystemReadability
+} from '../../../../shared/prototype-design-system-readability'
 import { readDesignSystemOnHost } from '../../runtime/runtime-prototype-client'
 import { prototypeTargetForSession } from './prototype-host-targets'
 
 export type DesignSystemContentState =
   | { status: 'loading' }
-  | { status: 'ready'; content: DesignSystemContent }
+  | { status: 'ready'; content: DesignSystemContent; check: PrototypeDesignSystemReadability }
   | { status: 'error' }
 
 /**
@@ -32,7 +36,11 @@ export function useDesignSystemContent(
         if (active) {
           setState(
             result.ok
-              ? { status: 'ready', content: designSystemContentOf(result) }
+              ? {
+                  status: 'ready',
+                  content: designSystemContentOf(result),
+                  check: checkDesignSystemReadability(result)
+                }
               : { status: 'error' }
           )
         }

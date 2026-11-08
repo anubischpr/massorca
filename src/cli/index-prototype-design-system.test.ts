@@ -1,3 +1,4 @@
+import { resolve } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const {
@@ -180,6 +181,94 @@ describe('orca prototypes design-system check', () => {
         'not readable',
         'files read: none',
         '- The chat was not found on this host, or it is not a local chat.'
+      ].join('\n')
+    )
+  })
+
+  it('checks a project folder, resolved from the working directory, with no chat named', async () => {
+    queueFixtures(
+      callMock,
+      okFixture('req_project', {
+        ok: true,
+        projectKey: 'oppm',
+        projectName: 'oppm',
+        fileNames: ['design/system/tokens.json'],
+        tokensJson: VALID_TOKENS,
+        folderPath: FOLDER
+      })
+    )
+
+    await main(['prototypes', 'design-system', 'check', '--project', 'oppm'])
+
+    expect(callMock).toHaveBeenCalledWith('prototypes.readDesignSystem', {
+      projectPath: resolve(process.cwd(), 'oppm')
+    })
+    expect(printed().split('\n')[0]).toBe('readable')
+    expect(process.exitCode).not.toBe(1)
+  })
+
+  it('says a project folder was not found, and exits 1', async () => {
+    queueFixtures(callMock, okFixture('req_project', { ok: false, error: 'not_found' }))
+
+    await main(['prototypes', 'design-system', 'check', '--project', '/work/none'])
+
+    expect(printed()).toBe(
+      [
+        'not readable',
+        'files read: none',
+        '- The project folder was not found on this host, or this caller may not read it.'
+      ].join('\n')
+    )
+    expect(process.exitCode).toBe(1)
+  })
+})
+
+describe('orca prototypes list', () => {
+  let logSpy: ReturnType<typeof vi.spyOn>
+
+  useWorktreeAwarenessEnvironment({
+    callMock,
+    serveOrcaAppMock,
+    getDefaultUserDataPathMock,
+    addEnvironmentFromPairingCodeMock,
+    listEnvironmentsMock,
+    spawnMock
+  })
+
+  beforeEach(() => {
+    logSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+  })
+
+  afterEach(() => {
+    logSpy.mockRestore()
+  })
+
+  it('names a listed design system even when there are no prototype sets', async () => {
+    queueFixtures(
+      callMock,
+      okFixture('req_list', {
+        sets: [],
+        designSystems: [
+          {
+            projectKey: 'oppm',
+            projectName: 'oppm',
+            status: 'detected',
+            version: 1,
+            tokenCount: 42,
+            swatches: [],
+            chat: { sessionId: 'chat-1', agent: 'claude' },
+            folderPath: FOLDER
+          }
+        ]
+      })
+    )
+
+    await main(['prototypes', 'list'])
+
+    expect(logSpy.mock.calls.map((call) => String(call[0])).join('\n')).toBe(
+      [
+        'No prototype sets.',
+        `Design system: oppm  v1  detected  42 tokens  chat chat-1  ${FOLDER}`
       ].join('\n')
     )
   })

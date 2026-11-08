@@ -41,6 +41,7 @@ import {
   isLocalStructuredChat,
   isOwnerCaller,
   isRequestVisibleToGuest,
+  listedHostChatsOf,
   logPrototypeRefusal,
   type InstalledHost
 } from './prototype-chat-access'
@@ -126,6 +127,10 @@ export const STRUCTURED_AGENT_SESSION_PROTOTYPE_METHODS = [
               )
             : undefined
         },
+        // Why no chats under a worktree filter: a chat record names its workspace, not the worktree a request names.
+        ...(params.worktreeId === undefined
+          ? { hostChats: () => listedHostChatsOf(host.deps.store.listRecords()) }
+          : {}),
         isDeletable: (sessionId: string) => isRequestDeletable(host, sessionId),
         ...(owner
           ? {}

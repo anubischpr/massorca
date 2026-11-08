@@ -22,6 +22,7 @@ import type {
 } from '../../../../shared/rpc-contract/prototype-params'
 import { VersionRestoreDialog } from '../version-history/VersionRestoreDialog'
 import { PrototypeDesignSystemAside } from './PrototypeDesignSystemAside'
+import { PrototypeDesignSystemCheck } from './PrototypeDesignSystemCheck'
 import { PrototypeDesignSystemVersionsPanel } from './PrototypeDesignSystemVersionsPanel'
 import {
   PrototypeDesignSystemView,
@@ -214,6 +215,7 @@ export function PrototypeDesignSystemScreen({
   return (
     <>
       <section className="flex min-h-0 min-w-0 flex-1 flex-col border-l border-border bg-sidebar">
+        {preview === null ? <PrototypeDesignSystemCheck verdict={content.check} /> : null}
         <PrototypeDesignSystemView {...panel} versions={versionsControls} />
       </section>
       <aside className="scrollbar-sleek flex min-h-0 w-[340px] shrink-0 flex-col overflow-y-auto border-l border-border bg-sidebar">

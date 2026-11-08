@@ -9,8 +9,8 @@ import type {
 } from './prototype-design-system-tokens'
 import type { PrototypeAgent } from './prototype-request'
 import type {
+  PrototypeListedChat,
   PrototypeListedDesignSystem,
-  PrototypeListedPendingRequest,
   PrototypeListedSet
 } from './rpc-contract/prototype-params'
 
@@ -114,8 +114,8 @@ export type DesignSystemChat = {
 }
 
 /**
- * The chat of the project's newest set, else its pending request's chat, else its newest request's; undefined when
- * none exists. A pending request is where Approve sends, so it is named before the newest request.
+ * The chat of the project's newest set, else its pending request's chat, else its newest request's, else the
+ * newest host chat in the project; undefined when none exists. A pending request is where Approve sends, so it is named before the newest request.
  */
 export function designSystemChatOf(
   sets: readonly PrototypeListedSet[],
@@ -125,12 +125,12 @@ export function designSystemChatOf(
   if (set !== undefined) {
     return { sessionId: set.sessionId, agent: set.agent, worktreeId: set.worktreeId }
   }
-  const request = system.pendingRequest ?? system.newestRequest
+  const request = system.pendingRequest ?? system.newestRequest ?? system.chat
   return request === undefined ? undefined : chatOfListedRequest(request)
 }
 
-/** The chat of a request the list names: where a message goes when the project has no set. */
-export function chatOfListedRequest(request: PrototypeListedPendingRequest): DesignSystemChat {
+/** The chat of a request or host chat the list names: where a message goes when the project has no set. */
+export function chatOfListedRequest(request: PrototypeListedChat): DesignSystemChat {
   return { sessionId: request.sessionId, agent: request.agent, worktreeId: null }
 }
 

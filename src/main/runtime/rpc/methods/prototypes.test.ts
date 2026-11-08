@@ -45,7 +45,10 @@ beforeEach(async () => {
   setStructuredAgentSessionHost(
     Object.assign(hostStub(), {
       deps: {
-        store: { getRecord: (id: string) => (record?.sessionId === id ? record : null) }
+        store: {
+          getRecord: (id: string) => (record?.sessionId === id ? record : null),
+          listRecords: () => (record ? [record] : [])
+        }
       }
     })
   )
@@ -342,6 +345,30 @@ describe('prototypes design system', () => {
     })
   })
 
+  it('readDesignSystem reads a project folder for this desktop or its CLI, and refuses it to a paired device', async () => {
+    await mkdir(join(launchDirectory, '.git'))
+    await writeSystem(launchDirectory, { 'tokens.json': TOKENS })
+    const params = { projectPath: launchDirectory }
+
+    const cli = { ...STRUCTURED_CLIENT, caller: { kind: 'local-cli' as const } }
+    expect(replyResult(await call('prototypes.readDesignSystem', params, cli))).toMatchObject({
+      ok: true,
+      fileNames: ['design/system/tokens.json'],
+      folderPath: join(launchDirectory, 'design', 'system')
+    })
+    const pairedDevice = {
+      ...STRUCTURED_CLIENT,
+      caller: { kind: 'paired-device' as const, deviceId: 'device-1' }
+    }
+    expect(replyResult(await call('prototypes.readDesignSystem', params, pairedDevice))).toEqual({
+      ok: false,
+      error: 'not_found'
+    })
+    expect(
+      replyResult(await call('prototypes.readDesignSystem', { projectPath: 'relative/dir' }, cli))
+    ).toEqual({ ok: false, error: 'not_found' })
+  })
+
   it('readDesignSystem answers with no files for a project without a system', async () => {
     const result = replyResult(
       await call('prototypes.readDesignSystem', { sessionId: SESSION }, STRUCTURED_CLIENT)
@@ -514,6 +541,26 @@ describe('prototypes design system', () => {
     expect(result).not.toHaveProperty('designSystems')
   })
 
+  it('list names the design system of a chat that never made a prototype request, with its chat', async () => {
+    await mkdir(join(launchDirectory, '.git'))
+    await writeSystem(launchDirectory, {
+      'tokens.json': JSON.stringify({
+        color: { primary: { $value: '#0f766e' } },
+        $extensions: { massorca: { version: 1, status: 'detected' } }
+      })
+    })
+
+    const result = replyResult(await call('prototypes.list', {}, STRUCTURED_CLIENT))
+
+    expect(ListPrototypeSetsReplySchema.safeParse(result).success).toBe(true)
+    expect(result).toMatchObject({
+      sets: [],
+      designSystems: [
+        expect.objectContaining({ version: 1, chat: { sessionId: SESSION, agent: 'claude' } })
+      ]
+    })
+  })
+
   it('list stays a valid reply when a color value is too long for a swatch', async () => {
     await mkdir(join(launchDirectory, '.git'))
     const gradient = `linear-gradient(${Array.from({ length: 12 }, () => '#2563eb').join(', ')})`
@@ -657,7 +704,10 @@ describe('a worktree chat whose record pins no launch directory', () => {
     setStructuredAgentSessionHost(
       Object.assign(hostStub(), {
         deps: {
-          store: { getRecord: (id: string) => (record?.sessionId === id ? record : null) },
+          store: {
+            getRecord: (id: string) => (record?.sessionId === id ? record : null),
+            listRecords: () => (record ? [record] : [])
+          },
           resolveWorkspacePath: async () => launchDirectory
         }
       })

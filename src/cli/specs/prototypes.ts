@@ -5,11 +5,11 @@ const REQUEST_FLAGS = ['session', 'request']
 export const PROTOTYPES_COMMAND_SPECS: CommandSpec[] = [
   {
     path: ['prototypes', 'list'],
-    summary: 'List prototype sets on this MassOrca host',
+    summary: 'List prototype sets and design systems on this MassOrca host',
     usage: 'orca prototypes list [--worktree <id>] [--json]',
     allowedFlags: [...GLOBAL_FLAGS, 'worktree'],
     notes: [
-      'Prints each set title, request id, chat id, agent, and whether it is archived. --worktree limits the list to one worktree.'
+      'Prints each set title, request id, chat id, agent, and whether it is archived, then one line per project design system: version, status, token count, the chat its edits go to, and its folder. --worktree limits the list to one worktree and to the systems of its requests.'
     ],
     examples: ['orca prototypes list', 'orca prototypes list --worktree <id>']
   },
@@ -96,18 +96,21 @@ export const PROTOTYPES_COMMAND_SPECS: CommandSpec[] = [
   },
   {
     path: ['prototypes', 'design-system', 'check'],
-    summary: "Check whether a chat's design system is readable by MassOrca, and why not",
-    usage: 'orca prototypes design-system check --session <chat id> [--json]',
-    allowedFlags: [...GLOBAL_FLAGS, 'session'],
+    summary:
+      "Check whether a chat's or a project's design system is readable by MassOrca, and why not",
+    usage:
+      'orca prototypes design-system check (--session <chat id> | --project <folder>) [--json]',
+    allowedFlags: [...GLOBAL_FLAGS, 'session', 'project'],
     notes: [
       'MassOrca reads a project design system only from design/system/tokens.json, components.html and system.md. A valid tokens.json makes it readable; the other two are optional.',
       'Prints readable or not readable, then the folder MassOrca reads, the version, the files read, and one line per reason. Other files in design/system are named, not read.',
-      'Exits 1 when the design system is not readable or the chat is not found on this host; exits 0 when it is readable.',
-      'Changes no project file. It may keep a copy of the current version in MassOrca state.'
+      '--project checks the project that holds a folder, resolved from the working directory, with no chat; only this desktop and its CLI may use it.',
+      'Exits 1 when the design system is not readable or the chat or folder is not found on this host; exits 0 when it is readable.',
+      'Changes no project file. With --session it may keep a copy of the current version in MassOrca state.'
     ],
     examples: [
       'orca prototypes design-system check --session <chat id>',
-      'orca prototypes design-system check --session <chat id> --json'
+      'orca prototypes design-system check --project . --json'
     ]
   },
   {

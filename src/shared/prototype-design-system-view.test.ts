@@ -253,12 +253,23 @@ describe('designSystemChatOf', () => {
     expect(designSystemChatOf([SET], withNewest)?.sessionId).toBe('session-set')
   })
 
+  it('falls back to the host chat the list names when the project has no request', () => {
+    const chat = { sessionId: 'session-chat', agent: 'codex' as const }
+    expect(designSystemChatOf([], { ...SYSTEM, pendingRequest: undefined, chat })).toEqual({
+      sessionId: 'session-chat',
+      agent: 'codex',
+      worktreeId: null
+    })
+    expect(designSystemChatOf([], { ...SYSTEM, chat })?.sessionId).toBe('session-pending')
+  })
+
   it('has no chat when the project has no set, no pending request and no newest request', () => {
     expect(designSystemChatOf([], { ...SYSTEM, pendingRequest: undefined })).toBeUndefined()
   })
 
   it('names the chat of a listed request with no worktree', () => {
-    expect(chatOfListedRequest({ requestId: 'r', sessionId: 's', agent: 'gentle-shell' })).toEqual({
+    const request = { requestId: 'r', sessionId: 's', agent: 'gentle-shell' as const }
+    expect(chatOfListedRequest(request)).toEqual({
       sessionId: 's',
       agent: 'gentle-shell',
       worktreeId: null

@@ -90,6 +90,50 @@ describe('listPrototypeSets design systems', () => {
     expect(ListPrototypeSetsReplySchema.safeParse(listed).success).toBe(true)
   })
 
+  it('lists the design system of a chat that never made a prototype request, with that chat', async () => {
+    await writeTokensIn(projectDirectory)
+
+    const listed = await listPrototypeSets({
+      launchDirectoryOf,
+      stateDirectory,
+      hostChats: () => [{ sessionId: SESSION, agent: 'claude' }]
+    })
+
+    expect(listed.sets).toEqual([])
+    expect(listed.designSystems).toHaveLength(1)
+    expect(listed.designSystems?.[0]).toMatchObject({
+      projectName: basename(projectDirectory),
+      version: 2,
+      chat: { sessionId: SESSION, agent: 'claude' }
+    })
+    expect(listed.designSystems?.[0]).not.toHaveProperty('newestRequest')
+    expect(ListPrototypeSetsReplySchema.parse(listed).designSystems?.[0]?.chat).toEqual({
+      sessionId: SESSION,
+      agent: 'claude'
+    })
+  })
+
+  it('names the newest host chat of the project, and lists no system for a chat without one', async () => {
+    await writeTokensIn(projectDirectory)
+    launchDirectories.set('session-test-0003', projectDirectory)
+
+    const listed = await listPrototypeSets({
+      launchDirectoryOf,
+      stateDirectory,
+      hostChats: () => [
+        { sessionId: OTHER_SESSION, agent: 'codex' },
+        { sessionId: 'session-test-0003', agent: 'codex' },
+        { sessionId: SESSION, agent: 'claude' }
+      ]
+    })
+
+    expect(listed.designSystems).toHaveLength(1)
+    expect(listed.designSystems?.[0]?.chat).toEqual({
+      sessionId: 'session-test-0003',
+      agent: 'codex'
+    })
+  })
+
   it('lists the absolute folder the system is read from, and the list contract keeps it', async () => {
     await writeTokensIn(projectDirectory)
     await create(SESSION, NOW, 'skip')
