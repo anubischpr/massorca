@@ -99,6 +99,18 @@ export async function startFiled(
   }
 }
 
+/**
+ * The person's latest line with this request's text: where a choice card's answer, which names no
+ * message, sends its card, so it stays under the request instead of the end of the room.
+ */
+function askingMessageId(db: OrchestrationDb, teamId: string, typed: string): string | null {
+  const wanted = typed.trim()
+  const asked = db
+    .listBotTeamMessages(teamId)
+    .findLast((message) => message.authorBotId === null && message.text.trim() === wanted)
+  return asked?.id ?? null
+}
+
 /** The task's start notes: the person's clock, the message a reply quotes, a composite's parts, the files. */
 function taskStartNotes(
   bots: Parameters<typeof botTeamCompositeNotes>[0],
@@ -187,7 +199,11 @@ export async function fileBotTeamRequest(
   }
   // The asking team's room tracks a task another team holds for it.
   if (receiving.id !== input.teamId) {
-    db.setBotTeamTaskOrigin(created.id, input.teamId, input.originMessageId ?? null)
+    db.setBotTeamTaskOrigin(
+      created.id,
+      input.teamId,
+      input.originMessageId ?? askingMessageId(db, input.teamId, input.text)
+    )
   }
   // Saved with the task, so the owner reads it whether the task starts now or from Todo later.
   // The clock is the one the request was asked on, so "mañana" stays the day it meant.
