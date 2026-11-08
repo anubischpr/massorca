@@ -249,7 +249,10 @@ export class OrcaRuntimeWithGetOrchestrationDispatchAuthority extends OrcaRuntim
   }
 
   getOrchestrationFleetAgentStatusSnapshot(): readonly FleetAgentStatusEvidence[] {
-    return readOrchestrationFleetAgentStatusSnapshot(this)
+    return readOrchestrationFleetAgentStatusSnapshot(
+      this,
+      this.getOrchestrationDbIfAvailable?.() ?? null
+    )
   }
 
   getTerminalOrchestrationCliCommand(handle: string): OrchestrationCliCommand {

@@ -13,6 +13,7 @@ import {
 } from '../../../../shared/structured-agent-session-projection'
 import type { TerminalTab } from '../../../../shared/terminal-tab-types'
 import { buildWorktreeAgentRows } from './worktree-agent-rows'
+import { selectWorktreeAgentRowsFromState } from './worktree-agent-rows-from-state'
 import { resolveBranchRowPlacement } from './worktree-branch-row-placement'
 import type { Worktree } from '../../../../shared/worktree/types'
 import {
@@ -419,5 +420,53 @@ describe('a finished delegated child on a paired host', () => {
     const candidates = selectBranchRowCandidatesByWorktree(state as unknown as AppState)
     expect(candidates.get('wt-child')).toEqual(['wt-parent'])
     expect(candidates.has('wt-parent')).toBe(false)
+  })
+})
+
+describe('a delegated chat child whose chats live only as agent-session tabs', () => {
+  function chatTab(id: string, worktreeId: string) {
+    return {
+      id,
+      entityId: id,
+      groupId: 'group',
+      worktreeId,
+      contentType: 'agent-session' as const,
+      label: 'Chat',
+      customLabel: null,
+      color: null,
+      sortOrder: 0,
+      createdAt: 0
+    }
+  }
+
+  it('lists the child under the parent chat of the worktree whose row it hides', () => {
+    const parentTabId = structuredAgentSessionTabId('parent')
+    const childTabId = structuredAgentSessionTabId('child')
+    const parentKey = structuredAgentSessionPaneKey(parentTabId, 'parent')
+    const childKey = structuredAgentSessionPaneKey(childTabId, 'child')
+    const state = {
+      ...stateWith({
+        agents: {
+          [parentKey]: makeEntry(parentKey, { worktreeId: 'wt-parent', state: 'done' }),
+          [childKey]: makeEntry(childKey, { worktreeId: 'wt-child', agentType: 'antigravity' })
+        },
+        orchestration: {
+          [childKey]: { taskId: 'task_1', dispatchId: 'ctx_1', parentPaneKey: parentKey }
+        }
+      }),
+      unifiedTabsByWorktree: {
+        'wt-parent': [chatTab(parentTabId, 'wt-parent')],
+        'wt-child': [chatTab(childTabId, 'wt-child')]
+      },
+      runtimePaneTitlesByTabId: {},
+      paneForegroundAgentByPaneKey: {},
+      migrationUnsupportedByPtyId: {}
+    }
+    // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: partial store fixture; the row selectors read only these maps.
+    const appState = state as unknown as AppState
+
+    expect(selectBranchRowCandidatesByWorktree(appState).get('wt-child')).toEqual(['wt-parent'])
+    const rows = selectWorktreeAgentRowsFromState(appState, 'wt-parent', 2000, true)
+    expect(rows.map((row) => row.paneKey)).toContain(childKey)
   })
 })
