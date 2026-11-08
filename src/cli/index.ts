@@ -139,15 +139,17 @@ export async function main(
     // retargeting a mutation to another server is the bug this flag already had.
     // An ambient pairing code cannot be resolved to an id to compare, so the
     // explicit flag simply wins there.
-    const hostEnvironmentId = ignoreRemoteSelection
+    const runtimeHostIsTarget = commandSpec?.runtimeHostIsTarget === true
+    const resolvedHostEnvironmentId = ignoreRemoteSelection
       ? null
       : await resolveHostFlagEnvironmentId(parsed.flags, {
           // Why: only consulted when the name missed, and against this machine's own runtime —
           // SSH targets are registered there, not in the paired server we failed to find.
           listSshTargets: listSshTargetsForSuggestion,
-          pairingCode: typeof pairingCode === 'string' ? pairingCode : null,
-          environmentSelector:
-            typeof environmentSelector === 'string'
+          pairingCode: !runtimeHostIsTarget && typeof pairingCode === 'string' ? pairingCode : null,
+          environmentSelector: runtimeHostIsTarget
+            ? null
+            : typeof environmentSelector === 'string'
               ? { value: environmentSelector, label: '--environment' }
               : process.env.ORCA_ENVIRONMENT
                 ? { value: process.env.ORCA_ENVIRONMENT, label: 'ORCA_ENVIRONMENT' }
@@ -156,10 +158,11 @@ export async function main(
     // Why: --host runtime:<name> is canonicalized to the environment's id so downstream host-id
     // comparisons against stored rows still match; rewrite the flag once, here, rather than
     // resolving the name again at every consumer.
-    refuseSshBridgeEnvironmentRouting(hostEnvironmentId)
-    if (hostEnvironmentId !== null) {
-      parsed.flags.set('host', `runtime:${hostEnvironmentId}`)
+    if (resolvedHostEnvironmentId !== null) {
+      parsed.flags.set('host', `runtime:${resolvedHostEnvironmentId}`)
     }
+    const hostEnvironmentId = runtimeHostIsTarget ? null : resolvedHostEnvironmentId
+    refuseSshBridgeEnvironmentRouting(hostEnvironmentId)
     // Why: pass `null` (not `undefined`) when remote selection is suppressed
     // so the RuntimeClient default parameter does not re-activate the
     // ORCA_PAIRING_CODE / ORCA_ENVIRONMENT env-var fallback for commands

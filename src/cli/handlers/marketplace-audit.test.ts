@@ -1,11 +1,18 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { callMock } = vi.hoisted(() => ({ callMock: vi.fn() }))
+const { callMock, listEnvironmentsMock, runtimeClientArgs } = vi.hoisted(() => ({
+  callMock: vi.fn(),
+  listEnvironmentsMock: vi.fn(() => [] as { id: string; name: string }[]),
+  runtimeClientArgs: [] as unknown[][]
+}))
 
 vi.mock('../runtime-client', async () => {
   class RuntimeClient {
     readonly isRemote = false
     call = callMock
+    constructor(...args: unknown[]) {
+      runtimeClientArgs.push(args)
+    }
     getCliStatus = vi.fn()
     openOrca = vi.fn()
   }
@@ -21,7 +28,7 @@ vi.mock('../runtime-client', async () => {
 
 vi.mock('../runtime/environments', () => ({
   addEnvironmentFromPairingCode: vi.fn(),
-  listEnvironments: vi.fn(() => []),
+  listEnvironments: listEnvironmentsMock,
   removeEnvironment: vi.fn(),
   resolveEnvironment: vi.fn()
 }))
@@ -91,6 +98,8 @@ describe('orca marketplace audit', () => {
   beforeEach(() => {
     vi.restoreAllMocks()
     callMock.mockReset()
+    listEnvironmentsMock.mockReturnValue([])
+    runtimeClientArgs.length = 0
     delete process.env.ORCA_PAIRING_CODE
     delete process.env.ORCA_ENVIRONMENT
     process.exitCode = undefined
@@ -126,6 +135,16 @@ describe('orca marketplace audit', () => {
 
     expect(auditParams()).toEqual([{ host: 'wsl:Ubuntu' }, { host: 'ssh:box-1' }])
     expect(JSON.parse(String(vi.mocked(console.log).mock.calls[0][0])).result).toEqual(result)
+  })
+
+  it('asks this computer about a paired server instead of connecting to it', async () => {
+    listEnvironmentsMock.mockReturnValue([{ id: 'env-vps', name: 'pv-vps' }])
+    answer({ ok: true, host: { key: 'runtime:env-vps', label: 'pv-vps' }, rows: [row()] })
+
+    await main(['marketplace', 'audit', '--host', 'runtime:pv-vps', '--json'], '/tmp/repo')
+
+    expect(auditParams()).toEqual([{ host: 'runtime:env-vps' }])
+    expect(runtimeClientArgs.at(-1)?.[3]).toBeUndefined()
   })
 
   it('exits 1 under --strict only when a page is blocked', async () => {

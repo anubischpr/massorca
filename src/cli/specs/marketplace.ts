@@ -75,8 +75,10 @@ export const MARKETPLACE_COMMAND_SPECS: CommandSpec[] = [
     summary: 'Show which Marketplace pages open or are blocked on a host, and why',
     usage: `orca marketplace audit [${SKILL_HOST_USAGE}] [--strict] [--json]`,
     allowedFlags: [...GLOBAL_FLAGS, 'host', 'strict'],
+    runtimeHostIsTarget: true,
     notes: [
       SKILL_HOST_NOTE,
+      'Here --host runtime:<environment-id> keeps the connection on this computer’s app and asks it about that server, as when the server is picked in its host picker. To have a paired server audit itself, select it with --environment and leave --host out.',
       'The host’s desktop window computes each row with the same code the Marketplace page uses: whether its page opens, the block code and reason when it does not, the controls the page shows, and whether it is native or needs an outside tool.',
       'A headless host with no desktop window open answers that it cannot audit.',
       '--strict exits 1 when any page is blocked.'

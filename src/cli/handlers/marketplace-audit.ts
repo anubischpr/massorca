@@ -34,11 +34,13 @@ type MarketplaceAudit =
 const NO_RENDERER =
   'This host has no desktop window open, so it cannot compute the Marketplace page. Open MassOrca on the host and retry.'
 
-/** The renderer resolves the host itself; a runtime:<id> host is already the connected one. */
+/** The connected app's renderer resolves the host, as its host picker does; the spec keeps runtime:<id> from moving the connection. */
 function auditHostParam(host: MarketplaceSkillHost): string | undefined {
   switch (host.kind) {
     case 'local':
       return 'local'
+    case 'runtime':
+      return host.label
     case 'wsl':
       return `wsl:${host.wslDistro}`
     case 'ssh':
