@@ -32,6 +32,7 @@ import {
 import { callMarketplaceHost } from './marketplace-host-call'
 import { readSecretInput } from './marketplace-secret-input'
 import { MARKETPLACE_AUDIT_HANDLERS } from './marketplace-audit'
+import { MARKETPLACE_PROGRAM_HANDLERS } from './marketplace-program'
 
 const FAILURE_MESSAGES: Record<string, string> = {
   'invalid-input': 'The host refused the input.',
@@ -181,6 +182,7 @@ function readAgentPicks(ctx: HandlerContext): MarketplaceAppAgent[] {
 
 export const MARKETPLACE_HANDLERS: Record<string, CommandHandler> = {
   ...MARKETPLACE_AUDIT_HANDLERS,
+  ...MARKETPLACE_PROGRAM_HANDLERS,
   'marketplace list': async (ctx) => {
     const response = await listApps(ctx)
     const only = getOptionalStringFlag(ctx.flags, 'app')

@@ -344,6 +344,9 @@ orca marketplace disconnect openmetadata
 orca marketplace access engram                # show the access mode
 orca marketplace access engram --mode except --agents antigravity
 orca marketplace audit --host wsl:Ubuntu      # each page: opens, or blocked (code): reason; --strict exits 1 if any is blocked
+orca marketplace program status gh --host runtime:pv-vps   # installed?, version, path, method, what MassOrca can do
+orca marketplace program install codex --host wsl:Ubuntu   # waits for the installer; needs-admin prints the command to run
+orca marketplace program uninstall node --yes              # uninstall and reinstall ask for --yes unless --json
 orca marketplace services list                # GitLab, Bitbucket, Azure DevOps, Gitea, Linear, Jira
 orca marketplace services connect linear --token-env LINEAR_API_KEY
 orca marketplace services connect gitea --site https://git.example.com --token-env GITEA_TOKEN

@@ -89,3 +89,21 @@ export function describeInstallTarget(install: ManagedSkillInstall): string | nu
   }
   return target.kind === 'wsl' ? `WSL ${target.distro}` : `SSH ${target.connectionId}`
 }
+
+/** The `host` param for RPCs the connected app resolves itself, as its host picker does; specs keep runtime:<id> from moving the connection. */
+export function marketplaceHostParam(host: MarketplaceSkillHost): string | undefined {
+  switch (host.kind) {
+    case 'local':
+      return 'local'
+    case 'runtime':
+      return host.label
+    case 'wsl':
+      return `wsl:${host.wslDistro}`
+    case 'ssh':
+      return host.destination.executionTarget?.kind === 'ssh'
+        ? `ssh:${host.destination.executionTarget.connectionId}`
+        : undefined
+    default:
+      return undefined
+  }
+}

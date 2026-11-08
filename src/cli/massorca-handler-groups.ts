@@ -10,7 +10,11 @@ export const MASSORCA_HANDLER_GROUPS: readonly HandlerGroup[] = [
       'marketplace connect',
       'marketplace disconnect',
       'marketplace access',
-      'marketplace audit'
+      'marketplace audit',
+      'marketplace program status',
+      'marketplace program install',
+      'marketplace program uninstall',
+      'marketplace program reinstall'
     ],
     load: async () => (await import('./handlers/marketplace.js')).MARKETPLACE_HANDLERS
   },

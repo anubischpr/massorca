@@ -1,11 +1,26 @@
 import { GLOBAL_FLAGS, type CommandSpec } from '../args'
 import { SKILL_INSTALL_PROVIDERS } from '../../shared/skill-install-providers'
+import { MARKETPLACE_PROGRAMS } from '../marketplace-program-ids'
 
 const TOKEN_FLAGS = ['token', 'token-stdin', 'token-env']
 
 const SKILL_HOST_USAGE = '--host local|wsl:<distro>|ssh:<target-id>|runtime:<environment-id>'
 const SKILL_HOST_NOTE =
   '--host picks the machine, as the desktop host picker does: local is this computer, wsl:<distro> a WSL distro on it, ssh:<target-id> an SSH host, runtime:<environment-id> a paired MassOrca server.'
+const PROGRAM_ACTIONS = [
+  { action: 'status', summary: 'Show whether an agent CLI or tool is installed on a host' },
+  { action: 'install', summary: 'Install an agent CLI or tool on a host' },
+  {
+    action: 'uninstall',
+    summary: 'Remove an agent CLI or tool from a host',
+    destructive: true
+  },
+  {
+    action: 'reinstall',
+    summary: 'Remove and install again an agent CLI or tool on a host',
+    destructive: true
+  }
+]
 const SKILL_AGENT_IDS = SKILL_INSTALL_PROVIDERS.map((provider) => provider.id).join(', ')
 
 // Why: the Marketplace page is GUI-only otherwise; these let an agent on a headless host inspect
@@ -84,7 +99,34 @@ export const MARKETPLACE_COMMAND_SPECS: CommandSpec[] = [
       '--strict exits 1 when any page is blocked.'
     ],
     examples: ['orca marketplace audit', 'orca marketplace audit --host wsl:Ubuntu --strict --json']
-  }
+  },
+  ...PROGRAM_ACTIONS.map(({ action, summary, destructive }): CommandSpec => ({
+    path: ['marketplace', 'program', action],
+    ...(destructive ? { destructive: true } : {}),
+    summary,
+    usage: `orca marketplace program ${action} <${MARKETPLACE_PROGRAMS.join('|')}> [${SKILL_HOST_USAGE}]${destructive ? ' [--yes]' : ''} [--json]`,
+    allowedFlags: [...GLOBAL_FLAGS, 'program', 'host', ...(destructive ? ['yes'] : [])],
+    positionalArgs: ['program'],
+    runtimeHostIsTarget: true,
+    notes: [
+      SKILL_HOST_NOTE,
+      'Here --host runtime:<environment-id> keeps the connection on this computer’s app and asks it to act on that server. Without --host, the connected host acts on itself.',
+      ...(action === 'status'
+        ? [
+            'Shows whether the program is installed, its version, path and install method, and what MassOrca can do with it there.'
+          ]
+        : [
+            'Waits until the installer finishes, up to about 25 minutes on a paired server.',
+            'MassOrca never asks for a password: when the host needs administrator rights it exits 1 and prints the command to run yourself.'
+          ]),
+      ...(destructive ? ['Asks for --yes unless --json is set.'] : []),
+      'Exits 1 when the host answers that it could not.'
+    ],
+    examples: [
+      `orca marketplace program ${action} gh${destructive ? ' --yes' : ''}`,
+      `orca marketplace program ${action} codex --host wsl:Ubuntu --json`
+    ]
+  }))
 ]
 
 export const MARKETPLACE_SERVICE_COMMAND_SPECS: CommandSpec[] = [

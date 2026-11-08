@@ -1,7 +1,7 @@
 import type { CommandHandler } from '../dispatch'
 import { printResult } from '../format'
 import { RuntimeClientError } from '../runtime-client'
-import { resolveMarketplaceSkillHost, type MarketplaceSkillHost } from '../marketplace-skill-host'
+import { marketplaceHostParam, resolveMarketplaceSkillHost } from '../marketplace-skill-host'
 import { callMarketplaceHost } from './marketplace-host-call'
 
 const AUDIT_METHOD = 'marketplace.catalog.audit'
@@ -36,24 +36,6 @@ type MarketplaceAudit =
 const NO_RENDERER =
   'This host has no desktop window open, so it cannot compute the Marketplace page. Open MassOrca on the host and retry.'
 
-/** The connected app's renderer resolves the host, as its host picker does; the spec keeps runtime:<id> from moving the connection. */
-function auditHostParam(host: MarketplaceSkillHost): string | undefined {
-  switch (host.kind) {
-    case 'local':
-      return 'local'
-    case 'runtime':
-      return host.label
-    case 'wsl':
-      return `wsl:${host.wslDistro}`
-    case 'ssh':
-      return host.destination.executionTarget?.kind === 'ssh'
-        ? `ssh:${host.destination.executionTarget.connectionId}`
-        : undefined
-    default:
-      return undefined
-  }
-}
-
 function formatStructure(structure: AuditStructure): string {
   const flags = [
     ['host picker', structure.hostPicker],
@@ -86,7 +68,7 @@ export function formatAuditRow(row: MarketplaceAuditRow): string {
 export const MARKETPLACE_AUDIT_HANDLERS: Record<string, CommandHandler> = {
   'marketplace audit': async (ctx) => {
     const host = await resolveMarketplaceSkillHost(ctx.flags, ctx.client)
-    const param = auditHostParam(host)
+    const param = marketplaceHostParam(host)
     const response = await callMarketplaceHost<MarketplaceAudit>(
       ctx,
       AUDIT_METHOD,
