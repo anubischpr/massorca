@@ -14,6 +14,7 @@ import { AppBackgroundServices } from './app-shell/AppBackgroundServices'
 import { AppRootSurfaces } from './app-shell/AppRootSurfaces'
 import { AppWorkspaceShell } from './app-shell/AppWorkspaceShell'
 import { WindowControls } from './app-shell/WindowControls'
+import { attachMarketplaceAuditBridge } from './marketplace-audit-bridge'
 import {
   MAC_TRAFFIC_LIGHTS_WIDTH,
   WINDOW_CONTROLS_HEIGHT,
@@ -42,6 +43,7 @@ function App(): React.JSX.Element {
   useAppShellServices()
   // Why before the startup chain: its effect runs first, and no startup step can skip the load.
   useEffect(startNativeChatDraftLoad, [])
+  useEffect(attachMarketplaceAuditBridge, [])
   useAppStartupHydration(onboardingGate.applyStartupOnboardingState)
   useAppSessionPersistence()
   useRuntimeGraphSync()

@@ -441,6 +441,7 @@ import {
   MarketplaceAppsSetEngramServer,
   MarketplaceAppsSetOpenMetadataToken
 } from './marketplace-apps-params'
+import { MarketplaceCatalogAuditParams } from './marketplace-catalog-audit-params'
 import {
   MarketplaceServiceConnect,
   MarketplaceServiceDisconnect
@@ -1195,6 +1196,7 @@ export const RPC_PARAMS_BY_METHOD = {
   'marketplace.apps.setAccessPolicy': MarketplaceAppsSetAccessPolicy,
   'marketplace.apps.setEngramServer': MarketplaceAppsSetEngramServer,
   'marketplace.apps.setOpenMetadataToken': MarketplaceAppsSetOpenMetadataToken,
+  'marketplace.catalog.audit': MarketplaceCatalogAuditParams,
   'marketplace.service.connect': MarketplaceServiceConnect,
   'marketplace.service.disconnect': MarketplaceServiceDisconnect,
   'marketplace.service.status': null,

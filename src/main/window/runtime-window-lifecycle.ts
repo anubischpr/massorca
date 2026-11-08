@@ -13,6 +13,8 @@ import type { TerminalTabCreateReply } from '../../shared/terminal-reveal-identi
 import { runWorktreeChangeInvalidators } from '../ipc/worktree-change-invalidators'
 import { requestAgentLaunchTabPublishFromRenderer } from './agent-launch-tab-publish-relay'
 import type { OrcaRuntimeService } from '../runtime/orca-runtime'
+import { setMarketplaceCatalogAuditRequester } from '../runtime/rpc/methods/marketplace-catalog-audit-methods'
+import { requestMarketplaceCatalogAudit } from '../marketplace/marketplace-catalog-audit-relay'
 import { requestMobileMarkdownFromRenderer } from './mobile-markdown-request-relay'
 import { registerRendererDocumentNavigation } from './renderer-document-navigation'
 import { createRuntimeRendererNotificationSender } from './runtime-renderer-notification-sender'
@@ -223,6 +225,8 @@ export function registerRuntimeWindowLifecycle(
       send('runtime:browserRemoteViewersChanged', { browserPageId, hasRemoteViewers }),
     clientHostedBrowserRowsChanged: (event) => send('runtime:clientHostedBrowserRowsChanged', event)
   })
+  // Why: the Marketplace audit asks this window's renderer, so the requester closes over this window.
+  setMarketplaceCatalogAuditRequester((host) => requestMarketplaceCatalogAudit(mainWindow, host))
   registerRendererDocumentNavigation(mainWebContents, () => {
     rendererNotifications.onMainFrameReloadStarted()
     const fence = runtime.markRendererReloading(mainWindow.id)
@@ -244,6 +248,7 @@ export function registerRuntimeWindowLifecycle(
     if (activeRuntimeNotifierToken === notifierToken) {
       // Why: the notifier closes over the window; clear it in the no-window gap so the runtime can't retain destroyed graphs.
       runtime.setNotifier(null)
+      setMarketplaceCatalogAuditRequester(null)
       activeRuntimeNotifierToken = null
     }
   })

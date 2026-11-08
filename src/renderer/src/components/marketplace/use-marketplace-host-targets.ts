@@ -32,6 +32,17 @@ export function marketplaceHostTargetsFrom(
 }
 
 /**
+ * The host picker's list, built from the registry the Workspaces sidebar reads, then the WSL distros.
+ * Why: the audit reads this same list without hooks, so a host it names is one the picker offers.
+ */
+export function marketplaceHostTargetsOf(
+  registry: Parameters<typeof buildSidebarHostOptions>[0],
+  wslTargets: readonly MarketplaceVaultHostTarget[]
+): MarketplaceVaultHostTarget[] {
+  return [...marketplaceHostTargetsFrom(buildSidebarHostOptions(registry)), ...wslTargets]
+}
+
+/**
  * Hosts that run agents of their own, from the same registry the Workspaces sidebar reads, then the
  * WSL distros of the Windows desktop app.
  */
@@ -44,20 +55,19 @@ export function useMarketplaceHostTargets(): MarketplaceVaultHostTarget[] {
   const sshTargetLabels = useAppStore((s) => s.sshTargetLabels)
   const wslTargets = useMarketplaceWslTargets()
   return useMemo(
-    () => [
-      ...marketplaceHostTargetsFrom(
-        buildSidebarHostOptions({
+    () =>
+      marketplaceHostTargetsOf(
+        {
           repos,
-          sshTargetLabels,
-          sshConnectionStates,
           settings,
           runtimeEnvironments,
           runtimeStatusByEnvironmentId,
+          sshConnectionStates,
+          sshTargetLabels,
           hostLabelOverrides: getHostDisplayLabelOverrides(settings)
-        })
+        },
+        wslTargets
       ),
-      ...wslTargets
-    ],
     [
       repos,
       settings,

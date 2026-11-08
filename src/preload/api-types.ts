@@ -57,6 +57,7 @@ import type { MarketplaceApi } from '../shared/marketplace-types'
 import type { MarketplaceInstallApi } from '../shared/marketplace-install'
 import type { MarketplaceEngramOpsApi } from '../shared/marketplace-engram-ops'
 import type { MarketplaceCustomApi } from '../shared/marketplace-custom'
+import type { MarketplaceAuditBridgeApi } from './api/marketplace-audit-bridge'
 import type { PtyApi } from './api/pty-api'
 import type { ProjectGroupsApi, ProjectsApi, RepositoryApi } from './api/repository-api'
 import type { RuntimeApi } from './api/runtime-api'
@@ -127,6 +128,7 @@ export type PreloadApi = {
   marketplaceInstall: MarketplaceInstallApi
   marketplaceEngramOps: MarketplaceEngramOpsApi
   marketplaceCustom: MarketplaceCustomApi
+  marketplaceAudit?: MarketplaceAuditBridgeApi
   marketplaceApps: MarketplaceAppsApi
   marketplaceServices: MarketplaceServicesApi
   notifications: NotificationsApi
