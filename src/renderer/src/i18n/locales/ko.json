@@ -6460,6 +6460,7 @@
           "unread": "읽지 않음"
         },
         "OneLineSessionMenu": {
+          "clearFromList": "목록에서 제거",
           "copyTitle": "제목 복사",
           "sleep": "절전",
           "splitView": "분할 보기"

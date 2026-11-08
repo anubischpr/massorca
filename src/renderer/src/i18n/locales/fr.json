@@ -6565,6 +6565,7 @@
           "unread": "Non lu"
         },
         "OneLineSessionMenu": {
+          "clearFromList": "Retirer de la liste",
           "copyTitle": "Copier le titre",
           "sleep": "Mettre en veille",
           "splitView": "Vue partagée"

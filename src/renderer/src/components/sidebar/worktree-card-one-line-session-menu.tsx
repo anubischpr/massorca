@@ -45,6 +45,13 @@ export function getSessionMenuKind(agent: DashboardAgentRow): SessionMenuKind {
   }
 }
 
+/** The card's own dismiss path for a retained row: its status and its retained record. */
+export function removeRetainedSession(paneKey: string): void {
+  const state = useAppStore.getState()
+  state.dropAgentStatus(paneKey)
+  state.dismissRetainedAgent(paneKey)
+}
+
 function copyText(text: string): void {
   void navigator.clipboard.writeText(text).catch(() => undefined)
 }
@@ -77,8 +84,10 @@ export function OneLineSessionMenu({
   children
 }: {
   agent: DashboardAgentRow
-  title: string
-  onStartRename: () => void
+  /** A function when the title costs work the row itself does not do; read only on Copy Title. */
+  title: string | (() => string)
+  /** Absent where the row has no inline name field, which hides Rename. */
+  onStartRename?: () => void
   children: React.ReactElement
 }): React.JSX.Element {
   const kind = getSessionMenuKind(agent)
@@ -132,14 +141,14 @@ export function OneLineSessionMenu({
           if (renameRequestedRef.current) {
             renameRequestedRef.current = false
             event.preventDefault()
-            onStartRename()
+            onStartRename?.()
           }
         }}
       >
         {kind.ownsTab || agent.crossWorktree ? (
           <SessionSplitViewItem session={{ worktreeId, tabId: agent.tab.id }} />
         ) : null}
-        {kind.ownsTab ? (
+        {kind.ownsTab && onStartRename ? (
           <ContextMenuItem
             onSelect={() => {
               renameRequestedRef.current = true
@@ -159,7 +168,7 @@ export function OneLineSessionMenu({
             {translate('auto.components.sidebar.WorktreeContextMenu.8dacff1fe0', 'Mark Read')}
           </ContextMenuItem>
         ) : null}
-        <ContextMenuItem onSelect={() => copyText(title)}>
+        <ContextMenuItem onSelect={() => copyText(typeof title === 'function' ? title() : title)}>
           <Copy className="size-3.5" />
           {translate('auto.components.sidebar.OneLineSessionMenu.copyTitle', 'Copy Title')}
         </ContextMenuItem>
@@ -196,6 +205,19 @@ export function OneLineSessionMenu({
             >
               <X className="size-3.5" />
               {translate('auto.components.tab.bar.SortableTabContextMenu.89359a36f7', 'Close')}
+            </ContextMenuItem>
+          </>
+        ) : null}
+        {agent.rowSource === 'retained' ? (
+          <>
+            <ContextMenuSeparator />
+            {/* Why: a retained row outlives its tab, so the row itself is all there is to delete. */}
+            <ContextMenuItem onSelect={() => removeRetainedSession(agent.paneKey)}>
+              <X className="size-3.5" />
+              {translate(
+                'auto.components.sidebar.OneLineSessionMenu.clearFromList',
+                'Clear from List'
+              )}
             </ContextMenuItem>
           </>
         ) : null}
