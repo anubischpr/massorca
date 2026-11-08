@@ -14,6 +14,7 @@ import {
 import type { BotTeam } from '../../../../shared/rpc-contract/bot-team-params'
 import { BotTeamRoomReplyBar } from './BotTeamRoomReplyBar'
 import { useBotTeamRoomDraft } from './bot-team-room-draft'
+import { useBotTeamRoomPendingFiles } from './bot-team-room-pending-files'
 import { openBotTeamRoomSessions } from './open-bot-team-room-sessions'
 import { useBotTeamMentionField } from './use-bot-team-mention-field'
 
@@ -64,7 +65,7 @@ export function BotTeamRoomComposer({
   /** A bot's Reply: its message is quoted above the box, which takes focus. */
   replyTo?: BotTeamRoomReply | null
 }): React.JSX.Element {
-  const [pending, setPending] = useState<BotTeamRoomAttachment[]>([])
+  const [pending, setPending] = useBotTeamRoomPendingFiles(team.id)
   const [attaching, setAttaching] = useState(false)
   const appliedReply = useRef<BotTeamRoomReply | null>(null)
   const [reply, setReply] = useState<BotTeamRoomReply | null>(null)

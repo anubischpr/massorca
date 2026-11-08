@@ -19,6 +19,7 @@ vi.mock('./open-bot-team-room-sessions', () => ({ openBotTeamRoomSessions: vi.fn
 vi.mock('./BotAgentIcon', () => ({ BotAgentIcon: () => null }))
 
 const { BotTeamRoomComposer } = await import('./BotTeamRoomComposer')
+const { clearBotTeamRoomPendingFilesForTests } = await import('./bot-team-room-pending-files')
 
 const BOT = { modelMode: 'auto' as const, model: null, effort: null, skills: [] }
 const TEAM: BotTeam = {
@@ -39,6 +40,7 @@ afterEach(() => {
     act(() => root.unmount())
     container.remove()
   }
+  clearBotTeamRoomPendingFilesForTests()
 })
 
 function mount(props: { onAttachFiles?: () => Promise<BotTeamRoomAttachment[]> } = {}) {
@@ -70,6 +72,20 @@ function typeText(container: HTMLElement, value: string): void {
 }
 
 describe('bot team room composer attachments', () => {
+  it('keeps an attached file after the room is left and opened again', async () => {
+    const first = mount({ onAttachFiles: async () => [FLYER] })
+    await act(async () => attachButton(first.container)!.click())
+    expect(first.container.textContent).toContain('flyer.png')
+    const { root, container } = mounted.splice(0)[0]
+    act(() => root.unmount())
+    container.remove()
+
+    const again = mount({ onAttachFiles: async () => [] })
+    expect(again.container.textContent).toContain('flyer.png')
+    await act(async () => sendButton(again.container).click())
+    expect(again.onSend).toHaveBeenCalledWith('', [FLYER])
+  })
+
   it('shows no attach button when the room cannot take files', () => {
     const { container } = mount()
 
