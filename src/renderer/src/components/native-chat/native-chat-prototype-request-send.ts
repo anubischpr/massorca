@@ -14,6 +14,7 @@ import {
   type PrototypeSystemCard
 } from '../../../../shared/prototype-design-system-card'
 import type { PrototypeDesignSystemMode } from '../../../../shared/prototype-design-system-files'
+import { buildDesignSystemChatMessage } from '../../../../shared/prototype-design-system-message'
 import {
   PrototypeHostOutdatedError,
   createPrototypeRequestOnHost,
@@ -119,6 +120,31 @@ export async function readPrototypeSystemCard(
     )
     return null
   }
+}
+
+/**
+ * A message that names the design system, with the files and format MassOrca reads hidden behind it. The folder
+ * comes from the chat's host; without an answer in time the files are named relative to the project root.
+ */
+export async function prepareNativeChatDesignSystemText(
+  target: RuntimeClientTarget,
+  sessionId: string,
+  text: string
+): Promise<{ kind: 'send'; text: string }> {
+  const folder = await withDeadline(
+    readDesignSystemOnHost(target, { sessionId }),
+    HOST_REQUEST_DEADLINE_MS
+  ).then(
+    (read) => (read.ok ? read.folderPath : undefined),
+    (error: unknown) => {
+      console.warn(
+        `[prototypes] design system folder not read for chat ${sessionId} (${describeTarget(target)}): ${String(error)}`
+      )
+      return undefined
+    }
+  )
+  const message = buildDesignSystemChatMessage({ text, systemFolder: folder })
+  return { kind: 'send', text: message?.sentText ?? text }
 }
 
 /** Rejects once `ms` passes without `promise` settling. */

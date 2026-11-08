@@ -2,6 +2,7 @@
 // table as desktop, then the request folder on the host and the hidden instruction behind the text.
 import type { PrototypeCountSetting } from '../../../src/shared/prototype-count-setting'
 import type { PrototypeDesignSystemMode } from '../../../src/shared/prototype-design-system-files'
+import { buildDesignSystemChatMessage } from '../../../src/shared/prototype-design-system-message'
 import { neutralizePrototypeMarkers } from '../../../src/shared/prototype-hidden-instruction'
 import {
   buildPrototypeRequestMessage,
@@ -45,6 +46,8 @@ export type MobilePrototypePlanInput = {
   choice?: NativeChatPrototypeChoice
   /** The host takes the design system mode: the request asks the agent to use the project's system. */
   useDesignSystem?: boolean
+  /** The chat's design system folder on its host, read only for a message that names the design system. */
+  readDesignSystemFolder?: () => Promise<string | undefined>
 }
 
 export async function planMobilePrototypeOutgoing(
@@ -53,7 +56,7 @@ export async function planMobilePrototypeOutgoing(
   const text = neutralizePrototypeMarkers(input.text)
   const asTyped: MobilePrototypeOutgoing = { kind: 'send', wireText: text, shownText: text }
   if (classifyPrototypeRequest(text, input.agent).kind === 'none') {
-    return asTyped
+    return withDesignSystemFormat(text, input.readDesignSystemFolder)
   }
   const setting = await input.readSetting()
   const decision = decideNativeChatPrototypeRequest({
@@ -63,7 +66,7 @@ export async function planMobilePrototypeOutgoing(
     ...(input.choice ? { choice: input.choice } : {})
   })
   if (decision.kind === 'as-typed') {
-    return asTyped
+    return withDesignSystemFormat(text, input.readDesignSystemFolder)
   }
   if (decision.kind === 'ask') {
     return { kind: 'ask', keyword: decision.keyword, defaultCount: setting.count }
@@ -102,4 +105,19 @@ export async function planMobilePrototypeOutgoing(
       : {})
   })
   return { kind: 'send', wireText: message.sentText, shownText: message.visibleText }
+}
+
+// A message that names the design system carries the files and format MassOrca reads; any other goes as typed.
+async function withDesignSystemFormat(
+  text: string,
+  readFolder: (() => Promise<string | undefined>) | undefined
+): Promise<MobilePrototypeOutgoing> {
+  if (buildDesignSystemChatMessage({ text }) === null) {
+    return { kind: 'send', wireText: text, shownText: text }
+  }
+  const systemFolder = await (readFolder?.() ?? Promise.resolve(undefined)).catch(() => undefined)
+  const message = buildDesignSystemChatMessage({ text, systemFolder })
+  return message === null
+    ? { kind: 'send', wireText: text, shownText: text }
+    : { kind: 'send', wireText: message.sentText, shownText: message.visibleText }
 }

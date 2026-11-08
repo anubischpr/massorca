@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { PrototypeHostOutdatedError } from '@/runtime/runtime-prototype-client'
 import { PROTOTYPE_PROMPT_MAX_LENGTH } from '../../../../shared/rpc-contract/prototype-params'
 import {
+  prepareNativeChatDesignSystemText,
   prepareNativeChatPrototypeText,
   readPrototypeSystemCard
 } from './native-chat-prototype-request-send'
@@ -52,14 +53,14 @@ describe('prepareNativeChatPrototypeText', () => {
       designSystemFolderPath: '/srv/main/design/system'
     })
     const shared = await prepareNativeChatPrototypeText({ ...input, designSystem: 'use' })
-    expect(shared).toContain('read /srv/main/design/system/tokens.json')
+    expect(shared).toContain('check whether /srv/main/design/system/tokens.json')
     mocks.create.mockResolvedValue({
       ok: true,
       requestId: '20261029-100000-abc123',
       folderPath: '/srv/prototypes/20261029-100000-abc123'
     })
     const older = await prepareNativeChatPrototypeText({ ...input, designSystem: 'use' })
-    expect(older).toContain('read design/system/tokens.json, components.html')
+    expect(older).toContain('check whether design/system/tokens.json, components.html')
   })
 
   it.each([
@@ -233,5 +234,41 @@ describe('readPrototypeSystemCard', () => {
     await vi.advanceTimersByTimeAsync(1)
     await expect(pending).resolves.toBeNull()
     warn.mockRestore()
+  })
+})
+
+describe('prepareNativeChatDesignSystemText', () => {
+  const TARGET = { kind: 'environment', environmentId: 'env-1' } as const
+  const TEXT = 'Crea el desing system del proyecto oppm'
+
+  afterEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('names the folder the host reads the system from', async () => {
+    mocks.readSystem.mockResolvedValue({
+      ok: true,
+      projectKey: 'oppm',
+      projectName: 'oppm',
+      fileNames: [],
+      folderPath: '/home/user/projects/oppm/design/system'
+    })
+    const sent = await prepareNativeChatDesignSystemText(TARGET, 'chat-1', TEXT)
+    expect(mocks.readSystem).toHaveBeenCalledWith(TARGET, { sessionId: 'chat-1' })
+    expect(
+      sent.text.startsWith(`${TEXT}
+
+<!-- orca-prototype-design-system:detect -->`)
+    ).toBe(true)
+    expect(sent.text).toContain('/home/user/projects/oppm/design/system/tokens.json')
+  })
+
+  it('names project-relative files when the host cannot be read or names no folder', async () => {
+    mocks.readSystem.mockRejectedValueOnce(new Error('offline'))
+    const offline = await prepareNativeChatDesignSystemText(TARGET, 'chat-1', TEXT)
+    expect(offline.text).toContain('design/system/tokens.json, design/system/components.html')
+    mocks.readSystem.mockResolvedValueOnce({ ok: false, error: 'not_found' })
+    const notFound = await prepareNativeChatDesignSystemText(TARGET, 'chat-1', TEXT)
+    expect(notFound.text).toBe(offline.text)
   })
 })

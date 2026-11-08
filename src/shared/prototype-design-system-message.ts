@@ -3,6 +3,7 @@
 import { DESIGN_SYSTEM_FILES_LINE_PREFIX } from './prototype-design-system-files'
 import type { DesignSystemDraftGroup } from './prototype-design-system-draft'
 import {
+  DESIGN_SYSTEM_CHAT_INSTRUCTION,
   DESIGN_SYSTEM_REDETECT_INSTRUCTION,
   designSystemFilesList,
   designSystemFormatInstruction
@@ -91,6 +92,39 @@ export function buildDesignSystemRedetectMessage(
     designSystemFormatInstruction(input.systemFolder)
   ]
   return { visibleText: REDETECT_TEXT, sentText: `${REDETECT_TEXT}\n\n${hidden.join('\n')}` }
+}
+
+// "design system" in English or Spanish, with the common "desing" typo; "system design" is another subject.
+const DESIGN_SYSTEM_WORDING = [
+  /\bdes(?:ign|ing)[\s_-]*systems?\b/iu,
+  /\bsistemas?\s+de\s+dise[ñn]o\b/iu
+]
+
+/** Whether a chat message names a design system, so it carries the format MassOrca reads one in. */
+export function asksForDesignSystem(text: string): boolean {
+  return DESIGN_SYSTEM_WORDING.some((pattern) => pattern.test(text))
+}
+
+/**
+ * A message typed in the chat that names the design system: the text as typed, and the files and their format
+ * hidden behind it. Null for any other message, which goes as typed.
+ */
+export function buildDesignSystemChatMessage(input: {
+  text: string
+  /** The system's absolute folder on the agent's host; absent, the message names project-relative paths. */
+  systemFolder?: string | undefined
+}): DesignSystemMessage | null {
+  const visibleText = neutralizePrototypeMarkers(input.text).trim()
+  if (!asksForDesignSystem(visibleText)) {
+    return null
+  }
+  const hidden = [
+    prototypeDesignSystemMarkerLine('detect'),
+    filesLine(input.systemFolder),
+    DESIGN_SYSTEM_CHAT_INSTRUCTION,
+    designSystemFormatInstruction(input.systemFolder)
+  ]
+  return { visibleText, sentText: `${visibleText}\n\n${hidden.join('\n')}` }
 }
 
 /** "Use the {name} palette for the design system." with the steps that apply it and unblock the pending request. */

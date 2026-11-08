@@ -178,6 +178,10 @@ export type ReadPrototypeDesignSystemResult =
       componentsHtml?: string
       systemMd?: string
       unreadableFileNames?: string[]
+      /** The absolute design/system folder read, with the host's separators; an older host omits it. */
+      folderPath?: string
+      /** Root-relative entries of that folder MassOrca does not read, e.g. a tokens.css an agent wrote instead. */
+      otherFileNames?: string[]
     }
   | { ok: false; error: 'not_found' }
 
@@ -374,7 +378,9 @@ export const ReadPrototypeDesignSystemReplySchema = z.union([
     tokensJson: z.string().optional(),
     componentsHtml: z.string().optional(),
     systemMd: z.string().optional(),
-    unreadableFileNames: z.array(z.string()).optional()
+    unreadableFileNames: z.array(z.string()).optional(),
+    folderPath: z.string().min(1).optional(),
+    otherFileNames: z.array(z.string()).optional()
   }),
   z.object({ ok: z.literal(false), error: z.literal('not_found') })
 ])

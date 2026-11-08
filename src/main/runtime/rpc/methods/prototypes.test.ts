@@ -337,7 +337,8 @@ describe('prototypes design system', () => {
       projectName: expect.any(String),
       fileNames: ['design/system/tokens.json', 'design/system/system.md'],
       tokensJson: TOKENS,
-      systemMd: '# rules'
+      systemMd: '# rules',
+      folderPath: join(root, 'design', 'system')
     })
   })
 

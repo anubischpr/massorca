@@ -74,6 +74,12 @@ export const DESIGN_SYSTEM_READ_INSTRUCTION = designSystemReadInstruction()
 /** The re-detect message's instruction: the sources are read again, and only what they changed is written. */
 export const DESIGN_SYSTEM_REDETECT_INSTRUCTION = `Re-read the project's sources and compare them with the existing design/system files. Check which of those files exist first: list their folder or test each path, and read only the ones that exist. Change only the tokens and components whose source changed, add ones that are new, keep every other token, value and component exactly as it is, bump the version with a history entry, and update the sources in tokens.json and system.md. If the files are missing, ${DERIVE_MISSING_SYSTEM}`
 
+/**
+ * Behind a plain chat message that names a design system: MassOrca shows a system only from its three files, so an
+ * agent asked for one in its own words writes those, not a format of its choosing.
+ */
+export const DESIGN_SYSTEM_CHAT_INSTRUCTION = `If the message above asks to create, derive, update or change the project's design system, MassOrca shows it only from those three files in the formats below, so write it there and in that format, not as tokens.css, a README or a preview page. Check which of those files exist first: list their folder or test each path, and read only the ones that exist. If they are missing, ${DERIVE_MISSING_SYSTEM} If they exist, make only the change asked for, keep every other token, value and component exactly as it is, and bump the version with a history entry. If the message asks for nothing like that, ignore these lines.`
+
 /** The two file contracts, briefly: what an agent writes and what MassOrca reads back. */
 export function designSystemFormatInstruction(folder?: string): string {
   const paths = systemFilePaths(folder)

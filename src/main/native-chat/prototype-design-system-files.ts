@@ -3,7 +3,7 @@
 // but the host refuses to read (over the cap, not text, a path it does not follow) is reported by name and
 // reason, so it is never mistaken for a project with no system.
 
-import { lstat } from 'node:fs/promises'
+import { lstat, readdir } from 'node:fs/promises'
 import { join } from 'node:path'
 import {
   DESIGN_SYSTEM_COMPONENTS_FILE,
@@ -156,9 +156,9 @@ export async function readDesignSystemOfLaunchDirectory(
   launchDirectory: string
 ): Promise<ReadPrototypeDesignSystemResult> {
   const project = await resolveDesignSystemProject(launchDirectory)
-  const { files, unreadableFileNames } = await readDesignSystemFiles(
-    await designSystemRootOf(project)
-  )
+  const root = await designSystemRootOf(project)
+  const { files, unreadableFileNames } = await readDesignSystemFiles(root)
+  const otherFileNames = await otherDesignSystemFileNames(root)
   const fileNames = [
     ...(files.tokensJson !== undefined ? [DESIGN_SYSTEM_TOKENS_PATH] : []),
     ...(files.componentsHtml !== undefined ? [DESIGN_SYSTEM_COMPONENTS_PATH] : []),
@@ -170,8 +170,32 @@ export async function readDesignSystemOfLaunchDirectory(
     projectName: project.projectName,
     fileNames,
     ...files,
-    ...(unreadableFileNames.length > 0 ? { unreadableFileNames } : {})
+    ...(unreadableFileNames.length > 0 ? { unreadableFileNames } : {}),
+    folderPath: designSystemFolderOf(root),
+    ...(otherFileNames.length > 0 ? { otherFileNames } : {})
   }
+}
+
+const KNOWN_DESIGN_SYSTEM_FILES = new Set([
+  DESIGN_SYSTEM_TOKENS_FILE,
+  DESIGN_SYSTEM_COMPONENTS_FILE,
+  DESIGN_SYSTEM_SOURCE_FILE
+])
+const MAX_OTHER_FILE_NAMES = 20
+
+// Why: an agent that wrote the system in another format leaves files here MassOrca never shows; naming them says why.
+async function otherDesignSystemFileNames(root: string): Promise<string[]> {
+  const folder = designSystemFolderOf(root)
+  const stats = await lstat(folder).catch(() => null)
+  if (stats === null || !stats.isDirectory()) {
+    return []
+  }
+  const names = await readdir(folder).catch(() => [])
+  return names
+    .filter((name) => !KNOWN_DESIGN_SYSTEM_FILES.has(name))
+    .sort()
+    .slice(0, MAX_OTHER_FILE_NAMES)
+    .map((name) => `${DESIGN_SYSTEM_FOLDER}/${name}`)
 }
 
 /** The version of a project's system, or undefined when it has none; a request records it when it is sent. */

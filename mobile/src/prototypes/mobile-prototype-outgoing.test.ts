@@ -244,3 +244,43 @@ describe('planMobilePrototypeOutgoing design system', () => {
     expect(off).toEqual(planned)
   })
 })
+
+describe('planMobilePrototypeOutgoing for a message that names the design system', () => {
+  const TEXT = 'Crea el desing system del proyecto oppm'
+
+  it('sends the files and format MassOrca reads behind the text, under the host folder', async () => {
+    const readDesignSystemFolder = vi.fn(async () => '/home/user/projects/oppm/design/system')
+    const planned = await planMobilePrototypeOutgoing({
+      text: TEXT,
+      agent: 'claude',
+      readSetting: vi.fn(async () => ALWAYS_3),
+      createRequest: null,
+      readDesignSystemFolder
+    })
+    expect(planned.kind).toBe('send')
+    if (planned.kind !== 'send') {
+      return
+    }
+    expect(planned.shownText).toBe(TEXT)
+    expect(splitPrototypeHiddenInstruction(planned.wireText)).toEqual({
+      visibleText: TEXT,
+      hidden: { kind: 'design-system', action: 'detect' }
+    })
+    expect(planned.wireText).toContain('/home/user/projects/oppm/design/system/tokens.json')
+  })
+
+  it('names project-relative files when the host gives no folder', async () => {
+    const planned = await planMobilePrototypeOutgoing({
+      text: TEXT,
+      agent: 'claude',
+      readSetting: vi.fn(async () => ALWAYS_3),
+      createRequest: null,
+      readDesignSystemFolder: vi.fn(async () => {
+        throw new Error('offline')
+      })
+    })
+    expect(planned.kind === 'send' && planned.wireText).toContain(
+      'design/system/tokens.json, design/system/components.html and design/system/system.md, relative to the project root.'
+    )
+  })
+})

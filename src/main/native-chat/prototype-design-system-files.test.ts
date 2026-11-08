@@ -133,6 +133,29 @@ describe('readDesignSystemOfLaunchDirectory', () => {
     }
   })
 
+  it('names the folder it reads and the files there it does not read', async () => {
+    await write('tokens.css', ':root { --color-primary: #2563eb; }')
+    await write('README.md', '# oppm')
+    await write('preview.html', '<html></html>')
+    const result = await readDesignSystemOfLaunchDirectory(root)
+    expect(result).toMatchObject({
+      ok: true,
+      fileNames: [],
+      folderPath: join(root, 'design', 'system'),
+      otherFileNames: [
+        'design/system/README.md',
+        'design/system/preview.html',
+        'design/system/tokens.css'
+      ]
+    })
+  })
+
+  it('names no other files for a project without design/system', async () => {
+    const result = await readDesignSystemOfLaunchDirectory(root)
+    expect(result).toMatchObject({ ok: true, folderPath: join(root, 'design', 'system') })
+    expect(result).not.toHaveProperty('otherFileNames')
+  })
+
   it('reports no unreadable names for a project whose files are all absent or read', async () => {
     await write('tokens.json', TOKENS)
     const result = await readDesignSystemOfLaunchDirectory(root)

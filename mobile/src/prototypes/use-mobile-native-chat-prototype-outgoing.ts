@@ -3,7 +3,8 @@ import type { PiRowRuntime } from '../../../src/shared/agent-type-label'
 import type { NativeChatPrototypeChoice } from '../../../src/shared/prototype-request-decision'
 import {
   createMobilePrototypeRequest,
-  hostListsDesignSystems
+  hostListsDesignSystems,
+  readMobilePrototypeDesignSystem
 } from '../session/mobile-prototype-host-rpc'
 import type { StructuredMobileSendAttachment } from '../session/use-mobile-structured-send-with-outcome'
 import type { RpcClient } from '../transport/rpc-client'
@@ -70,6 +71,14 @@ export function useMobileNativeChatPrototypeOutgoing(args: {
                     ...(params.designSystem ? { designSystem: params.designSystem } : {}),
                     ...(worktreeId ? { worktreeId } : {})
                   }),
+          ...(client !== null && sessionId !== null
+            ? {
+                readDesignSystemFolder: () =>
+                  readMobilePrototypeDesignSystem(client, { sessionId }).then((read) =>
+                    read.kind === 'ready' ? read.folderPath : undefined
+                  )
+              }
+            : {}),
           ...(input.choice ? { choice: input.choice } : {})
         })
         if (planned.kind === 'ask') {

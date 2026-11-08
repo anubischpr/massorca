@@ -7,10 +7,15 @@ import { useAppStore } from '@/store'
 import { resolveNativeChatPrototypeOutgoing } from './native-chat-prototype-request-outgoing'
 import { nativeChatPrototypeAsks } from './native-chat-prototype-request-store'
 
-const mocks = vi.hoisted(() => ({ prepare: vi.fn(), readCard: vi.fn() }))
+const mocks = vi.hoisted(() => ({
+  prepare: vi.fn(),
+  prepareDesignSystem: vi.fn(),
+  readCard: vi.fn()
+}))
 
 vi.mock('./native-chat-prototype-request-send', () => ({
   prepareNativeChatPrototypeText: mocks.prepare,
+  prepareNativeChatDesignSystemText: mocks.prepareDesignSystem,
   readPrototypeSystemCard: mocks.readCard
 }))
 
@@ -106,6 +111,17 @@ describe('resolveNativeChatPrototypeOutgoing design system card', () => {
     expect(resolve(KEYWORD, 'as-typed')).toEqual({ kind: 'send', text: KEYWORD })
     expect(resolve('just say hello')).toEqual({ kind: 'send', text: 'just say hello' })
     expect(mocks.readCard).not.toHaveBeenCalled()
+    expect(nativeChatPrototypeAsks.read(SCOPE)).toBeUndefined()
+  })
+
+  it('sends a message that names the design system with its files and format, and no prototype card', async () => {
+    const text = 'Crea el desing system del proyecto oppm'
+    mocks.prepareDesignSystem.mockResolvedValue({ kind: 'send', text: 'with the format' })
+
+    await expect(resolve(text)).resolves.toEqual({ kind: 'send', text: 'with the format' })
+
+    expect(mocks.prepareDesignSystem).toHaveBeenCalledWith({ kind: 'local' }, 'chat-1', text)
+    expect(mocks.prepare).not.toHaveBeenCalled()
     expect(nativeChatPrototypeAsks.read(SCOPE)).toBeUndefined()
   })
 })

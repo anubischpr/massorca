@@ -17,7 +17,9 @@ import {
   decideNativeChatPrototypeRequest,
   type NativeChatPrototypeChoice
 } from '../../../../shared/prototype-request-decision'
+import { asksForDesignSystem } from '../../../../shared/prototype-design-system-message'
 import {
+  prepareNativeChatDesignSystemText,
   prepareNativeChatPrototypeText,
   readPrototypeSystemCard
 } from './native-chat-prototype-request-send'
@@ -73,7 +75,13 @@ export function resolveNativeChatPrototypeOutgoing(input: {
   // back when this call does not send its message.
   const retired = nativeChatPrototypeAsks.take(draftScopeKey)
   if (decision.kind === 'as-typed') {
-    return { kind: 'send', text }
+    return asksForDesignSystem(text)
+      ? prepareNativeChatDesignSystemText(
+          targetOf(input.runtimeEnvironmentId),
+          input.sessionId,
+          text
+        )
+      : { kind: 'send', text }
   }
   if (decision.kind === 'ask') {
     nativeChatPrototypeAsks.write(draftScopeKey, {
@@ -92,10 +100,7 @@ export function resolveNativeChatPrototypeOutgoing(input: {
     return { kind: 'in-flight' }
   }
   inFlight.add(draftScopeKey)
-  const target: RuntimeClientTarget =
-    input.runtimeEnvironmentId === null
-      ? { kind: 'local' }
-      : { kind: 'environment', environmentId: input.runtimeEnvironmentId }
+  const target = targetOf(input.runtimeEnvironmentId)
   const createAndSend = (
     designSystem: PrototypeDesignSystemMode | undefined
   ): Promise<NativeChatPrototypeOutgoing> =>
@@ -138,6 +143,12 @@ export function resolveNativeChatPrototypeOutgoing(input: {
     .finally(() => {
       inFlight.delete(draftScopeKey)
     })
+}
+
+function targetOf(runtimeEnvironmentId: string | null): RuntimeClientTarget {
+  return runtimeEnvironmentId === null
+    ? { kind: 'local' }
+    : { kind: 'environment', environmentId: runtimeEnvironmentId }
 }
 
 /**

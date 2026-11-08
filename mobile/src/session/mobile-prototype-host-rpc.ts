@@ -76,6 +76,8 @@ export type MobilePrototypeDesignSystem =
       tokensJson?: string
       componentsHtml?: string
       systemMd?: string
+      /** The absolute folder the host reads the system from; an older host omits it. */
+      folderPath?: string
     }
   /** The host has no such local chat, so it has no project for it. */
   | { kind: 'refused' }
