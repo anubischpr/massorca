@@ -5,6 +5,7 @@ import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { getDefaultSettings } from '../../../../shared/constants'
 import type { MarketplaceAppStatus } from '../../../../shared/marketplace-apps'
+import type { MarketplaceCustomItemStatus } from '../../../../shared/marketplace-custom'
 import type { GitInstallPlanView } from '../../../../shared/marketplace-install'
 import type { BotTeam } from '../../../../shared/rpc-contract/bot-team-params'
 import type { DiscoveredSkill } from '../../../../shared/skills'
@@ -132,6 +133,9 @@ vi.mock('@/store', () => ({ useAppStore: store }))
 
 const { TooltipProvider } = await import('@/components/ui/tooltip')
 const { MarketplaceAgentPage } = await import('./MarketplaceAgentPage')
+const { MarketplaceBoardToolPage } = await import('./MarketplaceBoardToolPage')
+const { MarketplaceCustomItemPage, MarketplaceCustomUnavailablePage } =
+  await import('./MarketplaceCustomItemPage')
 const { MarketplaceSkillBuiltInPage } = await import('./MarketplaceSkillBuiltInPage')
 const { MarketplaceSkillPage } = await import('./MarketplaceSkillPage')
 const { MarketplaceIntegrationPage } = await import('./MarketplaceIntegrationPage')
@@ -184,6 +188,79 @@ const CLAUDE_COPY: DiscoveredSkill = {
   updatedAt: null
 }
 
+/** Gives the page this computer's service bridge, which answers with the status given. */
+function bridgeServicesAs(status: ReturnType<typeof serviceStatus>): void {
+  Object.defineProperty(window, 'api', {
+    configurable: true,
+    value: {
+      ...window.api,
+      marketplaceServices: { status: vi.fn(async () => status) }
+    }
+  })
+}
+
+/** The service status this computer reports: GitLab saved or not; the others unset. */
+function serviceStatus(gitlabSource: 'none' | 'stored') {
+  return {
+    ok: true,
+    status: {
+      hostLabel: 'This computer',
+      store: 'key-file',
+      services: [
+        {
+          service: 'gitlab',
+          source: gitlabSource,
+          cliInstalled: true,
+          ...(gitlabSource === 'stored' ? { updatedAt: 1 } : {})
+        },
+        { service: 'bitbucket', source: 'none' },
+        { service: 'azure-devops', source: 'none' },
+        { service: 'gitea', source: 'none' }
+      ]
+    }
+  }
+}
+
+const TOOL_ROW: CatalogRow = {
+  key: 'board-gh',
+  section: 'tools',
+  name: 'GitHub CLI',
+  description: 'Signs in to GitHub; agents open pull requests with it.',
+  icon: { kind: 'skill' },
+  status: { kind: 'pending', label: 'Install' },
+  target: { kind: 'board-tool', id: 'gh' },
+  owned: false,
+  service: false,
+  customId: null
+}
+
+const NODE_ROW: CatalogRow = {
+  ...TOOL_ROW,
+  key: 'board-node',
+  name: 'Node.js',
+  description: 'Runs the JavaScript tools some agents call.',
+  target: { kind: 'board-tool', id: 'node' }
+}
+
+const UNAVAILABLE_ROW: CatalogRow = {
+  ...TOOL_ROW,
+  key: 'custom-unavailable-tools',
+  name: 'Custom tools',
+  description: '',
+  status: { kind: 'pending', label: 'Not available on This computer yet' },
+  target: { kind: 'custom-unavailable', itemKind: 'tool' }
+}
+
+const CUSTOM_TOOL: MarketplaceCustomItemStatus = {
+  id: 'custom-tool-1',
+  kind: 'tool',
+  name: 'Ripgrep helper',
+  checkCommand: ['rg', '--version'],
+  install: { darwin: ['brew', 'install', 'ripgrep'] },
+  createdAt: 1,
+  presence: 'missing'
+}
+
 const roots: { container: HTMLDivElement; root: Root }[] = []
 
 async function render(element: ReactElement): Promise<HTMLDivElement> {
@@ -203,31 +280,38 @@ function hasAction(page: HTMLElement, matches: (text: string) => boolean): boole
   return [...page.querySelectorAll('button, a')].some((el) => matches(el.textContent?.trim() ?? ''))
 }
 
-/** Whether a leaf element in the page reads exactly this text. */
+/** Whether a leaf element outside a why line reads exactly this text. */
 function hasLeafText(page: HTMLElement, text: string): boolean {
   return [...page.querySelectorAll('*')].some(
-    (el) => el.childElementCount === 0 && el.textContent?.trim() === text
+    (el) =>
+      el.childElementCount === 0 &&
+      el.textContent?.trim() === text &&
+      el.closest('[data-marketplace-note]') === null
+  )
+}
+
+function isInstallText(text: string): boolean {
+  return (
+    text === 'Install' ||
+    text === 'Connect' ||
+    text === 'Add workspace access' ||
+    text === 'Add Jira site' ||
+    text.startsWith('Install on ')
   )
 }
 
 /**
  * The page's structure as the DOM shows it. Markers: the host picker is the dropdown trigger;
- * install and uninstall are the action buttons; sections are data-marketplace-section ids; the
- * banner is its "Copy this prompt" arrows; accessPolicy is the agent, skill-agent or bot-team control.
+ * install and uninstall are the action buttons; sections are data-marketplace-section ids, each
+ * present with its content or with a why line; the banner is its "Copy this prompt" arrows or its
+ * why line; accessPolicy is the agent, skill-agent or bot-team control, or the access card.
  */
 function observe(page: HTMLElement): MarketplacePageStructure {
   const section = (id: string): boolean =>
     page.querySelector(`[data-marketplace-section="${id}"]`) !== null
   return {
     hostPicker: page.querySelector('button[aria-haspopup="menu"]') !== null,
-    install: hasAction(
-      page,
-      (text) =>
-        text === 'Install' ||
-        text === 'Connect' ||
-        text === 'Add workspace access' ||
-        text.startsWith('Install on ')
-    ),
+    install: hasAction(page, isInstallText),
     uninstall: hasAction(page, (text) => text === 'Disconnect' || text.startsWith('Remove from ')),
     connectionConfig: page.querySelector('[data-marketplace-section="connection"] button') !== null,
     accessPolicy:
@@ -235,12 +319,31 @@ function observe(page: HTMLElement): MarketplacePageStructure {
         '[data-marketplace-agent-settings], [data-marketplace-skill-agents], [data-marketplace-skill-teams]'
       ) !== null || hasLeafText(page, 'Who can use it'),
     sections: {
-      banner: page.querySelector('button[aria-label="Copy this prompt"]') !== null,
+      banner:
+        page.querySelector(
+          'button[aria-label="Copy this prompt"], [data-marketplace-note="banner"]'
+        ) !== null,
       connection: section('connection'),
       advanced: section('advanced'),
       danger: section('danger')
     }
   }
+}
+
+/** The functions a page lacks that have no why line: a silent omission, which must be empty. */
+function missingWithoutNote(page: HTMLElement, structure: MarketplacePageStructure): string[] {
+  const parts = new Set(
+    [...page.querySelectorAll('[data-marketplace-note]')].map((el) =>
+      el.getAttribute('data-marketplace-note')
+    )
+  )
+  const functions: [string, boolean][] = [
+    ['install', structure.install],
+    ['uninstall', structure.uninstall],
+    ['access', structure.accessPolicy],
+    ['connection', structure.connectionConfig]
+  ]
+  return functions.filter(([part, present]) => !present && !parts.has(part)).map(([part]) => part)
 }
 
 beforeEach(() => {
@@ -276,9 +379,10 @@ describe('Marketplace page structure matches the rendered pages', () => {
   it('agent: picker, Install for a host without the agent, Use this agent, no uninstall', async () => {
     const page = await render(<MarketplaceAgentPage agentId="claude" onBack={() => undefined} />)
     expect(observe(page)).toEqual(MARKETPLACE_PAGE_STRUCTURE.agent)
+    expect(missingWithoutNote(page, MARKETPLACE_PAGE_STRUCTURE.agent)).toEqual([])
   })
 
-  it('built-in: no picker, no install, no sections', async () => {
+  it('built-in: picker, every section with a why line, no install or uninstall', async () => {
     const page = await render(
       <MarketplaceSkillBuiltInPage
         command={BUILT_IN_SKILL_COMMANDS.prototype}
@@ -286,15 +390,14 @@ describe('Marketplace page structure matches the rendered pages', () => {
       />
     )
     expect(observe(page)).toEqual(MARKETPLACE_PAGE_STRUCTURE['built-in'])
+    expect(missingWithoutNote(page, MARKETPLACE_PAGE_STRUCTURE['built-in'])).toEqual([])
   })
 
-  it('skill not installed: Install on this computer, no Danger zone', async () => {
+  it('skill not installed: Install on this computer, the Danger zone says why', async () => {
     const page = await render(<MarketplaceSkillPage skill={POOL_SKILL} onBack={() => undefined} />)
-    expect(observe(page)).toEqual({
-      ...MARKETPLACE_PAGE_STRUCTURE.skill,
-      uninstall: false,
-      sections: { ...MARKETPLACE_PAGE_STRUCTURE.skill.sections, danger: false }
-    })
+    const expected = { ...MARKETPLACE_PAGE_STRUCTURE.skill, uninstall: false }
+    expect(observe(page)).toEqual(expected)
+    expect(missingWithoutNote(page, expected)).toEqual([])
   })
 
   it('skill installed with a copy: Remove from this computer and the Danger zone, no Install', async () => {
@@ -305,7 +408,9 @@ describe('Marketplace page structure matches the rendered pages', () => {
         onBack={() => undefined}
       />
     )
-    expect(observe(page)).toEqual({ ...MARKETPLACE_PAGE_STRUCTURE.skill, install: false })
+    const expected = { ...MARKETPLACE_PAGE_STRUCTURE.skill, install: false }
+    expect(observe(page)).toEqual(expected)
+    expect(missingWithoutNote(page, expected)).toEqual([])
   })
 
   it('integration: a connected Linear shows every flag and section', async () => {
@@ -330,7 +435,69 @@ describe('Marketplace page structure matches the rendered pages', () => {
     const page = await render(
       <MarketplaceIntegrationPage integration="linear" onBack={() => undefined} />
     )
-    expect(observe(page)).toEqual(MARKETPLACE_PAGE_STRUCTURE.integration)
+    const expected = MARKETPLACE_PAGE_STRUCTURE['integration:linear']
+    expect(observe(page)).toEqual(expected)
+    expect(missingWithoutNote(page, expected)).toEqual([])
+  })
+
+  it('integration: a connected Jira shows its site access, Advanced options and Danger zone', async () => {
+    seedStore(store, {
+      jiraStatus: {
+        connected: true,
+        viewer: null,
+        sites: [
+          {
+            id: 'site-1',
+            displayName: 'Acme',
+            siteUrl: 'https://acme.atlassian.net',
+            email: 'ana@example.com',
+            accountId: 'acc-1'
+          }
+        ]
+      },
+      jiraStatusChecked: true,
+      jiraStatusContextKey: getProviderRuntimeContextKey(settings),
+      disconnectJira: vi.fn(async () => undefined)
+    })
+    const page = await render(
+      <MarketplaceIntegrationPage integration="jira" onBack={() => undefined} />
+    )
+    const expected = MARKETPLACE_PAGE_STRUCTURE['integration:jira']
+    expect(observe(page)).toEqual(expected)
+    expect(missingWithoutNote(page, expected)).toEqual([])
+  })
+
+  it.each(['gitlab', 'bitbucket', 'azure-devops', 'gitea'] as const)(
+    'integration %s with no token: Connect, Advanced options with the access why, Danger says why',
+    async (service) => {
+      bridgeServicesAs(serviceStatus('none'))
+      const page = await render(
+        <MarketplaceIntegrationPage integration={service} onBack={() => undefined} />
+      )
+      await act(async () => {
+        await Promise.resolve()
+      })
+      const expected = {
+        ...MARKETPLACE_PAGE_STRUCTURE[`integration:${service}` as const],
+        uninstall: false
+      }
+      expect(observe(page)).toEqual(expected)
+      expect(missingWithoutNote(page, expected)).toEqual([])
+    }
+  )
+
+  it('integration gitlab with a saved token: Disconnect in the Danger zone, Replace in Connection', async () => {
+    bridgeServicesAs(serviceStatus('stored'))
+    const page = await render(
+      <MarketplaceIntegrationPage integration="gitlab" onBack={() => undefined} />
+    )
+    await act(async () => {
+      await Promise.resolve()
+    })
+    const expected = { ...MARKETPLACE_PAGE_STRUCTURE['integration:gitlab'], install: false }
+    // Why: a saved token replaces Connect with Replace in the Connection section.
+    expect(observe(page)).toEqual(expected)
+    expect(missingWithoutNote(page, expected)).toEqual([])
   })
 
   it('item-app: Connect while an agent entry is missing, Disconnect, Who can use it', async () => {
@@ -338,7 +505,7 @@ describe('Marketplace page structure matches the rendered pages', () => {
     expect(observe(page)).toEqual(MARKETPLACE_PAGE_STRUCTURE['item-app'])
   })
 
-  it('item-detail (Git): Install board while Git is missing, no sections', async () => {
+  it('item-detail (Git): Install board while Git is missing, every section with a why line', async () => {
     const git = MARKETPLACE_CATALOG.find((item) => item.id === 'git')
     if (!git) {
       throw new Error('Git item missing from the catalog')
@@ -347,45 +514,73 @@ describe('Marketplace page structure matches the rendered pages', () => {
       <MarketplaceDetail item={git} badgeState="not-installed" onBack={() => undefined} />
     )
     expect(observe(page)).toEqual(MARKETPLACE_PAGE_STRUCTURE['item-detail'])
+    expect(missingWithoutNote(page, MARKETPLACE_PAGE_STRUCTURE['item-detail'])).toEqual([])
+  })
+
+  it('board tool GitHub CLI: picker, a disabled install with its why, every section', async () => {
+    const page = await render(<MarketplaceBoardToolPage row={TOOL_ROW} onBack={() => undefined} />)
+    expect(observe(page)).toEqual(MARKETPLACE_PAGE_STRUCTURE['board-tool'])
+    expect(missingWithoutNote(page, MARKETPLACE_PAGE_STRUCTURE['board-tool'])).toEqual([])
+    expect(page.textContent).toContain('MassOrca cannot install GitHub CLI yet.')
+  })
+
+  it('board tool Node.js: the same structure, with Node.js wording', async () => {
+    const page = await render(<MarketplaceBoardToolPage row={NODE_ROW} onBack={() => undefined} />)
+    expect(observe(page)).toEqual(MARKETPLACE_PAGE_STRUCTURE['board-tool'])
+    expect(page.textContent).toContain('MassOrca cannot install Node.js yet.')
+    expect(page.textContent).toContain('Node.js needs no account.')
+  })
+
+  it('custom tool not installed here: Install, the commands, Remove from Marketplace', async () => {
+    const page = await render(
+      <MarketplaceCustomItemPage item={CUSTOM_TOOL} onBack={() => undefined} />
+    )
+    expect(observe(page)).toEqual(MARKETPLACE_PAGE_STRUCTURE['custom-item'])
+    expect(missingWithoutNote(page, MARKETPLACE_PAGE_STRUCTURE['custom-item'])).toEqual([])
+    expect(page.textContent).toContain('brew install ripgrep')
+  })
+
+  it('custom tool already found here: no Install, and its install line says why', async () => {
+    const page = await render(
+      <MarketplaceCustomItemPage
+        item={{ ...CUSTOM_TOOL, presence: 'found' }}
+        onBack={() => undefined}
+      />
+    )
+    const expected = { ...MARKETPLACE_PAGE_STRUCTURE['custom-item'], install: false }
+    expect(observe(page)).toEqual(expected)
+    expect(missingWithoutNote(page, expected)).toEqual([])
+  })
+
+  it('custom tools on a picked host: every function says why, the picker stays', async () => {
+    const page = await render(
+      <MarketplaceCustomUnavailablePage row={UNAVAILABLE_ROW} onBack={() => undefined} />
+    )
+    expect(observe(page)).toEqual(MARKETPLACE_PAGE_STRUCTURE['custom-unavailable'])
+    expect(missingWithoutNote(page, MARKETPLACE_PAGE_STRUCTURE['custom-unavailable'])).toEqual([])
   })
 })
 
-function rowOf(partial: Pick<CatalogRow, 'key' | 'section'> & Partial<CatalogRow>): CatalogRow {
-  return {
-    name: '',
-    description: '',
-    icon: { kind: 'skill' },
-    status: { kind: 'done', label: '' },
-    target: null,
-    owned: false,
-    service: false,
-    customId: null,
-    ...partial
-  }
-}
-
 describe('marketplaceRowSource', () => {
-  it('maps Git and placeholder rows to native, and service and CLI rows to external', () => {
+  it('maps Git and Node.js to native, GitHub CLI and service rows to external', () => {
     expect(
-      marketplaceRowSource(
-        rowOf({ key: 'item-git', section: 'tools', target: { kind: 'item', id: 'git' } })
-      )
+      marketplaceRowSource({
+        ...TOOL_ROW,
+        key: 'item-git',
+        target: { kind: 'item', id: 'git' }
+      })
     ).toEqual({ source: 'native' })
-    expect(marketplaceRowSource(rowOf({ key: 'board-node', section: 'tools' }))).toEqual({
-      source: 'native'
-    })
-    expect(marketplaceRowSource(rowOf({ key: 'board-gh', section: 'tools' }))).toEqual({
+    expect(marketplaceRowSource(NODE_ROW)).toEqual({ source: 'native' })
+    expect(marketplaceRowSource(TOOL_ROW)).toEqual({
       source: 'external',
       externalDependencies: ['GitHub CLI signed in with gh auth login']
     })
     expect(
-      marketplaceRowSource(
-        rowOf({
-          key: 'integration-linear',
-          section: 'services',
-          target: { kind: 'integration', id: 'linear' }
-        })
-      ).source
+      marketplaceRowSource({
+        ...TOOL_ROW,
+        key: 'integration-linear',
+        target: { kind: 'integration', id: 'linear' }
+      }).source
     ).toBe('external')
   })
 })

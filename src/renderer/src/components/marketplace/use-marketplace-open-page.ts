@@ -3,8 +3,9 @@ import { toast } from 'sonner'
 import { translate } from '@/i18n/i18n'
 import type { RuntimeClientTarget } from '@/runtime/runtime-client-target'
 import type { MarketplaceItemId } from '@/store/slices/ui/ui-slice-contract-core'
+import type { MarketplaceCustomItemStatus } from '../../../../shared/marketplace-custom'
 import type { TuiAgent } from '../../../../shared/tui-agent'
-import type { CatalogRow, CatalogRowTarget } from './MarketplaceCatalogRows'
+import type { CatalogRow } from './MarketplaceCatalogRows'
 import type { MarketplaceSkillListing, MarketplaceSkillPageData } from './MarketplaceSkillPageModel'
 import { BUILT_IN_SKILL_COMMANDS, type BuiltInSkillCommand } from './marketplace-skill-built-in'
 import type { MarketplaceIntegrationId } from './marketplace-integrations'
@@ -17,11 +18,17 @@ import {
 } from './marketplace-row-page-resolver'
 import type { MarketplaceVaultHostTarget } from './marketplace-vault-host-client'
 
-/** A page a list opened: an agent, a Settings integration, a built-in command, or a skill with the copies its page reads. */
+/**
+ * A page a list opened: an agent, a Settings integration, a built-in command, a board tool, a custom
+ * tool or agent (or the placeholder for them on a host), or a skill with the copies its page reads.
+ */
 export type MarketplaceOpenPage =
   | { kind: 'agent'; agent: TuiAgent }
   | { kind: 'integration'; id: MarketplaceIntegrationId }
   | { kind: 'built-in'; command: BuiltInSkillCommand }
+  | { kind: 'board-tool'; row: CatalogRow }
+  | { kind: 'custom-item'; item: MarketplaceCustomItemStatus }
+  | { kind: 'custom-unavailable'; row: CatalogRow }
   | { kind: 'skill'; listing: MarketplaceSkillListing; page: MarketplaceSkillPageData }
 
 export type MarketplaceOpenPageState = {
@@ -76,28 +83,42 @@ function startSkillPage(
   )
 }
 
-function openTargetPage(
-  target: CatalogRowTarget | null,
+function openRowPage(
+  row: CatalogRow,
   onOpenItem: (id: MarketplaceItemId) => void,
   setOpenPage: (page: MarketplaceOpenPage) => void
 ): void {
-  // Why: skill rows open through their scan, never through this path.
-  if (target === null || target.kind === 'skill' || target.kind === 'custom-skill') {
+  const target = row.target
+  if (target === null) {
     return
   }
-  if (target.kind === 'item') {
-    onOpenItem(target.id)
-    return
+  switch (target.kind) {
+    // Why: skill rows open through their scan, never through this path.
+    case 'skill':
+    case 'custom-skill':
+    case 'board-skill':
+      return
+    case 'item':
+      onOpenItem(target.id)
+      return
+    case 'integration':
+      setOpenPage({ kind: 'integration', id: target.id })
+      return
+    case 'built-in':
+      setOpenPage({ kind: 'built-in', command: BUILT_IN_SKILL_COMMANDS[target.id] })
+      return
+    case 'agent':
+      setOpenPage({ kind: 'agent', agent: target.agent })
+      return
+    case 'board-tool':
+      setOpenPage({ kind: 'board-tool', row })
+      return
+    case 'custom-item':
+      setOpenPage({ kind: 'custom-item', item: target.item })
+      return
+    case 'custom-unavailable':
+      setOpenPage({ kind: 'custom-unavailable', row })
   }
-  if (target.kind === 'integration') {
-    setOpenPage({ kind: 'integration', id: target.id })
-    return
-  }
-  if (target.kind === 'built-in') {
-    setOpenPage({ kind: 'built-in', command: BUILT_IN_SKILL_COMMANDS[target.id] })
-    return
-  }
-  setOpenPage({ kind: 'agent', agent: target.agent })
 }
 
 /**
@@ -162,7 +183,7 @@ export function useMarketplaceOpenPage({
         return
       }
       openRequest.current += 1
-      openTargetPage(row.target, onOpenItem, setOpenPage)
+      openRowPage(row, onOpenItem, setOpenPage)
     },
     [pickedTarget, skillTarget, onOpenItem]
   )

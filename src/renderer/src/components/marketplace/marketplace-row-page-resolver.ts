@@ -1,6 +1,7 @@
 import type { RuntimeClientTarget } from '@/runtime/runtime-client-target'
 import type { SkillDiscoveryResult } from '../../../../shared/skills'
 import { skillAgentByRootPath } from '../skills/skill-agent-filter'
+import type { MarketplaceIntegrationId } from './marketplace-integrations'
 import type { CatalogRow, CatalogRowTarget } from './MarketplaceCatalogRows'
 import {
   marketplaceSkillPageFromScan,
@@ -10,14 +11,20 @@ import {
 import { discoverSkillsForPickedHost } from './marketplace-skill-host-scan'
 import type { MarketplaceVaultHostTarget } from './marketplace-vault-host-client'
 
-/** The page kinds a catalog row opens. Each kind has one structure in marketplace-page-structure.ts. */
+/**
+ * The page variants a catalog row opens. Each has one structure in marketplace-page-structure.ts;
+ * an integration has one per provider, so its structure is exact for that provider.
+ */
 export type MarketplacePageKind =
   | 'agent'
-  | 'integration'
-  | 'built-in'
   | 'skill'
+  | 'built-in'
   | 'item-app'
   | 'item-detail'
+  | 'board-tool'
+  | 'custom-item'
+  | 'custom-unavailable'
+  | `integration:${MarketplaceIntegrationId}`
 
 /** Stable codes for why a row has no page. */
 export type MarketplaceRowBlockReason =
@@ -127,10 +134,15 @@ function skillListingOf(target: CatalogRowTarget): MarketplaceSkillListing | nul
       return { kind: 'discovered', skill: target.skill }
     case 'custom-skill':
       return { kind: 'custom', item: target.item }
+    case 'board-skill':
+      return { kind: 'board', name: target.name, description: target.description }
     case 'item':
     case 'agent':
     case 'built-in':
     case 'integration':
+    case 'custom-item':
+    case 'custom-unavailable':
+    case 'board-tool':
       return null
   }
 }
@@ -142,11 +154,18 @@ function pageKindOf(target: CatalogRowTarget): MarketplacePageKind {
     case 'agent':
       return 'agent'
     case 'integration':
-      return 'integration'
+      return `integration:${target.id}`
     case 'built-in':
       return 'built-in'
     case 'skill':
     case 'custom-skill':
+    case 'board-skill':
       return 'skill'
+    case 'board-tool':
+      return 'board-tool'
+    case 'custom-item':
+      return 'custom-item'
+    case 'custom-unavailable':
+      return 'custom-unavailable'
   }
 }

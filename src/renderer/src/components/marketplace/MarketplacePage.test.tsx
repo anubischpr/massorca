@@ -343,10 +343,11 @@ describe('MarketplacePage', () => {
   it('shows Node.js with a disabled Install button and lists no placeholder services', async () => {
     const container = await renderPage()
 
-    const buttons = Array.from(itemRow(container, 'Node.js')?.querySelectorAll('button') ?? [])
-    expect(buttons).toHaveLength(1)
-    expect(buttons[0]?.disabled).toBe(true)
-    expect(buttons[0]?.textContent).toBe('Install')
+    // Why: the row body opens Node.js's page; only its Install control is the disabled one.
+    const install = Array.from(
+      itemRow(container, 'Node.js')?.querySelectorAll('button') ?? []
+    ).find((button) => button.textContent === 'Install')
+    expect(install?.disabled).toBe(true)
     for (const name of ['Email', 'Calendar', 'Shared drive', '[CRM]']) {
       expect(itemRow(container, name)).toBeUndefined()
     }

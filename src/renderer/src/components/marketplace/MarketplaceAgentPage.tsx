@@ -18,7 +18,10 @@ import {
   type MarketplaceAgentDetection
 } from './MarketplaceAgentHostState'
 import { MarketplaceAgentSettings } from './MarketplaceAgentSettings'
+import { MarketplaceAppSection } from './MarketplaceAppSection'
 import { MarketplaceBreadcrumb, MarketplaceItemHeader } from './MarketplaceDetail'
+import { MarketplaceFunctionNote } from './MarketplaceFunctionNote'
+import { MarketplaceIntegrationAdvanced } from './MarketplaceIntegrationAdvanced'
 import { MarketplacePageHostRow } from './MarketplacePageHostRow'
 import { useMarketplaceAppHost } from './use-marketplace-app-host'
 import { marketplaceHostKey } from './use-marketplace-host-targets'
@@ -99,6 +102,47 @@ export function MarketplaceAgentPage({
           })}
         />
       ) : null}
+      <MarketplaceFunctionNote part="banner">
+        {translate(
+          'auto.components.marketplace.MarketplaceAgentPage.noBanner',
+          '{{name}} has no example prompts.',
+          { name }
+        )}
+      </MarketplaceFunctionNote>
+      <MarketplaceAppSection
+        id="connection"
+        title={translate(
+          'auto.components.marketplace.MarketplaceAppConnection.title',
+          'Connection'
+        )}
+      >
+        <MarketplaceFunctionNote part="connection">
+          {translate(
+            'auto.components.marketplace.MarketplaceAgentPage.noConnection',
+            'Each agent keeps its own sign-in on each host. MassOrca does not connect agents.'
+          )}
+        </MarketplaceFunctionNote>
+      </MarketplaceAppSection>
+      <MarketplaceIntegrationAdvanced>
+        <MarketplaceFunctionNote part="advanced">
+          {translate(
+            'auto.components.marketplace.MarketplaceAgentPage.noAdvanced',
+            'The launch command and environment variables are in the On card above.'
+          )}
+        </MarketplaceFunctionNote>
+      </MarketplaceIntegrationAdvanced>
+      <MarketplaceAppSection
+        id="danger"
+        title={translate('auto.components.marketplace.MarketplaceAppDanger.title', 'Danger zone')}
+      >
+        <MarketplaceFunctionNote part="uninstall">
+          {translate(
+            'auto.components.marketplace.MarketplaceAgentPage.noUninstall',
+            'MassOrca does not uninstall {{name}}. Remove it with its own uninstaller.',
+            { name }
+          )}
+        </MarketplaceFunctionNote>
+      </MarketplaceAppSection>
     </div>
   )
 }

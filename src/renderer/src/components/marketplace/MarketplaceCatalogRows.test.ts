@@ -192,12 +192,12 @@ describe('the catalog sections', () => {
 })
 
 describe('the board-only rows, the CLI rows and skill rows', () => {
-  it('shows Node.js with a disabled action and no status', () => {
+  it('shows Node.js with a disabled install, no status, and a page of its own', () => {
     const row = rowNamed(buildCatalogSections(inputs()), 'Node.js')
-    expect(row.status).toEqual({ kind: 'action', label: 'Install' })
+    expect(row.status).toEqual({ kind: 'pending', label: 'Install' })
     expect(row.description).toBe('Runs the JavaScript tools some agents call.')
     expect(row.owned).toBe(false)
-    expect(row.target).toBeNull()
+    expect(row.target).toEqual({ kind: 'board-tool', id: 'node' })
     expect(row.customId).toBeNull()
   })
 
@@ -235,9 +235,9 @@ describe('the board-only rows, the CLI rows and skill rows', () => {
     )
     expect(installed.status).toEqual({ kind: 'done', label: 'Installed' })
     expect(installed.owned).toBe(true)
-    expect(installed.target).toBeNull()
+    expect(installed.target).toEqual({ kind: 'board-tool', id: 'gh' })
     expect(rowNamed(buildCatalogSections(inputs()), 'GitHub CLI').status).toEqual({
-      kind: 'action',
+      kind: 'pending',
       label: 'Install'
     })
     const unknown = rowNamed(buildCatalogSections(inputs({ cli: { gh: 'unknown' } })), 'GitHub CLI')
@@ -415,7 +415,7 @@ describe('agents, skills and custom items on this computer', () => {
     expect(row.status).toEqual({ kind: 'done', label: 'Installed' })
     expect(row.owned).toBe(true)
     expect(row.description).toBe('mytool --version')
-    expect(row.target).toBeNull()
+    expect(row.target).toEqual({ kind: 'custom-item', item: expect.objectContaining({ id: 'c1' }) })
     expect(row.customId).toBe('c1')
   })
 

@@ -147,14 +147,15 @@ describe('auditMarketplaceCatalog', () => {
     })
   })
 
-  it('reports a row with no page as blocked, with its reason text', async () => {
+  it('reports the board tool rows as opening their own page, with its structure', async () => {
     const result = await auditMarketplaceCatalog('runtime:env-1', auditDeps())
     expect(result).toMatchObject({
       ok: true,
       rows: expect.arrayContaining([
         expect.objectContaining({
-          page: { opens: false, blockedCode: 'no-target', blockedReason: 'This row has no page' },
-          structure: null
+          key: 'board-node',
+          page: { opens: true, pageKind: 'board-tool' },
+          structure: MARKETPLACE_PAGE_STRUCTURE['board-tool']
         })
       ])
     })

@@ -8,12 +8,15 @@ import type { RuntimeClientTarget } from '@/runtime/runtime-client-target'
 import type { DiscoveredSkill } from '../../../../shared/skills'
 import { SkillInstallDialog } from '../skills/SkillInstallDialog'
 import { SKILLS_PAGE_COLUMN } from '../skills/skills-page-column'
+import { MarketplaceAppSection } from './MarketplaceAppSection'
 import {
   MarketplaceBreadcrumb,
   MarketplaceCard,
   MarketplaceCardRow,
   MarketplaceItemHeader
 } from './MarketplaceDetail'
+import { MarketplaceFunctionNote } from './MarketplaceFunctionNote'
+import { MarketplaceIntegrationAdvanced } from './MarketplaceIntegrationAdvanced'
 import { MarketplacePageHostRow } from './MarketplacePageHostRow'
 import { MarketplaceSkillAgents } from './MarketplaceSkillAgents'
 import { MarketplaceSkillCopies } from './MarketplaceSkillCopies'
@@ -137,6 +140,15 @@ export function MarketplaceSkillPage({
           )
         }
       />
+      {skill.installed ? (
+        <MarketplaceFunctionNote part="install">
+          {translate(
+            'auto.components.marketplace.MarketplaceSkillPage.alreadyInstalled',
+            'Already installed on {{host}}, so there is nothing to install.',
+            { host: hostName }
+          )}
+        </MarketplaceFunctionNote>
+      ) : null}
       <MarketplaceSkillAgents
         hostName={hostName}
         providers={agents.providers}
@@ -166,7 +178,49 @@ export function MarketplaceSkillPage({
           />
         </MarketplaceCard>
       </section>
-      {copies.length === 0 ? null : (
+      <MarketplaceFunctionNote part="banner">
+        {translate(
+          'auto.components.marketplace.MarketplaceSkillPage.noBanner',
+          '{{name}} has no example prompts.',
+          { name: displayName }
+        )}
+      </MarketplaceFunctionNote>
+      <MarketplaceAppSection
+        id="connection"
+        title={translate(
+          'auto.components.marketplace.MarketplaceAppConnection.title',
+          'Connection'
+        )}
+      >
+        <MarketplaceFunctionNote part="connection">
+          {translate(
+            'auto.components.marketplace.MarketplaceSkillPage.noConnection',
+            'A skill needs no account. Each copy sits in an agent folder on the host.'
+          )}
+        </MarketplaceFunctionNote>
+      </MarketplaceAppSection>
+      <MarketplaceIntegrationAdvanced>
+        <MarketplaceFunctionNote part="advanced">
+          {translate(
+            'auto.components.marketplace.MarketplaceSkillPage.noAdvanced',
+            'A skill has no options of its own. Its copies and agents are above.'
+          )}
+        </MarketplaceFunctionNote>
+      </MarketplaceIntegrationAdvanced>
+      {copies.length === 0 ? (
+        <MarketplaceAppSection
+          id="danger"
+          title={translate('auto.components.marketplace.MarketplaceAppDanger.title', 'Danger zone')}
+        >
+          <MarketplaceFunctionNote part="uninstall">
+            {translate(
+              'auto.components.marketplace.MarketplaceSkillPage.notOnHostRemove',
+              'Not installed on {{host}}, so there is no copy to remove.',
+              { host: hostName }
+            )}
+          </MarketplaceFunctionNote>
+        </MarketplaceAppSection>
+      ) : (
         <MarketplaceSkillDanger
           copies={copies}
           hostName={hostName}

@@ -28,10 +28,11 @@ export type MarketplaceSkillPageSkill = {
   origin: MarketplaceSkillOrigin
 }
 
-/** A row a skill page opens for: a scanned skill, or a custom skill the person added. */
+/** A row a skill page opens for: a scanned skill, a custom skill the person added, or a MassOrca board skill. */
 export type MarketplaceSkillListing =
   | { kind: 'discovered'; skill: DiscoveredSkill }
   | { kind: 'custom'; item: MarketplaceCustomItemStatus }
+  | { kind: 'board'; name: string; description: string }
 
 /** What one skill page reads: the skill, and every copy of it on the host the page reads. */
 export type MarketplaceSkillPageData = {
@@ -39,19 +40,23 @@ export type MarketplaceSkillPageData = {
   copies: readonly DiscoveredSkill[]
 }
 
+function poolOrigin(): MarketplaceSkillOrigin {
+  return {
+    kind: 'pool',
+    name: translate(
+      'auto.components.marketplace.MarketplaceSkillPage.pool',
+      'MassOrca skills pool'
+    ),
+    detail: translate(
+      'auto.components.marketplace.MarketplaceSkillPage.poolDetail',
+      'Bundled with this version of MassOrca.'
+    )
+  }
+}
+
 export function marketplaceSkillOrigin(skill: DiscoveredSkill): MarketplaceSkillOrigin {
   if (skill.sourceKind === 'bundled') {
-    return {
-      kind: 'pool',
-      name: translate(
-        'auto.components.marketplace.MarketplaceSkillPage.pool',
-        'MassOrca skills pool'
-      ),
-      detail: translate(
-        'auto.components.marketplace.MarketplaceSkillPage.poolDetail',
-        'Bundled with this version of MassOrca.'
-      )
-    }
+    return poolOrigin()
   }
   return {
     kind: skill.sourceKind === 'plugin' ? 'plugin' : 'folder',
@@ -84,6 +89,15 @@ export function marketplaceSkillPageFromScan(
       return null
     }
     return { skill: skillFromCopies(listing.skill.name, copies, agentByRootPath), copies }
+  }
+  // Why: a board skill with no copy on the host still opens, showing Install on the picked host.
+  if (listing.kind === 'board') {
+    const copies = skillCopiesNamed(skills, listing.name)
+    if (copies.length === 0) {
+      return { skill: boardSkillWithoutCopy(listing), copies }
+    }
+    const shown = skillFromCopies(listing.name, copies, agentByRootPath)
+    return { skill: { ...shown, description: shown.description ?? listing.description }, copies }
   }
   const { item } = listing
   const copies = skillCopiesNamed(skills, item.name)
@@ -123,6 +137,21 @@ function agentIdsOf(copy: DiscoveredSkill, agentByRootPath: ReadonlyMap<string, 
     const id = agentByRootPath.get(root)
     return id ? [id] : []
   })
+}
+
+function boardSkillWithoutCopy(listing: {
+  name: string
+  description: string
+}): MarketplaceSkillPageSkill {
+  return {
+    name: listing.name,
+    description: listing.description,
+    installed: false,
+    agentIds: [],
+    installLink: '',
+    folders: [],
+    origin: poolOrigin()
+  }
 }
 
 function customSkillWithoutCopy(item: MarketplaceCustomItemStatus): MarketplaceSkillPageSkill {

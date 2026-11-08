@@ -18,6 +18,8 @@ export type MarketplaceCustomItems = {
   items: readonly MarketplaceCustomItemStatus[] | null
   installingIds: ReadonlySet<string>
   install: (id: string) => Promise<void>
+  /** Forgets the item in the Marketplace list; the program it checks is left alone. */
+  remove: (id: string) => Promise<boolean>
 }
 
 /** The custom tools and agents the person added by hand, read from the desktop bridge. */
@@ -90,5 +92,22 @@ export function useMarketplaceCustomItems(): MarketplaceCustomItems {
     [api]
   )
 
-  return { items, installingIds, install }
+  const remove = useCallback(
+    async (id: string): Promise<boolean> => {
+      if (api === undefined) {
+        return false
+      }
+      try {
+        const result = await api.remove({ id })
+        return result.ok
+      } catch {
+        return false
+      } finally {
+        notifyMarketplaceCustomChanged()
+      }
+    },
+    [api]
+  )
+
+  return { items, installingIds, install, remove }
 }

@@ -93,7 +93,8 @@ describe('planMarketplaceRowPage for rows that open without a scan', () => {
 
   it('integration, built-in and agent rows open their own page kinds', () => {
     const cases: [CatalogRowTarget, string][] = [
-      [{ kind: 'integration', id: 'gitlab' }, 'integration'],
+      [{ kind: 'integration', id: 'gitlab' }, 'integration:gitlab'],
+      [{ kind: 'integration', id: 'linear' }, 'integration:linear'],
       [{ kind: 'built-in', id: 'prototype' }, 'built-in'],
       [{ kind: 'agent', agent: 'claude' }, 'agent']
     ]
@@ -103,6 +104,51 @@ describe('planMarketplaceRowPage for rows that open without a scan', () => {
         resolution: { opens: true, pageKind }
       })
     }
+  })
+
+  it('opens every board tool, custom item and custom placeholder row on its own page kind', () => {
+    const tool: MarketplaceCustomItemStatus = {
+      id: 'c1',
+      kind: 'tool',
+      name: 'Mytool',
+      checkCommand: ['mytool', '--version'],
+      install: {},
+      createdAt: 1,
+      presence: 'missing'
+    }
+    const cases: [CatalogRowTarget, string][] = [
+      [{ kind: 'board-tool', id: 'gh' }, 'board-tool'],
+      [{ kind: 'board-tool', id: 'node' }, 'board-tool'],
+      [{ kind: 'custom-item', item: tool }, 'custom-item'],
+      [{ kind: 'custom-unavailable', itemKind: 'tool' }, 'custom-unavailable']
+    ]
+    for (const [target, pageKind] of cases) {
+      expect(planMarketplaceRowPage(rowFor(target), NO_HOST)).toEqual({
+        kind: 'resolved',
+        resolution: { opens: true, pageKind }
+      })
+    }
+  })
+
+  it('opens an unlisted board skill after its scan, even with no copy on the host', async () => {
+    const plan = planMarketplaceRowPage(
+      rowFor({
+        kind: 'board-skill',
+        name: 'browser-use',
+        description: 'Agents use the browser pane.'
+      }),
+      FOCUSED_LOCAL,
+      scanReturning([])
+    )
+    expect(plan.kind).toBe('skill')
+    if (plan.kind !== 'skill') {
+      return
+    }
+    const outcome = skillPageOutcome(plan.listing, await plan.scan)
+    expect(outcome).toMatchObject({
+      opens: true,
+      page: { skill: { name: 'browser-use', installed: false } }
+    })
   })
 })
 

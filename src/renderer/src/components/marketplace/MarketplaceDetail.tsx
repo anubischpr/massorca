@@ -4,11 +4,15 @@ import { translate } from '@/i18n/i18n'
 import { cn } from '@/lib/utils'
 import { SKILLS_PAGE_COLUMN } from '../skills/skills-page-column'
 import { GitDetail } from './GitDetail'
+import { MarketplaceAppSection } from './MarketplaceAppSection'
+import { MarketplaceFunctionNote } from './MarketplaceFunctionNote'
+import { MarketplaceIntegrationAdvanced } from './MarketplaceIntegrationAdvanced'
 import { MarketplaceItemIcon } from './MarketplaceItemIcon'
 import { MarketplacePageHostRow } from './MarketplacePageHostRow'
 import { MarketplaceStatusBadge } from './MarketplaceStatusBadge'
 import type { MarketplaceCatalogItem } from './marketplace-catalog'
 import type { MarketplaceBadgeState } from './marketplace-status'
+import { pickedHostLabel } from './marketplace-picked-host-label'
 import { useMarketplaceAppHost } from './use-marketplace-app-host'
 
 /** Git's own detail page; the other catalog items open the standard app page instead. */
@@ -41,6 +45,62 @@ export function MarketplaceDetail({
         <MarketplaceStatusBadge state={badgeState} />
       </div>
       <GitDetail state={badgeState} hostLabel={host.scope?.label ?? null} />
+      <MarketplaceFunctionNote part="banner">
+        {translate(
+          'auto.components.marketplace.MarketplaceDetail.noBanner',
+          '{{name}} has no example prompts.',
+          { name: item.name }
+        )}
+      </MarketplaceFunctionNote>
+      <MarketplaceAppSection
+        id="connection"
+        title={translate(
+          'auto.components.marketplace.MarketplaceAppConnection.title',
+          'Connection'
+        )}
+      >
+        <MarketplaceFunctionNote part="connection">
+          {translate(
+            'auto.components.marketplace.MarketplaceDetail.noConnection',
+            '{{name}} needs no account.',
+            { name: item.name }
+          )}
+        </MarketplaceFunctionNote>
+      </MarketplaceAppSection>
+      <MarketplaceIntegrationAdvanced>
+        <MarketplaceFunctionNote
+          part="access"
+          label={translate(
+            'auto.components.marketplace.MarketplaceAppAccess.title',
+            'Who can use it'
+          )}
+        >
+          {translate(
+            'auto.components.marketplace.MarketplaceDetail.toolAccess',
+            'Every agent on {{host}} can run it. Limits per agent are not available for tools yet.',
+            { host: pickedHostLabel(host) }
+          )}
+        </MarketplaceFunctionNote>
+        <MarketplaceFunctionNote part="advanced">
+          {translate(
+            'auto.components.marketplace.MarketplaceDetail.noAdvanced',
+            '{{name}} has no options in MassOrca.',
+            { name: item.name }
+          )}
+        </MarketplaceFunctionNote>
+      </MarketplaceIntegrationAdvanced>
+      <MarketplaceAppSection
+        id="danger"
+        title={translate('auto.components.marketplace.MarketplaceAppDanger.title', 'Danger zone')}
+      >
+        <MarketplaceFunctionNote part="uninstall">
+          {translate(
+            'auto.components.marketplace.MarketplaceDetail.noUninstall',
+            'MassOrca does not remove {{name}}.',
+            { name: item.name }
+          )}
+        </MarketplaceFunctionNote>
+      </MarketplaceAppSection>
     </div>
   )
 }

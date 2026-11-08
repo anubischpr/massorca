@@ -161,9 +161,10 @@ describe('the Skills section lists only what the person added or MassOrca ships'
       status: { kind: 'done', label: 'Installed' },
       target: { kind: 'skill' }
     })
+    // Why: an unlisted board skill opens its own page, where Install on the picked host lives.
     expect(rows.find((row) => row.name === 'Linear')).toMatchObject({
       status: { kind: 'action', label: 'Install' },
-      target: null
+      target: { kind: 'board-skill', name: 'linear' }
     })
   })
 

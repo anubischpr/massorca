@@ -36,7 +36,8 @@ export function customRows(
         description: item.checkCommand?.join(' ') ?? '',
         icon: { kind: 'custom', itemKind: item.kind },
         status: customStatus(item.presence, installing),
-        target: null,
+        target:
+          itemKind === 'skill' ? { kind: 'custom-skill', item } : { kind: 'custom-item', item },
         owned: !installing && item.presence === 'found',
         service: false,
         customId: item.id
@@ -64,7 +65,7 @@ function unavailableCustomRow(
         { host }
       )
     },
-    target: null,
+    target: { kind: 'custom-unavailable', itemKind },
     owned: false,
     service: false,
     customId: null

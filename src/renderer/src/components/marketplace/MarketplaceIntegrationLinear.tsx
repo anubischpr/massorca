@@ -5,7 +5,10 @@ import { translate } from '@/i18n/i18n'
 import { useAppStore } from '@/store'
 import { LinearAgentSkillInstallCta } from '../settings/linear-agent-skill-install-cta'
 import { UnsealedCredentialNotice } from '../settings/UnsealedCredentialNotice'
-import { MarketplaceIntegrationAccountScope } from './MarketplaceIntegrationAdvanced'
+import {
+  MarketplaceIntegrationAccessNote,
+  MarketplaceIntegrationAccountScope
+} from './MarketplaceIntegrationAdvanced'
 import {
   MarketplaceIntegrationAccounts,
   type IntegrationAccount
@@ -147,9 +150,14 @@ export function MarketplaceLinearIntegration(): React.JSX.Element {
           <>
             <MarketplaceIntegrationAccountScope />
             <LinearAgentSkillInstallCta settings={settings} />
+            <MarketplaceIntegrationAccessNote id="linear" />
           </>
         }
         disconnects={disconnects}
+        dangerNote={translate(
+          'auto.components.marketplace.MarketplaceIntegrationTaskProviders.linearNotConnected',
+          'Linear is not connected, so there is nothing to disconnect.'
+        )}
       />
       <LinearApiKeyDialog
         open={dialogOpen}

@@ -1,5 +1,10 @@
 import type { RuntimeClientTarget } from '@/runtime/runtime-client-target'
 import { MarketplaceAgentPage } from './MarketplaceAgentPage'
+import { MarketplaceBoardToolPage } from './MarketplaceBoardToolPage'
+import {
+  MarketplaceCustomItemPage,
+  MarketplaceCustomUnavailablePage
+} from './MarketplaceCustomItemPage'
 import { MarketplaceIntegrationPage } from './MarketplaceIntegrationPage'
 import { MarketplaceSkillBuiltInPage } from './MarketplaceSkillBuiltInPage'
 import { MarketplaceSkillPage } from './MarketplaceSkillPage'
@@ -26,6 +31,12 @@ export function MarketplaceOpenPageView({
       return <MarketplaceIntegrationPage integration={openPage.id} onBack={closePage} />
     case 'built-in':
       return <MarketplaceSkillBuiltInPage command={openPage.command} onBack={closePage} />
+    case 'board-tool':
+      return <MarketplaceBoardToolPage row={openPage.row} onBack={closePage} />
+    case 'custom-item':
+      return <MarketplaceCustomItemPage item={openPage.item} onBack={closePage} />
+    case 'custom-unavailable':
+      return <MarketplaceCustomUnavailablePage row={openPage.row} onBack={closePage} />
     case 'skill':
       return (
         <MarketplaceSkillPage

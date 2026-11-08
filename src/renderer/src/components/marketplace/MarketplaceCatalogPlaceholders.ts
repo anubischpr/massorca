@@ -1,10 +1,11 @@
 import { BookOpen, Hexagon, SquareTerminal, type LucideIcon } from 'lucide-react'
 import { translate } from '@/i18n/i18n'
-import type { MarketplaceItemKind } from './marketplace-catalog'
 import type {
+  BoardToolId,
   CatalogBadge,
   CatalogRow,
   CatalogRowStatus,
+  CatalogRowTarget,
   HostUnanswered,
   MarketplaceCatalogSectionId
 } from './MarketplaceCatalogRows'
@@ -17,26 +18,28 @@ import {
   updateOnHostLabel
 } from './MarketplaceCatalogStatusCopy'
 
-/** Board rows without an item page. GitHub CLI reads the CLI check; the rest have nothing behind them yet. */
+/** Board rows: the tools that have a page of their own, and the MassOrca board skills. */
 type BoardRowId = 'gh' | 'node' | 'browser' | 'computer' | 'linear' | 'orch' | 'price'
 
-type BoardRowKind = MarketplaceItemKind | 'skill'
-
-type BoardRow = {
+type BoardRowBase = {
   id: BoardRowId
-  kind: BoardRowKind
   name: string
   description: { key: string; fallback: string }
   glyph: LucideIcon
 }
 
+type BoardToolMeta = BoardRowBase & { kind: 'tool'; toolId: BoardToolId }
+type BoardSkillMeta = BoardRowBase & { kind: 'skill'; skillName: string }
+type BoardRowMeta = BoardToolMeta | BoardSkillMeta
+
 const BOARD_COPY = 'auto.components.marketplace.MarketplaceCatalogPlaceholders'
 
-/** Names, lines and icons as the approved Catalog board shows them. */
-const BOARD_ROWS: readonly BoardRow[] = [
+/** Names, lines and icons as the approved Catalog board shows them; skill names are the folder names on a host. */
+const BOARD_ROWS: readonly BoardRowMeta[] = [
   {
     id: 'gh',
     kind: 'tool',
+    toolId: 'gh',
     name: 'GitHub CLI',
     description: {
       key: `${BOARD_COPY}.githubCliDescription`,
@@ -47,6 +50,7 @@ const BOARD_ROWS: readonly BoardRow[] = [
   {
     id: 'node',
     kind: 'tool',
+    toolId: 'node',
     name: 'Node.js',
     description: {
       key: `${BOARD_COPY}.nodeDescription`,
@@ -57,6 +61,7 @@ const BOARD_ROWS: readonly BoardRow[] = [
   {
     id: 'browser',
     kind: 'skill',
+    skillName: 'browser-use',
     name: 'Browser use',
     description: {
       key: `${BOARD_COPY}.browserUseDescription`,
@@ -67,6 +72,7 @@ const BOARD_ROWS: readonly BoardRow[] = [
   {
     id: 'computer',
     kind: 'skill',
+    skillName: 'computer-use',
     name: 'Computer use',
     description: {
       key: `${BOARD_COPY}.computerUseDescription`,
@@ -77,6 +83,7 @@ const BOARD_ROWS: readonly BoardRow[] = [
   {
     id: 'linear',
     kind: 'skill',
+    skillName: 'linear',
     name: 'Linear',
     description: {
       key: `${BOARD_COPY}.linearDescription`,
@@ -87,6 +94,7 @@ const BOARD_ROWS: readonly BoardRow[] = [
   {
     id: 'orch',
     kind: 'skill',
+    skillName: 'orchestration',
     name: 'Orchestration',
     description: {
       key: `${BOARD_COPY}.orchestrationDescription`,
@@ -97,6 +105,7 @@ const BOARD_ROWS: readonly BoardRow[] = [
   {
     id: 'price',
     kind: 'skill',
+    skillName: 'price-check',
     name: 'Price check',
     description: {
       key: `${BOARD_COPY}.priceCheckDescription`,
@@ -146,11 +155,14 @@ export function pendingStatus(badge: CatalogBadge, host: string): CatalogRowStat
   return null
 }
 
-function sectionOf(kind: BoardRowKind): MarketplaceCatalogSectionId {
-  if (kind === 'tool') {
-    return 'tools'
-  }
-  return kind === 'skill' ? 'skills' : 'services'
+function sectionOf(kind: BoardRowMeta['kind']): MarketplaceCatalogSectionId {
+  return kind === 'tool' ? 'tools' : 'skills'
+}
+
+function boardTargetOf(meta: BoardRowMeta, description: string): CatalogRowTarget {
+  return meta.kind === 'tool'
+    ? { kind: 'board-tool', id: meta.toolId }
+    : { kind: 'board-skill', name: meta.skillName, description }
 }
 
 function boardRow(id: BoardRowId, status: CatalogRowStatus, owned: boolean): CatalogRow {
@@ -158,26 +170,27 @@ function boardRow(id: BoardRowId, status: CatalogRowStatus, owned: boolean): Cat
   if (meta === undefined) {
     throw new Error(`Marketplace board has no row ${id}`)
   }
+  const description = translate(meta.description.key, meta.description.fallback)
   return {
     key: `board-${id}`,
     section: sectionOf(meta.kind),
     name: meta.name,
-    description: translate(meta.description.key, meta.description.fallback),
+    description,
     icon: { kind: 'glyph', glyph: meta.glyph },
     status,
-    target: null,
+    target: boardTargetOf(meta, description),
     owned,
-    service: meta.kind === 'service',
+    service: false,
     customId: null
   }
 }
 
-/** Board rows nothing backs yet: the action shows disabled, and no status is claimed. */
+/** Board rows nothing backs yet: the install shows disabled, and no status is claimed; the row opens its page. */
 export function unsetBoardRows(...ids: readonly BoardRowId[]): CatalogRow[] {
-  return ids.map((id) => boardRow(id, { kind: 'action', label: installLabel() }, false))
+  return ids.map((id) => boardRow(id, { kind: 'pending', label: installLabel() }, false))
 }
 
-/** The board skills the host does not list: each shows the pending control, else Install with no page to open. */
+/** The board skills the host does not list: each shows the pending control, else Install with a page to open. */
 export function boardSkillRows(
   listedNames: ReadonlySet<string>,
   pending: CatalogRowStatus | null
@@ -194,8 +207,9 @@ export function cliRow(id: 'gh', badge: CatalogBadge, host: string): CatalogRow 
     return boardRow(id, pending, false)
   }
   const installed = badge === 'installed'
+  // Why: MassOrca cannot install GitHub CLI, so the install stays disabled while the row opens its page.
   const status: CatalogRowStatus = installed
     ? { kind: 'done', label: installedLabel() }
-    : { kind: 'action', label: installLabel() }
+    : { kind: 'pending', label: installLabel() }
   return boardRow(id, status, installed)
 }

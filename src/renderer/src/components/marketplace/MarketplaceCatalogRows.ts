@@ -31,12 +31,19 @@ import { skillRows } from './MarketplaceCatalogSkillRows'
 export type MarketplaceCatalogFilter = 'all' | 'tools' | 'agents' | 'skills' | 'services'
 export type MarketplaceCatalogSectionId = Exclude<MarketplaceCatalogFilter, 'all'>
 
-/** What opening a row leads to. Custom tools and agents have no page of their own. */
+/** The board tools that have a page of their own: GitHub CLI and Node.js. */
+export type BoardToolId = 'gh' | 'node'
+
+/** What opening a row leads to; every row has one page, and a skill row opens after its scan. */
 export type CatalogRowTarget =
   | { kind: 'item'; id: MarketplaceItemId }
   | { kind: 'agent'; agent: TuiAgent }
   | { kind: 'skill'; skill: DiscoveredSkill }
+  | { kind: 'board-skill'; name: string; description: string }
   | { kind: 'custom-skill'; item: MarketplaceCustomItemStatus }
+  | { kind: 'custom-item'; item: MarketplaceCustomItemStatus }
+  | { kind: 'custom-unavailable'; itemKind: MarketplaceCustomItemStatus['kind'] }
+  | { kind: 'board-tool'; id: BoardToolId }
   | { kind: 'built-in'; id: BuiltInSkillCommandId }
   | { kind: 'integration'; id: MarketplaceIntegrationId }
 
@@ -201,6 +208,9 @@ function rowRealName(row: CatalogRow): string {
   }
   if (target?.kind === 'custom-skill') {
     return target.item.name
+  }
+  if (target?.kind === 'board-skill') {
+    return target.name
   }
   if (target?.kind === 'built-in') {
     return BUILT_IN_SKILL_COMMANDS[target.id].name
