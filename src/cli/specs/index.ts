@@ -30,6 +30,7 @@ import { SKILL_COMMAND_SPECS } from './skills'
 import { ARTIFACT_COMMAND_SPECS } from './artifacts'
 import { SEARCH_COMMAND_SPECS } from './search'
 import { PROFILE_STATE_COMMAND_SPECS } from './profile-state'
+import { WORKTREE_SESSION_COMMAND_SPECS } from './worktree-sessions'
 
 export const COMMAND_SPECS: CommandSpec[] = [
   ...CORE_COMMAND_SPECS,
@@ -63,5 +64,6 @@ export const COMMAND_SPECS: CommandSpec[] = [
   ...FOLDER_WORKSPACE_COMMAND_SPECS,
   ...JEV_COMMAND_SPECS,
   ...PROTOTYPES_COMMAND_SPECS,
-  ...CHAT_COMMAND_SPECS
+  ...CHAT_COMMAND_SPECS,
+  ...WORKTREE_SESSION_COMMAND_SPECS
 ]
