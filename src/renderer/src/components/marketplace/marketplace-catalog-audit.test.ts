@@ -141,7 +141,8 @@ describe('auditMarketplaceCatalog', () => {
           key: 'item-git',
           page: { opens: true, pageKind: 'item-detail' },
           structure: MARKETPLACE_PAGE_STRUCTURE['item-detail'],
-          source: 'native'
+          source: 'external',
+          externalDependencies: ['Git on the host PATH']
         })
       ])
     })

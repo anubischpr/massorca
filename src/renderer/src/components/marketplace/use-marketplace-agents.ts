@@ -1,23 +1,25 @@
 import { useDetectedAgents } from '@/hooks/useDetectedAgents'
+import { useHostPiRuntimeAnswer } from '@/lib/pi-host-runtime-answer'
 import { usePiDisplayRuntime } from '@/lib/use-pi-runtime'
-import {
-  MARKETPLACE_APP_AGENTS,
-  type MarketplaceAppAgent
-} from '../../../../shared/marketplace-apps'
+import { useAppStore } from '@/store'
+import { localMarketplaceAgents, type LocalMarketplaceAgents } from './marketplace-local-agents'
 
-/** Agents on this computer that the Marketplace wires apps into; null while detection runs. */
-export function useMarketplaceAgents(): readonly MarketplaceAppAgent[] | null {
+/** The agents on this computer that the Marketplace wires apps into; null while detection runs. */
+export function useMarketplaceAgents(): LocalMarketplaceAgents | null {
   const { detectedIds } = useDetectedAgents(null)
   const hasPi = detectedIds?.includes('pi') ?? false
-  // Why: Gentle Shell is the Pi entry on its own runtime; a stock Pi install is not a Marketplace agent.
+  const worktreeId = useAppStore((state) => state.activeWorktreeId ?? '')
+  const command = useAppStore((state) => state.settings?.agentCmdOverrides?.pi)
+  // Why: the agent page's own Pi question; it asks the workspace host once and caches the answer.
   const piRuntime = usePiDisplayRuntime({ enabled: hasPi })
+  const hostAnswer = useHostPiRuntimeAnswer(worktreeId)
   if (!detectedIds) {
     return null
   }
-  return MARKETPLACE_APP_AGENTS.filter((agent) => {
-    if (agent === 'gentle-shell') {
-      return hasPi && piRuntime === 'gentle-shell'
-    }
-    return detectedIds.includes(agent)
+  return localMarketplaceAgents({
+    detectedIds,
+    command,
+    // Why: a runtime the page resolved wins; until then the host's own answer says checking, failed or missing.
+    hostAnswer: piRuntime !== 'unknown' ? piRuntime : worktreeId ? hostAnswer : 'unknown'
   })
 }

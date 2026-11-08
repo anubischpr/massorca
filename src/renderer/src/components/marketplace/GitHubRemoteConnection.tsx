@@ -63,7 +63,9 @@ function GhState({
           )}
         </p>
       )
+    // Why: a host with no path for the tools check reads as could not check, as a failed one does.
     case 'failed':
+    case 'unavailable':
       return (
         <p className="text-sm">
           {translate(

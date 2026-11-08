@@ -562,15 +562,37 @@ describe('Marketplace page structure matches the rendered pages', () => {
 })
 
 describe('marketplaceRowSource', () => {
-  it('maps Git and Node.js to native, GitHub CLI and service rows to external', () => {
+  it('reports Git and Node.js as external, since nothing records that MassOrca set them up', () => {
     expect(
       marketplaceRowSource({
         ...TOOL_ROW,
         key: 'item-git',
         target: { kind: 'item', id: 'git' }
       })
-    ).toEqual({ source: 'native' })
-    expect(marketplaceRowSource(NODE_ROW)).toEqual({ source: 'native' })
+    ).toEqual({ source: 'external', externalDependencies: ['Git on the host PATH'] })
+    expect(marketplaceRowSource(NODE_ROW)).toEqual({
+      source: 'external',
+      externalDependencies: ['Node.js on the host PATH, outside MassOrca']
+    })
+  })
+
+  it('reports a skill native only when a Marketplace install placed it, else external by its folder', () => {
+    const skillRow = (skill: DiscoveredSkill): CatalogRow => ({
+      ...TOOL_ROW,
+      key: `skill-${skill.name}`,
+      section: 'skills',
+      target: { kind: 'skill', skill }
+    })
+    expect(marketplaceRowSource(skillRow({ ...CLAUDE_COPY, source: 'marketplace' }))).toEqual({
+      source: 'native'
+    })
+    expect(marketplaceRowSource(skillRow(CLAUDE_COPY))).toEqual({
+      source: 'external',
+      externalDependencies: ['Any folder in an agent skill root on the host']
+    })
+  })
+
+  it('keeps GitHub CLI and service rows external, naming what decides them', () => {
     expect(marketplaceRowSource(TOOL_ROW)).toEqual({
       source: 'external',
       externalDependencies: ['GitHub CLI signed in with gh auth login']

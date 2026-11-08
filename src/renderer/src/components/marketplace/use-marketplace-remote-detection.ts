@@ -39,6 +39,8 @@ export type RemoteHostReads = {
 const RPC_TIMEOUT_MS = 30_000
 const LOADING: HostUnanswered = { kind: 'loading' }
 const FAILED: HostUnanswered = { kind: 'failed' }
+// Why: the apps have no WSL path yet, so a distro reads as unavailable, not as a check that failed.
+const WSL_APPS_UNAVAILABLE: HostUnanswered = { kind: 'unavailable' }
 const LOADING_READS: RemoteHostReads = {
   tools: LOADING,
   agents: LOADING,
@@ -173,14 +175,23 @@ async function readApps(
   return result.reason === 'host-needs-update' ? { kind: 'update-required' } : FAILED
 }
 
-/** A WSL distro answers its git, GitHub CLI, agents and skills through its own probes; the rest has no WSL path yet. */
+/** A WSL distro answers its git, GitHub CLI, agents, Pi runtimes and skills through its own probes; its apps have no WSL path yet. */
 async function readWslHostChecks(distro: string): Promise<RemoteHostReads> {
-  const [tools, agents, skills] = await Promise.all([
+  const [tools, agentIds, skills] = await Promise.all([
     readWslTools(distro),
-    readWslAgents(distro),
+    readWslAgentIds(distro),
     readWslSkills(distro)
   ])
-  return { ...FAILED_READS, tools, agents, skills }
+  const agents: CatalogCheck<ReadonlySet<string>> =
+    agentIds.kind === 'ready' ? { kind: 'ready', value: new Set(agentIds.value) } : agentIds
+  return {
+    ...FAILED_READS,
+    tools,
+    agents,
+    piRuntimes: wslPiRuntimesOf(agentIds),
+    apps: WSL_APPS_UNAVAILABLE,
+    skills
+  }
 }
 
 async function readWslTools(distro: string): Promise<CatalogCheck<RemoteTools>> {
@@ -192,12 +203,22 @@ async function readWslTools(distro: string): Promise<CatalogCheck<RemoteTools>> 
   }
 }
 
-async function readWslAgents(distro: string): Promise<CatalogCheck<ReadonlySet<string>>> {
+async function readWslAgentIds(distro: string): Promise<CatalogCheck<readonly string[]>> {
   try {
-    return { kind: 'ready', value: new Set(await detectWslAgents(distro)) }
+    return { kind: 'ready', value: await detectWslAgents(distro) }
   } catch {
     return FAILED
   }
+}
+
+/** A distro has Pi runtimes only when its agent list names pi; WSL cannot yet tell Gentle Shell from stock Pi. */
+function wslPiRuntimesOf(
+  agentIds: CatalogCheck<readonly string[]>
+): CatalogCheck<readonly PiRuntimeSelection[]> {
+  if (agentIds.kind !== 'ready') {
+    return agentIds
+  }
+  return agentIds.value.includes('pi') ? FAILED : { kind: 'ready', value: [] }
 }
 
 /**

@@ -10,7 +10,8 @@ import {
   couldNotCheckLabel,
   installLabel,
   installedLabel,
-  installingLabel
+  installingLabel,
+  notAvailableOnLabel
 } from './MarketplaceCatalogStatusCopy'
 
 /** The custom items of one kind, as rows of the section they were added to. */
@@ -57,14 +58,7 @@ function unavailableCustomRow(
     name: unavailableCustomName(itemKind),
     description: '',
     icon: { kind: 'custom', itemKind },
-    status: {
-      kind: 'pending',
-      label: translate(
-        'auto.components.marketplace.MarketplaceCatalogCustomRows.notAvailableOn',
-        'Not available on {{host}} yet',
-        { host }
-      )
-    },
+    status: { kind: 'pending', label: notAvailableOnLabel(host) },
     target: { kind: 'custom-unavailable', itemKind },
     owned: false,
     service: false,

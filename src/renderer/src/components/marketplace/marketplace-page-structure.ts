@@ -163,7 +163,9 @@ const DEPENDENCY = {
   glab: 'glab CLI installed outside MassOrca',
   agentBinary: 'Agent binary detected on the host PATH, installed from the vendor homepage',
   skillRoot: 'Any folder in an agent skill root on the host',
-  customArgv: 'Check command (argv) the user wrote'
+  customArgv: 'Check command (argv) the user wrote',
+  gitOnPath: 'Git on the host PATH',
+  nodeOutside: 'Node.js on the host PATH, outside MassOrca'
 } as const
 
 function external(externalDependencies: string[]): MarketplaceRowSource {
@@ -181,8 +183,9 @@ function sourceOfTarget(target: CatalogRowTarget): MarketplaceRowSource {
       return itemSource(target.id)
     case 'agent':
       return external([DEPENDENCY.agentBinary])
+    // Why: only a skill a Marketplace install placed is native; a folder found by name is external.
     case 'skill':
-      return external([DEPENDENCY.skillRoot])
+      return target.skill.source === 'marketplace' ? NATIVE : external([DEPENDENCY.skillRoot])
     // Why: a board skill shows Install or its pending check from the skill scan, so the scan decides it.
     case 'board-skill':
       return external([DEPENDENCY.skillRoot])
@@ -191,9 +194,9 @@ function sourceOfTarget(target: CatalogRowTarget): MarketplaceRowSource {
       return external([DEPENDENCY.customArgv])
     case 'custom-unavailable':
       return NATIVE
-    // Why: the GitHub CLI row carries the host's gh check; Node.js has no state behind it.
+    // Why: nothing records that MassOrca set up GitHub CLI or Node.js, so both are external.
     case 'board-tool':
-      return target.id === 'gh' ? external([DEPENDENCY.ghAuth]) : NATIVE
+      return target.id === 'gh' ? external([DEPENDENCY.ghAuth]) : external([DEPENDENCY.nodeOutside])
     case 'built-in':
       return NATIVE
     case 'integration':
@@ -203,8 +206,9 @@ function sourceOfTarget(target: CatalogRowTarget): MarketplaceRowSource {
 
 function itemSource(id: MarketplaceItemId): MarketplaceRowSource {
   switch (id) {
+    // Why: Git is found on the host; nothing records a Marketplace install of it, so it is external.
     case 'git':
-      return NATIVE
+      return external([DEPENDENCY.gitOnPath])
     case 'engram':
       return external([DEPENDENCY.engramCli, DEPENDENCY.engramDataDir, DEPENDENCY.agentMcpConfig])
     case 'github':

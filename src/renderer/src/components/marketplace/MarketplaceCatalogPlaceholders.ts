@@ -15,6 +15,9 @@ import {
   desktopOnlyLabel,
   installLabel,
   installedLabel,
+  notAvailableOnLabel,
+  notCheckedLabel,
+  notInstalledLabel,
   updateOnHostLabel
 } from './MarketplaceCatalogStatusCopy'
 
@@ -135,6 +138,8 @@ export function unansweredStatus(check: HostUnanswered, host: string): CatalogRo
       return { kind: 'pending', label: couldNotCheckLabel() }
     case 'update-required':
       return { kind: 'pending', label: updateOnHostLabel(host) }
+    case 'unavailable':
+      return { kind: 'pending', label: notAvailableOnLabel(host) }
   }
 }
 
@@ -151,6 +156,9 @@ export function pendingStatus(badge: CatalogBadge, host: string): CatalogRowStat
   }
   if (badge === 'desktop-only') {
     return { kind: 'pending', label: desktopOnlyLabel() }
+  }
+  if (badge === 'unavailable') {
+    return { kind: 'pending', label: notAvailableOnLabel(host) }
   }
   return null
 }
@@ -185,9 +193,9 @@ function boardRow(id: BoardRowId, status: CatalogRowStatus, owned: boolean): Cat
   }
 }
 
-/** Board rows nothing backs yet: the install shows disabled, and no status is claimed; the row opens its page. */
+/** Board rows nothing backs yet: they show Not checked, disabled, and claim no status; the row opens its page. */
 export function unsetBoardRows(...ids: readonly BoardRowId[]): CatalogRow[] {
-  return ids.map((id) => boardRow(id, { kind: 'pending', label: installLabel() }, false))
+  return ids.map((id) => boardRow(id, { kind: 'pending', label: notCheckedLabel() }, false))
 }
 
 /** The board skills the host does not list: each shows the pending control, else Install with a page to open. */
@@ -210,6 +218,6 @@ export function cliRow(id: 'gh', badge: CatalogBadge, host: string): CatalogRow 
   // Why: MassOrca cannot install GitHub CLI, so the install stays disabled while the row opens its page.
   const status: CatalogRowStatus = installed
     ? { kind: 'done', label: installedLabel() }
-    : { kind: 'pending', label: installLabel() }
+    : { kind: 'pending', label: notInstalledLabel() }
   return boardRow(id, status, installed)
 }

@@ -299,7 +299,7 @@ describe('the catalog on a picked remote host', () => {
       label: 'WSL: Ubuntu'
     }
 
-    it('reads its tools and agents from the distro, and its apps, Pi runtimes and skills as failed', async () => {
+    it('reads its tools and agents from the distro, its apps as unavailable, its Pi runtimes from the agent list', async () => {
       const detectAgents = vi.fn().mockResolvedValue(['codex'])
       const check = vi.fn().mockResolvedValue({
         git: { installed: true },
@@ -318,8 +318,8 @@ describe('the catalog on a picked remote host', () => {
         kind: 'ready',
         value: { git: true, gh: { installed: false, authenticated: false } }
       })
-      expect(reads.apps).toEqual({ kind: 'failed' })
-      expect(reads.piRuntimes).toEqual({ kind: 'failed' })
+      expect(reads.apps).toEqual({ kind: 'unavailable' })
+      expect(reads.piRuntimes).toEqual({ kind: 'ready', value: [] })
       expect(reads.skills).toEqual({ kind: 'failed' })
       expect(mocks.callRuntimeRpc).not.toHaveBeenCalled()
       expect(mocks.readHostApps).not.toHaveBeenCalled()
@@ -335,6 +335,23 @@ describe('the catalog on a picked remote host', () => {
       const reads = await readRemoteHostChecks(UBUNTU)
       expect(reads.agents).toEqual({ kind: 'failed' })
       expect(reads.tools).toEqual({ kind: 'failed' })
+      expect(reads.piRuntimes).toEqual({ kind: 'failed' })
+    })
+
+    it('reports its Pi runtimes as could not check when its agent list has a pi command, since WSL cannot tell Gentle Shell from Pi', async () => {
+      const detectAgents = vi.fn().mockResolvedValue(['pi', 'codex'])
+      const check = vi.fn().mockResolvedValue({
+        git: { installed: true },
+        gh: { installed: false, authenticated: false }
+      })
+      Object.defineProperty(window, 'api', {
+        value: { preflight: { detectAgents, check } },
+        configurable: true,
+        writable: true
+      })
+      const reads = await readRemoteHostChecks(UBUNTU)
+      expect(reads.piRuntimes).toEqual({ kind: 'failed' })
+      expect(reads.agents).toEqual({ kind: 'ready', value: new Set(['pi', 'codex']) })
     })
   })
 })

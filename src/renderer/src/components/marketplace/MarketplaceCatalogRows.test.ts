@@ -192,9 +192,9 @@ describe('the catalog sections', () => {
 })
 
 describe('the board-only rows, the CLI rows and skill rows', () => {
-  it('shows Node.js with a disabled install, no status, and a page of its own', () => {
+  it('shows Node.js as not checked with a disabled control, and a page of its own', () => {
     const row = rowNamed(buildCatalogSections(inputs()), 'Node.js')
-    expect(row.status).toEqual({ kind: 'pending', label: 'Install' })
+    expect(row.status).toEqual({ kind: 'pending', label: 'Not checked' })
     expect(row.description).toBe('Runs the JavaScript tools some agents call.')
     expect(row.owned).toBe(false)
     expect(row.target).toEqual({ kind: 'board-tool', id: 'node' })
@@ -238,10 +238,45 @@ describe('the board-only rows, the CLI rows and skill rows', () => {
     expect(installed.target).toEqual({ kind: 'board-tool', id: 'gh' })
     expect(rowNamed(buildCatalogSections(inputs()), 'GitHub CLI').status).toEqual({
       kind: 'pending',
-      label: 'Install'
+      label: 'Not installed'
     })
     const unknown = rowNamed(buildCatalogSections(inputs({ cli: { gh: 'unknown' } })), 'GitHub CLI')
     expect(unknown.status).toEqual({ kind: 'pending', label: 'Could not check' })
+  })
+
+  it('shows Engram and OpenMetadata as not available on a host with no path for them yet', () => {
+    const sections = buildCatalogSections(
+      inputs({
+        hostLabel: 'WSL: Ubuntu-24.04',
+        badgeFor: badges({ engram: 'unavailable', openmetadata: 'unavailable' })
+      })
+    )
+    const notAvailable = { kind: 'pending', label: 'Not available on WSL: Ubuntu-24.04 yet' }
+    expect(rowNamed(sections, 'Engram').status).toEqual(notAvailable)
+    expect(rowNamed(sections, 'OpenMetadata').status).toEqual(notAvailable)
+  })
+
+  it('shows Gentle Shell as Checking… until its host answers, and as Could not check when it cannot', () => {
+    const gentleShellWith = (check: CatalogCheck<boolean>): CatalogRow =>
+      rowNamed(
+        buildCatalogSections(
+          inputs({
+            agents: agentsWith((id) => (id === 'pi' ? check : { kind: 'ready', value: false }))
+          })
+        ),
+        'Gentle Shell'
+      )
+    expect(gentleShellWith({ kind: 'loading' }).status).toEqual({
+      kind: 'pending',
+      label: 'Checking…'
+    })
+    expect(gentleShellWith({ kind: 'failed' }).status).toEqual({
+      kind: 'pending',
+      label: 'Could not check'
+    })
+    const found = gentleShellWith({ kind: 'ready', value: true })
+    expect(found.status).toEqual({ kind: 'found', label: 'Found' })
+    expect(found.owned).toBe(true)
   })
 
   it('shows each integration with its own real status and a page to open', () => {
