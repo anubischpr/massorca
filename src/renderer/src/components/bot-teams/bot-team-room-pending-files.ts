@@ -17,15 +17,15 @@ export function useBotTeamRoomPendingFiles(
   )
   const setPending = useCallback(
     (update: PendingUpdate): void => {
-      setPendingState((current) => {
-        const next = typeof update === 'function' ? update(current) : update
-        if (next.length === 0) {
-          pendingByTeam.delete(teamId)
-        } else {
-          pendingByTeam.set(teamId, next)
-        }
-        return next
-      })
+      // Why the map, not the updater's state: it already holds every earlier call's result.
+      const current = pendingByTeam.get(teamId) ?? []
+      const next = typeof update === 'function' ? update(current) : update
+      if (next.length === 0) {
+        pendingByTeam.delete(teamId)
+      } else {
+        pendingByTeam.set(teamId, next)
+      }
+      setPendingState(next)
     },
     [teamId]
   )
