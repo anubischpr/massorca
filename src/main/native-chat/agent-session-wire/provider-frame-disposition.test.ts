@@ -57,6 +57,23 @@ describe('provider frame classification catalog', () => {
     ).toBe('error-surface')
   })
 
+  it('never promotes the Claude startup frame, even when it lists a failed MCP server or plugin', () => {
+    const init = {
+      type: 'system',
+      subtype: 'init',
+      session_id: 'session-1',
+      claude_code_version: '2.1.311',
+      tools: ['Bash'],
+      mcp_servers: [
+        { name: 'linear', status: 'connected' },
+        { name: 'figma', status: 'failed' }
+      ],
+      plugins: [{ name: 'p', path: '/p', source: 'user', error: 'manifest missing' }]
+    }
+    expect(classifyProviderFrame('claude', 'message:system:init', init)).toBe('status-chrome')
+    expect(unhandledProviderFrameJournalItem('claude', 'message:system:init', init)).toBeNull()
+  })
+
   it('keeps command queue bookkeeping off the transcript without hiding a failed one', () => {
     expect(
       classifyProviderFrame('claude', 'message:command_lifecycle', {

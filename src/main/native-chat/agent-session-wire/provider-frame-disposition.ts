@@ -318,6 +318,11 @@ const PROVIDER_FRAME_CATALOGS: ReadonlyMap<
   ]
 ])
 
+// Why: a startup snapshot lists each MCP server and plugin with its own status; a failed one is not a failed frame.
+const STARTUP_SNAPSHOT_KINDS: ReadonlyMap<string, ReadonlySet<string>> = new Map([
+  ['claude', new Set(['message:system:init'])]
+])
+
 export function classifyProviderFrame(
   provider: string,
   kind: string,
@@ -326,7 +331,7 @@ export function classifyProviderFrame(
   // Payload failure inspection outranks the name-shape heuristic below: an
   // unknown frame that reports an error must reach the user even when its
   // method name happens to look like a stream delta.
-  if (hasProviderError(payload)) {
+  if (STARTUP_SNAPSHOT_KINDS.get(provider)?.has(kind) !== true && hasProviderError(payload)) {
     return 'error-surface'
   }
   if (isDeltaProviderFrameKind(kind)) {
