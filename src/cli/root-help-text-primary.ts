@@ -72,6 +72,7 @@ export const ROOT_HELP_TEXT_PRIMARY = [
   '  marketplace connect       Connect an app, or repair missing agent entries',
   '  marketplace disconnect    Disconnect an app and remove the entries MassOrca wrote',
   '  marketplace access        Show or set which agents may use an app',
+  '  marketplace audit         Show which Marketplace pages open or are blocked on a host',
   '  marketplace services list Show GitLab, Bitbucket, Azure DevOps, Gitea, Linear and Jira status',
   '  marketplace services connect Connect a service on this host with a token',
   '  marketplace services disconnect Disconnect a service on this host',

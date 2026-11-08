@@ -18,6 +18,9 @@ export type CommandSpec = {
   // Why: `--from`/`--terminal` names either the acting caller or a target, and only the spec can
   // say which. An agent session refuses a caller flag naming anyone else before dispatch.
   identityFlagRoles?: Partial<Record<IdentityFlag, 'caller' | 'target'>>
+  // Why: `--host runtime:<id>` normally moves the connection to that server; here the connected
+  // app is asked about it instead, as its own host picker would.
+  runtimeHostIsTarget?: boolean
 }
 
 export type IdentityFlag = 'from' | 'terminal'
