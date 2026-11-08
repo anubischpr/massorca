@@ -19,7 +19,8 @@ describe('botTeamCompositeNotes', () => {
 
   it('keeps the hand-offs out of the room and has the owner react to a failed one', () => {
     const notes = botTeamCompositeNotes(BOTS, ['max']) ?? ''
-    expect(notes).toContain('Yo tomaré')
+    expect(notes).toContain('never with a line that only says you took or will do something')
+    expect(notes).not.toContain('Yo tomaré')
     expect(notes).toContain('Never mention the hand-offs')
     expect(notes).toContain('If that command fails, the part did not start')
   })

@@ -60,8 +60,25 @@ export function placeBotTeamRoomTasks<TTask extends BotTeamRoomOrderTask>(
   return { cardsByMessageId, trailing, leading }
 }
 
+/**
+ * The message a request sent to another team sits under: the one it names when the room holds it,
+ * else the person's message it came from, read as for a card. Null keeps it after the conversation.
+ */
+export function botTeamSentRequestMessageId(
+  messages: readonly BotTeamRoomOrderMessage[],
+  request: { messageId: string | null; task: Pick<BotTeamTask, 'prompt' | 'createdAt'> }
+): string | null {
+  if (request.messageId !== null && messages.some((message) => message.id === request.messageId)) {
+    return request.messageId
+  }
+  return requestIdOf(
+    request.task,
+    messages.filter((message) => message.authorBotId === null)
+  )
+}
+
 function requestIdOf(
-  task: BotTeamRoomOrderTask,
+  task: Pick<BotTeamTask, 'prompt' | 'createdAt'>,
   people: readonly BotTeamRoomOrderMessage[]
 ): string | null {
   const sameText = people.find((message) => message.text === task.prompt)
@@ -72,7 +89,7 @@ function requestIdOf(
 }
 
 function latestAtOrBefore(
-  task: BotTeamRoomOrderTask,
+  task: Pick<BotTeamTask, 'createdAt'>,
   messages: readonly BotTeamRoomOrderMessage[]
 ): string | null {
   const cardTime = task.createdAt

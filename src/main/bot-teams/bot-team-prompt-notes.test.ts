@@ -43,7 +43,7 @@ describe('the notes bots read', () => {
 
   it('say every bot can make option cards and artifacts, and speak in the first person', () => {
     expect(BOT_TEAM_UNIVERSAL_CAPABILITY_NOTE).toContain('option cards')
-    expect(BOT_TEAM_ROOM_VOICE_NOTE).toContain('Yo tomaré')
+    expect(BOT_TEAM_ROOM_VOICE_NOTE).toContain('never post a line that only says you took')
     expect(BOT_TEAM_ROOM_VOICE_NOTE).toContain('Never describe internal hand-offs')
   })
 

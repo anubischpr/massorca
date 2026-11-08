@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { ArrowUp, Plus, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card'
 import { translate } from '@/i18n/i18n'
 import { promptTextMap } from '../native-chat/native-chat-prompt-document'
 import {
@@ -12,8 +13,10 @@ import {
   type BotTeamRoomAttachment
 } from '../../../../shared/bot-team-room-attachments'
 import type { BotTeam } from '../../../../shared/rpc-contract/bot-team-params'
+import { BotTeamFileHoverPreview } from './BotTeamFileHoverPreview'
 import { BotTeamRoomReplyBar } from './BotTeamRoomReplyBar'
 import { useBotTeamRoomDraft } from './bot-team-room-draft'
+import { useBotTeamRoomPendingFiles } from './bot-team-room-pending-files'
 import { openBotTeamRoomSessions } from './open-bot-team-room-sessions'
 import { useBotTeamMentionField } from './use-bot-team-mention-field'
 
@@ -64,7 +67,7 @@ export function BotTeamRoomComposer({
   /** A bot's Reply: its message is quoted above the box, which takes focus. */
   replyTo?: BotTeamRoomReply | null
 }): React.JSX.Element {
-  const [pending, setPending] = useState<BotTeamRoomAttachment[]>([])
+  const [pending, setPending] = useBotTeamRoomPendingFiles(team.id)
   const [attaching, setAttaching] = useState(false)
   const appliedReply = useRef<BotTeamRoomReply | null>(null)
   const [reply, setReply] = useState<BotTeamRoomReply | null>(null)
@@ -148,9 +151,21 @@ export function BotTeamRoomComposer({
             {pending.map((attachment) => (
               <li
                 key={attachment.path}
-                className="flex max-w-full items-center gap-1 rounded-md border border-input px-2 py-0.5 text-xs"
+                className="flex max-w-full items-center gap-1 rounded-md border border-input bg-background px-2 py-0.5 text-xs hover:border-ring"
               >
-                <span className="truncate">{attachment.name}</span>
+                {/* Why: the same preview a sent file has, so the person checks the file before sending. */}
+                <HoverCard openDelay={300}>
+                  <HoverCardTrigger asChild>
+                    <span className="truncate">{attachment.name}</span>
+                  </HoverCardTrigger>
+                  <HoverCardContent side="top" align="start" variant="workspace-details">
+                    <BotTeamFileHoverPreview
+                      teamId={team.id}
+                      path={attachment.path}
+                      name={attachment.name}
+                    />
+                  </HoverCardContent>
+                </HoverCard>
                 <button
                   type="button"
                   aria-label={translate(

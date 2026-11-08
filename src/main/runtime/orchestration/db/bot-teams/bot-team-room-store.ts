@@ -136,6 +136,8 @@ export function setBotTeamTaskLastStatus(
   // Why: a parent whose delegated parts never started or failed has not finished the work.
   const kept =
     status === 'Done' && hasUnstartedBotTeamDelegation(this, sessionId) ? 'Stuck' : status
+  // Why: a delegated child can finish before any read has linked its task to its session.
+  linkDelegatedBotTeamTasks(this)
   this.db
     .prepare(
       'UPDATE bot_team_tasks SET last_status = ? WHERE session_id = ? AND last_status IS NOT ?'

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { placeBotTeamRoomTasks } from './bot-team-room-order'
+import { botTeamSentRequestMessageId, placeBotTeamRoomTasks } from './bot-team-room-order'
 
 const person = (id: string, text: string, createdAt?: number | null) => ({
   id,
@@ -115,5 +115,37 @@ describe('placeBotTeamRoomTasks', () => {
     )
 
     expect(placed.cardsByMessageId.get('a')?.map((task) => task.id)).toEqual(['t1', 't2'])
+  })
+})
+
+describe('botTeamSentRequestMessageId', () => {
+  const room = [
+    person('a', 'Ask Design for a logo', 100),
+    bot('r', 'Sent', 150),
+    person('b', 'Thanks', 300)
+  ]
+
+  it('keeps a request under the message it names', () => {
+    expect(
+      botTeamSentRequestMessageId(room, { messageId: 'a', task: card('t', 'other', 400) })
+    ).toBe('a')
+  })
+
+  it('places a request that names no message under the person line it came from, not at the end', () => {
+    expect(
+      botTeamSentRequestMessageId(room, {
+        messageId: null,
+        task: card('t', 'Ask Design for a logo', 400)
+      })
+    ).toBe('a')
+    expect(
+      botTeamSentRequestMessageId(room, { messageId: 'gone', task: card('t', 'A logo', 200) })
+    ).toBe('a')
+  })
+
+  it('leaves a request with neither a message nor a time after the conversation', () => {
+    expect(
+      botTeamSentRequestMessageId(room, { messageId: null, task: card('t', 'A logo') })
+    ).toBeNull()
   })
 })

@@ -171,16 +171,54 @@ describe('reportFinishedBotTeamTask with child delegations and chat visuals', ()
     it("attaches an HTML a finished child lists in its result.filesModified, from the child's chat-visuals folder", async () => {
       const { team, folder } = setup(true)
       const childVisuals = path.join(root, 'child-visuals')
-      const prototype = path.join(childVisuals, 'prototypes', 'req-1', 'A.html')
-      mkdirSync(path.dirname(prototype), { recursive: true })
-      writeFileSync(prototype, '<html></html>')
-      child('finished', { result: { provenance: 'worker_report', filesModified: [prototype] } })
+      const page = path.join(childVisuals, 'impacto.html')
+      mkdirSync(childVisuals, { recursive: true })
+      writeFileSync(page, '<html></html>')
+      child('finished', { result: { provenance: 'worker_report', filesModified: [page] } })
 
       await run(folder, {
         visualsFolderOf: (sessionId) =>
           sessionId === CHILD_SESSION ? childVisuals : path.join(root, 'none')
       })
-      expect(lastAttachmentNames(team.id)).toEqual(['A.html'])
+      expect(lastAttachmentNames(team.id)).toEqual(['impacto.html'])
+    })
+
+    it("attaches none of a child's prototype: its directions, their data, or the design system it wrote", async () => {
+      const { team, folder } = setup(true)
+      const childVisuals = path.join(root, 'child-visuals')
+      const request = path.join(childVisuals, 'prototypes', 'req-1')
+      const worktree = path.join(root, 'child-worktree')
+      mkdirSync(request, { recursive: true })
+      mkdirSync(path.join(worktree, 'design', 'system'), { recursive: true })
+      const listed = [
+        path.join(request, 'A.html'),
+        path.join(request, 'directions.json'),
+        path.join(worktree, 'design', 'system', 'components.html')
+      ]
+      for (const file of listed) {
+        writeFileSync(file, 'x')
+      }
+      child('finished', { result: { provenance: 'worker_report', filesModified: listed } })
+
+      await run(folder, {
+        visualsFolderOf: (sessionId) =>
+          sessionId === CHILD_SESSION ? childVisuals : path.join(root, 'none'),
+        workspaceOfSession: (sessionId) => (sessionId === CHILD_SESSION ? 'ws-child' : null),
+        worktreeOf: (workspaceId) =>
+          workspaceId === 'ws-child' ? { path: worktree, local: true } : null
+      })
+      expect(lastAttachmentNames(team.id) ?? []).toEqual([])
+    })
+
+    it('attaches no prototype the bot made in its own chat-visuals folder', async () => {
+      const { team, folder } = setup(true)
+      const visuals = path.join(root, 'visuals')
+      mkdirSync(path.join(visuals, 'prototypes', 'req-1'), { recursive: true })
+      writeFileSync(path.join(visuals, 'prototypes', 'req-1', 'A.html'), '<html></html>')
+      writeFileSync(path.join(visuals, 'impacto.html'), '<html></html>')
+
+      await run(folder, { visualsFolderOf: () => visuals })
+      expect(lastAttachmentNames(team.id)).toEqual(['impacto.html'])
     })
 
     it("attaches a teammate's file listed in its result.filesModified only when it sits inside the teammate's worktree", async () => {

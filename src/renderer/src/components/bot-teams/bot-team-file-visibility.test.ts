@@ -15,6 +15,13 @@ describe('the files of a team folder that Files lists', () => {
     expect(isBotTeamFileVisible('docs\\.atl\\notes.md')).toBe(false)
   })
 
+  it('hides the design system a prototype writes, in either separator, but not a folder named like it', () => {
+    expect(isBotTeamFileVisible('design/system/tokens.json')).toBe(false)
+    expect(isBotTeamFileVisible('design\\system\\components.html')).toBe(false)
+    expect(isBotTeamFileVisible('docs/design/system/notes.md')).toBe(true)
+    expect(isBotTeamFileVisible('design/mockup.png')).toBe(true)
+  })
+
   it('keeps the deliverables, the attachments and the brief drafts', () => {
     expect(isBotTeamFileVisible('docs/presentacion/nexuscare-features-deck.html')).toBe(true)
     expect(isBotTeamFileVisible('docs/infografia-nexuscare.pdf')).toBe(true)

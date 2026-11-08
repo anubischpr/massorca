@@ -2,6 +2,8 @@ import path from 'node:path'
 import { z } from 'zod'
 import type { OrchestrationDb } from '../runtime/orchestration/db/orchestration-db'
 import { BOT_TEAM_ROOM_ATTACHMENT_FOLDER } from '../../shared/bot-team-room-attachments'
+import { PROTOTYPE_FOLDER } from '../../shared/prototype-request-folder'
+import { isBotTeamFileVisible } from '../../shared/rpc-contract/bot-team-files-visibility'
 import type { DeliverableFile } from './bot-team-deliverables-copyable'
 import type { BotTeamFinishReportDeps } from './bot-team-finish-report'
 import type { BotTeamHandOver } from './bot-team-finish-handovers'
@@ -12,6 +14,8 @@ import { worktreeOfWorkspace } from './bot-team-worktree-deliverables'
 export const TEAM_FOLDER_SKIPPED: ReadonlySet<string> = new Set([BOT_TEAM_ROOM_ATTACHMENT_FOLDER])
 /** A worktree's own folders are the bot's work, named as it wrote them. */
 export const NO_SKIPPED_FOLDERS: ReadonlySet<string> = new Set()
+/** A prototype shows as its own link in the room, so its request folder hands over no file. */
+const VISUALS_SKIPPED: ReadonlySet<string> = new Set([PROTOTYPE_FOLDER])
 
 /** A task's result when its worker reported: the files it changed. Any other result lists none. */
 const WORKER_REPORT_FILES = z.object({ filesModified: z.array(z.string()) })
@@ -44,7 +48,8 @@ function filesOfChild(
   const listed = filesListedBy(db, taskId).map((file) =>
     worktree === null || path.isAbsolute(file) ? file : path.join(worktree, file)
   )
-  return namedFilesAmong(listed, roots)
+  // Why: the design system a prototype writes is the agent's working material, not a deliverable.
+  return namedFilesAmong(listed, roots).filter((file) => isBotTeamFileVisible(file.relative))
 }
 
 /**
@@ -94,7 +99,7 @@ function childRootsOf(
     worktree,
     roots: [
       ...(worktree === null ? [] : [{ path: worktree, skipFolders: NO_SKIPPED_FOLDERS }]),
-      ...(visuals === undefined ? [] : [{ path: visuals, skipFolders: NO_SKIPPED_FOLDERS }])
+      ...(visuals === undefined ? [] : [{ path: visuals, skipFolders: VISUALS_SKIPPED }])
     ]
   }
 }

@@ -41,7 +41,7 @@ describe('finding work a session already handed to a teammate', () => {
       ownerBotId: team.bots[0].id
     })
     db.linkBotTeamTaskDelegation(task.id, request.id)
-    return { task, ownerBotId: team.bots[0].id }
+    return { task, ownerBotId: team.bots[0].id, requestId: request.id }
   }
 
   it('finds the task for the same session, teammate and text', () => {
@@ -50,6 +50,13 @@ describe('finding work a session already handed to a teammate', () => {
     expect(findHandedOverBotTeamTask(db!, args)?.id).toBe(task.id)
     expect(findHandedOverBotTeamTask(db!, { ...args, prompt: 'Other' })).toBeNull()
     expect(findHandedOverBotTeamTask(db!, { ...args, parentSessionId: 'other' })).toBeNull()
+  })
+
+  it('keeps the final status of a delegated child that finishes before anyone lists the board', () => {
+    const { task, requestId } = handedOver()
+    db!.patchDelegationRequest(requestId, { child_session_id: 'child' })
+    db!.setBotTeamTaskLastStatus('child', 'Done')
+    expect(db!.getBotTeamTask(task.id)).toMatchObject({ sessionId: 'child', lastStatus: 'Done' })
   })
 
   it('lets a request that failed be asked again', () => {

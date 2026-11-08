@@ -42,7 +42,10 @@ import { BotTeamTaskCard } from './BotTeamTaskCard'
 import { BotTeamTaskThread } from './BotTeamTaskThread'
 import { BotTeamRoomQuestion } from './BotTeamRoomQuestion'
 import { BotTeamRoomSidePanel } from './BotTeamRoomSidePanel'
-import { placeBotTeamRoomTasks } from '../../../../shared/bot-team-room-order'
+import {
+  botTeamSentRequestMessageId,
+  placeBotTeamRoomTasks
+} from '../../../../shared/bot-team-room-order'
 import { NativeChatJumpToLatest } from '../native-chat/NativeChatJumpToLatest'
 import { useBotTeamRoomScroll } from './use-bot-team-room-scroll'
 
@@ -274,9 +277,10 @@ export function BotTeamRoom({
       onOpenTeam={onOpenTeam}
     />
   )
-  const unplacedSent = sent.filter(
-    (request) => !messages.some((message) => message.id === request.messageId)
+  const sentUnder = new Map(
+    sent.map((request) => [request.task.id, botTeamSentRequestMessageId(messages, request)])
   )
+  const unplacedSent = sent.filter((request) => sentUnder.get(request.task.id) === null)
 
   const taskCard = (task: BotTeamTask): React.JSX.Element => (
     <BotTeamTaskCard
@@ -343,7 +347,9 @@ export function BotTeamRoom({
                       quoted={quotedOf(message)}
                     >
                       {placement.cardsByMessageId.get(message.id)?.map(taskCard)}
-                      {trackers(sent.filter((request) => request.messageId === message.id))}
+                      {trackers(
+                        sent.filter((request) => sentUnder.get(request.task.id) === message.id)
+                      )}
                       {prototypeLinks(message.id)}
                     </BotTeamRoomMessage>
                   ))}
