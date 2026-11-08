@@ -49,6 +49,28 @@ export function installingLabel(): string {
   return translate('auto.components.marketplace.MarketplaceCatalogRows.installing', 'Installing…')
 }
 
+/** The host's check found the tool missing; the row's control stays disabled because MassOrca has no install for it. */
+export function notInstalledLabel(): string {
+  return translate(
+    'auto.components.marketplace.MarketplaceCatalogRows.notInstalled',
+    'Not installed'
+  )
+}
+
+/** MassOrca has no check for this row yet, so it claims no install state. */
+export function notCheckedLabel(): string {
+  return translate('auto.components.marketplace.MarketplaceCatalogRows.notChecked', 'Not checked')
+}
+
+/** The host has no path for this check yet, so the row cannot say whether the item is there. */
+export function notAvailableOnLabel(host: string): string {
+  return translate(
+    'auto.components.marketplace.MarketplaceCatalogRows.notAvailableOn',
+    'Not available on {{host}} yet',
+    { host }
+  )
+}
+
 /** A host too old to answer a check: the row asks for the update that lets the check run. */
 export function updateOnHostLabel(host: string): string {
   return translate(

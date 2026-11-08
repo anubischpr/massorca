@@ -1,5 +1,5 @@
 import { translate } from '@/i18n/i18n'
-import { installLabel } from './MarketplaceCatalogStatusCopy'
+import { notInstalledLabel } from './MarketplaceCatalogStatusCopy'
 import type { CatalogRow } from './MarketplaceCatalogRows'
 import type { MarketplaceStatusTone } from './MarketplaceDetail'
 import { MarketplaceNotesPage, type MarketplaceNotes } from './MarketplaceNotesPage'
@@ -52,7 +52,7 @@ export function MarketplaceBoardToolPage({
 }
 
 /** A tool's header line states what is known: installed, not installed for GitHub CLI, else that nothing is checked. */
-function toolStatus(
+export function toolStatus(
   row: CatalogRow,
   isGitHubCli: boolean,
   hostName: string
@@ -66,8 +66,8 @@ function toolStatus(
       tone: 'pending'
     }
   }
-  // Why: the GitHub CLI check reads the host, so its pending action line means not installed there.
-  if (row.status.label === installLabel()) {
+  // Why: the GitHub CLI check reads the host, so its pending line means not installed there.
+  if (row.status.label === notInstalledLabel()) {
     return {
       label: translate(`${COPY}.notInstalled`, 'Not installed on {{host}}', { host: hostName }),
       tone: 'warn'

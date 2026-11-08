@@ -172,7 +172,7 @@ function agentSwitchFailedText(): string {
 }
 
 function remoteAgentsNotice(
-  kind: 'loading' | 'failed' | 'update-required',
+  kind: 'loading' | 'failed' | 'update-required' | 'unavailable',
   hostName: string
 ): string {
   if (kind === 'loading') {

@@ -87,8 +87,12 @@ export type CatalogSection = {
   placeholder: string | null
 }
 
-/** A host read with no answer this host can give: still running, failed, or from a host too old to answer. */
-export type HostUnanswered = { kind: 'loading' } | { kind: 'failed' } | { kind: 'update-required' }
+/** A host read with no answer this host can give: still running, failed, from a host too old to answer, or with no path for it yet. */
+export type HostUnanswered =
+  | { kind: 'loading' }
+  | { kind: 'failed' }
+  | { kind: 'update-required' }
+  | { kind: 'unavailable' }
 
 /** A host read a row depends on: unanswered, or the answer the host gave. */
 export type CatalogCheck<T> = HostUnanswered | { kind: 'ready'; value: T }
@@ -99,8 +103,8 @@ export type CatalogListState<T> =
   | { kind: 'unavailable' }
   | { kind: 'ready'; items: readonly T[] }
 
-/** A row's badge: a host check's state, or the update a host too old for the check needs. */
-export type CatalogBadge = MarketplaceBadgeState | 'update-required'
+/** A row's badge: a host check's state, the update a host too old for the check needs, or no path on the host yet. */
+export type CatalogBadge = MarketplaceBadgeState | 'update-required' | 'unavailable'
 
 /** The GitHub CLI state the host check reports. */
 export type CliBadges = { gh: CatalogBadge }

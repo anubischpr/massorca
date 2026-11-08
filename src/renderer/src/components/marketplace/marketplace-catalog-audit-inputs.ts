@@ -1,17 +1,11 @@
 import { getLocalPreflightContext, localPreflightContextKey } from '@/lib/local-preflight-context'
 import { getProviderRuntimeContextKey } from '@/lib/provider-runtime-context'
-import { readHostPiRuntimeAnswer } from '@/lib/pi-host-runtime-answer'
-import { resolvePiDisplayRuntime } from '@/lib/pi-agent-display'
 import { getSingleFocusedRuntimeEnvironmentId } from '@/lib/single-runtime-legacy-owner'
 import { isWebClientLocation } from '@/lib/web-client-location'
 import { loadWindowsTerminalCapabilities } from '@/lib/windows-terminal-capabilities'
 import { getActiveRuntimeTarget, type RuntimeClientTarget } from '@/runtime/runtime-rpc-client'
 import { discoverSkillsForRuntimeTarget } from '@/runtime/runtime-skills-client'
 import { useAppStore, type AppState } from '@/store'
-import {
-  MARKETPLACE_APP_AGENTS,
-  type MarketplaceAppAgent
-} from '../../../../shared/marketplace-apps'
 import type {
   MarketplaceCustomApi,
   MarketplaceCustomItemStatus
@@ -25,6 +19,11 @@ import type { MarketplaceVaultHostTarget } from './marketplace-vault-host-client
 import type { CatalogHostReads } from './MarketplaceCatalogData'
 import type { HostUnanswered } from './MarketplaceCatalogRows'
 import { deriveIntegrationStates, type TaskProviderState } from './marketplace-integration-status'
+import {
+  localMarketplaceAgents,
+  readLocalPiAnswer,
+  type LocalMarketplaceAgents
+} from './marketplace-local-agents'
 import type { MarketplaceIntegrationStates } from './marketplace-integrations'
 import type { MarketplaceInstalledSkills } from './MarketplaceCatalogSkills'
 import { getHostDisplayLabelOverrides } from '../../../../shared/host-setting-overrides'
@@ -172,8 +171,8 @@ async function readLocalDetection(
   return { marketplaceAgents, skills, custom }
 }
 
-/** Mirrors useMarketplaceAgents: the board agents found here, or null while detection has no answer. */
-async function readLocalAgents(): Promise<readonly MarketplaceAppAgent[] | null> {
+/** Mirrors useMarketplaceAgents: the board agents found here and Gentle Shell's Pi answer, or null while detection has no answer. */
+async function readLocalAgents(): Promise<LocalMarketplaceAgents | null> {
   let state = useAppStore.getState()
   if (state.detectedAgentIds === null) {
     try {
@@ -187,16 +186,11 @@ async function readLocalAgents(): Promise<readonly MarketplaceAppAgent[] | null>
   if (detectedIds === null) {
     return null
   }
-  const hasPi = detectedIds.includes('pi')
-  const piRuntime = hasPi
-    ? resolvePiDisplayRuntime({
-        command: state.settings?.agentCmdOverrides?.pi,
-        hostAnswer: readHostPiRuntimeAnswer(state.activeWorktreeId ?? '')
-      })
+  const command = state.settings?.agentCmdOverrides?.pi
+  const hostAnswer = detectedIds.includes('pi')
+    ? await readLocalPiAnswer(state.activeWorktreeId ?? '', command)
     : undefined
-  return MARKETPLACE_APP_AGENTS.filter((agent) =>
-    agent === 'gentle-shell' ? hasPi && piRuntime === 'gentle-shell' : detectedIds.includes(agent)
-  )
+  return localMarketplaceAgents({ detectedIds, command, hostAnswer })
 }
 
 /** Mirrors useMarketplaceInstalledSkills' scan, without the shared snapshot. */

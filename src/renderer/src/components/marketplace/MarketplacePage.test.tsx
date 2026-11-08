@@ -15,6 +15,7 @@ globalThis.IS_REACT_ACT_ENVIRONMENT = true
 const mocks = vi.hoisted(
   (): {
     detected: string[] | null
+    piRuntime: 'pi' | 'gentle-shell' | 'unknown'
     discover: Mock<(...args: unknown[]) => unknown>
     custom: MarketplaceCustomItemStatus[]
     preview: Mock<(...args: unknown[]) => unknown>
@@ -22,6 +23,7 @@ const mocks = vi.hoisted(
     confirm: Mock<(...args: unknown[]) => unknown>
   } => ({
     detected: [],
+    piRuntime: 'unknown',
     discover: vi.fn(),
     custom: [],
     preview: vi.fn(),
@@ -55,8 +57,11 @@ vi.mock('@/lib/agent-catalog', () => {
   }
 })
 vi.mock('@/lib/agent-icon-gentle-shell', () => ({ GentleShellIcon: () => null }))
-vi.mock('@/lib/pi-agent-display', () => ({ piRuntimeLabel: () => 'Gentle Shell' }))
-vi.mock('@/lib/use-pi-runtime', () => ({ usePiDisplayRuntime: () => 'unknown' }))
+vi.mock('@/lib/pi-agent-display', async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
+  piRuntimeLabel: () => 'Gentle Shell'
+}))
+vi.mock('@/lib/use-pi-runtime', () => ({ usePiDisplayRuntime: () => mocks.piRuntime }))
 vi.mock('@/hooks/useDetectedAgents', () => ({
   useDetectedAgents: () => ({
     detectedIds: mocks.detected,
@@ -321,7 +326,7 @@ describe('MarketplacePage', () => {
     ])
     expect(statusOf(container, 'Git')).toBe('Installed')
     expect(statusOf(container, 'GitHub CLI')).toBe('Installed')
-    expect(statusOf(container, 'Node.js')).toBe('Install')
+    expect(statusOf(container, 'Node.js')).toBe('Not checked')
     expect(statusOf(container, 'Engram')).toBe('Available in the desktop app')
     expect(namesIn(sectionBody(container, 'Services'))).toEqual([
       'OpenMetadata',
@@ -340,13 +345,13 @@ describe('MarketplacePage', () => {
     }
   })
 
-  it('shows Node.js with a disabled Install button and lists no placeholder services', async () => {
+  it('shows Node.js with a disabled Not checked button and lists no placeholder services', async () => {
     const container = await renderPage()
 
-    // Why: the row body opens Node.js's page; only its Install control is the disabled one.
+    // Why: the row body opens Node.js's page; only its status control is the disabled one.
     const install = Array.from(
       itemRow(container, 'Node.js')?.querySelectorAll('button') ?? []
-    ).find((button) => button.textContent === 'Install')
+    ).find((button) => button.textContent === 'Not checked')
     expect(install?.disabled).toBe(true)
     for (const name of ['Email', 'Calendar', 'Shared drive', '[CRM]']) {
       expect(itemRow(container, name)).toBeUndefined()
@@ -396,10 +401,14 @@ describe('MarketplacePage', () => {
 
   it('does not count a stock Pi install as Gentle Shell', async () => {
     mocks.detected = ['pi']
-    const container = await renderPage()
-
-    expect(statusOf(container, 'Gentle Shell')).toBe('Install')
-    expect(container.textContent).not.toContain('Pi')
+    mocks.piRuntime = 'pi'
+    try {
+      const container = await renderPage()
+      expect(statusOf(container, 'Gentle Shell')).toBe('Install')
+      expect(container.textContent).not.toContain('Pi')
+    } finally {
+      mocks.piRuntime = 'unknown'
+    }
   })
 
   it('lists the skills found on this computer, each as Installed', async () => {

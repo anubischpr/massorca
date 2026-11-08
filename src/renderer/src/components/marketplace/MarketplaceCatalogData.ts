@@ -26,6 +26,7 @@ import type { MarketplaceIntegrationStates } from './marketplace-integrations'
 import { useMarketplaceIntegrationStates } from './marketplace-integration-status'
 import { marketplaceBadgeState, type MarketplaceBadgeState } from './marketplace-status'
 import type { MarketplaceVaultHostTarget } from './marketplace-vault-host-client'
+import type { LocalMarketplaceAgents } from './marketplace-local-agents'
 import { useMarketplaceAgents } from './use-marketplace-agents'
 import { useMarketplacePreflight, type MarketplacePreflight } from './use-marketplace-preflight'
 import {
@@ -62,7 +63,7 @@ export type CatalogHostReads = {
   hostLabel: string
   apps: MarketplaceAppsState
   preflight: MarketplacePreflight
-  marketplaceAgents: readonly MarketplaceAppAgent[] | null
+  marketplaceAgents: LocalMarketplaceAgents | null
   skills: MarketplaceInstalledSkills
   custom: Pick<MarketplaceCustomItems, 'items' | 'installingIds'>
   remote: RemoteHostReads
@@ -107,10 +108,10 @@ export function catalogBuildInputsFor(reads: CatalogHostReads): {
       custom: customList,
       installingCustomIds: reads.custom.installingIds
     },
-    // Why: the item page's badge has no update state, so a host too old for the check reads as not checked.
+    // Why: the item page's badge has no update or unavailable state, so either reads as not checked.
     badgeFor: (id) => {
       const badge = rowBadgeFor(id)
-      return badge === 'update-required' ? 'unknown' : badge
+      return badge === 'update-required' || badge === 'unavailable' ? 'unknown' : badge
     }
   }
 }
@@ -168,9 +169,14 @@ export function useMarketplaceCatalog({
 /** A board agent on this computer: still loading until the agent list is read, then found or not. */
 function localAgentCheck(
   app: MarketplaceAppAgent,
-  detected: readonly MarketplaceAppAgent[] | null
+  local: LocalMarketplaceAgents | null
 ): CatalogCheck<boolean> {
-  return detected === null ? { kind: 'loading' } : { kind: 'ready', value: detected.includes(app) }
+  if (local === null) {
+    return { kind: 'loading' }
+  }
+  return app === 'gentle-shell'
+    ? local.gentleShell
+    : { kind: 'ready', value: local.detected.includes(app) }
 }
 
 function localSkillsCheck(
@@ -210,6 +216,8 @@ function badgeFromCheck<T>(
       return 'unknown'
     case 'update-required':
       return 'update-required'
+    case 'unavailable':
+      return 'unavailable'
     case 'ready':
       return badge(check.value)
   }
