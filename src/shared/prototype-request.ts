@@ -245,14 +245,14 @@ function directionInstruction(
           settingsLine,
           'Write it with inline CSS and no external network resources, at this exact path:',
           ...paths,
-          'Write nothing else in that folder. Do not announce this file as a chat visual. Reply with one line: its letter, a short name, and a one-line tradeoff.',
+          'Write nothing else in that folder, and keep no copy or draft of it anywhere else, including your working directory. Do not announce this file as a chat visual. Reply with one line: its letter, a short name, and a one-line tradeoff.',
           directionsFile
         ]
       : [
           settingsLine,
           'Write each as ONE file with inline CSS and no external network resources, at these exact paths:',
           ...paths,
-          'Write nothing else in that folder. Do not announce these files as chat visuals. Reply with one line per direction: its letter, a short name, and a one-line tradeoff.',
+          'Write nothing else in that folder, and keep no copies or drafts of them anywhere else, including your working directory. Do not announce these files as chat visuals. Reply with one line per direction: its letter, a short name, and a one-line tradeoff.',
           directionsFile
         ]
   if (agent === 'antigravity') {
