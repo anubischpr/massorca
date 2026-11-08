@@ -7,7 +7,8 @@ const DAY = {
 
 /**
  * What the owning bot says in the room once a request is filed; the room shows it under the bot's
- * name. The line is in the language of the request, else of the app.
+ * name. The line is in the language of the request, else of the app. A request that started says
+ * nothing: its card and the typing line already show the bot at work.
  */
 export function botTeamFiledReply(input: {
   started: boolean
@@ -19,7 +20,7 @@ export function botTeamFiledReply(input: {
   text?: string | null
   /** The app's language, for a request whose words do not say. */
   uiLanguage?: string | null
-}): string {
+}): string | null {
   const language = botTeamReplyLanguage({ text: input.text, uiLanguage: input.uiLanguage })
   const project =
     input.projectName === null
@@ -39,12 +40,7 @@ export function botTeamFiledReply(input: {
   }
   // A request kept for later never starts, whatever the caller asked.
   if (input.started && !input.later) {
-    return input.projectName === null
-      ? pickBotTeamLine({ en: 'On it.', es: 'En ello.' }, language)
-      : pickBotTeamLine(
-          { en: `On it, in ${input.projectName}.`, es: `En ello, en ${input.projectName}.` },
-          language
-        )
+    return null
   }
   const day = input.when === null ? '' : pickBotTeamLine(DAY[input.when], language)
   return pickBotTeamLine(
@@ -78,7 +74,7 @@ export function botTeamScheduledReply(input: {
 
 const START_ACKNOWLEDGEMENT = /^(?:on it|en ello)\b/i
 
-/** Whether a bot line is only the room's "On it." that says its task started. */
+/** Whether a bot line is only the "On it." older builds posted when its task started. */
 export function isBotTeamStartAcknowledgement(text: string): boolean {
   return START_ACKNOWLEDGEMENT.test(text.trim())
 }

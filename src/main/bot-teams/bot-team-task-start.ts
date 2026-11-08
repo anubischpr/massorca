@@ -161,9 +161,7 @@ export function botTeamTaskPrompt(
     BOT_TEAM_SAVE_FILE_NOTE,
     BOT_TEAM_ROOM_VOICE_NOTE,
     [
-      delegated
-        ? 'This task is already on the board, but the room does not say you took it yet. Before you start, post one short first-person line saying what you will do, in the same language as the request: `orca orchestration team-post --text "<line>"`. Then tell'
-        : 'This task is already on the board and the room already says you took it. Tell',
+      'This task is already on the board, and the room already shows you working on it. Never post a line that only says you took it or will do it. Tell',
       'the team in its Conference room when you finish, in one short line that names the final deliverable by file name (or a link), never a path: `orca orchestration team-post --text "<line>"`. Write that line in the same language as the task\'s request above. Do not post for follow-up messages in this chat.',
       `For this team's tasks, read the real board with \`orca orchestration team-tasks\`. Never add this task to the board again; save only separate work for later with \`orca orchestration team-task-create --text "<task>"\`.${delegated ? CHILD_NO_DISPATCH_NOTE : HAND_TO_TEAMMATE_NOTE}`,
       'To keep something for later tasks, run `orca orchestration team-remember --text "<what>"`; add `--me` when only you need it, and `--told` when the person asked you to remember it.'

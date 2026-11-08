@@ -4,14 +4,12 @@ import { botTeamFiledReply } from './bot-team-filed-reply'
 const FILED = { started: false, later: false, when: null, projectName: null, startError: null }
 
 describe('botTeamFiledReply', () => {
-  it('says the bot is on it when the request starts', () => {
-    expect(botTeamFiledReply({ ...FILED, started: true })).toBe('On it.')
-  })
-
-  it('names the project a started request works in', () => {
-    expect(botTeamFiledReply({ ...FILED, started: true, projectName: 'NexusCare' })).toBe(
-      'On it, in NexusCare.'
-    )
+  it('says nothing when the request starts, in any language or project', () => {
+    expect(botTeamFiledReply({ ...FILED, started: true })).toBeNull()
+    expect(botTeamFiledReply({ ...FILED, started: true, projectName: 'NexusCare' })).toBeNull()
+    expect(
+      botTeamFiledReply({ ...FILED, started: true, text: 'Revisa NexusCare, por favor' })
+    ).toBeNull()
   })
 
   it('says a later request is in Todo for its day, in its project', () => {
@@ -35,9 +33,6 @@ describe('botTeamFiledReply', () => {
 
   it('answers an English request in English, with the same templates', () => {
     const text = 'Can you check NexusCare tomorrow?'
-    expect(botTeamFiledReply({ ...FILED, started: true, projectName: 'NexusCare', text })).toBe(
-      'On it, in NexusCare.'
-    )
     expect(
       botTeamFiledReply({ ...FILED, later: true, when: 'tomorrow', projectName: 'NexusCare', text })
     ).toBe('Added to Todo for tomorrow in NexusCare.')
@@ -48,10 +43,6 @@ describe('botTeamFiledReply', () => {
 
   it('answers a Spanish request in Spanish, with the same templates', () => {
     const text = 'Revisa NexusCare mañana, por favor'
-    expect(botTeamFiledReply({ ...FILED, started: true, text })).toBe('En ello.')
-    expect(botTeamFiledReply({ ...FILED, started: true, projectName: 'NexusCare', text })).toBe(
-      'En ello, en NexusCare.'
-    )
     expect(
       botTeamFiledReply({ ...FILED, later: true, when: 'tomorrow', projectName: 'NexusCare', text })
     ).toBe('Añadido a Todo para mañana en NexusCare.')
@@ -65,9 +56,9 @@ describe('botTeamFiledReply', () => {
   })
 
   it('uses the app language when the request is unclear, and English without either', () => {
-    expect(
-      botTeamFiledReply({ ...FILED, started: true, text: 'NexusCare?', uiLanguage: 'es' })
-    ).toBe('En ello.')
-    expect(botTeamFiledReply({ ...FILED, started: true, text: 'NexusCare?' })).toBe('On it.')
+    expect(botTeamFiledReply({ ...FILED, later: true, text: 'NexusCare?', uiLanguage: 'es' })).toBe(
+      'Añadido a Todo.'
+    )
+    expect(botTeamFiledReply({ ...FILED, later: true, text: 'NexusCare?' })).toBe('Added to Todo.')
   })
 })

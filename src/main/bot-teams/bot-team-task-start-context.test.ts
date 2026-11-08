@@ -90,9 +90,13 @@ describe('botTeamTaskPrompt context', () => {
     expect(prompt).toContain('names the final deliverable')
   })
 
-  it('has a delegated bot say what it takes before it starts', () => {
-    const prompt = botTeamTaskPrompt(TEAM, BOT, TASK, { delegated: true })
-    expect(prompt).toContain('does not say you took it yet')
-    expect(botTeamTaskPrompt(TEAM, BOT, TASK)).toContain('the room already says you took it')
+  it('has no bot, delegated or not, post a line that only says it took the task', () => {
+    for (const prompt of [
+      botTeamTaskPrompt(TEAM, BOT, TASK, { delegated: true }),
+      botTeamTaskPrompt(TEAM, BOT, TASK)
+    ]) {
+      expect(prompt).toContain('Never post a line that only says you took it or will do it')
+      expect(prompt).not.toContain('Before you start, post')
+    }
   })
 })

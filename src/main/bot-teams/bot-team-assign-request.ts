@@ -209,18 +209,17 @@ export async function fileBotTeamRequest(
   const filed = started
     ? await startFiled(task, true, startTask)
     : { task, startError: null as string | null }
-  db.postBotTeamMessage({
-    teamId: receiving.id,
-    authorBotId: owner.id,
-    text: botTeamFiledReply({
-      started,
-      later,
-      when: timing.when,
-      projectName: projects.find((project) => project.id === projectId)?.name ?? null,
-      startError: filed.startError,
-      text
-    })
+  const filedReply = botTeamFiledReply({
+    started,
+    later,
+    when: timing.when,
+    projectName: projects.find((project) => project.id === projectId)?.name ?? null,
+    startError: filed.startError,
+    text
   })
+  if (filedReply !== null) {
+    db.postBotTeamMessage({ teamId: receiving.id, authorBotId: owner.id, text: filedReply })
+  }
   // A task another team asked for that cannot start must not leave the asking room waiting.
   if (filed.startError !== null && receiving.id !== input.teamId) {
     returnUnstartedBotTeamTask(db, created.id, filed.startError)
