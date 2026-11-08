@@ -83,6 +83,55 @@ describe('resolveBranchRowLabel', () => {
       }).label
     ).toBe('Notes')
   })
+
+  it('keeps the folder name for a folder workspace with a generated display name', () => {
+    expect(
+      resolveBranchRowLabel({
+        workspaceKind: 'folder-workspace',
+        repo: 'notes',
+        branch: '',
+        path: '/home/me/notes-folder',
+        displayName: 'Notes'
+      })
+    ).toEqual({ label: 'notes-folder', icon: 'folder' })
+  })
+
+  it('labels a git row with its generated display name over its branch', () => {
+    expect(
+      resolveBranchRowLabel({
+        workspaceKind: 'git',
+        repo: 'oppm',
+        branch: 'palominoc/auditar-worktrees-de-oppm-15cc05',
+        displayName: 'Auditoría de worktrees de OPPM'
+      })
+    ).toEqual({ label: 'Auditoría de worktrees de OPPM', icon: 'branch' })
+  })
+
+  it('keeps the row name the user set over the generated display name', () => {
+    expect(
+      resolveBranchRowLabel({
+        repo: 'orca',
+        branch: 'feature/login',
+        displayName: 'Auth work',
+        manualDisplayName: 'Login rework'
+      }).label
+    ).toBe('Login rework')
+  })
+
+  it('keeps the branch when the generated display name is the branch itself', () => {
+    expect(
+      resolveBranchRowLabel(
+        { repo: 'orca', branch: 'refs/heads/alice/login', displayName: 'alice/login' },
+        { branchLabel: 'login' }
+      ).label
+    ).toBe('login')
+  })
+
+  it('ignores a blank generated display name', () => {
+    expect(
+      resolveBranchRowLabel({ repo: 'orca', branch: 'feature/login', displayName: '   ' }).label
+    ).toBe('feature/login')
+  })
 })
 
 describe('detached rows and the own prefix', () => {
@@ -99,6 +148,15 @@ describe('detached rows and the own prefix', () => {
     expect(
       resolveBranchRowLabel({ repo: 'orca', branch: '', head, manualDisplayName: 'Spike' }).label
     ).toBe('Spike')
+  })
+
+  it('does not name a detached row by its generated display name', () => {
+    expect(resolveBranchRowLabel({ repo: 'orca', branch: '', head, displayName: 'Spike' })).toEqual(
+      {
+        label: '0123456',
+        icon: 'commit'
+      }
+    )
   })
 
   it('keeps the repo name for a detached row whose commit is unknown', () => {

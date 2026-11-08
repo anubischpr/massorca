@@ -186,12 +186,11 @@ describe('WorktreeListRow', () => {
     expect(metaRender).toHaveBeenCalledTimes(++expectedRenders)
   })
 
-  it('labels the row with the branch, never the generated display name', async () => {
+  it('labels the row with its generated display name over the branch', async () => {
     await act(async () => {
       renderer = create(createElement(ListRowHarness, { item: baseItem, now: 2_000 }))
     })
-    expect(textNodes(renderer!)).toContain('feature/mobile-list')
-    expect(textNodes(renderer!)).not.toContain(baseItem.displayName)
+    expect(textNodes(renderer!)).toContain(baseItem.displayName)
   })
 
   it('shows the monitoring mode on the mark of a session-less working branch', async () => {

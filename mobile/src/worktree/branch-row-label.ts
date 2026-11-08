@@ -13,6 +13,8 @@ export type BranchRowLabelSource = {
   /** The commit a detached HEAD sits on; a row with no branch names itself by its short SHA. */
   head?: string
   manualDisplayName?: string | null
+  /** The worktree's name on desktop: its branch when automatic, else a generated or pinned name. */
+  displayName?: string | null
   path?: string
 }
 
@@ -32,11 +34,17 @@ export function folderNameFromPath(path: string | undefined): string {
   return segments[segments.length - 1] ?? ''
 }
 
+/** The worktree's own name when it is set and not just its branch: a generated or pinned name. */
+function nameBeyondBranch(displayName: string | null | undefined, branch: string): string | null {
+  const name = displayName?.trim() ?? ''
+  return name && name !== branch ? name : null
+}
+
 /**
- * The one-line row label: the user's row name when set, else the branch (a folder workspace shows
- * its folder name). A detached row shows its short SHA with a commit icon. The repo is the last
- * resort, and only when there is no branch and no commit. The generated display name never labels a row.
- * `branchLabel` is the branch with the user's own prefix dropped, when the list computed one.
+ * The one-line row label: the user's row name when set, else the worktree's own name when it is not
+ * just its branch, else the branch (a folder workspace shows its folder name). A detached row shows
+ * its short SHA with a commit icon. The repo is the last resort, and only when there is no branch and
+ * no commit. `branchLabel` is the branch with the user's own prefix dropped, when the list computed one.
  */
 export function resolveBranchRowLabel(
   source: BranchRowLabelSource,
@@ -59,10 +67,11 @@ export function resolveBranchRowLabel(
   if (sha) {
     return { label: resolveOneLineRowLabel(source.manualDisplayName, sha), icon: 'commit' }
   }
+  const ownName = branch ? nameBeyondBranch(source.displayName, branch) : null
   return {
     label: resolveOneLineRowLabel(
       source.manualDisplayName,
-      options.branchLabel || branch || source.repo
+      ownName ?? (options.branchLabel || branch || source.repo)
     ),
     icon: 'branch'
   }

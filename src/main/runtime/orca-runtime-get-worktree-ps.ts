@@ -153,6 +153,7 @@ export class OrcaRuntimeWithGetWorktreePs extends OrcaRuntimeWithStartTuiIdleVis
         hookSnapshots: this.getAgentStatusSnapshotFn?.() ?? []
       }),
       orchestrationByPaneKey: this.agentOrchestrationProjection.buildByPaneKey(),
+      conversationNameForRow: (row) => this.orchestrationSenderNames.rowConversationName(row),
       getSummary: (summaryMap, pathIndex, missingIds, worktreeId) =>
         this.getSummaryForRuntimeWorktreeId(summaryMap, pathIndex, missingIds, worktreeId)
     })

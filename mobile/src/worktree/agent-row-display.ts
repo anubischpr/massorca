@@ -127,13 +127,29 @@ export function agentStateLabel(state: AgentDotState): string {
 // (`importWorkingTreeModuleCopy`), so a value import from another file would not resolve there.
 const STOPPING_LABEL = 'Stopping…'
 
+// The first value that is not blank, trimmed.
+function firstNonBlank(...values: readonly (string | null | undefined)[]): string | null {
+  for (const value of values) {
+    const trimmed = value?.trim()
+    if (trimmed) {
+      return trimmed
+    }
+  }
+  return null
+}
+
 // Primary row text: "Stopping…" while the host says a person's Stop is ending the turn, else the
-// agent's last message, then the user prompt, then a human-readable state label so a row is never
-// blank. Matches the desktop DashboardAgentRow displayLabel fallback chain. The Stopping test
-// mirrors agentStopDisplayStatus (src/shared), inline for the same single-file copy.
+// session's name (the conversation name desktop shows, then the dispatch's display name and task
+// title), then the agent's last message, then the user prompt, then a human-readable state label so
+// a row is never blank. The Stopping test mirrors agentStopDisplayStatus (src/shared), inline for the
+// same single-file copy.
 export function agentDisplayLabel(row: RuntimeWorktreeAgentRow, now: number): string {
   if (row.state === 'working' && row.mainAgent?.stopping === true) {
     return STOPPING_LABEL
+  }
+  const name = firstNonBlank(row.conversationName, row.displayName, row.taskTitle)
+  if (name) {
+    return name
   }
   const message = row.lastAssistantMessage?.trim()
   if (message) {

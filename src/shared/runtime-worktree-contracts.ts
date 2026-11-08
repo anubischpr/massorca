@@ -19,6 +19,8 @@ export type RuntimeWorktreeAgentRow = {
   prompt: string
   taskTitle: string | null
   displayName: string | null
+  /** The conversation name desktop shows for this row. Old hosts never send it. */
+  conversationName?: string | null
   lastAssistantMessage: string | null
   toolName: string | null
   toolInput: string | null

@@ -186,6 +186,41 @@ describe('agentDisplayLabel', () => {
     ).toBe('Monitoring background tasks')
   })
 
+  it('prefers the conversation name, then the generated display name, then the task title', () => {
+    const named = row({
+      lastAssistantMessage: 'hello there',
+      conversationName: 'Auth refactor',
+      displayName: 'Dispatch name',
+      taskTitle: 'Task title'
+    })
+    expect(agentDisplayLabel(named, 0)).toBe('Auth refactor')
+    expect(agentDisplayLabel({ ...named, conversationName: null }, 0)).toBe('Dispatch name')
+    expect(agentDisplayLabel({ ...named, conversationName: '  ', displayName: null }, 0)).toBe(
+      'Task title'
+    )
+  })
+
+  it('keeps the last message and prompt when the new name fields are absent', () => {
+    const unnamed = { conversationName: null, displayName: null, taskTitle: null }
+    expect(agentDisplayLabel(row({ ...unnamed, lastAssistantMessage: 'hello there' }), 0)).toBe(
+      'hello there'
+    )
+    expect(agentDisplayLabel(row({ ...unnamed, prompt: 'do the thing' }), 0)).toBe('do the thing')
+  })
+
+  it('says Stopping before a conversation name', () => {
+    expect(
+      agentDisplayLabel(
+        row({
+          state: 'working',
+          conversationName: 'Auth refactor',
+          mainAgent: { state: 'working', stopping: true, stateStartedAt: 0 }
+        }),
+        0
+      )
+    ).toBe('Stopping…')
+  })
+
   it("says Stopping while the host says a person's Stop is ending the turn", () => {
     const stopping = row({
       lastAssistantMessage: 'hello there',

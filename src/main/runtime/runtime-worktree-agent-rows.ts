@@ -4,6 +4,7 @@ import { mergeWorktreeSummaryStatus } from './runtime-worktree-status-projection
 import type { RuntimeWorktreeSummaryPathIndex } from './runtime-worktree-summary-paths'
 import type { RuntimeWorkingTerminalEvidence } from './runtime-worktree-ps-activity'
 import type { RuntimeWorktreeAgentSource } from './runtime-worktree-agent-source'
+import type { RowConversationNameSource } from './runtime-worktree-agent-conversation-name'
 export type { RuntimeAgentRowSnapshot } from './runtime-hook-agent-row-selection'
 
 type OrchestrationDisplay = {
@@ -22,6 +23,8 @@ export function attachRuntimeWorktreeAgentRows(args: {
     readonly RuntimeWorkingTerminalEvidence[]
   >
   orchestrationByPaneKey: Record<string, OrchestrationDisplay> | null | undefined
+  /** Names a row's conversation as desktop does; absent when no names are published. */
+  conversationNameForRow?: (row: RowConversationNameSource) => string | null
   getSummary: (
     summaries: Map<string, RuntimeWorktreePsSummary>,
     pathIndex: RuntimeWorktreeSummaryPathIndex,
@@ -47,6 +50,13 @@ export function attachRuntimeWorktreeAgentRows(args: {
       continue
     }
     const orchestration = args.orchestrationByPaneKey?.[source.paneKey]
+    const conversationName =
+      args.conversationNameForRow?.({
+        paneKey: source.paneKey,
+        worktreeId,
+        terminalHandle: source.terminalHandle,
+        parentPaneKey: orchestration?.parentPaneKey ?? null
+      }) ?? null
     const row: RuntimeWorktreeAgentRow = {
       paneKey: source.paneKey,
       parentPaneKey: orchestration?.parentPaneKey ?? null,
@@ -65,7 +75,8 @@ export function attachRuntimeWorktreeAgentRows(args: {
       updatedAt: source.updatedAt,
       ...(source.structuredHost === 'owned' ? { structuredHostOwned: true as const } : {}),
       ...(source.piRuntime ? { piRuntime: source.piRuntime } : {}),
-      ...(source.terminalHandle ? { terminalHandle: source.terminalHandle } : {})
+      ...(source.terminalHandle ? { terminalHandle: source.terminalHandle } : {}),
+      ...(conversationName ? { conversationName } : {})
     }
     const rows = rowsByWorktree.get(summary.worktreeId)
     if (rows) {

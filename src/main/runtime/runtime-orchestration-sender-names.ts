@@ -1,8 +1,11 @@
 // The runtime's answer to "what is this agent called", from its own records, for any send that
-// speaks for another agent: the mail lane today, a dispatched task next.
+// speaks for another agent: the mail lane today, a dispatched task next, and agent row names.
 
 import type { AgentMessageSender } from '../../shared/agent-session-message-source'
-import type { ConversationNameTab } from '../../shared/agent-row-conversation-name'
+import {
+  getAgentRowConversationName,
+  type ConversationNameTab
+} from '../../shared/agent-row-conversation-name'
 import type { AgentStatusIpcPayload, AgentType } from '../../shared/agent-status-types'
 import { parsePaneKey } from '../../shared/stable-pane-id'
 import type { Tab } from '../../shared/tab-types'
@@ -13,8 +16,15 @@ import {
   type TerminalSenderNaming
 } from './orchestration/orchestration-sender-name'
 import { agentMessageSender } from './orchestration/agent-message-sender'
-import { readAgentSessionRecordStore } from './orchestration/structured-session-lineage'
+import {
+  lineageLiveSession,
+  readAgentSessionRecordStore
+} from './orchestration/structured-session-lineage'
 import { terminalHostConnectionMatches } from './orchestration/worker-provider-session'
+import {
+  resolveRowConversationName,
+  type RowConversationNameSource
+} from './runtime-worktree-agent-conversation-name'
 
 type RuntimeSenderNameDeps = {
   getDb: () => OrchestrationDb | null
@@ -82,16 +92,55 @@ export class RuntimeOrchestrationSenderNames {
       {
         db: this.deps.getDb(),
         records: readAgentSessionRecordStore(),
-        chatTab: (worktreeId, sessionId) =>
-          this.deps
-            .getWorkspaceSession(worktreeId)
-            ?.unifiedTabs?.[worktreeId]?.find(
-              (tab) => tab.contentType === 'agent-session' && tab.entityId === sessionId
-            ) ?? null,
+        chatTab: (worktreeId, sessionId) => this.chatTab(worktreeId, sessionId),
         terminal: (handle) => this.terminalNaming(handle),
         generatedTitlesEnabled: this.deps.getGeneratedTitlesEnabled()
       },
       reportedDispatchId
+    )
+  }
+
+  /** The name a sidebar agent row shows for its conversation, as desktop shows it; null when none. */
+  rowConversationName(row: RowConversationNameSource): string | null {
+    try {
+      return resolveRowConversationName(row, {
+        chatTab: (worktreeId, sessionId) => this.chatTab(worktreeId, sessionId),
+        chatSavedName: (sessionId) => {
+          const records = readAgentSessionRecordStore()
+          return records ? lineageLiveSession(records, sessionId)?.conversationName : null
+        },
+        terminalName: (handle) => this.terminalConversationName(handle)
+      })
+    } catch {
+      // A name is a label, never a reason the worker list fails.
+      return null
+    }
+  }
+
+  private chatTab(
+    worktreeId: string,
+    sessionId: string
+  ): Pick<Tab, 'customLabel' | 'label'> | null {
+    return (
+      this.deps
+        .getWorkspaceSession(worktreeId)
+        ?.unifiedTabs?.[worktreeId]?.find(
+          (tab) => tab.contentType === 'agent-session' && tab.entityId === sessionId
+        ) ?? null
+    )
+  }
+
+  private terminalConversationName(handle: string): string | null {
+    const naming = this.terminalNaming(handle)
+    if (!naming?.tab) {
+      return null
+    }
+    return getAgentRowConversationName(
+      naming.tab,
+      naming.agent,
+      this.deps.getGeneratedTitlesEnabled(),
+      naming.paneTitle,
+      naming.providerSessionId
     )
   }
 

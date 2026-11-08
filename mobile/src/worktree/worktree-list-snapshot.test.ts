@@ -223,6 +223,32 @@ describe('areWorktreeListsEqual', () => {
     expect(areWorktreeListsEqual(first, second)).toBe(false)
   })
 
+  it('detects a session row whose conversation, display or task name changes', () => {
+    const named = (overrides: Partial<RuntimeWorktreeAgentRow>) => [
+      worktree({ agents: [agent(overrides)] })
+    ]
+
+    expect(
+      areWorktreeListsEqual(
+        named({ conversationName: 'Auth' }),
+        named({ conversationName: 'Billing' })
+      )
+    ).toBe(false)
+    expect(
+      areWorktreeListsEqual(named({ displayName: 'Dispatch' }), named({ displayName: 'Other' }))
+    ).toBe(false)
+    expect(areWorktreeListsEqual(named({ taskTitle: 'Task' }), named({ taskTitle: 'Other' }))).toBe(
+      false
+    )
+  })
+
+  it('treats an absent session name the same as an unset one', () => {
+    const absent = [worktree({ agents: [agent({ conversationName: undefined })] })]
+    const unset = [worktree({ agents: [agent({ conversationName: null })] })]
+
+    expect(areWorktreeListsEqual(absent, unset)).toBe(true)
+  })
+
   it('treats missing and empty agent arrays as equivalent for rendering', () => {
     const first = [worktree({ agents: undefined })]
     const second = [worktree({ agents: [] })]
