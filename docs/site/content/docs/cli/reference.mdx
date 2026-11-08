@@ -347,6 +347,9 @@ orca marketplace audit --host wsl:Ubuntu      # each page: opens, or blocked (co
 orca marketplace program status gh --host runtime:pv-vps   # installed?, version, path, method, what MassOrca can do
 orca marketplace program install codex --host wsl:Ubuntu   # waits for the installer; needs-admin prints the command to run
 orca marketplace program uninstall node --yes              # uninstall and reinstall ask for --yes unless --json
+orca marketplace github accounts list --host runtime:pv-vps   # gh logins there; * marks the active one; never a token
+orca marketplace github accounts switch alice --github-host github.com
+orca marketplace github accounts rm bob --yes
 orca marketplace services list                # GitLab, Bitbucket, Azure DevOps, Gitea, Linear, Jira
 orca marketplace services connect linear --token-env LINEAR_API_KEY
 orca marketplace services connect gitea --site https://git.example.com --token-env GITEA_TOKEN
