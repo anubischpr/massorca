@@ -26,19 +26,34 @@ type AgentSource = { row: RuntimeWorktreeAgentRow; item: Worktree; identity: str
  * section of one render. Follows the desktop rules: a session goes where its parent chain ends, a
  * cycle keeps the session where it is listed, and a session with no listed parent stays in its own
  * worktree. A worktree listed twice (pinned and grouped) takes its children only once.
+ *
+ * `allWorktrees` are every worktree the host lists, as desktop places from the whole store: a child
+ * row that a filter or a folded lineage keeps out of the list still has its session placed under
+ * a listed parent, instead of disappearing from both.
  */
 export function placeCrossWorktreeAgents(
-  sections: readonly Section[]
+  sections: readonly Section[],
+  allWorktrees: readonly Worktree[] = []
 ): CrossWorktreeAgentPlacement {
   const sources = new Map<string, AgentSource>()
+  const listedIdentities = new Set<string>()
+  const addSources = (item: Worktree): void => {
+    const identity = getWorktreeRowIdentity(item)
+    for (const row of item.agents ?? []) {
+      if (!sources.has(row.paneKey)) {
+        sources.set(row.paneKey, { row, item, identity })
+      }
+    }
+  }
   for (const section of sections) {
     for (const item of section.data) {
-      const identity = getWorktreeRowIdentity(item)
-      for (const row of item.agents ?? []) {
-        if (!sources.has(row.paneKey)) {
-          sources.set(row.paneKey, { row, item, identity })
-        }
-      }
+      listedIdentities.add(getWorktreeRowIdentity(item))
+      addSources(item)
+    }
+  }
+  for (const item of allWorktrees) {
+    if (!item.isArchived) {
+      addSources(item)
     }
   }
 
@@ -69,7 +84,8 @@ export function placeCrossWorktreeAgents(
   const incomingByIdentity = new Map<string, RuntimeWorktreeAgentRow[]>()
   for (const [paneKey, source] of sources) {
     const display = displayOf(paneKey, new Set())
-    if (display === source.identity) {
+    // Why: a parent that is not listed would take the session with it, so the session stays home.
+    if (display === source.identity || !listedIdentities.has(display)) {
       continue
     }
     ownersByPaneKey.set(paneKey, { item: source.item, branch: runBranchOf(source.item) })

@@ -4,8 +4,16 @@ import {
   arrangeBranchRowSections,
   placeCrossWorktreeAgents
 } from './cross-worktree-agent-placement'
+import { getMobileWorkspaceLineageGroupKey } from './mobile-workspace-lineage'
+import { buildSections } from './workspace-list-sections'
 import { getWorktreeRowIdentity } from './worktree-host-row-identity'
-import type { Section, Worktree } from './workspace-list-types'
+import type { FilterState, Section, Worktree } from './workspace-list-types'
+
+const NO_FILTERS: FilterState = {
+  filterRepoIds: new Set(),
+  hideSleeping: false,
+  hideDefaultBranch: false
+}
 
 function agent(paneKey: string, parentPaneKey: string | null = null): RuntimeWorktreeAgentRow {
   return {
@@ -204,6 +212,54 @@ describe('branch rows of worktrees whose sessions run under another parent', () 
     const placement = placeCrossWorktreeAgents([section('all', [A, B, C])])
 
     expect([...placement.hiddenIdentities].sort()).toEqual([identityOf(B), identityOf(C)].sort())
+  })
+
+  it('lists a child under its parent when a folded lineage keeps the child row out of the list', () => {
+    const folded = new Set([getMobileWorkspaceLineageGroupKey(A)])
+    const listed = buildSections(
+      [A, B],
+      'recent',
+      NO_FILTERS,
+      '',
+      'none',
+      new Set(),
+      new Map(),
+      undefined,
+      folded
+    )
+    const placement = placeCrossWorktreeAgents(listed, [A, B])
+
+    expect(listedPaneKeys(placement.sections)).toEqual(['pane-c', 'pane-p'])
+    expect(placement.sections[0]?.data[0]?.agents?.map((row) => row.paneKey)).toEqual([
+      'pane-p',
+      'pane-c'
+    ])
+  })
+
+  it('lists a child under its parent when Hide sleeping filters the child row out', () => {
+    const awake = { ...A, hasHostSidebarActivity: true }
+    const asleep = { ...B, hasHostSidebarActivity: false }
+    const filters = { ...NO_FILTERS, hideSleeping: true }
+    const listed = buildSections([awake, asleep], 'recent', filters, '', 'none', new Set())
+    const placement = placeCrossWorktreeAgents(listed, [awake, asleep])
+
+    expect(placement.sections[0]?.data.map((item) => item.worktreeId)).toEqual(['wt-a'])
+    expect(placement.sections[0]?.data[0]?.agents?.map((row) => row.paneKey)).toEqual([
+      'pane-p',
+      'pane-c'
+    ])
+  })
+
+  it('keeps a child in its own row when its parent row is filtered out', () => {
+    const asleep = { ...A, hasHostSidebarActivity: false, isMainWorktree: false }
+    const awake = { ...B, hasHostSidebarActivity: true }
+    const filters = { ...NO_FILTERS, hideSleeping: true }
+    const listed = buildSections([asleep, awake], 'recent', filters, '', 'none', new Set())
+    const placement = placeCrossWorktreeAgents(listed, [asleep, awake])
+
+    expect(placement.hiddenIdentities.size).toBe(0)
+    expect(placement.ownersByPaneKey.has('pane-c')).toBe(false)
+    expect(listedPaneKeys(placement.sections)).toEqual(['pane-c'])
   })
 
   it('removes a hidden row outside the pinned section and keeps it there', () => {
