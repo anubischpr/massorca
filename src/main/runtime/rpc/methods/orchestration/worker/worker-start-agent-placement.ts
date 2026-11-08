@@ -35,6 +35,8 @@ import {
   type WorkerSetupReceipt
 } from './worker-topology'
 import { createWorkerWorktree } from './worker-worktree-creation'
+import { botRunOfDelegatedDispatch } from '../../../../../bot-teams/bot-team-delegated-run'
+import { refuseWorkerForDeniedBot, type WorkerBotRun } from './worker-bot-run'
 
 /** Only what the placement itself reads. The runtime's own worktree accessors are untyped, so
  *  naming the two fields keeps `any` out of this module's unions. */
@@ -69,6 +71,8 @@ type WorkerAgentPlacementArgs = {
   /** Resolved against the agent's declared modes; present only for an explicit `--access-mode`. */
   accessMode?: AgentSessionExplicitAccess
   piRuntime?: PiRuntimeSelection
+  /** The bot whose session started this worker directly; a hand-over's own teammate wins over it. */
+  botRun?: WorkerBotRun
   effects: WorkerEffect[]
   /** Attributes a throw to the step that was running, the way the caller's own stages do. */
   onStage: (stage: string) => void
@@ -132,6 +136,9 @@ async function launchWorkerAgent(
         args.onStage(stage === 'worktree_create' ? 'worktree_create' : 'terminal_create'),
       workspaces: {
         createWorktree: async ({ startupAgent }) => {
+          if (startupAgent !== undefined) {
+            await refuseTerminalForDeniedBot(args)
+          }
           created = await createWorkerWorktree({
             runtime: args.runtime,
             db: args.db,
@@ -197,6 +204,8 @@ function workerSurfaceFactory(
         worktreeId,
         agent,
         dispatchId: args.dispatchId,
+        db: args.db,
+        ...(args.botRun ? { botRun: args.botRun } : {}),
         ...(args.launchPreferences ? { launchPreferences: args.launchPreferences } : {}),
         ...(args.accessMode ? { accessMode: args.accessMode } : {}),
         ...(args.piRuntime ? { piRuntime: args.piRuntime } : {}),
@@ -218,6 +227,7 @@ function workerSurfaceFactory(
           { effectsApplied: false }
         )
       }
+      await refuseTerminalForDeniedBot(args)
       recordSurfaceStage(worktreeId)
       const terminal = await createExistingWorktreeWorkerTerminal({
         runtime: args.runtime,
@@ -230,6 +240,14 @@ function workerSurfaceFactory(
       return { handle: terminal.handle, ...(terminal.warning ? { warning: terminal.warning } : {}) }
     }
   }
+}
+
+/** A terminal worker gets the host's app tokens and config, so a bot kept out of an app runs as a chat. */
+async function refuseTerminalForDeniedBot(args: WorkerAgentPlacementArgs): Promise<void> {
+  await refuseWorkerForDeniedBot(
+    botRunOfDelegatedDispatch(args.db, args.dispatchId) ?? args.botRun,
+    'a terminal worker'
+  )
 }
 
 function requireWorktree(worktree: PlacedWorktree | undefined): PlacedWorktree {

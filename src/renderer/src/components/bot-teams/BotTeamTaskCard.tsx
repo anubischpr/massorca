@@ -10,7 +10,10 @@ import {
 } from '@/components/ui/select'
 import { translate } from '@/i18n/i18n'
 import { cn } from '@/lib/utils'
-import type { BotTeamTaskStatus } from '../../../../shared/bot-team-task-status'
+import {
+  botTeamStatusAwaiting,
+  type BotTeamTaskStatus
+} from '../../../../shared/bot-team-task-status'
 import type { BotTeam } from '../../../../shared/rpc-contract/bot-team-params'
 import type {
   BotTeamProject,
@@ -37,7 +40,7 @@ export function BotTeamTaskStatusPlaceholder(): React.JSX.Element {
 export function BotTeamTaskCard({
   task,
   owner,
-  status,
+  status: liveStatus,
   projects,
   offline,
   reassign,
@@ -57,6 +60,8 @@ export function BotTeamTaskCard({
   onStart: () => void
   onOpen: () => void
 }): React.JSX.Element {
+  // A bot that ended its turn on a question for the person has not finished: the card waits for them.
+  const status = botTeamStatusAwaiting(liveStatus, task.awaitingPerson)
   return (
     <div
       data-bot-team-task-card

@@ -26,6 +26,13 @@ vi.mock('../../structured-agent-session-create', () => ({
       : { ok: true, value: { sessionId: args.envelope.sessionId, fence: 7 } }
 }))
 
+const denial = vi.hoisted(() => ({ deniesBot: false }))
+vi.mock('../../../../../marketplace/marketplace-bot-run-denial', async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
+  resolveBotRunDenial: async () =>
+    denial.deniesBot ? { mcpServers: ['engram'], envNames: [], envPrefixes: [] } : null
+}))
+
 const { placeWorkerAgent } = await import('./worker-start-agent-placement')
 
 const STRUCTURED: AgentLaunchModeReceipt = {
@@ -63,19 +70,27 @@ function fakes() {
     getClientSettings: vi.fn(() => ({})),
     ensureStructuredAgentSessionHost: async () => {}
   }
+  const handOver: { bot: { botId: string; teamId: string } | undefined } = { bot: undefined }
   const db = {
     recordWorkerStage: vi.fn((row: { stage: string }) => {
       stages.push(row.stage)
-    })
+    }),
+    // The bot teammate a dispatch runs for, as the hand-over lookup reads it; none by default.
+    db: { prepare: () => ({ get: () => handOver.bot }) }
   }
   const failedStages: string[] = []
   const effects: WorkerEffect[] = []
-  return { runtime, db, stages, failedStages, effects }
+  return { runtime, db, handOver, stages, failedStages, effects }
 }
 
 function place(
   f: ReturnType<typeof fakes>,
-  args: { mode: AgentLaunchModeReceipt; existing?: boolean; terminal?: string }
+  args: {
+    mode: AgentLaunchModeReceipt
+    existing?: boolean
+    terminal?: string
+    botRun?: { botId: string; teamId: string }
+  }
 ) {
   return placeWorkerAgent({
     // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the placement calls only the methods faked here.
@@ -96,6 +111,7 @@ function place(
     mode: args.mode,
     agent: args.terminal ? undefined : 'claude',
     launchPreferences: undefined,
+    ...(args.botRun ? { botRun: args.botRun } : {}),
     effects: f.effects,
     onStage: (stage) => f.failedStages.push(stage)
   })
@@ -112,6 +128,7 @@ function installHost() {
 }
 
 beforeEach(() => {
+  denial.deniesBot = false
   sessionCreate.refusal = null
   structuredWorkerIdentities.clear()
   installHost()
@@ -274,5 +291,55 @@ describe('a fresh worker through the launch executor', () => {
     expect(f.runtime.createTerminal).not.toHaveBeenCalled()
     expect(f.runtime.createManagedWorktree).not.toHaveBeenCalled()
     expect(f.stages).toEqual([])
+  })
+
+  describe('a hand-over to a bot teammate kept out of a Marketplace app', () => {
+    const BOT = { botId: 'bob', teamId: 't1' }
+
+    it.each([
+      ['an existing worktree', { mode: TERMINAL, existing: true }],
+      ['a worktree it creates', { mode: TERMINAL }]
+    ])('refuses a terminal worker in %s, which would get the host tokens', async (_name, args) => {
+      const f = fakes()
+      f.handOver.bot = BOT
+      denial.deniesBot = true
+
+      await expect(place(f, args)).rejects.toMatchObject({ code: 'capability_unsupported' })
+      expect(f.runtime.createTerminal).not.toHaveBeenCalled()
+      expect(f.runtime.createManagedWorktree).not.toHaveBeenCalledWith(
+        expect.objectContaining({ startupAgent: expect.anything() })
+      )
+    })
+
+    it.each([
+      ['an existing worktree', { mode: TERMINAL, existing: true }],
+      ['a worktree it creates', { mode: TERMINAL }]
+    ])('refuses a terminal worker a denied bot started directly in %s', async (_name, args) => {
+      const f = fakes()
+      denial.deniesBot = true
+
+      await expect(place(f, { ...args, botRun: BOT })).rejects.toMatchObject({
+        code: 'capability_unsupported'
+      })
+      expect(f.runtime.createTerminal).not.toHaveBeenCalled()
+    })
+
+    it('starts a terminal worker for a directly-starting bot kept out of nothing', async () => {
+      const f = fakes()
+      const placed = await place(f, { mode: TERMINAL, existing: true, botRun: BOT })
+      expect(placed.terminalHandle).toBe('term_worker')
+    })
+
+    it('still starts the teammate as a chat, and a teammate kept out of nothing as a terminal', async () => {
+      const f = fakes()
+      f.handOver.bot = BOT
+      denial.deniesBot = true
+      const chat = await place(f, { mode: STRUCTURED, existing: true })
+      expect(chat.structuredSession).not.toBeNull()
+
+      denial.deniesBot = false
+      const terminal = await place(fakes(), { mode: TERMINAL, existing: true })
+      expect(terminal.terminalHandle).toBe('term_worker')
+    })
   })
 })

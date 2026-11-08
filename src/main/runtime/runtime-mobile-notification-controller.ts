@@ -68,7 +68,17 @@ export class RuntimeMobileNotificationController {
   private dismissalStore: MobileNotificationDismissalStore | null = null
 
   configureDismissalStore(userDataPath: string): void {
+    this.flushDismissalState()
     this.dismissalStore = new MobileNotificationDismissalStore(userDataPath)
+  }
+
+  /** Lands debounced dismissal records now; a failure is warned, not thrown. */
+  flushDismissalState(): void {
+    try {
+      this.dismissalStore?.flushPendingWrite()
+    } catch {
+      console.warn('[notifications] Could not persist dismissal recovery state')
+    }
   }
 
   reconcileDismissedPushes(

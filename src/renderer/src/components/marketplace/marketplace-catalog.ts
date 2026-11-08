@@ -21,7 +21,7 @@ export const MARKETPLACE_CATALOG: readonly MarketplaceCatalogItem[] = [
     name: 'Git',
     description: {
       key: 'auto.components.marketplace.marketplace-catalog.gitDescription',
-      fallback: 'Version control for your repositories.'
+      fallback: 'Versions of files and code. Workspaces and Versions use it.'
     }
   },
   {
@@ -30,7 +30,7 @@ export const MARKETPLACE_CATALOG: readonly MarketplaceCatalogItem[] = [
     name: 'GitHub',
     description: {
       key: 'auto.components.marketplace.marketplace-catalog.githubDescription',
-      fallback: 'Pull requests and issues from GitHub, through the gh command.'
+      fallback: 'Repositories, pull requests and issues.'
     }
   },
   {
@@ -48,7 +48,7 @@ export const MARKETPLACE_CATALOG: readonly MarketplaceCatalogItem[] = [
     name: 'OpenMetadata',
     description: {
       key: 'auto.components.marketplace.marketplace-catalog.openMetadataDescription',
-      fallback: "Your company's context center, as an MCP server for your agents."
+      fallback: 'Company context for agents, over MCP.'
     }
   }
 ]

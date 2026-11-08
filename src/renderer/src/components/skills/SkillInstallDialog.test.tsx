@@ -731,3 +731,114 @@ describe('SkillInstallDialog', () => {
     await screen.findByRole('button', { name: 'Retry install' })
   })
 })
+
+describe('SkillInstallDialog opened on a picked host', () => {
+  function previewOk() {
+    return vi.fn().mockResolvedValue({
+      status: 'ok',
+      value: {
+        name: 'private-skill',
+        packageDigest: DIGEST,
+        destinationIdentity: 'global:remote',
+        currentState: 'missing',
+        providers: []
+      }
+    })
+  }
+
+  it('installs on the runtime host it opens on, with the agents it starts with', async () => {
+    const previewInstall = previewOk()
+    const skills = installApi(previewInstall)
+    Object.defineProperty(window, 'api', {
+      configurable: true,
+      value: { skills, preflight: detectionApi(['codex']) }
+    })
+    render(
+      <SkillInstallDialog
+        open
+        onOpenChange={() => undefined}
+        initialTarget={{ environmentId: 'env-vps', providers: ['codex'] }}
+      />
+    )
+    await inspectSkill()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Install skill' }))
+
+    await waitFor(() => expect(skills.installShare).toHaveBeenCalled())
+    expect(previewInstall).toHaveBeenCalledWith(
+      expect.objectContaining({ environmentId: 'env-vps', destination: { scope: 'global' } })
+    )
+    expect(skills.installShare).toHaveBeenCalledWith(
+      expect.objectContaining({ environmentId: 'env-vps', providers: ['codex'] })
+    )
+  })
+
+  it('installs on the SSH host it opens on through that connection, not this computer', async () => {
+    const previewInstall = previewOk()
+    const skills = installApi(previewInstall)
+    const preflight = detectionApi(['codex'])
+    Object.defineProperty(window, 'api', {
+      configurable: true,
+      value: { skills, preflight }
+    })
+    render(
+      <SkillInstallDialog
+        open
+        onOpenChange={() => undefined}
+        initialTarget={{ environmentId: 'ssh:conn-1' }}
+      />
+    )
+    await inspectSkill()
+    await waitFor(() =>
+      expect(preflight.detectRemoteAgents).toHaveBeenCalledWith({ connectionId: 'conn-1' })
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Install skill' }))
+
+    await waitFor(() => expect(skills.installShare).toHaveBeenCalled())
+    const [previewRequest] = previewInstall.mock.calls[0] as [Record<string, unknown>]
+    expect(previewRequest).not.toHaveProperty('environmentId')
+    expect(previewRequest.destination).toEqual({
+      scope: 'global',
+      executionTarget: { kind: 'ssh', connectionId: 'conn-1' }
+    })
+    const [installRequest] = skills.installShare.mock.calls[0] as [Record<string, unknown>]
+    expect(installRequest).not.toHaveProperty('environmentId')
+  })
+
+  it('installs into the WSL distro it opens on, and starts from that distro agents', async () => {
+    const previewInstall = previewOk()
+    const skills = installApi(previewInstall)
+    const preflight = {
+      ...detectionApi(['codex']),
+      detectAgents: vi.fn().mockResolvedValue(['codex'])
+    }
+    Object.defineProperty(window, 'api', {
+      configurable: true,
+      value: { skills, preflight }
+    })
+    render(
+      <SkillInstallDialog
+        open
+        onOpenChange={() => undefined}
+        initialTarget={{
+          environmentId: 'local',
+          executionTarget: { kind: 'wsl', distro: 'Ubuntu' }
+        }}
+      />
+    )
+    await inspectSkill()
+    await waitFor(() =>
+      expect(preflight.detectAgents).toHaveBeenCalledWith({ wslDistro: 'Ubuntu' })
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Install skill' }))
+
+    await waitFor(() => expect(skills.installShare).toHaveBeenCalled())
+    expect(previewInstall).toHaveBeenCalledWith(
+      expect.objectContaining({
+        destination: { scope: 'global', executionTarget: { kind: 'wsl', distro: 'Ubuntu' } }
+      })
+    )
+  })
+})

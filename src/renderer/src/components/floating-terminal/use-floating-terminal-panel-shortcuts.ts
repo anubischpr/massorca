@@ -6,7 +6,9 @@ import {
   matchFloatingWorkspacePanelShortcut
 } from '@/lib/floating-workspace-shortcut-policy'
 import { isFloatingWorkspaceTerminalInputTarget } from '@/lib/floating-workspace-terminal-actions'
+import { openFloatingChecklistTab } from '@/lib/floating-workspace-checklist-tab'
 import { getShortcutPlatform } from '@/lib/shortcut-platform'
+import { translate } from '@/i18n/i18n'
 import { requestTerminalTabRename } from '@/components/tab-bar/terminal-tab-rename-request'
 import { useAppStore } from '@/store'
 import { FLOATING_TERMINAL_WORKTREE_ID } from '../../../../shared/constants'
@@ -16,6 +18,7 @@ import type {
   FloatingPanelShortcutResolution,
   FloatingShortcutOutcome
 } from './floating-terminal-panel-types'
+import { useFloatingOpenSessionPickerStore } from './session-picker/FloatingOpenSessionPicker'
 import type { FloatingTerminalCloseActions } from './use-floating-terminal-close-actions'
 import type { FloatingTerminalCreateActions } from './use-floating-terminal-create-actions'
 import type { FloatingWorkspaceChromeModel } from './use-floating-workspace-chrome-model'
@@ -130,6 +133,10 @@ export function useFloatingTerminalPanelShortcuts({
           createFloatingBrowserTab()
         } else if (resolution.action === 'tab.newMarkdown') {
           createFloatingMarkdownTab()
+        } else if (resolution.action === 'tab.newChecklist') {
+          openFloatingChecklistTab(translate('components.tabBar.checklist', 'Checklist'))
+        } else if (resolution.action === 'tab.openSession') {
+          useFloatingOpenSessionPickerStore.getState().setOpen(true)
         } else {
           openFloatingMarkdownTab()
         }

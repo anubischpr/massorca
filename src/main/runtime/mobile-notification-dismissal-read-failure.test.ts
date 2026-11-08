@@ -18,6 +18,7 @@ it('preserves dismissal history after EIO', () => {
       notificationEpoch: 'epoch',
       notificationSeq: 1
     })
+    store.flushPendingWrite()
     const path = join(dir, 'mobile-notification-dismissals.json')
     const before = readFileSync(path, 'utf8')
     vi.mocked(readFileSync).mockImplementationOnce(() => {

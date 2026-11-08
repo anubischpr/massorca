@@ -14,6 +14,7 @@ vi.mock('react-native', async () => {
       React.createElement('View', props, children)
   }
 })
+vi.mock('lucide-react-native', () => ({ Plug: 'Plug' }))
 vi.mock('./MobileBotAgentIcon', () => ({ MobileBotAgentIcon: 'AgentIcon' }))
 vi.mock('./MobileBotTeamCharacterIcon', () => ({ MobileBotTeamCharacterIcon: 'CharacterIcon' }))
 vi.mock('../components/MobileRepoIcon', () => ({ MobileRepoIcon: 'RepoIcon' }))
@@ -24,7 +25,8 @@ const TARGETS: MobileBotTeamMentionTarget[] = [
   { name: 'Iris', kind: 'bot', agent: 'claude', character: null },
   { name: 'Warehouse', kind: 'team', agent: null, character: 'square' },
   { name: 'Launch', kind: 'project', agent: null, character: null, logo: LOGO },
-  { name: 'Launchpad', kind: 'project', agent: null, character: null, logo: null }
+  { name: 'Launchpad', kind: 'project', agent: null, character: null, logo: null },
+  { name: 'Engram', kind: 'app', agent: null, character: null }
 ]
 
 function renderMentions(text: string): ReactTestRenderer {
@@ -85,6 +87,13 @@ describe('botTeamMentionNodes', () => {
 
     expect(chip.props.label).toBe('Launchpad')
     expect(chip.props.icon).toBeNull()
+  })
+
+  it('draws a connected app as a chip with the app icon', () => {
+    const chip = chipsOf(renderMentions('usa @Engram'))[0]
+
+    expect(chip.props.label).toBe('Engram')
+    expect(chip.props.icon.type).toBe('Plug')
   })
 
   it('draws a sent @path.ext as a chip with its file-type icon and the path as label', () => {

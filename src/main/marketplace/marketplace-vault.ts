@@ -15,7 +15,11 @@ import {
 } from '../../shared/marketplace-apps'
 import { getSecretStore, hasSecretStore } from '../../shared/secret-store'
 import { credentialFileHasContent, writeCredentialFileAtomic } from '../integration-credential-file'
-import { everyoneAccessByApp, storedAccessSchema } from './marketplace-access'
+import {
+  everyoneAccessByApp,
+  storedAccessSchema,
+  storedAccessStrictSchema
+} from './marketplace-access'
 import { isSealedV2, openSecret, sealSecret, sealedUpdatedAt } from './marketplace-vault-crypto'
 import { createMasterKeyProvider, type KeychainSealer } from './marketplace-vault-master-key'
 
@@ -23,6 +27,11 @@ export type VaultSlot =
   | { kind: 'openmetadata' }
   | { kind: 'openmetadata-profile'; name: string }
   | { kind: 'engram-cloud' }
+  // Why: read by MassOrca's own source-control calls on this host, never handed to an agent.
+  | { kind: 'service-token'; service: VaultTokenService }
+  | { kind: 'service-url'; service: VaultTokenService }
+
+export type VaultTokenService = 'azure-devops' | 'gitea'
 
 const agentWritesSchema = z.object({ entries: z.array(z.string()), instructions: z.boolean() })
 const writtenSchema = z.partialRecord(z.enum(MARKETPLACE_APP_AGENTS), agentWritesSchema)
@@ -72,6 +81,10 @@ function slotFileName(slot: VaultSlot): string {
       return `openmetadata-profile-${Buffer.from(slot.name).toString('base64url')}.enc`
     case 'engram-cloud':
       return 'engram-cloud-token.enc'
+    case 'service-token':
+      return `service-${slot.service}-token.enc`
+    case 'service-url':
+      return `service-${slot.service}-url.enc`
   }
 }
 
@@ -92,7 +105,8 @@ function desktopKeychain(): KeychainSealer | null {
  * key is wrapped by the OS keychain when there is one, otherwise it is a separate 0600 key file.
  */
 export class MarketplaceVault {
-  private envCache: Record<EnvApp, Record<string, string>> | null = null
+  private envCache: { signature: string; envs: Record<EnvApp, Record<string, string>> } | null =
+    null
   private readonly keys: ReturnType<typeof createMasterKeyProvider>
   private readonly sealer: () => KeychainSealer | null
   private readonly hostLabel: string
@@ -237,6 +251,28 @@ export class MarketplaceVault {
     }
   }
 
+  /**
+   * The state a bot run's denial is decided from. No file means nothing was ever stored; any other
+   * read or parse failure throws, so the caller can deny every app instead of allowing them.
+   */
+  readStateForDenial(): MarketplaceState {
+    let raw: string
+    try {
+      raw = readFileSync(join(this.dir, 'state.json'), 'utf8')
+    } catch (error) {
+      if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
+        return emptyMarketplaceState()
+      }
+      throw error
+    }
+    const json: unknown = JSON.parse(raw)
+    const state = stateSchema.parse(json)
+    const access = storedAccessStrictSchema.parse(
+      typeof json === 'object' && json !== null && 'access' in json ? json.access : undefined
+    )
+    return access ? { ...state, access } : state
+  }
+
   writeState(state: MarketplaceState): void {
     this.ensureDir()
     writeCredentialFileAtomic(
@@ -251,10 +287,31 @@ export class MarketplaceVault {
     this.envCache = null
   }
 
+  /**
+   * Which files the cache was built from: names, sizes, times and ids only. A write by another
+   * process on this host (a second MassOrca, the CLI) changes it, so a long-lived process still
+   * hands the next launch the new token or profile instead of the one it cached.
+   */
+  private folderSignature(): string {
+    try {
+      return readdirSync(this.dir)
+        .filter((name) => name === 'state.json' || name.endsWith('.enc'))
+        .sort()
+        .map((name) => {
+          const stat = statSync(join(this.dir, name), { bigint: true })
+          return `${name}:${stat.size}:${stat.mtimeNs}:${stat.ino}`
+        })
+        .join('|')
+    } catch {
+      return ''
+    }
+  }
+
   /** Env vars per app, read once until the state or a token changes; never handed out as is. */
   private readAppEnvs(): Record<EnvApp, Record<string, string>> {
-    if (this.envCache) {
-      return this.envCache
+    const signature = this.folderSignature()
+    if (this.envCache?.signature === signature) {
+      return this.envCache.envs
     }
     const state = this.readState()
     const envs: Record<EnvApp, Record<string, string>> = { engram: {}, openmetadata: {} }
@@ -275,7 +332,7 @@ export class MarketplaceVault {
     if (state.engram.serverUrl) {
       envs.engram[ENGRAM_CLOUD_SERVER_ENV] = state.engram.serverUrl
     }
-    this.envCache = envs
+    this.envCache = { signature, envs }
     return envs
   }
 

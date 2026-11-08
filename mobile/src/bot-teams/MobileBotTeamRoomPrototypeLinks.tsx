@@ -8,7 +8,11 @@ import type { PrototypeListedSet } from '../../../src/shared/rpc-contract/protot
 import { MobilePrototypeRequestLink } from '../prototypes/MobilePrototypeRequestLink'
 import { useMobilePrototypeSetsOfSession } from '../prototypes/use-mobile-prototype-session-sets'
 import type { RpcClient } from '../transport/rpc-client'
-import { botTeamRoomPrototypeTasks } from '../../../src/shared/bot-team-room-prototype-tasks'
+import {
+  botTeamRoomPrototypeTasks,
+  botTeamRoomTaskSessions,
+  botTeamRoomTaskSets
+} from '../../../src/shared/bot-team-room-prototype-tasks'
 
 /** How the room opens a Prototypes set; null where Prototypes cannot open, so no link shows. */
 export const BotTeamRoomPrototypeOpenContext = createContext<
@@ -31,17 +35,16 @@ export function useBotTeamRoomPrototypeLinks(
   teamId: string
 ): (messageId: string) => ReactNode {
   const open = useContext(BotTeamRoomPrototypeOpenContext)
-  const tasksByMessageId = useMemo(
-    () =>
-      room === null
-        ? new Map<string, BotTeamTask[]>()
-        : botTeamRoomPrototypeTasks(
-            room.messages,
-            [...room.tasks, ...room.sentRequests.map((request) => request.task)],
-            teamId
-          ),
-    [room, teamId]
-  )
+  const { tasksByMessageId, roomSessions } = useMemo(() => {
+    if (room === null) {
+      return { tasksByMessageId: new Map<string, BotTeamTask[]>(), roomSessions: new Set<string>() }
+    }
+    const all = [...room.tasks, ...room.sentRequests.map((request) => request.task)]
+    return {
+      tasksByMessageId: botTeamRoomPrototypeTasks(room.messages, all, teamId),
+      roomSessions: botTeamRoomTaskSessions(all)
+    }
+  }, [room, teamId])
   const refreshKey = room?.messages.length ?? 0
   return useCallback(
     (messageId: string) =>
@@ -54,22 +57,25 @@ export function useBotTeamRoomPrototypeLinks(
                 key={task.id}
                 client={client}
                 sessionId={task.sessionId}
+                roomSessions={roomSessions}
                 refreshKey={refreshKey}
                 onOpen={open}
               />
             )),
-    [client, open, refreshKey, tasksByMessageId]
+    [client, open, refreshKey, roomSessions, tasksByMessageId]
   )
 }
 
 function TaskPrototypeLinks({
   client,
   sessionId,
+  roomSessions,
   refreshKey,
   onOpen
 }: {
   client: RpcClient | null
   sessionId: string | null
+  roomSessions: ReadonlySet<string>
   refreshKey: number
   onOpen: (set: PrototypeListedSet) => void
 }) {
@@ -79,7 +85,10 @@ function TaskPrototypeLinks({
     scope: sessionId === null ? null : { sessionId },
     refreshKey
   })
-  return sets.map((set) => (
+  if (sessionId === null) {
+    return null
+  }
+  return botTeamRoomTaskSets(sets, sessionId, roomSessions).map((set) => (
     <MobilePrototypeRequestLink key={set.requestId} set={set} onOpen={onOpen} />
   ))
 }

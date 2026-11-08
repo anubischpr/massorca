@@ -138,6 +138,20 @@ describe('migrateUiHostScopeSshTargetId', () => {
     ])
   })
 
+  it('re-points the marketplace host pick to the new SSH host id', () => {
+    const ui = makeUi({ marketplaceHostKey: `ssh:${OLD_ID}` })
+
+    expect(migrateUiHostScopeSshTargetId(ui, OLD_ID, NEW_ID)).toBe(true)
+    expect(ui.marketplaceHostKey).toBe(`ssh:${NEW_ID}`)
+  })
+
+  it('leaves a marketplace runtime host pick alone', () => {
+    const ui = makeUi({ marketplaceHostKey: 'runtime:env-1' })
+
+    expect(migrateUiHostScopeSshTargetId(ui, OLD_ID, NEW_ID)).toBe(false)
+    expect(ui.marketplaceHostKey).toBe('runtime:env-1')
+  })
+
   it('returns false when the old host id appears nowhere', () => {
     const ui = makeUi({
       workspaceHostScope: 'all',

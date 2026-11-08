@@ -33,6 +33,9 @@ vi.mock('electron', () => ({
   },
   dialog: {
     showOpenDialog: showOpenDialogMock
+  },
+  BrowserWindow: {
+    fromWebContents: (sender: { window?: unknown }) => sender.window ?? null
   }
 }))
 
@@ -182,6 +185,16 @@ describe('registerShellHandlers', () => {
       '/Users/kaylee/diagram.png'
     ])
     expect(showOpenDialogMock).toHaveBeenCalledWith({
+      properties: ['openFile', 'multiSelections']
+    })
+  })
+
+  it('opens the attachment picker over the window that asked for it', async () => {
+    showOpenDialogMock.mockResolvedValue({ canceled: true, filePaths: [] })
+    const window = { id: 7 }
+
+    await getHandler('shell:pickAttachments')({ sender: { window } })
+    expect(showOpenDialogMock).toHaveBeenCalledWith(window, {
       properties: ['openFile', 'multiSelections']
     })
   })

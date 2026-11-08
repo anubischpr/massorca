@@ -3,11 +3,15 @@
  */
 import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
+import type * as I18nModule from '@/i18n/i18n'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true
 
-vi.mock('@/i18n/i18n', () => ({ translate: (_key: string, fallback: string) => fallback }))
+vi.mock('@/i18n/i18n', async (importOriginal) => ({
+  ...(await importOriginal<typeof I18nModule>()),
+  translate: (_key: string, fallback: string) => fallback
+}))
 
 const { CreateChatComposer } = await import('./CreateChatComposer')
 
@@ -48,7 +52,7 @@ afterEach(() => {
 describe('CreateChatComposer copy', () => {
   it('keeps the session wording by default', () => {
     const container = mount()
-    expect(container.querySelector('textarea')?.getAttribute('placeholder')).toBe(
+    expect(container.querySelector('[role="textbox"]')?.getAttribute('aria-label')).toBe(
       'Describe the task to start the session…'
     )
     expect(container.querySelector('button[aria-label="Create session"]')).not.toBeNull()
@@ -66,7 +70,7 @@ describe('CreateChatComposer copy', () => {
       creating: 'Creating task…',
       hint: 'Enter to create the task · Shift+Enter for a new line'
     })
-    expect(container.querySelector('textarea')?.getAttribute('placeholder')).toBe(
+    expect(container.querySelector('[role="textbox"]')?.getAttribute('aria-label')).toBe(
       'Describe the task for the team…'
     )
     expect(container.querySelector('button[aria-label="Create task"]')).not.toBeNull()

@@ -1,11 +1,22 @@
 import { translate } from '@/i18n/i18n'
-import type { MarketplaceActionResult } from '../../../../shared/marketplace-apps'
+import type {
+  MarketplaceActionResult,
+  MarketplaceVaultHostResult,
+  MarketplaceVaultSlot
+} from '../../../../shared/marketplace-apps'
 import { marketplaceAgentLabel } from './marketplace-catalog'
+import { vaultHostFailureMessage } from './marketplace-vault-credential-text'
 
 type MarketplaceFailure = Extract<MarketplaceActionResult, { ok: false }>
 
 /** Why a Marketplace change did not complete, in plain words; never the raw error. */
-export function marketplaceFailureMessage(failure: MarketplaceFailure): string {
+export function marketplaceFailureMessage(failure: MarketplaceFailure, hostLabel?: string): string {
+  const host =
+    hostLabel ??
+    translate(
+      'auto.components.marketplace.marketplace-action-messages.thisComputer',
+      'this computer'
+    )
   const agent = failure.agent ? marketplaceAgentLabel(failure.agent) : null
   switch (failure.reason) {
     case 'invalid-input':
@@ -35,14 +46,53 @@ export function marketplaceFailureMessage(failure: MarketplaceFailure): string {
             'auto.components.marketplace.marketplace-action-messages.unsupported',
             'A settings file has a format MassOrca does not recognize.'
           )
+    case 'outside-home':
+      return agent
+        ? translate(
+            'auto.components.marketplace.marketplace-action-messages.outsideHomeAgent',
+            'The settings file for {{agent}} links outside this home, so MassOrca left it alone.',
+            { agent }
+          )
+        : translate(
+            'auto.components.marketplace.marketplace-action-messages.outsideHome',
+            'A settings file links outside this home, so MassOrca left it alone.'
+          )
     case 'vault-unavailable':
-      return translate(
-        'auto.components.marketplace.marketplace-action-messages.vaultUnavailable',
-        'The secure vault on this computer is not available.'
-      )
+      return hostLabel
+        ? translate(
+            'auto.components.marketplace.marketplace-action-messages.vaultUnavailableOnHost',
+            'The secure vault on {{host}} is not available.',
+            { host: hostLabel }
+          )
+        : translate(
+            'auto.components.marketplace.marketplace-action-messages.vaultUnavailable',
+            'The secure vault on this computer is not available.'
+          )
+    case 'host-needs-update':
+    case 'unreachable':
+      return vaultHostFailureMessage(failure.reason, host)
     case 'failed':
       return changeFailedMessage()
   }
+}
+
+/** Why a host's vault could not take or clear one token; a profile token says what the update is for. */
+export function vaultSlotFailureMessage(
+  reason: Extract<MarketplaceVaultHostResult, { ok: false }>['reason'],
+  hostLabel: string,
+  slot: MarketplaceVaultSlot
+): string {
+  return reason === 'host-needs-update' && typeof slot !== 'string'
+    ? profileTokenNeedsUpdateMessage(hostLabel)
+    : vaultHostFailureMessage(reason, hostLabel)
+}
+
+export function profileTokenNeedsUpdateMessage(hostLabel: string): string {
+  return translate(
+    'auto.components.marketplace.marketplace-action-messages.profileTokenNeedsUpdate',
+    "Update MassOrca on {{host}} to store this profile's token.",
+    { host: hostLabel }
+  )
 }
 
 /** The change threw before it reported a reason, so the reason is only the generic one. */

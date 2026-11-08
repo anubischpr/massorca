@@ -18,6 +18,8 @@ type FloatingTerminalEmptyStateProps = {
   newBrowserShortcut: ShortcutKeyComboDetails
   newMarkdownShortcut: ShortcutKeyComboDetails
   openMarkdownShortcut: ShortcutKeyComboDetails
+  newChecklistShortcut: ShortcutKeyComboDetails
+  openSessionShortcut: ShortcutKeyComboDetails
   closeShortcut: ShortcutKeyComboDetails
 }
 
@@ -35,6 +37,8 @@ export function FloatingTerminalEmptyState({
   newBrowserShortcut,
   newMarkdownShortcut,
   openMarkdownShortcut,
+  newChecklistShortcut,
+  openSessionShortcut,
   closeShortcut
 }: FloatingTerminalEmptyStateProps): React.JSX.Element {
   return (
@@ -119,7 +123,7 @@ export function FloatingTerminalEmptyState({
           <span className="truncate text-left leading-none">
             {translate('components.tabBar.checklist', 'Checklist')}
           </span>
-          <span aria-hidden />
+          <FloatingEmptyStateShortcut shortcut={newChecklistShortcut} />
         </Button>
         <Button
           type="button"
@@ -131,7 +135,7 @@ export function FloatingTerminalEmptyState({
           <span className="truncate text-left leading-none">
             {translate('components.tabBar.openSession', 'Open a session...')}
           </span>
-          <span aria-hidden />
+          <FloatingEmptyStateShortcut shortcut={openSessionShortcut} />
         </Button>
         <Button
           type="button"

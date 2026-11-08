@@ -4,10 +4,19 @@ import type { OpenMetadataProfile } from '../../../../shared/marketplace-apps'
 import { MarketplaceFormDialog, TextField, useFormSubmit } from './MarketplaceFormDialog'
 import type { RunMarketplaceAction } from './use-marketplace-app-action'
 
-type DialogProps = { run: RunMarketplaceAction; onClose: () => void }
+type DialogProps = {
+  run: RunMarketplaceAction
+  onClose: () => void
+  /** The host the change goes to when it is not this computer. */
+  hostLabel?: string | null
+}
 
 /** Address and token for the OpenMetadata connection; the token is never shown back. */
-export function OpenMetadataConnectDialog({ run, onClose }: DialogProps): React.JSX.Element {
+export function OpenMetadataConnectDialog({
+  run,
+  onClose,
+  hostLabel
+}: DialogProps): React.JSX.Element {
   const [url, setUrl] = useState('')
   const [token, setToken] = useState('')
   const form = useFormSubmit(run, onClose)
@@ -19,10 +28,18 @@ export function OpenMetadataConnectDialog({ run, onClose }: DialogProps): React.
         'auto.components.marketplace.MarketplaceServerDialogs.connectTitle',
         'Connect OpenMetadata'
       )}
-      description={translate(
-        'auto.components.marketplace.MarketplaceServerDialogs.connectDescription',
-        'MassOrca stores the token in the vault on this computer and never shows it again.'
-      )}
+      description={
+        hostLabel
+          ? translate(
+              'auto.components.marketplace.MarketplaceServerDialogs.connectDescriptionHost',
+              '{{host}} stores the token in its own vault and never shows it again.',
+              { host: hostLabel }
+            )
+          : translate(
+              'auto.components.marketplace.MarketplaceServerDialogs.connectDescription',
+              'MassOrca stores the token in the vault on this computer and never shows it again.'
+            )
+      }
       submitLabel={translate(
         'auto.components.marketplace.MarketplaceServerDialogs.connect',
         'Connect'
@@ -132,9 +149,17 @@ export function OpenMetadataProfileDialog({
       pending={form.pending}
       error={form.error}
       onSubmit={() =>
-        void form.submit((api) =>
-          api.addOpenMetadataProfile({ name: profileName, url: address, token: secret })
-        )
+        void form.submit(async (api) => {
+          const added = await api.addOpenMetadataProfile({
+            name: profileName,
+            url: address,
+            token: secret
+          })
+          // Why: a rename is the new profile added first, so a failed add never loses the old one.
+          return added.ok && profile && profile.name !== profileName
+            ? api.removeOpenMetadataProfile({ name: profile.name })
+            : added
+        })
       }
       onClose={onClose}
     >
@@ -143,7 +168,6 @@ export function OpenMetadataProfileDialog({
         label={translate('auto.components.marketplace.MarketplaceServerDialogs.name', 'Name')}
         value={name}
         onChange={setName}
-        disabled={profile !== null}
       />
       <TextField
         id="marketplace-profile-address"
@@ -167,7 +191,8 @@ export function OpenMetadataProfileDialog({
 export function EngramServerDialog({
   serverUrl,
   run,
-  onClose
+  onClose,
+  hostLabel
 }: DialogProps & { serverUrl: string | null }): React.JSX.Element {
   const [url, setUrl] = useState(serverUrl ?? '')
   const [token, setToken] = useState('')
@@ -180,10 +205,18 @@ export function EngramServerDialog({
         'auto.components.marketplace.MarketplaceServerDialogs.engramTitle',
         'Your Engram server'
       )}
-      description={translate(
-        'auto.components.marketplace.MarketplaceServerDialogs.engramDescription',
-        'Memories go to this server instead of staying on this computer. Leave the token empty to keep the current sign-in.'
-      )}
+      description={
+        hostLabel
+          ? translate(
+              'auto.components.marketplace.MarketplaceServerDialogs.engramDescriptionHost',
+              'Memories go to this server instead of staying on {{host}}. Leave the token empty to keep the current sign-in.',
+              { host: hostLabel }
+            )
+          : translate(
+              'auto.components.marketplace.MarketplaceServerDialogs.engramDescription',
+              'Memories go to this server instead of staying on this computer. Leave the token empty to keep the current sign-in.'
+            )
+      }
       submitLabel={translate('auto.components.marketplace.MarketplaceServerDialogs.save', 'Save')}
       disabled={!address}
       pending={form.pending}

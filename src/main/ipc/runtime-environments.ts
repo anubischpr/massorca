@@ -3,7 +3,7 @@ import {
   type RetainedRemoteRuntimeSubscription,
   type PendingRuntimeSubscription
 } from './runtime-environment-subscription-handlers'
-import { app, ipcMain } from 'electron'
+import { app, BrowserWindow, ipcMain } from 'electron'
 import { listEnvironments } from '../../shared/runtime-environment-store'
 import type { Store } from '../persistence'
 import {
@@ -31,6 +31,14 @@ import { retirePairedRuntimeBrowserClientHostEnvironment } from '../browser/pair
 import { registerRuntimeEnvironmentBrowserClientHostHandler } from './runtime-environment-browser-client-host-handler'
 import { advanceRuntimeEnvironmentCapabilityIncarnation } from './runtime-environment-capability-evidence'
 import { watchRuntimeEnvironmentPreference } from './runtime-environment-preference'
+import {
+  createRendererDiagnosticsSender,
+  setRuntimeEnvironmentDiagnosticsSender
+} from './runtime-environment-diagnostics-broadcast'
+import {
+  createRendererHostStatusSender,
+  setRuntimeHostStatusSender
+} from './runtime-environment-status-owner'
 
 const remoteRuntimeSubscriptions = new Map<string, RetainedRemoteRuntimeSubscription>()
 const getUserDataPath = (): string => app.getPath('userData')
@@ -103,6 +111,11 @@ const pendingSubscriptions = new Map<string, PendingRuntimeSubscription>()
 let stopPreferenceWatch: (() => void) | undefined
 
 export function registerRuntimeEnvironmentHandlers(store: Store): void {
+  // Why: renderer broadcasts exist only on the desktop, so this is where they are wired in.
+  setRuntimeEnvironmentDiagnosticsSender(
+    createRendererDiagnosticsSender(() => BrowserWindow.getAllWindows())
+  )
+  setRuntimeHostStatusSender(createRendererHostStatusSender(() => BrowserWindow.getAllWindows()))
   stopPreferenceWatch?.()
   stopPreferenceWatch = watchRuntimeEnvironmentPreference(store, getUserDataPath())
   for (const pending of pendingSubscriptions.values()) {

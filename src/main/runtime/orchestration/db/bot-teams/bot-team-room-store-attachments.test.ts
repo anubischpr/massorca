@@ -38,6 +38,24 @@ describe('bot team room store attachments', () => {
     ])
   })
 
+  it('keeps the message a line answers, beside its files, and returns the visible text alone', () => {
+    const { db, teamId } = makeTeam()
+    const attachments = [{ path: 'attachments/flyer.png', name: 'flyer.png' }]
+    const quoted = db.postBotTeamMessage({ teamId, text: 'Listo', authorBotId: null })
+
+    const posted = db.postBotTeamMessage({
+      teamId,
+      text: 'Cámbialo',
+      authorBotId: null,
+      attachments,
+      replyToMessageId: quoted.id
+    })
+
+    const expected = { text: 'Cámbialo', attachments, replyToMessageId: quoted.id }
+    expect(posted).toEqual(expect.objectContaining(expected))
+    expect(db.listBotTeamMessages(teamId)[1]).toEqual(expect.objectContaining(expected))
+  })
+
   it('leaves a message with no files as it was before attachments existed', () => {
     const { db, teamId } = makeTeam()
 

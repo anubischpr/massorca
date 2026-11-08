@@ -1,4 +1,5 @@
 import { existsSync, readFileSync, statSync } from 'node:fs'
+import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { isDefinitiveAbsence } from '../../shared/definitive-filesystem-absence'
 import type {
@@ -14,6 +15,8 @@ import { writeFileAtomicallyIfUnchanged } from '../codex-accounts/fs-utils'
 import { writeRollingFileBackup } from '../rolling-file-backup'
 import { withCodexMcpEntry } from './codex-mcp-entry-edit'
 import { editJsonContainerMember, parseJsonObject } from './json-member-edit'
+import { resolveWriteTarget } from './marketplace-agent-paths'
+import { keepFirstOriginal } from './marketplace-file-original-backup'
 
 export const ENGRAM_MCP_NAME = 'engram'
 export const OPENMETADATA_READER_MCP_NAME = 'openmetadata'
@@ -49,6 +52,10 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
 }
 
 function claudeMcpServerNames(text: string): ReadonlySet<string> | null {
+  // Why: an empty file holds no servers; it is not an unknown shape.
+  if (text.trim() === '') {
+    return new Set()
+  }
   const config = parseJsonObject(text)
   if (!config) {
     return null
@@ -111,11 +118,15 @@ export function withCodexEngramMcp(text: string | null, enabled: boolean): strin
 
 const CLAUDE_WRITE_ATTEMPTS = 3
 
-/** Adds or removes the engram MCP server in the agent's own config, backing the file up first. */
+/**
+ * Adds or removes the engram MCP server in the agent's own config, backing the file up first.
+ * A file that a link leads out of `home` is left alone.
+ */
 export function writeAgentEngramMcp(
   agent: MarketplaceMcpAgent,
   path: string,
-  enabled: boolean
+  enabled: boolean,
+  home: string = homedir()
 ): MarketplaceSetEngramMcpResult {
   // Why: Claude rewrites .claude.json while it runs, so the write only lands on the bytes it read.
   for (let attempt = 0; attempt < (agent === 'claude' ? CLAUDE_WRITE_ATTEMPTS : 1); attempt++) {
@@ -134,15 +145,24 @@ export function writeAgentEngramMcp(
     if (next === (current ?? '')) {
       return { ok: true, state: enabled ? 'set' : 'missing' }
     }
+    const target = resolveWriteTarget(path, home)
+    if (target === null) {
+      // Why: the shared result type has no reason of its own for this; the file was not usable.
+      return { ok: false, reason: 'unreadable' }
+    }
     if (agent === 'codex') {
+      if (current !== null) {
+        keepFirstOriginal(target)
+      }
       writeTomlConfigAtomically(path, next)
       return { ok: true, state: enabled ? 'set' : 'missing' }
     }
-    const mode = existsSync(path) ? statSync(path).mode : 0o600
+    const mode = existsSync(target) ? statSync(target).mode : 0o600
     if (current !== null) {
-      writeRollingFileBackup(path, `${path}.massorca-backup`)
+      keepFirstOriginal(target)
+      writeRollingFileBackup(target, `${target}.massorca-backup`)
     }
-    if (writeFileAtomicallyIfUnchanged(path, current, next, { mode })) {
+    if (writeFileAtomicallyIfUnchanged(target, current, next, { mode })) {
       return { ok: true, state: enabled ? 'set' : 'missing' }
     }
   }

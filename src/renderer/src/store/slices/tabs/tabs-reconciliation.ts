@@ -130,7 +130,8 @@ export function projectWorktreeTabModelReconciliation(
     if (
       tab.contentType === 'simulator' ||
       tab.contentType === 'agent-session' ||
-      tab.contentType === 'checklist'
+      tab.contentType === 'checklist' ||
+      tab.contentType === 'create-session'
     ) {
       return true
     }

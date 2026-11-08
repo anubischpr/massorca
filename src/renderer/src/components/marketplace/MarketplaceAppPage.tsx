@@ -2,24 +2,29 @@ import { useCallback, useState } from 'react'
 import { ArrowLeft } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { translate } from '@/i18n/i18n'
-import { useAppStore } from '@/store'
 import type { MarketplaceAppsState } from '@/store/slices/ui/ui-slice-contract-core'
 import { cn } from '@/lib/utils'
 import { SKILLS_PAGE_COLUMN } from '../skills/skills-page-column'
 import type { MarketplaceAppId, MarketplaceAppStatus } from '../../../../shared/marketplace-apps'
+import type { CatalogCheck } from './MarketplaceCatalogRows'
+import { GitHubRemoteConnection } from './GitHubRemoteConnection'
 import { MarketplaceAppAdvanced } from './MarketplaceAppAdvanced'
 import { MarketplaceAppBanner } from './MarketplaceAppBanner'
 import { MarketplaceAppConnection } from './MarketplaceAppConnection'
 import { MarketplaceAppDanger } from './MarketplaceAppDanger'
 import { MarketplaceAppDialogs } from './MarketplaceAppDialogs'
 import { MarketplaceAppHeader } from './MarketplaceAppHeader'
+import { MarketplacePageHostRow } from './MarketplacePageHostRow'
 import { MarketplaceAppInformation } from './MarketplaceAppInformation'
 import type { MarketplaceAppContext, MarketplaceAppDialog } from './marketplace-app-context'
 import { MARKETPLACE_APP_INFO } from './marketplace-app-info'
 import { appStatusFor } from './marketplace-status'
 import { useGitHubAccounts } from './use-github-accounts'
 import { useMarketplaceAppAction, type MarketplacePerform } from './use-marketplace-app-action'
+import { useMarketplaceAppHost } from './use-marketplace-app-host'
+import { marketplaceHostKey } from './use-marketplace-host-targets'
 import { useMarketplacePreflight } from './use-marketplace-preflight'
+import { useMarketplaceRemoteDetection, type RemoteTools } from './use-marketplace-remote-detection'
 
 /** The standard page for Engram, OpenMetadata and GitHub: header, banner, then the sections. */
 export function MarketplaceAppPage({
@@ -29,11 +34,18 @@ export function MarketplaceAppPage({
   appId: MarketplaceAppId
   onBack: () => void
 }): React.JSX.Element {
-  const apps = useAppStore((s) => s.marketplaceApps)
-  const refreshApps = useAppStore((s) => s.refreshMarketplaceApps)
-  const runAction = useMarketplaceAppAction()
+  const host = useMarketplaceAppHost()
+  const { apps } = host
+  const runAction = useMarketplaceAppAction(host.scope)
   const preflight = useMarketplacePreflight({ refreshOnMount: false })
-  const github = useGitHubAccounts(appId === 'github')
+  const pickedTarget =
+    host.targets.find((target) => marketplaceHostKey(target) === host.selectedKey) ?? null
+  // Why: only GitHub on a picked host reads that host's gh state; a WSL distro keeps its own notice.
+  const githubRemoteTarget =
+    appId === 'github' && host.scope !== null && host.wslDistro === null ? pickedTarget : null
+  const githubTools = useMarketplaceRemoteDetection(githubRemoteTarget).tools
+  // Why: this computer's GitHub accounts are read only while this computer is the host shown.
+  const github = useGitHubAccounts(appId === 'github' && host.scope === null)
   const [dialog, setDialog] = useState<MarketplaceAppDialog | null>(null)
   const [pageError, setPageError] = useState<string | null>(null)
 
@@ -68,6 +80,7 @@ export function MarketplaceAppPage({
     appId,
     ready,
     status,
+    hostLabel: host.scope?.label ?? null,
     info: MARKETPLACE_APP_INFO[appId],
     preflight,
     github,
@@ -81,12 +94,12 @@ export function MarketplaceAppPage({
 
   return (
     <div className={cn(SKILLS_PAGE_COLUMN, 'flex flex-col gap-6 py-4')}>
-      <div>
+      <MarketplacePageHostRow host={host}>
         <Button type="button" variant="ghost" size="sm" onClick={onBack}>
           <ArrowLeft className="size-3.5" />
           {translate('auto.components.marketplace.MarketplaceAppPage.back', 'Back')}
         </Button>
-      </div>
+      </MarketplacePageHostRow>
       <MarketplaceAppHeader ctx={ctx} />
       <MarketplaceAppBanner appId={appId} />
       {pageError ? (
@@ -94,7 +107,14 @@ export function MarketplaceAppPage({
           {pageError}
         </p>
       ) : null}
-      <AppPageBody apps={apps} ctx={ctx} onRetry={() => void refreshApps()} />
+      <AppPageBody
+        apps={apps}
+        ctx={ctx}
+        failure={host.failure}
+        githubTools={githubTools}
+        onRetry={host.retry}
+        wslDistro={host.wslDistro}
+      />
       <MarketplaceAppDialogs ctx={ctx} dialog={dialog} onClose={() => setDialog(null)} />
     </div>
   )
@@ -103,12 +123,29 @@ export function MarketplaceAppPage({
 function AppPageBody({
   apps,
   ctx,
-  onRetry
+  failure,
+  githubTools,
+  onRetry,
+  wslDistro
 }: {
   apps: MarketplaceAppsState
   ctx: MarketplaceAppContext
+  failure: string | null
+  githubTools: CatalogCheck<RemoteTools>
   onRetry: () => void
+  wslDistro: string | null
 }): React.JSX.Element {
+  // Why: the apps have no WSL path yet, so the page says so instead of offering a retry or actions.
+  if (wslDistro !== null) {
+    return (
+      <Notice>
+        {translate(
+          'auto.components.marketplace.MarketplaceAppPage.wslNotAvailable',
+          'Not available on WSL yet'
+        )}
+      </Notice>
+    )
+  }
   if (apps.status === 'unavailable') {
     return (
       <Notice>
@@ -122,10 +159,16 @@ function AppPageBody({
   if (apps.status === 'loading') {
     return (
       <Notice>
-        {translate(
-          'auto.components.marketplace.MarketplaceAppPage.checking',
-          'Checking this computer…'
-        )}
+        {ctx.hostLabel
+          ? translate(
+              'auto.components.marketplace.MarketplaceAppPage.checkingHost',
+              'Checking {{host}}…',
+              { host: ctx.hostLabel }
+            )
+          : translate(
+              'auto.components.marketplace.MarketplaceAppPage.checking',
+              'Checking this computer…'
+            )}
       </Notice>
     )
   }
@@ -133,16 +176,21 @@ function AppPageBody({
     return (
       <div className="flex flex-col items-start gap-3">
         <Notice>
-          {translate(
-            'auto.components.marketplace.MarketplaceAppPage.failed',
-            'Could not check this computer.'
-          )}
+          {failure ??
+            translate(
+              'auto.components.marketplace.MarketplaceAppPage.failed',
+              'Could not check this computer.'
+            )}
         </Notice>
         <Button type="button" variant="outline" size="sm" onClick={onRetry}>
           {translate('auto.components.marketplace.MarketplaceAppPage.retry', 'Try again')}
         </Button>
       </div>
     )
+  }
+  // Why: GitHub on a picked host shows only that host's gh state; the info copy describes this computer.
+  if (ctx.appId === 'github' && ctx.hostLabel !== null) {
+    return <GitHubRemoteConnection host={ctx.hostLabel} tools={githubTools} />
   }
   return (
     <>

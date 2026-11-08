@@ -57,12 +57,73 @@ describe('relay marketplace.vault.* methods', () => {
     return handlers
   }
 
-  it('registers the three methods', () => {
+  it('registers the original three methods and the two profile methods', () => {
     expect([...register().keys()].sort()).toEqual([
       'marketplace.vault.clear',
+      'marketplace.vault.clearProfile',
       'marketplace.vault.set',
+      'marketplace.vault.setProfile',
       'marketplace.vault.status'
     ])
+  })
+
+  describe('profile tokens', () => {
+    function knowProfile(name: string): void {
+      const state = vault.readState()
+      state.openMetadata.profiles.push({ name, url: 'https://om.example.com/mcp' })
+      vault.writeState(state)
+    }
+
+    it('stores the token of a profile and the env of this host carries it', async () => {
+      knowProfile('escritura')
+      const handlers = register()
+      const result = await handlers.get('marketplace.vault.setProfile')?.({
+        name: 'escritura',
+        token: TOKEN
+      })
+      expect(result).toMatchObject({
+        ok: true,
+        status: { profiles: [{ name: 'escritura', stored: true }] }
+      })
+      expect(JSON.stringify(result)).not.toContain(TOKEN)
+      expect(buildRelayMarketplaceEnv(vault)).toEqual({ OPENMETADATA_TOKEN_ESCRITURA: TOKEN })
+      expect(JSON.stringify(await handlers.get('marketplace.vault.status')?.({}))).not.toContain(
+        TOKEN
+      )
+    })
+
+    it('clears the token of a profile', async () => {
+      knowProfile('escritura')
+      const handlers = register()
+      await handlers.get('marketplace.vault.setProfile')?.({ name: 'escritura', token: TOKEN })
+      await handlers.get('marketplace.vault.clearProfile')?.({ name: 'escritura' })
+      expect(buildRelayMarketplaceEnv(vault)).toEqual({})
+    })
+
+    it.each([
+      ['marketplace.vault.setProfile', { name: 'openmetadata', token: TOKEN }],
+      ['marketplace.vault.setProfile', { name: 'unknown', token: TOKEN }],
+      ['marketplace.vault.setProfile', { name: 'escritura', token: 'two words' }],
+      ['marketplace.vault.setProfile', { name: 'escritura' }],
+      ['marketplace.vault.clearProfile', {}]
+    ])('answers invalid-input to %s with %j', async (method, params) => {
+      knowProfile('escritura')
+      expect(await register().get(method)?.(params)).toEqual({
+        ok: false,
+        reason: 'invalid-input'
+      })
+      expect(vault.hasToken({ kind: 'openmetadata-profile', name: 'escritura' })).toBe(false)
+    })
+
+    it('keeps the old methods working for a client that predates profiles', async () => {
+      const handlers = register()
+      const result = await handlers.get('marketplace.vault.set')?.({
+        slot: 'openmetadata',
+        token: TOKEN
+      })
+      expect(result).toMatchObject({ ok: true })
+      expect(buildRelayMarketplaceEnv(vault)).toEqual({ OPENMETADATA_TOKEN: TOKEN })
+    })
   })
 
   it('stores a token and answers with status only, then reads it into the env', async () => {
@@ -79,7 +140,8 @@ describe('relay marketplace.vault.* methods', () => {
         credentials: [
           { slot: 'openmetadata', stored: true },
           { slot: 'engram-cloud', stored: false }
-        ]
+        ],
+        profiles: []
       }
     })
     expect(JSON.stringify(result)).not.toContain(TOKEN)

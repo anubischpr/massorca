@@ -34,7 +34,7 @@ import { useAppStore } from '@/store'
 import { useKnownWorktreeById, useWorktreesForRepo } from '@/store/selectors'
 import type { FileExplorerOperationOwner } from '@/components/right-sidebar/file-explorer-types'
 import {
-  getFileExplorerOperationOwnerFromState,
+  getFileExplorerOperationOwnerForHost,
   getFileExplorerOwnerUnresolvedMessage,
   getFileExplorerOperationRoute
 } from '@/components/right-sidebar/file-explorer-operation-owner'
@@ -68,7 +68,8 @@ export function useRuntimeFileListForWorktree({
   worktreeId,
   query,
   hostFilterWhenCapped = false,
-  recentPaths
+  recentPaths,
+  host
 }: {
   enabled: boolean
   worktreeId: string | null
@@ -76,10 +77,12 @@ export function useRuntimeFileListForWorktree({
   recentPaths?: readonly string[]
   /** When a local listing hits its cap, re-list with `query` applied as the Explorer name filter on the host. */
   hostFilterWhenCapped?: boolean
+  /** The host the caller picked owns the listing; `rootPath` stands in until the catalog has the row. */
+  host?: Parameters<typeof getFileExplorerOperationOwnerForHost>[2]
 }): RuntimeFileListState {
   // Why: folder workspaces live in the known-worktree catalog, not worktreesByRepo.
   const worktree = useKnownWorktreeById(worktreeId)
-  const worktreePath = worktree?.path ?? null
+  const worktreePath = worktree?.path ?? host?.rootPath ?? null
   const repoWorktrees = useWorktreesForRepo(worktree?.repoId ?? null)
   const [listing, setListing] = useState(NO_LISTING)
   const [loadingRequest, setLoadingRequest] = useState({ requestKey: '', loading: false })
@@ -107,8 +110,8 @@ export function useRuntimeFileListForWorktree({
     }))
   )
   const operationOwner = useMemo(
-    () => getFileExplorerOperationOwnerFromState(operationOwnerState, worktreeId),
-    [operationOwnerState, worktreeId]
+    () => getFileExplorerOperationOwnerForHost(operationOwnerState, worktreeId, host),
+    [host, operationOwnerState, worktreeId]
   )
   const operationOwnerKey = JSON.stringify(operationOwner)
   const operationOwnerRef = useRef(operationOwner)

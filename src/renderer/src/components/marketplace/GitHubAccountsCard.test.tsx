@@ -9,7 +9,13 @@ type TestRepo = { displayName: string; ghAccount?: { host: string; user: string 
 
 const mocks = vi.hoisted(() => {
   const repos: TestRepo[] = []
-  return { listHostBindableAccounts: vi.fn(), switchActiveAccount: vi.fn(), repos }
+  return {
+    listHostBindableAccounts: vi.fn(),
+    listAccountOrgs: vi.fn(),
+    switchActiveAccount: vi.fn(),
+    removeAccount: vi.fn(),
+    repos
+  }
 })
 
 vi.mock('@/store', () => ({
@@ -54,6 +60,12 @@ function buttonByText(container: ParentNode, text: string): HTMLButtonElement | 
   return [...container.querySelectorAll('button')].find((b) => b.textContent?.includes(text))
 }
 
+function submitDialog(): void {
+  document
+    .querySelector('form')
+    ?.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
+}
+
 describe('GitHubAccountsCard', () => {
   beforeEach(() => {
     globalThis.IS_REACT_ACT_ENVIRONMENT = true
@@ -67,11 +79,15 @@ describe('GitHubAccountsCard', () => {
       accounts: [account('personal', { active: true }), account('work')]
     })
     mocks.switchActiveAccount.mockResolvedValue({ ok: true })
+    mocks.removeAccount.mockResolvedValue({ ok: true })
+    mocks.listAccountOrgs.mockResolvedValue({})
     Object.assign(window, {
       api: {
         gh: {
           listHostBindableAccounts: mocks.listHostBindableAccounts,
-          switchActiveAccount: mocks.switchActiveAccount
+          listAccountOrgs: mocks.listAccountOrgs,
+          switchActiveAccount: mocks.switchActiveAccount,
+          removeAccount: mocks.removeAccount
         },
         ui: { writeClipboardText: vi.fn() }
       }
@@ -95,6 +111,30 @@ describe('GitHubAccountsCard', () => {
     expect(items[1]).not.toContain('Active')
     expect(items[1]).toContain('massorca')
     expect(container.textContent).toContain('These projects use the active account: notes')
+  })
+
+  it('asks once for every login organizations and shows them on each account row', async () => {
+    mocks.listHostBindableAccounts.mockResolvedValue({
+      capability: 'supported',
+      accounts: [account('personal', { active: true }), account('work'), account('side')]
+    })
+    mocks.listAccountOrgs.mockResolvedValue({
+      'github.com\0work': ['Alterra-DS', 'Acme'],
+      'github.com\0personal': []
+    })
+    const container = await renderCard()
+    expect(mocks.listAccountOrgs).toHaveBeenCalledTimes(1)
+    expect(mocks.listAccountOrgs).toHaveBeenCalledWith({
+      accounts: [
+        { host: 'github.com', user: 'personal' },
+        { host: 'github.com', user: 'work' },
+        { host: 'github.com', user: 'side' }
+      ]
+    })
+    const items = [...container.querySelectorAll('li')].map((li) => li.textContent ?? '')
+    expect(items[1]).toContain('organizations: Alterra-DS, Acme')
+    expect(items[0]).not.toContain('organizations')
+    expect(items[2]).not.toContain('organizations')
   })
 
   it('offers Make active only on inactive keyring accounts and reloads after switching', async () => {
@@ -131,6 +171,73 @@ describe('GitHubAccountsCard', () => {
     expect(buttonByText(container, 'Make active')).toBeUndefined()
     expect(container.textContent).toContain('Comes from GH_TOKEN')
     expect(container.textContent).toContain('Update it to 2.40 or newer')
+  })
+
+  it('offers Remove on every keyring account, and removes an inactive one after a confirmation', async () => {
+    mocks.listHostBindableAccounts.mockResolvedValue({
+      capability: 'supported',
+      accounts: [
+        account('personal', { active: true }),
+        account('work'),
+        account('side'),
+        account('ci', { source: 'env', envToken: 'GH_TOKEN' })
+      ]
+    })
+    const container = await renderCard()
+    const removeButtons = [...container.querySelectorAll<HTMLButtonElement>('li button')].filter(
+      (button) => button.textContent?.trim() === 'Remove'
+    )
+    expect(removeButtons).toHaveLength(3)
+    const rowOfCi = [...container.querySelectorAll('li')].find((li) =>
+      li.textContent?.includes('ci')
+    )
+    expect(rowOfCi?.textContent).not.toContain('Remove')
+    await act(async () => {
+      removeButtons[2]?.click()
+    })
+    expect(mocks.removeAccount).not.toHaveBeenCalled()
+    expect(document.body.textContent).toContain('Remove side from this computer?')
+    await act(async () => {
+      submitDialog()
+    })
+    expect(mocks.removeAccount).toHaveBeenCalledWith({ host: 'github.com', user: 'side' })
+    expect(mocks.listHostBindableAccounts).toHaveBeenCalledTimes(2)
+  })
+
+  it('removes the active account after a confirmation', async () => {
+    const container = await renderCard()
+    const firstRow = container.querySelector('li')
+    await act(async () => {
+      buttonByText(firstRow ?? container, 'Remove')?.click()
+    })
+    expect(document.body.textContent).toContain('Remove personal from this computer?')
+    await act(async () => {
+      submitDialog()
+    })
+    expect(mocks.removeAccount).toHaveBeenCalledWith({ host: 'github.com', user: 'personal' })
+  })
+
+  it('keeps the account when the removal is cancelled', async () => {
+    const container = await renderCard()
+    await act(async () => {
+      buttonByText(container, 'Remove')?.click()
+    })
+    await act(async () => {
+      buttonByText(document.body, 'Cancel')?.click()
+    })
+    expect(mocks.removeAccount).not.toHaveBeenCalled()
+  })
+
+  it('explains a failed removal without showing gh output', async () => {
+    mocks.removeAccount.mockResolvedValue({ ok: false, reason: 'failed' })
+    const container = await renderCard()
+    await act(async () => {
+      buttonByText(container, 'Remove')?.click()
+    })
+    await act(async () => {
+      submitDialog()
+    })
+    expect(document.body.textContent).toContain('Could not remove personal.')
   })
 
   it('flags a project bound to a login that is not signed in here', async () => {

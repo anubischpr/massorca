@@ -15,7 +15,13 @@ import {
 } from '../../../../../shared/rpc-contract/bot-team-routine-params'
 import { generateId } from '../generated-id'
 import { keptSchedule, requireTeamBot } from './bot-team-routine-input'
+import {
+  forgetOrphanedBotTeamRoutines,
+  listBotTeamRoutineRunTimes
+} from './bot-team-routine-run-queries'
 import type { OrchestrationDb } from '../orchestration-db'
+
+export { listBotTeamRoutineRunTimes }
 
 // Plain functions over the database, not methods, so this store stays out of the shared method lists.
 
@@ -46,6 +52,8 @@ const RunRow = z.object({
 })
 
 const INTERRUPTED_RUN = 'This run was interrupted before its task could start.'
+const SKIPPED_RUN =
+  'This run was skipped: the routine was due, but no run time matched its schedule.'
 
 function scheduleOf(row: RoutineRow): BotTeamRoutineSchedule {
   return {
@@ -171,25 +179,6 @@ export function listBotTeamRoutineRuns(
     .map((row) => toRun(row, timeZone.success ? timeZone.data.time_zone : null))
 }
 
-/** The scheduled times of a routine's claimed runs in [from, to), earliest first. */
-export function listBotTeamRoutineRunTimes(
-  db: OrchestrationDb,
-  routineId: string,
-  from: number,
-  to: number
-): number[] {
-  return z
-    .array(z.object({ scheduled_for: z.number() }))
-    .parse(
-      db.db
-        .prepare(
-          'SELECT scheduled_for FROM bot_team_routine_runs WHERE routine_id = ? AND scheduled_for >= ? AND scheduled_for < ? ORDER BY scheduled_for'
-        )
-        .all(routineId, from, to)
-    )
-    .map((row) => row.scheduled_for)
-}
-
 /** Resuming starts from now: what was due while it was paused is not run. */
 export function setBotTeamRoutinePaused(
   db: OrchestrationDb,
@@ -202,17 +191,6 @@ export function setBotTeamRoutinePaused(
     .prepare('UPDATE bot_team_routines SET paused = ?, next_run_at = ? WHERE id = ?')
     .run(paused ? 1 : 0, paused ? null : nextRoutineRunAfter(scheduleOf(row), now), routineId)
   return toRoutine(db, requireRow(db, routineId))
-}
-
-/** A deleted team takes its routines and their runs with it. */
-function forgetOrphanedBotTeamRoutines(db: OrchestrationDb): void {
-  const orphaned = 'team_id NOT IN (SELECT id FROM bot_teams)'
-  db.db
-    .prepare(
-      `DELETE FROM bot_team_routine_runs WHERE routine_id IN (SELECT id FROM bot_team_routines WHERE ${orphaned})`
-    )
-    .run()
-  db.db.prepare(`DELETE FROM bot_team_routines WHERE ${orphaned}`).run()
 }
 
 export type ClaimedBotTeamRoutineRun = {
@@ -257,20 +235,34 @@ export function claimDueBotTeamRoutines(
         db.db.exec('COMMIT')
         continue
       }
-      if (scheduledFor !== null) {
-        db.db
-          .prepare(
-            'INSERT INTO bot_team_routine_runs (id, routine_id, scheduled_for) VALUES (?, ?, ?)'
-          )
-          .run(runId, row.id, scheduledFor)
-      }
+      // A due routine with no matching run time still leaves a run, so the skip is seen, not silent.
+      db.db
+        .prepare(
+          'INSERT INTO bot_team_routine_runs (id, routine_id, scheduled_for, error) VALUES (?, ?, ?, ?)'
+        )
+        .run(
+          runId,
+          row.id,
+          scheduledFor ?? row.next_run_at ?? now,
+          scheduledFor === null ? SKIPPED_RUN : null
+        )
       db.db.exec('COMMIT')
     } catch (error) {
       db.db.exec('ROLLBACK')
       throw error
     }
-    if (scheduledFor !== null) {
+    if (scheduledFor === null) {
+      continue
+    }
+    try {
       claimed.push({ runId, routine: toRoutine(db, requireRow(db, row.id)), scheduledFor })
+    } catch (error) {
+      // One unreadable routine must not drop the runs claimed before it.
+      console.warn(`[bot-teams] routine ${row.id} could not be read for its run`, error)
+      recordBotTeamRoutineRun(db, runId, {
+        taskId: null,
+        error: `This run could not be started: the routine could not be read (${error instanceof Error ? error.message : String(error)}).`
+      })
     }
   }
   return claimed

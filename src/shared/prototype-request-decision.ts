@@ -7,6 +7,7 @@ import {
 import type { PrototypeCountSetting } from './prototype-count-setting'
 import type { PrototypeDesignSystemMode } from './prototype-design-system-files'
 import { asksForDelegatedSession } from './prototype-delegated-ask'
+import { hasDesignWording } from './prototype-request-lexicon'
 
 /**
  * The answer of the "How many prototypes?" card: a count, or the message as typed. Once the design system card
@@ -109,19 +110,56 @@ export function personHandedPrototypeToChild(
   )
 }
 
+const ARTIFACT_WORD = /\b(artifacts?|artefactos?)\b/i
+
+/** Whether a task names an artifact in its own words, with no explicit prototype command. */
+export function asksForArtifactTask(text: string, agents: readonly PrototypeAgent[]): boolean {
+  return (
+    ARTIFACT_WORD.test(text) &&
+    agents.every((agent) => classifyPrototypeRequest(text, agent).kind !== 'command')
+  )
+}
+
+/** Whether a task's own words name a design or a prototype, and ask for no artifact instead. */
+export function asksForPrototypeTask(text: string, agents: readonly PrototypeAgent[]): boolean {
+  return hasDesignWording(text) && !asksForArtifactTask(text, agents)
+}
+
+function personAskedForArtifactOnly(
+  userMessage: string,
+  agents: readonly PrototypeAgent[]
+): boolean {
+  return (
+    ARTIFACT_WORD.test(userMessage) &&
+    agents.every((agent) => classifyPrototypeRequest(userMessage, agent).kind === 'none')
+  )
+}
+
 function delegatedTaskPrototypeRequest(
   text: string,
   agents: readonly PrototypeAgent[],
   userMessage?: string
 ): PrototypeRequest {
   const requests = agents.map((agent) => classifyPrototypeRequest(text, agent))
-  const own =
-    requests.find((entry) => entry.kind === 'command') ??
-    requests.find((entry) => entry.kind === 'keyword')
-  if (own !== undefined) {
-    return own
+  const command = requests.find((entry) => entry.kind === 'command')
+  if (command !== undefined) {
+    return command
   }
-  return userMessage !== undefined && personHandedPrototypeToChild(userMessage, agents)
+  // Why: the task's own words ask for an artifact; a design sentence elsewhere does not count.
+  if (asksForArtifactTask(text, agents)) {
+    return { kind: 'none' }
+  }
+  const keyword = requests.find((entry) => entry.kind === 'keyword')
+  if (keyword !== undefined) {
+    // Why: a person who asked for an artifact asked for no prototypes, whatever words the agent chose for its child.
+    return userMessage !== undefined && personAskedForArtifactOnly(userMessage, agents)
+      ? { kind: 'none' }
+      : keyword
+  }
+  // Why: a hand-off names one design, so only a task that names a design or a screen takes it.
+  return userMessage !== undefined &&
+    personHandedPrototypeToChild(userMessage, agents) &&
+    hasDesignWording(text)
     ? { kind: 'keyword' }
     : { kind: 'none' }
 }

@@ -14,7 +14,6 @@ export type SettingsNavInstallStatus =
 
 const SETTINGS_NAV_TARGETS = [
   'general',
-  'integrations',
   'accounts',
   'browser',
   'git',
@@ -44,6 +43,7 @@ const SETTINGS_NAV_TARGETS = [
   'share-skills',
   'prototypes',
   'bot-teams',
+  'marketplace',
   'automations',
   'orca-account',
   'linear',

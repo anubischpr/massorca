@@ -9,11 +9,21 @@ import {
 } from '../../../../../shared/rpc-contract/bot-team-room-params'
 import type { BotTeamTaskLastStatus } from '../../../../../shared/bot-team-task-status'
 import { BOT_TEAM_ALL_AUTHOR } from '../../../../../shared/bot-team-greeting'
-import {
-  encodeBotTeamRoomAttachments,
-  splitBotTeamRoomAttachments
-} from '../../../../../shared/bot-team-room-attachments'
+import { botTeamRoomMessageFromStored, botTeamRoomStoredText } from './bot-team-room-stored-text'
 import { generateId } from '../generated-id'
+import {
+  hasUnstartedBotTeamDelegation,
+  isBotTeamTaskHandedOff,
+  linkBotTeamTaskDelegation,
+  linkDelegatedBotTeamTasks
+} from './bot-team-task-delegation-store'
+import {
+  BOT_TEAM_TASK_WAITING_STORE_METHODS,
+  clearBotTeamTaskWaiting,
+  clearBotTeamTaskWaitingOfSession,
+  withAwaitingPerson,
+  type BotTeamTaskWaitingStoreMethods
+} from './bot-team-task-waiting-store'
 import {
   BOT_TEAM_MEMORY_STORE_METHODS,
   type BotTeamMemoryStoreMethods
@@ -22,10 +32,17 @@ import {
   BOT_TEAM_TRACKER_STORE_METHODS,
   type BotTeamTrackerStoreMethods
 } from './bot-team-tracker-store'
+import {
+  BOT_TEAM_TASK_ANSWERS_STORE_METHODS,
+  withAnswersMessage,
+  type BotTeamTaskAnswersStoreMethods
+} from './bot-team-room-store-answers'
+import { findRepeatedBotLine } from './bot-team-message-repeat'
 import type { OrchestrationDb } from '../orchestration-db'
 
-const TASK_SELECT =
-  'SELECT id, team_id AS teamId, title, prompt, owner_bot_id AS ownerBotId, session_id AS sessionId, project_id AS projectId, created_at AS createdAt, last_status AS lastStatus FROM bot_team_tasks'
+const TASK_SELECT = `SELECT id, team_id AS teamId, title, prompt, owner_bot_id AS ownerBotId, session_id AS sessionId, project_id AS projectId, created_at AS createdAt, last_status AS lastStatus,
+  EXISTS (SELECT 1 FROM bot_team_routine_runs r WHERE r.task_id = bot_team_tasks.id) AS fromRoutine
+  FROM bot_team_tasks`
 // The greeting line has no bot row to point at, so it reads back as the All author.
 const MESSAGE_SELECT = `SELECT id, team_id AS teamId, text, created_at AS createdAt,
   CASE WHEN author_kind = '${BOT_TEAM_ALL_AUTHOR}' THEN '${BOT_TEAM_ALL_AUTHOR}' ELSE author_bot_id END AS authorBotId
@@ -83,37 +100,20 @@ function requireBotTeamTask(db: OrchestrationDb, taskId: string): BotTeamTask {
   if (row === undefined) {
     throw new Error(`Task ${taskId} was not found.`)
   }
-  return BotTeamTaskSchema.parse(row)
+  return withAnswersMessage(db, withAwaitingPerson(db, [BotTeamTaskSchema.parse(row)]))[0]
 }
 
 export function listBotTeamTasks(this: OrchestrationDb, teamId: string): BotTeamTask[] {
   linkDelegatedBotTeamTasks(this)
-  return z
-    .array(BotTeamTaskSchema)
-    .parse(this.db.prepare(`${TASK_SELECT} WHERE team_id = ? ORDER BY rowid`).all(teamId))
-}
-
-/** A delegated task learns its session from its request, once the child has started. */
-function linkDelegatedBotTeamTasks(db: OrchestrationDb): void {
-  db.db.exec(`
-    UPDATE bot_team_tasks SET session_id = (
-      SELECT d.child_session_id FROM delegation_requests d
-      JOIN bot_team_task_delegations l ON l.request_id = d.id
-      WHERE l.task_id = bot_team_tasks.id
+  return withAnswersMessage(
+    this,
+    withAwaitingPerson(
+      this,
+      z
+        .array(BotTeamTaskSchema)
+        .parse(this.db.prepare(`${TASK_SELECT} WHERE team_id = ? ORDER BY rowid`).all(teamId))
     )
-    WHERE session_id IS NULL
-      AND id IN (SELECT task_id FROM bot_team_task_delegations)
-  `)
-}
-
-export function linkBotTeamTaskDelegation(
-  this: OrchestrationDb,
-  taskId: string,
-  requestId: string
-): void {
-  this.db
-    .prepare('INSERT INTO bot_team_task_delegations (task_id, request_id) VALUES (?, ?)')
-    .run(taskId, requestId)
+  )
 }
 
 export function setBotTeamTaskSession(
@@ -136,23 +136,17 @@ export function setBotTeamTaskLastStatus(
   // Why: a parent whose delegated parts never started or failed has not finished the work.
   const kept =
     status === 'Done' && hasUnstartedBotTeamDelegation(this, sessionId) ? 'Stuck' : status
+  // Why: a delegated child can finish before any read has linked its task to its session.
+  linkDelegatedBotTeamTasks(this)
   this.db
     .prepare(
       'UPDATE bot_team_tasks SET last_status = ? WHERE session_id = ? AND last_status IS NOT ?'
     )
     .run(kept, sessionId, kept)
-}
-
-function hasUnstartedBotTeamDelegation(db: OrchestrationDb, parentSessionId: string): boolean {
-  return (
-    db.db
-      .prepare(
-        `SELECT 1 FROM delegation_requests d
-         JOIN bot_team_task_delegations l ON l.request_id = d.id
-         WHERE d.parent_session_id = ? AND d.status IN ('pending', 'failed', 'cancelled') LIMIT 1`
-      )
-      .get(parentSessionId) !== undefined
-  )
+  // Only a finished turn can wait on the person; working again, a stop or a failure ends the wait.
+  if (kept !== 'Done') {
+    clearBotTeamTaskWaitingOfSession(this, sessionId)
+  }
 }
 
 export function findBotTeamTaskBySession(
@@ -161,7 +155,9 @@ export function findBotTeamTaskBySession(
 ): BotTeamTask | null {
   linkDelegatedBotTeamTasks(this)
   const row = this.db.prepare(`${TASK_SELECT} WHERE session_id = ?`).get(sessionId)
-  return row === undefined ? null : BotTeamTaskSchema.parse(row)
+  return row === undefined
+    ? null
+    : withAnswersMessage(this, withAwaitingPerson(this, [BotTeamTaskSchema.parse(row)]))[0]
 }
 
 export function postBotTeamMessage(
@@ -172,20 +168,31 @@ export function postBotTeamMessage(
   if (input.authorBotId !== null && !fromAll) {
     requireBotOnTeam(this, input.teamId, input.authorBotId)
   }
-  const id = generateId('botmsg')
-  this.db
-    .prepare(
-      'INSERT INTO bot_team_messages (id, team_id, author_bot_id, author_kind, text, created_at) VALUES (?, ?, ?, ?, ?, ?)'
-    )
-    .run(
-      id,
-      input.teamId,
-      fromAll ? null : input.authorBotId,
-      fromAll ? BOT_TEAM_ALL_AUTHOR : null,
-      encodeBotTeamRoomAttachments(input.text, input.attachments ?? []),
-      Date.now()
-    )
-  return messageWithAttachments(
+  const storedText = botTeamRoomStoredText(input)
+  const repeated =
+    input.authorBotId !== null && !fromAll
+      ? findRepeatedBotLine(this, {
+          teamId: input.teamId,
+          botId: input.authorBotId,
+          storedText
+        })
+      : null
+  const id = repeated ?? generateId('botmsg')
+  if (repeated === null) {
+    this.db
+      .prepare(
+        'INSERT INTO bot_team_messages (id, team_id, author_bot_id, author_kind, text, created_at) VALUES (?, ?, ?, ?, ?, ?)'
+      )
+      .run(
+        id,
+        input.teamId,
+        fromAll ? null : input.authorBotId,
+        fromAll ? BOT_TEAM_ALL_AUTHOR : null,
+        storedText,
+        Date.now()
+      )
+  }
+  return botTeamRoomMessageFromStored(
     BotTeamMessageSchema.parse(this.db.prepare(`${MESSAGE_SELECT} WHERE id = ?`).get(id))
   )
 }
@@ -195,21 +202,11 @@ export function listBotTeamMessages(this: OrchestrationDb, teamId: string): BotT
   return z
     .array(BotTeamMessageSchema)
     .parse(this.db.prepare(`${MESSAGE_SELECT} WHERE team_id = ? ORDER BY rowid`).all(teamId))
-    .map(messageWithAttachments)
+    .map(botTeamRoomMessageFromStored)
     .map((message) => {
       const fromTeamId = sources.get(message.id)
       return fromTeamId === undefined ? message : { ...message, fromTeamId }
     })
-}
-
-/** The visible text, with the files a message stores after it; a message with none is unchanged. */
-function messageWithAttachments(message: BotTeamMessage): BotTeamMessage {
-  const split = splitBotTeamRoomAttachments(message.text)
-  return {
-    ...message,
-    text: split.text,
-    ...(split.attachments.length > 0 ? { attachments: split.attachments } : {})
-  }
 }
 
 export function getBotTeamWorkspace(this: OrchestrationDb, teamId: string): string | null {
@@ -279,24 +276,15 @@ export function moveBotTeamTask(
     this.db.exec('ROLLBACK')
     throw error
   }
+  // Its new owner starts fresh, so a question the old owner asked is not waiting any more.
+  clearBotTeamTaskWaiting.call(this, taskId)
   return requireBotTeamTask(this, taskId)
 }
 
-/** A teammate's child is on its way: starting the task as well would run it twice. */
-export function isBotTeamTaskHandedOff(this: OrchestrationDb, taskId: string): boolean {
-  return (
-    this.db
-      .prepare(
-        `SELECT 1 FROM bot_team_task_delegations l
-         JOIN delegation_requests d ON d.id = l.request_id
-         WHERE l.task_id = ? AND d.status IN ('pending', 'starting')`
-      )
-      .get(taskId) !== undefined
-  )
-}
-
 export type BotTeamRoomStoreMethods = BotTeamMemoryStoreMethods &
-  BotTeamTrackerStoreMethods & {
+  BotTeamTrackerStoreMethods &
+  BotTeamTaskWaitingStoreMethods &
+  BotTeamTaskAnswersStoreMethods & {
     linkBotTeamTaskDelegation: typeof linkBotTeamTaskDelegation
     getBotTeamTask: typeof getBotTeamTask
     isBotTeamTaskHandedOff: typeof isBotTeamTaskHandedOff
@@ -315,21 +303,28 @@ export type BotTeamRoomStoreMethods = BotTeamMemoryStoreMethods &
   }
 
 export function attachBotTeamRoomStore(ctor: { prototype: object }): void {
-  Object.assign(ctor.prototype, BOT_TEAM_MEMORY_STORE_METHODS, BOT_TEAM_TRACKER_STORE_METHODS, {
-    isBotTeamTaskHandedOff,
-    getBotTeamTaskStartNotes,
-    setBotTeamTaskStartNotes,
-    moveBotTeamTask,
-    linkBotTeamTaskDelegation,
-    getBotTeamTask,
-    getBotTeamWorkspace,
-    setBotTeamWorkspace,
-    createBotTeamTask,
-    listBotTeamTasks,
-    setBotTeamTaskSession,
-    setBotTeamTaskLastStatus,
-    findBotTeamTaskBySession,
-    postBotTeamMessage,
-    listBotTeamMessages
-  })
+  Object.assign(
+    ctor.prototype,
+    BOT_TEAM_MEMORY_STORE_METHODS,
+    BOT_TEAM_TRACKER_STORE_METHODS,
+    BOT_TEAM_TASK_WAITING_STORE_METHODS,
+    BOT_TEAM_TASK_ANSWERS_STORE_METHODS,
+    {
+      isBotTeamTaskHandedOff,
+      getBotTeamTaskStartNotes,
+      setBotTeamTaskStartNotes,
+      moveBotTeamTask,
+      linkBotTeamTaskDelegation,
+      getBotTeamTask,
+      getBotTeamWorkspace,
+      setBotTeamWorkspace,
+      createBotTeamTask,
+      listBotTeamTasks,
+      setBotTeamTaskSession,
+      setBotTeamTaskLastStatus,
+      findBotTeamTaskBySession,
+      postBotTeamMessage,
+      listBotTeamMessages
+    }
+  )
 }

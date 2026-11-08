@@ -18038,9 +18038,12 @@
       }
     },
     "nativeChatSummary": {
-      "loadedResults": "불러온 채팅 기록에 남은 파일 변경과 시각화",
-      "noResults": "보고된 파일 변경이나 시각화가 없습니다",
-      "visualKind": "시각화"
+      "loadedResults": "불러온 채팅 기록에 남은 환경 URL, 파일 변경, 시각화",
+      "noResults": "보고된 파일 변경, 시각화, 환경 URL이 없습니다",
+      "visualKind": "시각화",
+      "openUrl": "열기",
+      "previousUrl": "이전",
+      "remoteUrlOnHost": "이 URL은 원격 호스트에 있습니다. 이 PC에서 열려면 포트를 전달하세요."
     },
     "native-chat": {
       "reasoning": "추론",

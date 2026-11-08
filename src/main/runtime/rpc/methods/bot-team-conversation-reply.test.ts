@@ -7,6 +7,7 @@ const askBot = vi.hoisted(() =>
   vi.fn(
     async (_args: {
       agent: { id: string } | null
+      botRun?: { botId: string; teamId: string }
       prompt: string
       research?: boolean
     }): Promise<string | null> => 'Hola'
@@ -15,6 +16,11 @@ const askBot = vi.hoisted(() =>
 vi.mock('../../../bot-teams/bot-team-request-query', () => ({
   askDefaultAgentForBotTeamRequest: vi.fn(),
   askBotAgentForBotTeamReply: askBot
+}))
+
+const denied = vi.hoisted(() => ({ ids: [] as string[] }))
+vi.mock('../../../marketplace/marketplace-bot-run-denial', () => ({
+  deniedMarketplaceAppIdsForBot: async () => denied.ids
 }))
 
 import { startBotTeamConversationReply } from './bot-team-conversation-reply'
@@ -26,6 +32,7 @@ describe('startBotTeamConversationReply', () => {
     db?.close()
     db = undefined
     askBot.mockClear()
+    denied.ids = []
   })
 
   function setup(agent: 'pi' | 'claude') {
@@ -88,6 +95,8 @@ describe('startBotTeamConversationReply', () => {
       { botId: team.bots[0].id, since: expect.any(Number) }
     ])
     expect(db?.listBotTeamMessages(team.id)).toEqual([])
+    // The question goes out once the host has read which apps the bot is kept out of.
+    await vi.waitFor(() => expect(askBot).toHaveBeenCalledOnce())
     release('Listo')
     await started?.done
     expect(listBotTeamReplying(team.id)).toEqual([])
@@ -140,6 +149,25 @@ describe('startBotTeamConversationReply', () => {
     const { team, ctx } = setup('claude')
     await startBotTeamConversationReply(ctx, { team, text: 'Hola', subjectBotIds: [] })?.done
     expect(askBot.mock.calls[0][0].research).toBeFalsy()
+  })
+
+  it('asks the answering bot’s agent as that bot, so its denied apps stay out of the turn', async () => {
+    const { team, ctx } = setup('claude')
+    await startBotTeamConversationReply(ctx, { team, text: 'Hola', subjectBotIds: [] })?.done
+    expect(askBot.mock.calls[0][0].botRun).toEqual({ botId: team.bots[0].id, teamId: team.id })
+  })
+
+  it('adds no line for an app the answering bot is kept out of', async () => {
+    const { team, ctx } = setup('claude')
+    denied.ids = ['engram']
+    await startBotTeamConversationReply(ctx, {
+      team,
+      text: 'Ask @Engram and @GitHub',
+      subjectBotIds: []
+    })?.done
+    const prompt = askBot.mock.calls[0][0].prompt
+    expect(prompt).not.toContain('MCP server engram')
+    expect(prompt).toContain('Use GitHub (the gh command) for this request.')
   })
 })
 

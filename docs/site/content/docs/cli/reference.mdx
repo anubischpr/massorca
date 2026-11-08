@@ -331,6 +331,96 @@ orca account add --agent codex
 
 `account add` runs `claude login` / `codex login` in **this** terminal on the host, then registers the captured credentials with the local runtime. Codex uses device authorization so the browser can finish on another machine. Run these on the machine that owns the accounts — not through a client-only remote session.
 
+## Marketplace (host-local runtime)
+
+The Marketplace page (**Settings → Marketplace**) has a CLI twin, so an agent on a headless host can inspect and repair app entries without the desktop GUI. The commands call the same host RPC methods the page calls. Run them on the host, or from a paired computer with `--environment <name>`.
+
+```bash
+orca marketplace list                         # each app, and each agent's entry: Set, Missing, Not installed…
+orca marketplace connect engram               # writes Engram into every allowed agent that lacks it
+orca marketplace connect openmetadata         # repair: rewrites missing entries from the stored server and token
+printf %s "$OM_TOKEN" | orca marketplace connect openmetadata --server https://om.example.com --token-stdin
+orca marketplace disconnect openmetadata
+orca marketplace access engram                # show the access mode
+orca marketplace access engram --mode except --agents antigravity
+orca marketplace audit --host wsl:Ubuntu      # each page: opens, or blocked (code): reason; --strict exits 1 if any is blocked
+orca marketplace services list                # GitLab, Bitbucket, Azure DevOps, Gitea, Linear, Jira
+orca marketplace services connect linear --token-env LINEAR_API_KEY
+orca marketplace services connect gitea --site https://git.example.com --token-env GITEA_TOKEN
+orca marketplace services disconnect bitbucket
+orca marketplace skills list                   # --host local | wsl:<distro> | ssh:<target-id> | runtime:<environment-id>
+orca marketplace skills list --host wsl:Ubuntu --json
+orca marketplace skills show <name>            # package, agents, and the folder and SKILL.md paths on the host
+orca marketplace skills install --package <id> --version <id> --agents claude,codex   # catalog skill, SSH hosts too
+orca marketplace skills install --file ./caveman.tar.gz --agents claude,codex
+orca marketplace skills agents <name> --agents codex   # turn agents on or off
+orca marketplace skills uninstall <name> --host wsl:Ubuntu
+```
+
+Tokens are read only from stdin (`--token-stdin`) or a named env var (`--token-env <NAME>`); `--token` on the command line is refused, and no output prints a token. `connect` with no flags repairs an app that is already set up, reusing the credentials the host stores.
+
+`--host` on the `skills` commands picks the machine the way the desktop host picker does: `local` is this computer, `wsl:<distro>` a WSL distro on it, `ssh:<target-id>` an SSH host and `runtime:<environment-id>` a paired MassOrca server. `skills install --package <id> --version <id>` installs a catalog version: the desktop app on the connected host gets the cloud download grant, which also reaches SSH hosts. `--file` instead reads a skill package file on the computer you run it on and sends it to the host, which checks its digest before placing anything; SSH hosts take only catalog installs. `--agents` lists the agents that read the skill (`none` keeps it in the shared agents folder only); `agents` reinstalls the installed catalog version with the new list and prints the copies left on the host. A headless host without the desktop's Skill Cloud sign-in needs `--file` with the same package instead.
+
+## Bot Teams
+
+The `bot-teams` commands read and change the rooms, tasks, projects, routines and memory of a Bot team on this MassOrca host. Each command is one host call, so the CLI does what the desktop app does. Pass the team id from `orca bot-teams list` to `--team`. A bot, project or routine can be named or given by id; a name two items share is refused. Every command takes `--json` and prints the host reply.
+
+```bash
+orca bot-teams list
+orca bot-teams room --team <id>
+orca bot-teams messages --team <id> [--limit <n>]
+orca bot-teams tasks --team <id>
+orca bot-teams task show --team <id> --task <id>      # status, owner, project and the bot's final text
+orca bot-teams send --team <id> --text "Draft the notes" [--reply-to <message-id>] [--attach attachments/brief.pdf] [--no-start]
+orca bot-teams answer --team <id> --request <message-id> [--bot <name>|--team-to <name>|--project <name|none>|--later]
+orca bot-teams delegate --team <id> --bot <name> --text "Draft the notes" [--wait] [--timeout <seconds>]
+orca bot-teams task create|start|reassign|set-project ...
+orca bot-teams project create|update|archive|restore|rm|brief|code-source|workspace ...
+orca bot-teams team create|update|rm ...
+orca bot-teams bot add|update|rm ...
+orca bot-teams routine create|update|rm|pause|resume|runs ...
+orca bot-teams memory list|rm ...
+orca bot-teams webhook list|create|rotate-secret ...
+orca bot-teams file versions|restore-version ...
+```
+
+`delegate --wait` polls the room until the task finishes and prints the bot's final text. It exits 1 on a timeout, a stuck or stopped task, or a question that waits for you. A web address secret prints once, in the reply that creates or rotates it. `--attach` names files already in the team folder's `attachments/` folder; the CLI does not copy files in.
+
+## Fork features
+
+Entry points for MassOrca features, for agents testing and changing a host. Every command takes `--json` and prints the host reply. A host refusal (`ok: false`) exits 1 with its reason.
+
+```bash
+orca account usage [--refresh]          # the usage rings: session and weekly use per provider
+orca account select --agent claude|codex|antigravity --account <id|system> [--target host|wsl:<distro>]
+orca account rm --agent claude|codex|antigravity --account <id>
+orca account list --agent antigravity
+orca account add --agent antigravity     # saves the account signed in on the host now
+orca account codex-reset-credit --account <id>   # spends one earned credit; refuses if none is on offer
+
+orca prototypes list --worktree <id>
+orca prototypes create --session <chat id> --agent claude --prompt "A pricing page" --count 3 [--design-system use|propose|skip]
+orca prototypes archive|unarchive|rm --session <chat id> --request <request id>
+orca prototypes restore-version --session <chat id> --request <request id> --letter A --version 2
+orca prototypes write-attachment --session <chat id> --request <request id> --name note-1 --image ./note.png
+orca prototypes read-file --session <chat id> --request <request id> --file A-v1.html
+orca prototypes design-system read|versions --session <chat id>
+orca prototypes design-system version|restore --session <chat id> --version <n>
+
+orca jev status                         # enabled, and whether a key is stored (never the key)
+orca jev enable | disable
+printf %s "$JEV_API_KEY" | orca jev set-key --key-stdin      # or --key-env <NAME>
+orca jev clear-key
+
+orca folder-workspace list
+orca folder-workspace create --group <project group id> [--name <name>] [--path <folder>] [--connection <ssh id>]
+orca folder-workspace update --workspace <id> [--name <name>] [--path <folder>] [--archived true|false] [--pinned true|false]
+orca folder-workspace rm --workspace <id>
+orca folder-workspace path-status --workspace <id> | --group <id> | --path <folder>
+```
+
+The Jev key, like Marketplace tokens, is read only from stdin or a named env var; `--key` on the command line is refused and no output prints it. Child sessions use the existing `orca orchestration delegate`, `worker-list`, `worker-show` and `worker-read` commands; there is no one-shot list of a chat's child sessions yet.
+
 ## Artifacts
 
 Publish HTML or Markdown through the signed-in Orca account. Viewing a public link does not require sign-in; create/list/update/delete do. **Publishing is off by default** — a human must enable **Settings → Artifacts → Allow publishing public artifact links** on the device. There is no CLI flag that grants the gate. `list`, `unshare`, and `delete` stay available so you can audit or revoke links after turning publishing off.

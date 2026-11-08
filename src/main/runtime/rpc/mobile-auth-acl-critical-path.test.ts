@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { WebSocket } from 'ws'
 import type { ProcessResult, ProcessSpec } from '../../../shared/child-process/run-process'
 import { runProcess, runProcessSync } from '../../../shared/child-process/run-process'
+import { resolveWindowsUserSid } from '../../../shared/secure-path-windows-acl'
 import { DEVICE_REGISTRY_FILENAME } from '../mobile-pairing-files'
 import { DeviceRegistry, type DeviceEntry } from '../device-registry'
 import { decrypt, deriveSharedKey, encrypt, generateKeyPair } from './e2ee-crypto'
@@ -27,11 +28,11 @@ const INJECTED_SPAWN_LATENCY_MS = 5
 const USER_SID = 'S-1-5-21-1000'
 const OK: ProcessResult = { code: 0, signal: null, stdout: '', stderr: '', timedOut: false }
 /**
- * One secure write hardens two paths: the staged temp file, fresh and still on the inherited DACL,
- * costs the full verify/reset/grant/verify pass; the published file, whose protected DACL came
- * along with the rename, costs only its verify.
+ * One secure write hardens the staged temp file, fresh and still on the inherited DACL: the full
+ * verify/reset/grant/verify pass. The published file keeps that DACL through the rename, so it is
+ * not re-verified. (Once the directory verifies, writes stop spawning on this lane at all.)
  */
-const BLOCKING_SPAWNS_PER_WRITE = 5
+const BLOCKING_SPAWNS_PER_WRITE = 4
 
 /** Paths the fake icacls has granted a protected DACL, keyed to the ACE flags the grant used. */
 const hardenedByFake = new Map<string, string>()
@@ -102,7 +103,7 @@ describe('mobile auth critical path', () => {
   const timeline: TimelineEntry[] = []
   let userDataPath = ''
 
-  beforeEach(() => {
+  beforeEach(async () => {
     timeline.length = 0
     process.env.SystemRoot = 'C:\\Windows'
     Object.defineProperty(process, 'platform', { configurable: true, value: 'win32' })
@@ -122,8 +123,16 @@ describe('mobile auth critical path', () => {
       Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, INJECTED_SPAWN_LATENCY_MS)
       return fakeIcacls(spec)
     })
-    // The directory harden stays on the async lane, so it never lands on the timeline.
-    vi.mocked(runProcess).mockImplementation((spec) => Promise.resolve(fakeIcacls(spec)))
+    // The SID lookup and the directory harden stay on the async lane, so never on the timeline.
+    vi.mocked(runProcess).mockImplementation((spec) =>
+      Promise.resolve(
+        spec.program.endsWith('whoami.exe')
+          ? { ...OK, stdout: `"USER","${USER_SID}"` }
+          : fakeIcacls(spec)
+      )
+    )
+    // The app prewarms the SID at startup, before any device can authenticate.
+    await resolveWindowsUserSid()
   })
 
   afterEach(() => {
@@ -200,7 +209,7 @@ describe('mobile auth critical path', () => {
     expect(timeline.indexOf('acl-spawn')).toBe(-1)
 
     registry.flushPendingLastSeen()
-    // Hardening is deferred, never dropped: tmp file + published file, exactly as the inline path did.
+    // Hardening is deferred, never dropped: the staged file, exactly as the inline path did.
     expect(timeline.filter((entry) => entry === 'acl-spawn')).toHaveLength(
       BLOCKING_SPAWNS_PER_WRITE
     )

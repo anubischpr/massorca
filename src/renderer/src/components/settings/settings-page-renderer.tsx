@@ -14,11 +14,11 @@ import {
 import {
   renderArtifactsSettingsSection,
   renderBotTeamsSettingsSection,
+  renderMarketplaceSettingsSection,
   renderPrototypesSettingsSection,
   renderSessionHistorySettingsSection,
   renderAutomationsSettingsSection,
   renderGeneralSettingsSection,
-  renderIntegrationsSettingsSection,
   renderMobileSettingsSection,
   renderOrcaAccountSettingsSection,
   renderSetupGuideSettingsSection,
@@ -126,13 +126,13 @@ export function renderSettingsPage(context: SettingsRenderContext): React.JSX.El
                 {renderOrcaAccountSettingsSection(context)}
                 {renderSetupGuideSettingsSection(context)}
                 {renderGeneralSettingsSection(context)}
-                {renderIntegrationsSettingsSection(context)}
                 {renderMobileSettingsSection(context)}
                 {renderAutomationsSettingsSection(context)}
                 {renderArtifactsSettingsSection(context)}
                 {renderShareSkillsSettingsSection(context)}
                 {renderPrototypesSettingsSection(context)}
                 {renderBotTeamsSettingsSection(context)}
+                {renderMarketplaceSettingsSection(context)}
                 {renderSessionHistorySettingsSection(context)}
                 {renderGitSettingsSection(context)}
                 {renderTasksSettingsSection(context)}

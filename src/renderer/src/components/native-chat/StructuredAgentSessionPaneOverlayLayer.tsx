@@ -90,6 +90,7 @@ const StructuredAgentSessionPaneOverlayLayer = memo(
     const referenced = useAppStore(selectReferencedSessions)
     const layoutWorktreeId = useAppStore(selectLayoutWorktreeId)
     const activeGroupIdByWorktree = useAppStore((state) => state.activeGroupIdByWorktree)
+    const isFloatingPanelOpen = useAppStore((state) => state.floatingWorkspacePanelOpen)
     const focusOwningGroup = useCallback(
       (groupId: string) => {
         // Why: a pane that shows this workspace's session from another workspace's layout takes the focus there.
@@ -114,7 +115,8 @@ const StructuredAgentSessionPaneOverlayLayer = memo(
             referenced,
             tab.id,
             layoutWorktreeId,
-            activeGroupIdByWorktree
+            activeGroupIdByWorktree,
+            isFloatingPanelOpen
           )
           return (
             <StructuredAgentSessionOverlaySlot

@@ -39,6 +39,30 @@ function deps(overrides: Partial<BotTeamDelegateDeps> = {}): BotTeamDelegateDeps
 }
 
 describe('delegateToBotTeammate', () => {
+  it('hands the same text to the same teammate once and says it was already handed over', async () => {
+    const existing = {
+      id: 'task-1',
+      teamId: 'team',
+      sessionId: null,
+      title: 'Part',
+      prompt: 'x',
+      ownerBotId: 'max',
+      projectId: null
+    }
+    const d = deps({ alreadyHandedOver: vi.fn(() => existing) })
+
+    const task = await delegateToBotTeammate(d, {
+      team: TEAM,
+      botName: 'Max',
+      text: 'Review the API'
+    })
+
+    expect(task).toMatchObject({ id: 'task-1', alreadyHandedOver: true })
+    expect(d.alreadyHandedOver).toHaveBeenCalledWith('max', 'Review the API')
+    expect(d.fileRequest).not.toHaveBeenCalled()
+    expect(d.createTask).not.toHaveBeenCalled()
+  })
+
   it('runs a teammate on Gentle Shell as Gentle Shell, never as stock Pi', async () => {
     const d = deps()
     const shell = { ...TEAM.bots[0], name: 'Rosa', agent: 'pi' as const }
@@ -70,6 +94,19 @@ describe('delegateToBotTeammate', () => {
     expect(prompt).toContain('Summer')
     expect(prompt).toContain('Goal: Sell more ice cream')
     expect(prompt).toContain('- Flyers in two colors')
+  })
+
+  it('adds no Marketplace line for an app the teammate is kept out of', async () => {
+    const d = deps()
+    await delegateToBotTeammate(d, {
+      team: TEAM,
+      botName: 'Max',
+      text: 'Ask @Engram and @GitHub',
+      deniedMarketplaceApps: ['engram']
+    })
+    const prompt = vi.mocked(d.fileRequest).mock.calls[0][0].prompt
+    expect(prompt).not.toContain('MCP server engram')
+    expect(prompt).toContain('Use GitHub (the gh command) for this request.')
   })
 
   describe('the folder a child writes in', () => {

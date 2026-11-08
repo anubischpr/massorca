@@ -54,7 +54,8 @@ const PostReply = z.object({
   // True when the team answered a bare greeting: nothing is routed, so nobody is asked.
   greeted: z.boolean().default(false),
   // The defaults read a host from before the request routing: nothing was decided.
-  choice: RequestChoiceSchema.nullable().default(null),
+  // A choice kind newer than this app reads as no choice instead of failing the whole reply.
+  choice: RequestChoiceSchema.nullable().default(null).catch(null),
   composite: z.array(z.string()).default([]),
   answered: z.boolean().default(false),
   // A bot is answering in the background; its line reaches the room when ready.

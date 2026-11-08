@@ -41,6 +41,9 @@ export type UISlicePreferences = {
   setWorkspaceHostScope: (scope: WorkspaceHostScope) => void
   visibleWorkspaceHostIds: VisibleWorkspaceHostIds
   setVisibleWorkspaceHostIds: (ids: VisibleWorkspaceHostIds) => void
+  /** Marketplace page host pick; null = this computer. Persisted via the debounced ui writer. */
+  marketplaceHostKey: string | null
+  setMarketplaceHostKey: (key: string | null) => void
   workspaceHostOrder: WorkspaceHostOrder
   setWorkspaceHostOrder: (ids: WorkspaceHostOrder) => void
   /** Automations page host filter, in stable form. Never written from an unhydrated catalog. */

@@ -35,6 +35,8 @@ export type CreateChatMenuItem = {
   icon?: ReactNode
   /** Right-aligned state, such as a worktree's session count. */
   trailing?: string
+  /** Attributes set on the row itself, such as a hover zone another component looks up. */
+  rowAttributes?: Readonly<Record<string, string>>
 }
 
 export const PROJECTLESS_PROJECT_VALUE = 'projectless'

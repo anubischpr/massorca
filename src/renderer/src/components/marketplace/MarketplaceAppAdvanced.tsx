@@ -4,6 +4,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { translate } from '@/i18n/i18n'
 import type { MarketplaceAppContext } from './marketplace-app-context'
 import { MarketplaceAppAccess } from './MarketplaceAppAccess'
+import { MarketplaceEngramCloud } from './MarketplaceEngramCloud'
 import { MarketplaceEngramImport } from './MarketplaceEngramImport'
 import { MarketplaceEngramProgram } from './MarketplaceEngramProgram'
 import { MarketplaceInfoRow } from './MarketplaceInfoRow'
@@ -93,11 +94,14 @@ function EngramAdvanced({ ctx }: { ctx: MarketplaceAppContext }): React.JSX.Elem
               size="sm"
               onClick={() => ctx.openDialog({ kind: 'engram-server' })}
             >
-              {translate('auto.components.marketplace.MarketplaceAppAdvanced.replace', 'Replace')}
+              {stored
+                ? translate('auto.components.marketplace.MarketplaceAppAdvanced.replace', 'Replace')
+                : translate('auto.components.marketplace.MarketplaceAppAdvanced.add', 'Add')}
             </Button>
           ) : null}
         </MarketplaceInfoRow>
       </div>
+      {serverUrl ? <MarketplaceEngramCloud /> : null}
       <MarketplaceEngramProgram />
       <MarketplaceEngramImport />
     </>

@@ -49,7 +49,8 @@ export function getGroupVisibleTabOrder(
     if (
       tab.contentType === 'simulator' ||
       tab.contentType === 'checklist' ||
-      tab.contentType === 'session-ref'
+      tab.contentType === 'session-ref' ||
+      tab.contentType === 'create-session'
     ) {
       return simulatorTabIds.has(tab.id) ? { type: 'simulator', id: tab.id, tabId: tab.id } : null
     }
@@ -193,7 +194,8 @@ export function getActiveTabNavOrder(
         (tab) =>
           tab.contentType === 'simulator' ||
           tab.contentType === 'checklist' ||
-          tab.contentType === 'session-ref'
+          tab.contentType === 'session-ref' ||
+          tab.contentType === 'create-session'
       )
       .map((tab) => tab.id)
   const agentSessionIds =

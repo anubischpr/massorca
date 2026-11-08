@@ -52,6 +52,7 @@ import {
   hydrateTrustedOrcaHooks,
   hydrateUnexpectedSignoutDismissal,
   normalizeHydratedVisibleWorkspaceHostIds,
+  sanitizePersistedMarketplaceHostKey,
   preserveStringArrayIdentity,
   sanitizeHydratedActiveView,
   sanitizePersistedRepoIds,
@@ -125,6 +126,7 @@ export function createUiHydrationActions(set: UISliceSet, _get: UISliceGet): Par
           showSleepingWorkspaces: !(ui.hideSleepingWorkspaces ?? DEFAULT_HIDE_SLEEPING_WORKSPACES),
           workspaceHostScope: normalizeExecutionHostScope(ui.workspaceHostScope),
           visibleWorkspaceHostIds: normalizeHydratedVisibleWorkspaceHostIds(ui),
+          marketplaceHostKey: sanitizePersistedMarketplaceHostKey(ui.marketplaceHostKey),
           workspaceHostOrder: normalizeExecutionHostOrder(ui.workspaceHostOrder),
           // Why: a malformed or legacy filter value must degrade to All hosts, never throw during hydration.
           automationHostFilter: parsePersistedAutomationHostFilter(ui.automationHostFilter),

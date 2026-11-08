@@ -8,6 +8,8 @@ import { installHookStatusSessionTabsRepublish } from '../agent-hooks/hook-statu
 import { initTelemetry, track } from '../telemetry/client'
 import { setCodexTrustGrantTelemetry } from '../codex/codex-trust-grant-telemetry'
 import { initObservability } from '../observability'
+import { startMainEventLoopLagBreadcrumbs } from '../diagnostics/main-thread-responsiveness-breadcrumbs'
+import { enableNonBlockingSecureFileWrites } from '../../shared/secure-file'
 import { recordDurableCrashBreadcrumb } from '../crash-reporting/durable-crash-breadcrumb'
 import { reportPreviousHangDetection } from '../hang-watchdog/previous-hang-detection'
 import { getCanonicalUserDataPath } from '../persistence'
@@ -89,6 +91,9 @@ export function initializeMainProcessObservers(): void {
   // Honors DO_NOT_TRACK / ORCA_TELEMETRY_DISABLED / ORCA_DIAGNOSTICS_DISABLED
   // / CI internally; those gates do not need to be re-checked here.
   initObservability()
+  startMainEventLoopLagBreadcrumbs()
+  // Why here: before any IPC handler or window can trigger a secure write on this thread.
+  enableNonBlockingSecureFileWrites([app.getPath('userData')])
   recordDurableCrashBreadcrumb('main_process_lifecycle_started', {
     packaged: app.isPackaged,
     platform: process.platform

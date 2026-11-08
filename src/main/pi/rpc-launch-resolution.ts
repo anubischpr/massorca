@@ -8,6 +8,7 @@ import {
   agentSessionProviderHandleKey,
   type AgentSessionProviderHandleLink
 } from '../../shared/agent-session-provider-handle'
+import { buildMarketplaceAgentEnv } from '../marketplace/marketplace-agent-env'
 import { probeGentleShellPiOutcome } from './gentle-shell-version-probe'
 import { isLegacyAgentSessionAccountHome } from '../../shared/agent-session-account-home'
 import type { AgentSessionJournalIdentity } from '../../shared/agent-session-journal-types'
@@ -32,6 +33,11 @@ import {
   withNativeChatVisualsEnv,
   type PrepareNativeChatVisuals
 } from '../native-chat/native-chat-visuals-delivery'
+import {
+  botRunChildEnv,
+  deleteBotRunDeniedEnv,
+  type BotRunDenialResolver
+} from '../marketplace/marketplace-bot-run-denial'
 import { piChatVisualsFor } from './pi-chat-visuals'
 import { gentleShellModeForAccess, type GentleShellMode } from './gentle-shell-permission-mode'
 import {
@@ -53,6 +59,8 @@ export type PiRpcLaunchResolverDeps = {
   store: AgentSessionRecordStore
   resolveWorkspacePath: (id: string) => Promise<string>
   resolveEnvironment: () => Promise<NodeJS.ProcessEnv>
+  /** The Marketplace apps a bot run is kept out of; absent reads the host's apps. */
+  resolveBotRunDenial?: BotRunDenialResolver
   /** The user's Pi Command setting, re-read per acquisition; none runs the stock binary. */
   resolveCommandSettings?: () => StructuredAgentCommandSettings
   resolveCommand?: typeof resolveCliCommand
@@ -197,12 +205,12 @@ export function createPiRpcLaunchResolver(
       throw new Error('Pi account home does not match its binary')
     }
     const cwd = await deps.resolveWorkspacePath(record.location.workspaceId)
-    const env: Record<string, string> = {}
-    for (const [key, value] of Object.entries(await deps.resolveEnvironment())) {
-      if (value !== undefined) {
-        env[key] = value
-      }
-    }
+    // A bot run keeps the tokens of the apps its bot is kept out of out of the agent's env.
+    const { env, envToDelete, denial } = await botRunChildEnv(
+      await deps.resolveEnvironment(),
+      record.options,
+      deps.resolveBotRunDenial
+    )
     env.PI_CODING_AGENT_DIR = accountHome.path
     const previous = agentSessionProviderHandleChainHead(record.providerHandleChain)
     let sessionFile: string | undefined
@@ -257,10 +265,16 @@ export function createPiRpcLaunchResolver(
     }
     // Why: the visuals folder is named only beside its skill text, so a chat without that text gets neither.
     const visuals = await piChatVisualsFor(deps, identity.sessionId)
+    // Why: Marketplace apps reach Gentle Shell as env vars named in its MCP config, never as values;
+    // stock Pi is not a Marketplace agent. Added after the version probe, which has no use for them.
+    // A bot run's denial runs after them, so a denied app's token never comes back.
+    const appEnv = piRuntime === 'gentle-shell' ? buildMarketplaceAgentEnv('gentle-shell') : {}
+    const launchEnv = deleteBotRunDeniedEnv({ ...env, ...appEnv }, denial)
     return {
       command,
       cwd,
-      env: withNativeChatVisualsEnv(env, visuals?.visuals ?? null),
+      env: withNativeChatVisualsEnv(launchEnv, visuals?.visuals ?? null),
+      ...(envToDelete ? { envToDelete } : {}),
       piRuntime,
       // Why: Gentle Shell's posture is a mode command sent after start, never a launch flag, so
       // its launch is always allowed; stock Pi has no restricted mode and keeps the full-access rule.

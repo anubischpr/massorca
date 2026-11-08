@@ -2,7 +2,12 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { FLOATING_TERMINAL_WORKTREE_ID } from '../../../../../shared/constants'
 import { createTestStore, makeTabGroup, makeUnifiedTab, seedStore } from '../store-test-helpers'
 import { installSidePanelNormalizer } from './side-panel-normalizer'
-import { referencedPlacement, selectReferencedSessions } from './pane-session-ref'
+import {
+  isFloatingReferenceDormant,
+  referencedPlacement,
+  selectFloatingReferenceOwnerWorktreeIds,
+  selectReferencedSessions
+} from './pane-session-ref'
 
 const A = 'repo::/work/a'
 const B = 'repo::/work/b'
@@ -225,24 +230,53 @@ describe('a session shown by a floating session tab', () => {
     })
   })
 
-  it('is visible only while its tab is the active tab of its group', () => {
+  it('is visible while the floating panel is open and its tab is the active tab of its group, whatever workspace the main window shows', () => {
     showAsTab(true)
     const referenced = selectReferencedSessions(store.getState())
-    expect(referencedPlacement(referenced, 'b-chat', FLOAT, { [FLOAT]: 'float-main' })).toEqual({
-      groupId: 'float-main',
-      isVisible: true,
-      isFocusedGroup: true,
-      focusWorktreeId: FLOAT
-    })
+    // The main window shows workspace A (or the owner B): neither decides the floating panel.
+    for (const mainLayout of [A, B, null]) {
+      expect(
+        referencedPlacement(referenced, 'b-chat', mainLayout, { [FLOAT]: 'float-main' }, true)
+      ).toEqual({
+        groupId: 'float-main',
+        isVisible: true,
+        isFocusedGroup: true,
+        focusWorktreeId: FLOAT
+      })
+    }
+  })
 
+  it('gives the session back to its owner while its tab is not the active tab of its group', () => {
+    // Why: another floating tab (a new terminal) took the focus; the owner's view must not turn into the picker.
     showAsTab(false)
     const inactive = selectReferencedSessions(store.getState())
-    expect(referencedPlacement(inactive, 'b-chat', FLOAT, { [FLOAT]: 'float-main' })).toEqual({
-      groupId: 'float-main',
-      isVisible: false,
-      isFocusedGroup: false,
-      focusWorktreeId: FLOAT
-    })
+    const shown = inactive.get('b-chat')
+    expect(shown && isFloatingReferenceDormant(shown, true)).toBe(true)
+    expect(referencedPlacement(inactive, 'b-chat', A, { [FLOAT]: 'float-main' }, true)).toBeNull()
+  })
+
+  it('gives the session back to its owner while the floating panel is closed', () => {
+    showAsTab(true)
+    const referenced = selectReferencedSessions(store.getState())
+    const shown = referenced.get('b-chat')
+    expect(shown && isFloatingReferenceDormant(shown, false)).toBe(true)
+    expect(shown && isFloatingReferenceDormant(shown, true)).toBe(false)
+    expect(
+      referencedPlacement(referenced, 'b-chat', A, { [FLOAT]: 'float-main' }, false)
+    ).toBeNull()
+    expect(referencedPlacement(referenced, 'b-chat', A, { [FLOAT]: 'float-main' })).toBeNull()
+  })
+
+  it('names the owner workspace of a session the floating panel shows, for mounting', () => {
+    showAsTab(true)
+    expect(selectFloatingReferenceOwnerWorktreeIds(store.getState())).toEqual([B])
+    showAsTab(false)
+    expect(selectFloatingReferenceOwnerWorktreeIds(store.getState())).toEqual([])
+  })
+
+  it('does not name the owner of a split-view reference', () => {
+    store.getState().showSessionInPane(A, 'a-pane', { worktreeId: B, tabId: 'b-chat' })
+    expect(selectFloatingReferenceOwnerWorktreeIds(store.getState())).toEqual([])
   })
 
   it('releases the session when its floating tab closes, and keeps the session in its workspace', () => {

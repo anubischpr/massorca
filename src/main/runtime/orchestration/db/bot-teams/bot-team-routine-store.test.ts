@@ -114,6 +114,28 @@ describe('bot team routine store', () => {
     ])
   })
 
+  it('marks the task a run started, so the room keeps it at the time it ran', () => {
+    const { db, team, input } = setup()
+    createBotTeamRoutine(db, input, at(11, 1, 12, 0))
+    const [run] = claimDueBotTeamRoutines(db, at(11, 2, 9, 0))
+    const task = db.createBotTeamTask({
+      teamId: team.id,
+      title: 'Check-in',
+      prompt: 'Say hello',
+      ownerBotId: team.bots[0].id
+    })
+    const asked = db.createBotTeamTask({
+      teamId: team.id,
+      title: 'Flyer',
+      prompt: 'Make the flyer',
+      ownerBotId: team.bots[0].id
+    })
+    recordBotTeamRoutineRun(db, run.runId, { taskId: task.id, error: null })
+    const listed = db.listBotTeamTasks(team.id)
+    expect(listed.find((entry) => entry.id === task.id)?.fromRoutine).toBe(true)
+    expect(listed.find((entry) => entry.id === asked.id)?.fromRoutine).toBe(false)
+  })
+
   it('keeps each run with its task or the reason it did not start', () => {
     const { db, team, input } = setup()
     const routine = createBotTeamRoutine(db, input, at(11, 1, 12, 0))

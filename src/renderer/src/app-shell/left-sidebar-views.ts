@@ -2,12 +2,16 @@ import type { TopLevelView } from '../../../shared/ui-chrome-types'
 
 /**
  * The views the left sidebar belongs to: the ones the Workspaces / Bot Teams rail button opens, and
- * Prototypes, whose sets are a tree under its row in that sidebar. Every other page uses the whole space
- * beside the rail.
+ * Prototypes, whose sets are a tree under its row in that sidebar, and the Marketplace's own sidebar. Every
+ * other page uses the whole space beside the rail.
  */
 export function isLeftSidebarView(view: TopLevelView): boolean {
   return (
-    view === 'terminal' || view === 'create-chat' || view === 'bot-teams' || view === 'prototypes'
+    view === 'terminal' ||
+    view === 'create-chat' ||
+    view === 'bot-teams' ||
+    view === 'prototypes' ||
+    view === 'marketplace'
   )
 }
 

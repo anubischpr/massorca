@@ -50,7 +50,7 @@ const VALID_TOKENS = JSON.stringify({
   $extensions: { massorca: { version: 3 } }
 })
 
-describe('orca prototypes design-system', () => {
+describe('orca prototypes design-system check', () => {
   let priorExitCode: typeof process.exitCode
   let logSpy: ReturnType<typeof vi.spyOn>
 
@@ -91,7 +91,7 @@ describe('orca prototypes design-system', () => {
       })
     )
 
-    await main(['prototypes', 'design-system', '--session', 'chat-1'])
+    await main(['prototypes', 'design-system', 'check', '--session', 'chat-1'])
 
     expect(callMock).toHaveBeenCalledWith('prototypes.readDesignSystem', { sessionId: 'chat-1' })
     expect(printed()).toBe(
@@ -123,7 +123,7 @@ describe('orca prototypes design-system', () => {
       })
     )
 
-    await main(['prototypes', 'design-system', '--session', 'chat-1'])
+    await main(['prototypes', 'design-system', 'check', '--session', 'chat-1'])
 
     expect(process.exitCode).toBe(1)
     expect(printed()).toBe(
@@ -152,7 +152,7 @@ describe('orca prototypes design-system', () => {
       })
     )
 
-    await main(['prototypes', 'design-system', '--session', 'chat-1', '--json'])
+    await main(['prototypes', 'design-system', 'check', '--session', 'chat-1', '--json'])
 
     expect(JSON.parse(printed())).toEqual({
       readable: true,
@@ -172,7 +172,7 @@ describe('orca prototypes design-system', () => {
   it('reports a chat not found on this host as not readable and exits 1', async () => {
     queueFixtures(callMock, okFixture('req_read', { ok: false, error: 'not_found' }))
 
-    await main(['prototypes', 'design-system', '--session', 'chat-404'])
+    await main(['prototypes', 'design-system', 'check', '--session', 'chat-404'])
 
     expect(process.exitCode).toBe(1)
     expect(printed()).toBe(

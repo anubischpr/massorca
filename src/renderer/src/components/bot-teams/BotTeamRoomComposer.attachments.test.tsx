@@ -17,8 +17,10 @@ vi.mock('@/i18n/i18n', () => ({
 vi.mock('./use-bot-team-files', () => ({ useBotTeamFilePaths: () => [] }))
 vi.mock('./open-bot-team-room-sessions', () => ({ openBotTeamRoomSessions: vi.fn() }))
 vi.mock('./BotAgentIcon', () => ({ BotAgentIcon: () => null }))
+vi.mock('./BotTeamFileHoverPreview', () => ({ BotTeamFileHoverPreview: () => null }))
 
 const { BotTeamRoomComposer } = await import('./BotTeamRoomComposer')
+const { clearBotTeamRoomPendingFilesForTests } = await import('./bot-team-room-pending-files')
 
 const BOT = { modelMode: 'auto' as const, model: null, effort: null, skills: [] }
 const TEAM: BotTeam = {
@@ -39,6 +41,7 @@ afterEach(() => {
     act(() => root.unmount())
     container.remove()
   }
+  clearBotTeamRoomPendingFilesForTests()
 })
 
 function mount(props: { onAttachFiles?: () => Promise<BotTeamRoomAttachment[]> } = {}) {
@@ -70,6 +73,30 @@ function typeText(container: HTMLElement, value: string): void {
 }
 
 describe('bot team room composer attachments', () => {
+  it('previews an attached file on hover before it is sent, as a sent file does', async () => {
+    const { container } = mount({ onAttachFiles: async () => [FLYER] })
+    await act(async () => attachButton(container)!.click())
+
+    const name = [...container.querySelectorAll('li span')].find(
+      (span) => span.textContent === 'flyer.png'
+    )
+    expect(name?.getAttribute('data-state')).toBe('closed')
+  })
+
+  it('keeps an attached file after the room is left and opened again', async () => {
+    const first = mount({ onAttachFiles: async () => [FLYER] })
+    await act(async () => attachButton(first.container)!.click())
+    expect(first.container.textContent).toContain('flyer.png')
+    const { root, container } = mounted.splice(0)[0]
+    act(() => root.unmount())
+    container.remove()
+
+    const again = mount({ onAttachFiles: async () => [] })
+    expect(again.container.textContent).toContain('flyer.png')
+    await act(async () => sendButton(again.container).click())
+    expect(again.onSend).toHaveBeenCalledWith('', [FLYER])
+  })
+
   it('shows no attach button when the room cannot take files', () => {
     const { container } = mount()
 

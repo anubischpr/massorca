@@ -38,12 +38,19 @@ describe('the notes bots read', () => {
     expect(BOT_TEAM_HISTORY_SOURCES_NOTE).toContain('mcp__engram__mem_context')
     expect(BOT_TEAM_HISTORY_SOURCES_NOTE).not.toContain('plugin_engram')
     expect(BOT_TEAM_HISTORY_SOURCES_NOTE).toContain('"openmetadata"')
-    expect(BOT_TEAM_HISTORY_SOURCES_NOTE).toContain('never "openmetadata-escritura"')
+    expect(BOT_TEAM_HISTORY_SOURCES_NOTE).toContain('never another OpenMetadata server')
   })
 
   it('say every bot can make option cards and artifacts, and speak in the first person', () => {
     expect(BOT_TEAM_UNIVERSAL_CAPABILITY_NOTE).toContain('option cards')
-    expect(BOT_TEAM_ROOM_VOICE_NOTE).toContain('Yo tomaré')
+    expect(BOT_TEAM_ROOM_VOICE_NOTE).toContain('never post a line that only says you took')
     expect(BOT_TEAM_ROOM_VOICE_NOTE).toContain('Never describe internal hand-offs')
+  })
+
+  it('make a bot own its child sessions and name files without paths', () => {
+    expect(BOT_TEAM_ROOM_VOICE_NOTE).toContain('Work your own child sessions do is your work')
+    expect(BOT_TEAM_ROOM_VOICE_NOTE).toContain('Estoy a la espera de que elijas el tipo de agente')
+    expect(BOT_TEAM_ROOM_VOICE_NOTE).toContain('never a file path')
+    expect(BOT_TEAM_ROOM_VOICE_NOTE).toContain('Name only files you made')
   })
 })

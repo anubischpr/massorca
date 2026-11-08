@@ -17,6 +17,10 @@ export type MarketplaceAppAgentStatus = {
   entry: MarketplaceAgentEntryState
   /** False when the app's access policy keeps this agent out; absent means allowed. */
   allowed?: boolean
+  /** Whether the agent is on this computer; absent on a host that predates it, which never flags a gap. */
+  installed?: boolean
+  /** A link leads this agent's settings file out of its home, so MassOrca leaves it alone; absent means not. */
+  outsideHome?: boolean
 }
 
 /** Who may use an app: everyone, only the picked ones, or everyone except the picked ones. */
@@ -73,6 +77,77 @@ export function isMarketplaceAppAllowedForBot(
   return allowedByMode(policy.bots.mode, picked)
 }
 
+/** False for an agent whose runs can't have a Marketplace app's MCP tools removed. */
+export function marketplaceAgentSupportsAppDenial(agent: string): boolean {
+  // Why: Antigravity always loads its global mcp_config.json, so one run can't drop an app.
+  return agent !== 'antigravity'
+}
+
+/** An installed agent the access policy allows, with no entry for the app yet: Connect writes it. */
+export function isMarketplaceAgentEntryMissing(
+  appId: MarketplaceAppId,
+  agent: MarketplaceAppAgentStatus
+): boolean {
+  return (
+    appId !== 'github' &&
+    agent.entry === 'missing' &&
+    agent.installed === true &&
+    agent.allowed !== false &&
+    agent.outsideHome !== true
+  )
+}
+
+/** Shown wherever an app would be denied to a bot that runs on such an agent. */
+export const MARKETPLACE_AGENT_DENIAL_UNSUPPORTED_MESSAGE =
+  "Antigravity loads every Marketplace app on each run, so a bot on Antigravity can't be kept out of one. To limit this bot, switch it to another agent."
+
+/** Shown when a bot kept out of some items would be switched to such an agent; `{{items}}` is filled in. */
+export const MARKETPLACE_AGENT_SWITCH_BLOCKED_MESSAGE =
+  "Antigravity can't keep a bot out of a Marketplace item, and this bot is blocked from {{items}}. To switch it to Antigravity, remove the bot from that blocklist in the Marketplace, or pick another agent."
+
+/** The switch-blocked message with the item names joined, for callers outside the translated UI. */
+export function marketplaceAgentSwitchBlockedMessage(items: readonly string[]): string {
+  return MARKETPLACE_AGENT_SWITCH_BLOCKED_MESSAGE.replace('{{items}}', items.join(', '))
+}
+
+/** Connected apps a bot is kept out of; a bot run must leave their MCP servers and tokens out. */
+export function marketplaceAppsDeniedForBot(
+  apps: readonly MarketplaceAppStatus[],
+  bot: { botId: string; teamId: string }
+): MarketplaceAppStatus[] {
+  return apps.filter(
+    (app) =>
+      app.connected && app.access !== undefined && !isMarketplaceAppAllowedForBot(app.access, bot)
+  )
+}
+
+/** MCP server entry names MassOrca writes for an app in every agent's config. */
+export function marketplaceAppMcpServerNames(app: MarketplaceAppStatus): string[] {
+  switch (app.id) {
+    case 'engram':
+      return ['engram']
+    case 'openmetadata':
+      return ['openmetadata', ...(app.profiles ?? []).map((profile) => profile.name)]
+    case 'github':
+      return []
+  }
+}
+
+/** Env vars MassOrca injects for an app; a bot kept out of it must not receive them. */
+export function marketplaceAppTokenEnvNames(app: MarketplaceAppStatus): string[] {
+  switch (app.id) {
+    case 'engram':
+      return [ENGRAM_CLOUD_TOKEN_ENV, ENGRAM_CLOUD_SERVER_ENV]
+    case 'openmetadata':
+      return [
+        OPENMETADATA_TOKEN_ENV,
+        ...(app.profiles ?? []).map((profile) => openMetadataProfileTokenEnv(profile.name))
+      ]
+    case 'github':
+      return []
+  }
+}
+
 /** True when neither agents nor bots are limited, so the record says nothing a default would not. */
 export function isUnrestrictedAccessPolicy(policy: MarketplaceAppAccessPolicy): boolean {
   return policy.agents.mode === 'everyone' && policy.bots.mode === 'everyone'
@@ -97,11 +172,22 @@ export type MarketplaceCredentialStatus = {
 export const MARKETPLACE_REMOTE_CREDENTIAL_SLOTS = ['openmetadata', 'engram-cloud'] as const
 export type MarketplaceRemoteCredentialSlot = (typeof MARKETPLACE_REMOTE_CREDENTIAL_SLOTS)[number]
 
+/** The token of one extra OpenMetadata profile in a host's vault. */
+export type MarketplaceVaultProfileSlot = { kind: 'openmetadata-profile'; name: string }
+
+/** Any credential a client may set on another host's vault. */
+export type MarketplaceVaultSlot = MarketplaceRemoteCredentialSlot | MarketplaceVaultProfileSlot
+
 /** One host's vault as a client may see it: set or not set, when it changed, never a value. */
 export type MarketplaceVaultHostStatus = {
   hostLabel: string
   store: MarketplaceCredentialStore
   credentials: { slot: MarketplaceRemoteCredentialSlot; stored: boolean; updatedAt?: number }[]
+  /**
+   * The extra OpenMetadata profiles this host knows. Absent on a host that predates profile
+   * tokens, which a client reads as "update that host first".
+   */
+  profiles?: { name: string; stored: boolean; updatedAt?: number }[]
 }
 
 export type MarketplaceVaultHostResult =
@@ -115,15 +201,17 @@ export type MarketplaceVaultHostResult =
 /** Write-only management of the vault on an SSH host; a token travels once and is never returned. */
 export type MarketplaceRemoteVaultApi = {
   status: (args: { connectionId: string }) => Promise<MarketplaceVaultHostResult>
-  set: (args: {
-    connectionId: string
-    slot: MarketplaceRemoteCredentialSlot
-    token: string
-  }) => Promise<MarketplaceVaultHostResult>
-  clear: (args: {
-    connectionId: string
-    slot: MarketplaceRemoteCredentialSlot
-  }) => Promise<MarketplaceVaultHostResult>
+  /** A `profile` instead of a `slot` stores that extra OpenMetadata profile's token. */
+  set: (
+    args:
+      | { connectionId: string; slot: MarketplaceRemoteCredentialSlot; token: string }
+      | { connectionId: string; profile: string; token: string }
+  ) => Promise<MarketplaceVaultHostResult>
+  clear: (
+    args:
+      | { connectionId: string; slot: MarketplaceRemoteCredentialSlot }
+      | { connectionId: string; profile: string }
+  ) => Promise<MarketplaceVaultHostResult>
 }
 
 export type MarketplaceAppStatus = {
@@ -156,15 +244,59 @@ export type MarketplaceActionResult =
         | 'invalid-input'
         | 'unreadable-config'
         | 'unsupported-shape'
+        /** A link led the agent's settings file outside this home, so it was left alone. */
+        | 'outside-home'
         | 'vault-unavailable'
         | 'failed'
+        /** Another host only: it predates the Marketplace methods, or cannot be reached. */
+        | 'host-needs-update'
+        | 'unreachable'
       /** Which agent's config caused the failure, when one did. */
       agent?: MarketplaceAppAgent
     }
 
+export type MarketplaceAppsListResult =
+  | { ok: true; apps: MarketplaceAppStatus[] }
+  | { ok: false; reason: 'host-needs-update' | 'unreachable' | 'failed' }
+
+/** The same operations on an SSH host's own agents; the arguments travel under `args`. */
+export type MarketplaceRemoteAppsApi = {
+  listApps: (call: { connectionId: string }) => Promise<MarketplaceAppsListResult>
+  connect: (call: {
+    connectionId: string
+    args: MarketplaceConnectArgs
+  }) => Promise<MarketplaceActionResult>
+  disconnect: (call: {
+    connectionId: string
+    args: { id: MarketplaceAppId }
+  }) => Promise<MarketplaceActionResult>
+  setOpenMetadataToken: (call: {
+    connectionId: string
+    args: { token: string }
+  }) => Promise<MarketplaceActionResult>
+  addOpenMetadataProfile: (call: {
+    connectionId: string
+    args: { name: string; url: string; token: string }
+  }) => Promise<MarketplaceActionResult>
+  removeOpenMetadataProfile: (call: {
+    connectionId: string
+    args: { name: string }
+  }) => Promise<MarketplaceActionResult>
+  setEngramServer: (call: {
+    connectionId: string
+    args: { url: string | null; token?: string }
+  }) => Promise<MarketplaceActionResult>
+  setAccessPolicy: (call: {
+    connectionId: string
+    args: { id: MarketplaceAppId; policy: MarketplaceAppAccessPolicy }
+  }) => Promise<MarketplaceActionResult>
+}
+
 export type MarketplaceAppsApi = {
   /** SSH hosts keep their own vault; absent where the preload predates it. */
   remoteVault?: MarketplaceRemoteVaultApi
+  /** Connecting apps on an SSH host's own agents; absent where the preload predates it. */
+  remote?: MarketplaceRemoteAppsApi
   /** Installed and connectable apps with their state on this computer; also feeds the @ menu. */
   listApps: () => Promise<MarketplaceAppStatus[]>
   connect: (args: MarketplaceConnectArgs) => Promise<MarketplaceActionResult>
@@ -206,7 +338,8 @@ export const MARKETPLACE_INTEGRATION_LEVELS: Record<
     claude: 'full',
     codex: 'full',
     antigravity: 'tools-only',
-    'gentle-shell': 'tools-only'
+    // Why: Gentle Shell's own Engram is part of its ODD harness.
+    'gentle-shell': 'full'
   },
   openmetadata: {
     claude: 'full',

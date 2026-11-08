@@ -58,6 +58,23 @@ describe('botTeamTaskPrompt context', () => {
     expect(prompt).toContain('Your working directory is /work/task-1.')
   })
 
+  it('keeps the room excerpt from reopening finished work, and files what the person asks to keep', () => {
+    const prompt = botTeamTaskPrompt(TEAM, BOT, TASK, { roomExcerpt: ['Person: informe'] })
+    expect(prompt).toContain('Do not redo work that is already finished')
+    expect(prompt).toContain('for future reference')
+    expect(prompt).toContain('say in the Conference room that it is saved')
+  })
+
+  it('tells a teammate child to do the work itself and never to dispatch sub-workers', () => {
+    const child = botTeamTaskPrompt(TEAM, BOT, TASK, { delegated: true })
+    expect(child).toContain('do not dispatch sub-workers')
+    expect(child).not.toContain('To hand work to a teammate, run')
+    expect(child).not.toContain('team-delegate')
+    const owner = botTeamTaskPrompt(TEAM, BOT, TASK)
+    expect(owner).toContain('To hand work to a teammate, run')
+    expect(owner).not.toContain('do not dispatch sub-workers')
+  })
+
   it('tells the bot to write in its current folder when no directory is known', () => {
     const prompt = botTeamTaskPrompt(TEAM, BOT, TASK)
     expect(prompt).not.toContain('Recent Conference room messages')
@@ -68,14 +85,18 @@ describe('botTeamTaskPrompt context', () => {
     const prompt = botTeamTaskPrompt(TEAM, BOT, TASK)
     expect(prompt).toContain('mcp__engram__mem_search')
     expect(prompt).not.toContain('plugin_engram')
-    expect(prompt).toContain('never "openmetadata-escritura"')
+    expect(prompt).toContain('never another OpenMetadata server')
     expect(prompt).toContain('first person')
     expect(prompt).toContain('names the final deliverable')
   })
 
-  it('has a delegated bot say what it takes before it starts', () => {
-    const prompt = botTeamTaskPrompt(TEAM, BOT, TASK, { delegated: true })
-    expect(prompt).toContain('does not say you took it yet')
-    expect(botTeamTaskPrompt(TEAM, BOT, TASK)).toContain('the room already says you took it')
+  it('has no bot, delegated or not, post a line that only says it took the task', () => {
+    for (const prompt of [
+      botTeamTaskPrompt(TEAM, BOT, TASK, { delegated: true }),
+      botTeamTaskPrompt(TEAM, BOT, TASK)
+    ]) {
+      expect(prompt).toContain('Never post a line that only says you took it or will do it')
+      expect(prompt).not.toContain('Before you start, post')
+    }
   })
 })

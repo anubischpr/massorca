@@ -18,6 +18,7 @@ const store = vi.hoisted(() => ({
   activeWorktreeId: 'wt-1',
   browserPagesByWorkspace: {},
   browserTabsByWorktree: {},
+  groupsByWorktree: {},
   closeBrowserTab: mocks.closeBrowserTab,
   closeFile: mocks.closeFile,
   closeUnifiedTab: mocks.closeUnifiedTab,
@@ -86,7 +87,8 @@ vi.mock('@/runtime/runtime-worktree-selector', () => ({
   toRuntimeWorktreeSelector: (worktreeId: string) => `id:${worktreeId}`
 }))
 
-vi.mock('@/i18n/i18n', () => ({
+vi.mock('@/i18n/i18n', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/i18n/i18n')>()),
   translate: (_key: string, fallback: string) => fallback
 }))
 

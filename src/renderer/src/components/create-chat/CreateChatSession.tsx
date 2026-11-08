@@ -8,7 +8,7 @@ import { CreateChatPermissionsChip, CreateChatPlaceChips } from './CreateChatLef
 import { CreateChatSessionViewSwitch } from './CreateChatSessionViewSwitch'
 import { CreateChatTerminalNotice } from './CreateChatTerminalNotice'
 import { useCreateChatAgents } from './use-create-chat-agents'
-import { useCreateChatMentionWorktreeId } from './use-create-chat-mention'
+import { useCreateChatMentionTarget } from './use-create-chat-mention'
 import { useCreateChatModelCatalog } from './use-create-chat-model-catalog'
 import {
   buildDefaultCreateChatSelection,
@@ -36,6 +36,8 @@ type CreateChatSessionProps = {
   below?: ReactNode
   /** Keeps unsent text when the person clicks away; see useComposerDraft. */
   draftKey?: string
+  /** The first selection, for a caller that preselects; absent uses the composer's defaults. */
+  initialSelection?: CreateChatSelection
 }
 
 /** One create-chat draft; its choices reset with the page's nonce, its unsent text is kept. */
@@ -47,10 +49,11 @@ export function CreateChatSession({
   subheading,
   layout = 'centered',
   aboveComposer,
-  below
+  below,
+  initialSelection
 }: CreateChatSessionProps): React.JSX.Element {
-  const [selection, setSelection] = useState<CreateChatSelection>(() =>
-    buildDefaultCreateChatSelection(options)
+  const [selection, setSelection] = useState<CreateChatSelection>(
+    () => initialSelection ?? buildDefaultCreateChatSelection(options)
   )
   const [draft, setDraft, clearDraft] = useComposerDraft(draftKey ?? null)
   const [pending, setPending] = useState(false)
@@ -68,7 +71,7 @@ export function CreateChatSession({
     selection.executionHostId,
     modelListingContext
   )
-  const mentionWorktreeId = useCreateChatMentionWorktreeId(selection)
+  const mentionTarget = useCreateChatMentionTarget(selection, options.repos)
   const view: CreateChatSessionView = selection.sessionView ?? 'chat'
   const terminalBlock = view === 'terminal' ? createChatTerminalBlock(selection.agent) : null
   const canSubmit =
@@ -112,7 +115,7 @@ export function CreateChatSession({
         pending={pending}
         error={error}
         onSubmit={submit}
-        mentionWorktreeId={mentionWorktreeId}
+        mentionTarget={mentionTarget}
         placeChips={
           <CreateChatPlaceChips
             selection={selection}

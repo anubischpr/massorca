@@ -4,6 +4,8 @@ import { act, type ReactNode } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { i18n } from '../../i18n/i18n'
+import { promptTextContent } from '../native-chat/native-chat-prompt-document'
+import { promptEditor, promptValue } from '../native-chat/native-chat-prompt-editor.test-support'
 import type { CreateChatOptions, CreateChatSubmitOutcome } from './create-chat-selection'
 
 const mocks = vi.hoisted(() => ({
@@ -12,7 +14,10 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('@/components/ui/dropdown-menu', async () => {
   const React = await import('react')
-  const OpenContext = React.createContext<{ open: boolean; setOpen: (open: boolean) => void }>({
+  const OpenContext = React.createContext<{
+    open: boolean
+    setOpen: (open: boolean) => void
+  }>({
     open: false,
     setOpen: () => {}
   })
@@ -85,7 +90,9 @@ vi.mock('@/components/ui/dropdown-menu', async () => {
   }
 })
 
-vi.mock('@/lib/use-pi-runtime', () => ({ usePiDisplayRuntime: () => 'unknown' }))
+vi.mock('@/lib/use-pi-runtime', () => ({
+  usePiDisplayRuntime: () => 'unknown'
+}))
 
 vi.mock('@/lib/agent-catalog', () => ({
   getAgentCatalog: () => [
@@ -112,8 +119,18 @@ import { CreateChatSession } from './CreateChatSession'
 
 const options: CreateChatOptions = {
   hosts: [
-    { id: 'local', label: 'This computer', detail: 'Runs on this machine', health: 'local' },
-    { id: 'ssh:devbox', label: 'devbox', detail: 'SSH target', health: 'available' }
+    {
+      id: 'local',
+      label: 'This computer',
+      detail: 'Runs on this machine',
+      health: 'local'
+    },
+    {
+      id: 'ssh:devbox',
+      label: 'devbox',
+      detail: 'SSH target',
+      health: 'available'
+    }
   ],
   repos: [
     {
@@ -176,9 +193,7 @@ async function renderSession(draftKey?: string): Promise<HTMLDivElement> {
   const root = createRoot(container)
   mountedRoots.push(root)
   await act(async () => {
-    root.render(
-      <CreateChatSession options={options} onSubmit={mocks.submit} draftKey={draftKey} />
-    )
+    root.render(<CreateChatSession options={options} onSubmit={mocks.submit} draftKey={draftKey} />)
   })
   return container
 }
@@ -210,12 +225,12 @@ function menuItem(container: ParentNode, label: string): HTMLButtonElement {
   return item
 }
 
-function composer(container: ParentNode): HTMLTextAreaElement {
-  const textarea = container.querySelector('textarea')
-  if (!textarea) {
-    throw new Error('Composer textarea not found')
+function composer(container: ParentNode): HTMLElement {
+  const field = container.querySelector<HTMLElement>('[role="textbox"]')
+  if (!field) {
+    throw new Error('Composer field not found')
   }
-  return textarea
+  return field
 }
 
 async function click(element: HTMLElement): Promise<void> {
@@ -224,14 +239,13 @@ async function click(element: HTMLElement): Promise<void> {
   })
 }
 
-async function typeDraft(container: ParentNode, text: string): Promise<HTMLTextAreaElement> {
-  const textarea = composer(container)
-  const setValue = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')?.set
+async function typeDraft(container: ParentNode, text: string): Promise<HTMLElement> {
+  const field = composer(container)
   await act(async () => {
-    setValue?.call(textarea, text)
-    textarea.dispatchEvent(new Event('input', { bubbles: true }))
+    promptEditor(field).commands.setContent(promptTextContent(text))
+    promptEditor(field).commands.focus('end')
   })
-  return textarea
+  return field
 }
 
 function requiredElement<T extends Element>(found: T | null, name: string): T {
@@ -259,9 +273,16 @@ function sessionViewFrame(container: ParentNode): HTMLElement {
   return requiredElement(sessionViewGroup(container).parentElement, 'Session view frame')
 }
 
-async function pressEnter(textarea: HTMLTextAreaElement, shiftKey: boolean): Promise<void> {
+async function pressEnter(field: HTMLElement, shiftKey: boolean): Promise<void> {
   await act(async () => {
-    textarea.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', shiftKey, bubbles: true }))
+    field.dispatchEvent(
+      new KeyboardEvent('keydown', {
+        key: 'Enter',
+        shiftKey,
+        bubbles: true,
+        cancelable: true
+      })
+    )
   })
 }
 
@@ -285,7 +306,7 @@ describe('CreateChatSession', () => {
     await typeDraft(await renderSession('create'), 'half a thought')
     await unmountAll()
 
-    expect(composer(await renderSession('create')).value).toBe('half a thought')
+    expect(promptValue(composer(await renderSession('create')))).toBe('half a thought')
   })
 
   it('clears the kept text once the session starts', async () => {
@@ -296,14 +317,14 @@ describe('CreateChatSession', () => {
     await unmountAll()
 
     expect(mocks.submit).toHaveBeenCalledWith('Fix the login redirect', expect.anything())
-    expect(composer(await renderSession('create')).value).toBe('')
+    expect(promptValue(composer(await renderSession('create')))).toBe('')
   })
 
   it('renders the empty state and the default footer chips', async () => {
     const container = await renderSession()
 
     expect(container.textContent).toContain('What do you want to build?')
-    expect(composer(container).getAttribute('placeholder')).toBe(
+    expect(composer(container).getAttribute('aria-label')).toBe(
       'Describe the task to start the session…'
     )
     expect(button(container, 'Location').textContent).toContain('This computer')
@@ -434,7 +455,7 @@ describe('CreateChatSession', () => {
     expect(container.querySelector('[role="alert"]')?.textContent).toBe(
       'Could not open the workspace for this chat. Your draft is kept.'
     )
-    expect(composer(container).value).toBe('Fix the login bug')
+    expect(promptValue(composer(container))).toBe('Fix the login bug')
     expect(button(container, 'Create session').disabled).toBe(false)
   })
 
@@ -444,7 +465,10 @@ describe('CreateChatSession', () => {
       container.querySelector('[role="group"][aria-label="Where it runs"]'),
       'Where it runs group'
     )
-    const box = requiredElement(composer(container).parentElement, 'composer box')
+    const box = requiredElement(
+      composer(container).closest<HTMLElement>('.shadow-xs'),
+      'composer box'
+    )
 
     expect(place.contains(button(container, 'Location'))).toBe(true)
     expect(place.contains(button(container, 'Project'))).toBe(true)
@@ -478,7 +502,10 @@ describe('CreateChatSession', () => {
 
     expect(mocks.submit).toHaveBeenCalledWith(
       'Fix the login bug',
-      expect.objectContaining({ workspaceMode: 'existing-worktree', existingWorktreeId: 'wt-fix' })
+      expect.objectContaining({
+        workspaceMode: 'existing-worktree',
+        existingWorktreeId: 'wt-fix'
+      })
     )
   })
 

@@ -1,15 +1,21 @@
 import {
   MARKETPLACE_VAULT_CLEAR_METHOD,
+  MARKETPLACE_VAULT_CLEAR_PROFILE_METHOD,
   MARKETPLACE_VAULT_SET_METHOD,
+  MARKETPLACE_VAULT_SET_PROFILE_METHOD,
   MARKETPLACE_VAULT_STATUS_METHOD,
   MarketplaceVaultClear,
-  MarketplaceVaultSet
+  MarketplaceVaultClearProfile,
+  MarketplaceVaultSet,
+  MarketplaceVaultSetProfile
 } from '../../../../shared/rpc-contract/marketplace-vault-params'
 import type { MarketplaceVaultHostResult } from '../../../../shared/marketplace-apps'
 import {
   clearVaultHostCredential,
+  clearVaultHostProfileCredential,
   readVaultHostStatus,
-  setVaultHostCredential
+  setVaultHostCredential,
+  setVaultHostProfileCredential
 } from '../../../marketplace/marketplace-vault-host'
 import { getMarketplaceVault, type MarketplaceVault } from '../../../marketplace/marketplace-vault'
 import { defineMethod } from '../core'
@@ -47,8 +53,28 @@ export const marketplaceVaultClearMethod = defineMethod({
     clearVaultHostCredential(marketplaceVaultHost.vault(), params)
 })
 
+// Why: a profile token has its own methods so an older host answers `method_not_found`, which the
+// client turns into "update MassOrca on this host"; the existing methods keep their old shape.
+export const marketplaceVaultSetProfileMethod = defineMethod({
+  name: MARKETPLACE_VAULT_SET_PROFILE_METHOD,
+  permission: 'accounts-admin',
+  params: MarketplaceVaultSetProfile,
+  handler: async (params): Promise<MarketplaceVaultHostResult> =>
+    setVaultHostProfileCredential(marketplaceVaultHost.vault(), params)
+})
+
+export const marketplaceVaultClearProfileMethod = defineMethod({
+  name: MARKETPLACE_VAULT_CLEAR_PROFILE_METHOD,
+  permission: 'accounts-admin',
+  params: MarketplaceVaultClearProfile,
+  handler: async (params): Promise<MarketplaceVaultHostResult> =>
+    clearVaultHostProfileCredential(marketplaceVaultHost.vault(), params)
+})
+
 export const MARKETPLACE_VAULT_METHODS = [
   marketplaceVaultStatusMethod,
   marketplaceVaultSetMethod,
-  marketplaceVaultClearMethod
+  marketplaceVaultClearMethod,
+  marketplaceVaultSetProfileMethod,
+  marketplaceVaultClearProfileMethod
 ]

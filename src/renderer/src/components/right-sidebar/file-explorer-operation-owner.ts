@@ -95,6 +95,20 @@ export function getFileExplorerOperationOwnerFromState(
   return connectionId ? { kind: 'ssh', connectionId } : { kind: 'local' }
 }
 
+/** A file listing's host as its caller picked it, and the folder to list before the catalog has the row. */
+export type FileListHost = { executionHostId: ExecutionHostId; rootPath: string | null }
+
+/** A caller that already picked the host names the owner; inference could route a local row to a paired runtime. */
+export function getFileExplorerOperationOwnerForHost(
+  state: FileExplorerOwnerState,
+  worktreeId: string | null | undefined,
+  host: FileListHost | undefined
+): FileExplorerOperationOwner {
+  return host
+    ? operationOwnerFromHostId(host.executionHostId)
+    : getFileExplorerOperationOwnerFromState(state, worktreeId)
+}
+
 export function getFileExplorerOperationOwner(
   worktreeId: string | null | undefined
 ): FileExplorerOperationOwner {

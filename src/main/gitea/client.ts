@@ -14,6 +14,7 @@ import {
   type HostedReviewExecutionOptions
 } from '../source-control/hosted-review-git-options'
 import { cancelUnreadResponseBody } from '../lib/unread-response-body'
+import { readStoredServiceCredential } from '../marketplace/marketplace-service-credentials'
 
 const REQUEST_TIMEOUT_MS = 5000
 // Why: self-hosted Forgejo can take ~5s to serve one /pulls page (it loads
@@ -51,13 +52,17 @@ export function normalizeGiteaApiBaseUrl(value: string): string {
   return /\/api\/v1$/i.test(trimmed) ? trimmed : `${trimmed}/api/v1`
 }
 
-function getAuthConfig(): GiteaAuthConfig {
-  const apiBaseUrl = envValue('ORCA_GITEA_API_BASE_URL')
+/** The Gitea address and token: what the Marketplace saved on this host first, then the environment. */
+export function getGiteaAuthConfig(): GiteaAuthConfig {
+  const stored = readStoredServiceCredential('gitea')
+  const apiBaseUrl = stored.baseUrl ?? envValue('ORCA_GITEA_API_BASE_URL')
   return {
     apiBaseUrl: apiBaseUrl ? normalizeGiteaApiBaseUrl(apiBaseUrl) : null,
-    token: envValue('ORCA_GITEA_TOKEN')
+    token: stored.token ?? envValue('ORCA_GITEA_TOKEN')
   }
 }
+
+const getAuthConfig = getGiteaAuthConfig
 
 function authHeaders(config: Pick<GiteaAuthConfig, 'token'>): Record<string, string> {
   return config.token ? { Authorization: `token ${config.token}` } : {}

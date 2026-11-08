@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 
 import { act } from 'react'
+import { repoFixture } from '../native-chat/native-chat-workspace-test-fixtures'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
@@ -15,9 +16,11 @@ globalThis.IS_REACT_ACT_ENVIRONMENT = true
 const mocks = vi.hoisted(() => {
   const apps: MarketplaceAppStatus[] = []
   const teams: BotTeam[] = []
+  const wslTargets: { kind: 'wsl'; distro: string; label: string }[] = []
   return {
     apps,
     teams,
+    wslTargets,
     listApps: vi.fn(),
     connect: vi.fn(),
     disconnect: vi.fn(),
@@ -55,6 +58,10 @@ vi.mock('@/lib/agent-catalog', () => ({
 }))
 vi.mock('@/lib/agent-icon-gentle-shell', () => ({ GentleShellIcon: () => null }))
 vi.mock('@/lib/pi-agent-display', () => ({ piRuntimeLabel: () => 'Gentle Shell' }))
+vi.mock('./marketplace-host-wsl', async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
+  useMarketplaceWslTargets: () => mocks.wslTargets
+}))
 vi.mock('@/components/bot-teams/use-bot-teams', () => ({
   useBotTeams: () => ({
     teams: mocks.teams,
@@ -267,6 +274,42 @@ describe('MarketplaceAppPage', () => {
     })
   })
 
+  it('runs one forced local preflight check when the GitHub page opens', async () => {
+    const refresh = vi.fn(async () => {})
+    store.setState({ refreshPreflightStatus: refresh })
+    await mount('github')
+    expect(refresh).toHaveBeenCalledTimes(1)
+    expect(refresh).toHaveBeenCalledWith({ force: true })
+  })
+
+  it('does not force a preflight check when the Engram page opens', async () => {
+    const refresh = vi.fn(async () => {})
+    store.setState({ refreshPreflightStatus: refresh })
+    await mount('engram')
+    expect(refresh).not.toHaveBeenCalledWith({ force: true })
+  })
+
+  it("shows Gentle Shell's own Engram as Full integration", async () => {
+    seedApps([
+      {
+        ...engram,
+        agents: [
+          ...engram.agents.slice(0, 3),
+          { agent: 'gentle-shell', level: 'full', entry: 'built-in' }
+        ]
+      },
+      openmetadata,
+      github
+    ])
+    const container = await mount('engram')
+    const rows = [...sectionOf(container, 'information').querySelectorAll('li')].map(
+      (row) => row.textContent ?? ''
+    )
+    expect(rows[3]).toContain('Gentle Shell')
+    expect(rows[3]).toContain('Full integration')
+    expect(rows[3]).toContain('Built into its harness')
+  })
+
   it('shows each agent with its integration level or Built in in Information', async () => {
     const container = await mount('engram')
     const rows = [...sectionOf(container, 'information').querySelectorAll('li')].map(
@@ -281,6 +324,26 @@ describe('MarketplaceAppPage', () => {
     expect(rows[2]).toContain('Tools only')
     expect(rows[3]).toContain('Gentle Shell')
     expect(rows[3]).toContain('Tools only')
+  })
+
+  it("says in Information when an agent's settings file links outside its home", async () => {
+    seedApps([
+      engram,
+      {
+        ...openmetadata,
+        agents: openmetadata.agents.map((row) =>
+          row.agent === 'codex' ? { ...row, entry: 'missing', outsideHome: true } : row
+        )
+      },
+      github
+    ])
+    const container = await mount('openmetadata')
+    const rows = [...sectionOf(container, 'information').querySelectorAll('li')]
+    const codex = rows.find((row) => row.textContent?.includes('Codex'))
+    expect(codex?.textContent).toContain(
+      "Its settings file links outside this agent's home, so MassOrca left it alone."
+    )
+    expect(rows.filter((row) => row.textContent?.includes('links outside'))).toHaveLength(1)
   })
 
   it('connects OpenMetadata with the address and token, and never shows the token', async () => {
@@ -361,6 +424,37 @@ describe('MarketplaceAppPage', () => {
     })
   })
 
+  it('renames an OpenMetadata profile by adding the new name, then removing the old one', async () => {
+    const container = await mount('openmetadata')
+
+    await clickButton(sectionOf(container, 'advanced'), 'Edit')
+    await typeInto(inputById('marketplace-profile-name'), 'production')
+    await typeInto(inputById('marketplace-profile-token'), 'prod-token')
+    await submitDialog()
+
+    expect(mocks.addOpenMetadataProfile).toHaveBeenCalledWith({
+      name: 'production',
+      url: 'https://prod.example.com',
+      token: 'prod-token'
+    })
+    expect(mocks.removeOpenMetadataProfile).toHaveBeenCalledWith({ name: 'prod' })
+    expect(mocks.addOpenMetadataProfile.mock.invocationCallOrder[0]).toBeLessThan(
+      mocks.removeOpenMetadataProfile.mock.invocationCallOrder[0] ?? 0
+    )
+  })
+
+  it('keeps the old profile when adding the renamed one fails', async () => {
+    mocks.addOpenMetadataProfile.mockResolvedValueOnce({ ok: false, reason: 'invalid-input' })
+    const container = await mount('openmetadata')
+
+    await clickButton(sectionOf(container, 'advanced'), 'Edit')
+    await typeInto(inputById('marketplace-profile-name'), 'production')
+    await typeInto(inputById('marketplace-profile-token'), 'prod-token')
+    await submitDialog()
+
+    expect(mocks.removeOpenMetadataProfile).not.toHaveBeenCalled()
+  })
+
   it('copies the deep link and an example prompt with its @ mention', async () => {
     const container = await mount('engram')
 
@@ -401,6 +495,46 @@ describe('MarketplaceAppPage', () => {
     expect(mocks.setEngramServer).toHaveBeenCalledWith({ url: 'https://engram.example.com' })
   })
 
+  it('offers Add, not Replace, for the Engram sign-in once its token is cleared', async () => {
+    seedApps([
+      { ...engram, serverUrl: 'https://engram.example.com', credential: { stored: false } },
+      openmetadata,
+      github
+    ])
+    const container = await mount('engram')
+    const labels = [...sectionOf(container, 'advanced').querySelectorAll('button')].map((button) =>
+      button.textContent?.trim()
+    )
+
+    expect(labels).toContain('Add')
+    expect(labels).not.toContain('Replace')
+  })
+
+  it('offers Replace for the Engram sign-in while a token is stored', async () => {
+    seedApps([
+      { ...engram, serverUrl: 'https://engram.example.com', credential: { stored: true } },
+      openmetadata,
+      github
+    ])
+    const container = await mount('engram')
+    const labels = [...sectionOf(container, 'advanced').querySelectorAll('button')].map((button) =>
+      button.textContent?.trim()
+    )
+
+    expect(labels).toContain('Replace')
+  })
+
+  it('picks the host with the same list control as the Marketplace home, not buttons', async () => {
+    seedStore(store, { repos: [repoFixture({ executionHostId: 'runtime:pv-vps' })] })
+    const container = await mount('engram')
+
+    expect(container.querySelector('[role="group"][aria-label="Computer to set up"]')).toBeNull()
+    const trigger = [...container.querySelectorAll('button')].find((button) =>
+      button.textContent?.includes('This computer')
+    )
+    expect(trigger?.getAttribute('aria-haspopup')).toBe('menu')
+  })
+
   it('shows the desktop-only notice and no sections without the desktop bridge', async () => {
     Object.assign(window, { api: undefined })
     seedStore(store, { marketplaceApps: { status: 'unavailable' } })
@@ -412,7 +546,39 @@ describe('MarketplaceAppPage', () => {
 
   describe('Who can use it', () => {
     const AGENTS_MODE = 'Workspaces agents: who can use it'
+    const BOTS_MODE = 'Bot teams: who can use it'
     const EVERYONE = everyoneAccessPolicy()
+    const alphaTeam: BotTeam = {
+      id: 'team-alpha',
+      name: 'Alpha',
+      purpose: '',
+      character: 'square',
+      workspacesEnabled: false,
+      accessMode: 'default',
+      bots: [
+        {
+          id: 'bot-max',
+          name: 'Max',
+          job: 'Writes code',
+          agent: 'claude',
+          modelMode: 'auto',
+          model: null,
+          effort: null,
+          skills: []
+        },
+        {
+          id: 'bot-ana',
+          name: 'Ana',
+          job: 'Reviews code',
+          agent: 'codex',
+          modelMode: 'auto',
+          model: null,
+          effort: null,
+          skills: []
+        }
+      ]
+    }
+
     function radioOf(scope: ParentNode, label: string, option: string): HTMLButtonElement {
       const group = scope.querySelector(`[aria-label="${label}"]`)
       const radio = [...(group?.querySelectorAll<HTMLButtonElement>('[role="radio"]') ?? [])].find(
@@ -436,13 +602,13 @@ describe('MarketplaceAppPage', () => {
     }
 
     it.each<MarketplaceAppId>(['engram', 'openmetadata', 'github'])(
-      'defaults Workspaces agents to Everyone and shows no Bot teams row on the %s page',
+      'defaults agents and bots to Everyone on the %s page',
       async (appId) => {
         const container = await mount(appId)
         expect(radioOf(container, AGENTS_MODE, 'Everyone').getAttribute('aria-checked')).toBe(
           'true'
         )
-        expect(container.querySelector('[aria-label="Bot teams: who can use it"]')).toBeNull()
+        expect(radioOf(container, BOTS_MODE, 'Everyone').getAttribute('aria-checked')).toBe('true')
         expect(mocks.setAccessPolicy).not.toHaveBeenCalled()
       }
     )
@@ -474,9 +640,243 @@ describe('MarketplaceAppPage', () => {
       })
     })
 
+    it('removes a picked bot from the chips and keeps the others', async () => {
+      mocks.teams.push(alphaTeam)
+      seedApps([
+        {
+          ...engram,
+          access: {
+            ...EVERYONE,
+            bots: { mode: 'only', botIds: ['bot-max', 'bot-ana'], teamIds: [] }
+          }
+        },
+        openmetadata,
+        github
+      ])
+      const container = await mount('engram')
+      await act(async () => {
+        container.querySelector<HTMLButtonElement>('button[aria-label="Remove Max"]')?.click()
+      })
+      expect(mocks.setAccessPolicy).toHaveBeenCalledWith({
+        id: 'engram',
+        policy: { ...EVERYONE, bots: { mode: 'only', botIds: ['bot-ana'], teamIds: [] } }
+      })
+    })
+
+    it('adds a whole team from the picker', async () => {
+      mocks.teams.push(alphaTeam)
+      seedApps([
+        { ...engram, access: { ...EVERYONE, bots: { mode: 'except', botIds: [], teamIds: [] } } },
+        openmetadata,
+        github
+      ])
+      await mount('engram')
+      await clickButton(document.body, 'Add a bot or team')
+      const wholeTeam = [...document.querySelectorAll('[cmdk-item]')].find((item) =>
+        item.textContent?.includes('Whole team')
+      )
+      await act(async () => {
+        wholeTeam?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+      })
+      expect(mocks.setAccessPolicy).toHaveBeenCalledWith({
+        id: 'engram',
+        policy: { ...EVERYONE, bots: { mode: 'except', botIds: [], teamIds: ['team-alpha'] } }
+      })
+    })
+
+    const leoTeam: BotTeam = {
+      ...alphaTeam,
+      id: 'team-leo',
+      name: 'Leo team',
+      bots: [{ ...alphaTeam.bots[0], id: 'bot-leo', name: 'Leo', agent: 'antigravity' }]
+    }
+    const ANTIGRAVITY_NOTICE = "a bot on Antigravity can't be kept out of one"
+
+    it('keeps an Antigravity bot picked under Only these and says why', async () => {
+      mocks.teams.push(alphaTeam, leoTeam)
+      const container = await mount('engram')
+      await act(async () => {
+        radioOf(container, BOTS_MODE, 'Only these').click()
+      })
+      expect(mocks.setAccessPolicy).toHaveBeenCalledWith({
+        id: 'engram',
+        policy: { ...EVERYONE, bots: { mode: 'only', botIds: ['bot-leo'], teamIds: [] } }
+      })
+      expect(container.textContent).toContain(ANTIGRAVITY_NOTICE)
+    })
+
+    it('refuses to keep a team with an Antigravity bot out of an app', async () => {
+      mocks.teams.push(leoTeam)
+      seedApps([
+        { ...engram, access: { ...EVERYONE, bots: { mode: 'except', botIds: [], teamIds: [] } } },
+        openmetadata,
+        github
+      ])
+      const container = await mount('engram')
+      await clickButton(document.body, 'Add a bot or team')
+      const wholeTeam = [...document.querySelectorAll('[cmdk-item]')].find((item) =>
+        item.textContent?.includes('Whole team')
+      )
+      await act(async () => {
+        wholeTeam?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+      })
+      expect(mocks.setAccessPolicy).not.toHaveBeenCalled()
+      expect(container.textContent).toContain(ANTIGRAVITY_NOTICE)
+    })
+
+    it('limits other bots without a notice when no Antigravity bot is affected', async () => {
+      mocks.teams.push(alphaTeam)
+      const container = await mount('engram')
+      await act(async () => {
+        radioOf(container, BOTS_MODE, 'Only these').click()
+      })
+      expect(mocks.setAccessPolicy).toHaveBeenCalledWith({
+        id: 'engram',
+        policy: { ...EVERYONE, bots: { mode: 'only', botIds: [], teamIds: [] } }
+      })
+      expect(container.textContent).not.toContain(ANTIGRAVITY_NOTICE)
+    })
+
     it('says that GitHub limits only change what MassOrca shows', async () => {
       const container = await mount('github')
       expect(container.textContent).toContain('For GitHub this only changes what MassOrca shows.')
     })
+  })
+
+  it('names each app in its example chip without an @, and keeps the @ in the hint', async () => {
+    const container = await mount('openmetadata')
+    const chips = [...container.querySelectorAll('span')].map((span) => span.textContent?.trim())
+    expect(chips).toContain('OpenMetadata')
+    expect(chips).not.toContain('@OpenMetadata')
+    expect(container.textContent).toContain(
+      'Type @OpenMetadata in any chat or room to ask it directly.'
+    )
+  })
+
+  it('keeps one Connect button, in the header beside Copy link, when OpenMetadata is not connected', async () => {
+    seedApps([
+      engram,
+      {
+        ...openmetadata,
+        connected: false,
+        serverUrl: null,
+        credential: { stored: false },
+        profiles: []
+      },
+      github
+    ])
+    const container = await mount('openmetadata')
+    expect(buttonWithText(headerOf(container), 'Copy link')).toBeDefined()
+    expect(buttonWithText(headerOf(container), 'Connect')).toBeDefined()
+    expect(buttonWithText(sectionOf(container, 'connection'), 'Connect')).toBeUndefined()
+  })
+
+  it('shows the Server address and Token rows with Change and Add token, as on the board', async () => {
+    seedApps([
+      engram,
+      {
+        ...openmetadata,
+        connected: false,
+        serverUrl: null,
+        credential: { stored: false },
+        profiles: []
+      },
+      github
+    ])
+    const container = await mount('openmetadata')
+    const connection = sectionOf(container, 'connection')
+    expect(connection.textContent).toContain('Server address')
+    expect(connection.textContent).toContain('Token')
+    expect(connection.textContent).toContain(
+      'Not set. Kept in the MassOrca vault and never shown once saved.'
+    )
+    expect(buttonWithText(connection, 'Change')).toBeDefined()
+    expect(buttonWithText(connection, 'Add token')).toBeDefined()
+  })
+
+  it('lists how each agent uses OpenMetadata whether or not it is connected', async () => {
+    seedApps([
+      engram,
+      {
+        ...openmetadata,
+        connected: false,
+        serverUrl: null,
+        credential: { stored: false },
+        profiles: []
+      },
+      github
+    ])
+    const container = await mount('openmetadata')
+    const rows = [...sectionOf(container, 'information').querySelectorAll('li')].map(
+      (row) => row.textContent ?? ''
+    )
+    expect(rows).toHaveLength(4)
+    expect(rows[0]).toContain('Claude Code')
+    expect(rows[3]).toContain('Gentle Shell')
+  })
+
+  describe('a connected app with an installed agent that has no entry', () => {
+    const withMissingCodex = (app: MarketplaceAppStatus): MarketplaceAppStatus => ({
+      ...app,
+      agents: app.agents.map((row) =>
+        row.agent === 'codex' ? { ...row, entry: 'missing', installed: true } : row
+      )
+    })
+
+    it('shows that agent as Missing, not Full integration, and offers Connect in the header', async () => {
+      seedApps([withMissingCodex(engram), openmetadata, github])
+      const container = await mount('engram')
+      const codex = [...sectionOf(container, 'information').querySelectorAll('li')].find((row) =>
+        row.textContent?.includes('Codex')
+      )
+      expect(codex?.textContent).toContain('Missing')
+      expect(codex?.textContent).not.toContain('Full integration')
+      await clickButton(headerOf(container), 'Connect')
+      expect(mocks.connect).toHaveBeenCalledWith({ id: 'engram' })
+    })
+
+    it('opens the OpenMetadata connect dialog from that header Connect', async () => {
+      seedApps([engram, withMissingCodex(openmetadata), github])
+      const container = await mount('openmetadata')
+      await clickButton(headerOf(container), 'Connect')
+      expect(document.body.textContent).toContain('Connect OpenMetadata')
+      expect(inputById('marketplace-openmetadata-address')).toBeDefined()
+    })
+
+    it('keeps Connect out of a connected app whose installed agents all have their entry', async () => {
+      const container = await mount('engram')
+      expect(buttonWithText(headerOf(container), 'Connect')).toBeUndefined()
+    })
+
+    it('never offers Connect for GitHub, which writes no agent entries', async () => {
+      seedApps([
+        engram,
+        openmetadata,
+        {
+          ...github,
+          agents: [{ agent: 'codex', level: 'full', entry: 'missing', installed: true }]
+        }
+      ])
+      const container = await mount('github')
+      expect(buttonWithText(headerOf(container), 'Connect')).toBeUndefined()
+    })
+  })
+})
+
+describe('MarketplaceAppPage with a WSL distro picked', () => {
+  afterEach(() => {
+    mocks.wslTargets.length = 0
+  })
+
+  it('says Not available on WSL yet, with no Connect action and none of this computer apps', async () => {
+    mocks.wslTargets.push({ kind: 'wsl', distro: 'Ubuntu', label: 'WSL: Ubuntu' })
+    seedStore(store, {
+      marketplaceHostKey: 'wsl:Ubuntu',
+      marketplaceApps: { status: 'ready', apps: [engram] }
+    })
+    const container = await mount('engram')
+    expect(container.textContent).toContain('Not available on WSL yet')
+    expect(container.textContent).not.toContain('Connected')
+    expect(buttonWithText(headerOf(container), 'Connect')).toBeUndefined()
   })
 })

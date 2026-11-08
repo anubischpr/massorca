@@ -38,6 +38,8 @@ export async function deliverWorkerDispatchPreamble(args: {
   terminalHandle: string
   dispatchId: string
   dispatchDepth: number
+  /** The nesting cap this worker's own dispatches meet; absent means the host's setting. */
+  nestedWorkerMaxDepth?: number
   runId: string
   taskId: string
   taskSpec: string
@@ -57,7 +59,8 @@ export async function deliverWorkerDispatchPreamble(args: {
     // Depth only. A worker is taught the same verbs whichever mode it runs in, so this must not
     // become a second gate: resolving the caller's worktree is what lets a structured worker
     // dispatch sub-workers exactly like a PTY one.
-    canDispatchSubWorkers: args.dispatchDepth < runtime.getNestedWorkerMaxDepth(),
+    canDispatchSubWorkers:
+      args.dispatchDepth < (args.nestedWorkerMaxDepth ?? runtime.getNestedWorkerMaxDepth()),
     taskId: args.taskId,
     dispatchId: args.dispatchId,
     taskSpec: args.taskSpec,

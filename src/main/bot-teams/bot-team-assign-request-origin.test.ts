@@ -53,6 +53,28 @@ describe('fileBotTeamRequest origin', () => {
     expect(db.listBotTeamSentRequests(marketing.id)).toHaveLength(1)
   })
 
+  it('keeps a choice card answer, which names no message, under the person line that asked', async () => {
+    const { db, marketing, warehouse } = setup()
+    const asked = db.postBotTeamMessage({
+      teamId: marketing.id,
+      text: 'Count boxes',
+      authorBotId: null
+    })
+    db.postBotTeamMessage({
+      teamId: marketing.id,
+      text: 'Count boxes',
+      authorBotId: marketing.bots[0].id
+    })
+
+    const { task } = await fileBotTeamRequest(
+      db,
+      { ...base, teamId: marketing.id, toTeamId: warehouse.id, text: 'Count boxes' },
+      NOT_STARTED
+    )
+
+    expect(db.getBotTeamTaskOrigin(task!.id)).toEqual({ teamId: marketing.id, messageId: asked.id })
+  })
+
   it('keeps no origin on a task a team files for itself', async () => {
     const { db, marketing } = setup()
 

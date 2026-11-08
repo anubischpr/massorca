@@ -26,6 +26,8 @@ export type MarketplaceAppContext = {
   /** False until the Marketplace status is known; the page then shows no connection state. */
   ready: boolean
   status: MarketplaceAppStatus
+  /** The picked host's name when the page configures a host other than this computer. */
+  hostLabel: string | null
   info: MarketplaceAppInfo
   preflight: MarketplacePreflight
   github: GitHubAccounts

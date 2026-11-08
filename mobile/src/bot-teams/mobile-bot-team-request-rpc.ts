@@ -17,7 +17,8 @@ const START_TIMEOUT_MS = 60_000
 const FiledReply = z.object({
   task: BotTeamTaskSchema.nullable(),
   startError: z.string().nullable(),
-  choice: RequestChoiceSchema.nullable().default(null)
+  // A choice kind newer than this app reads as no choice instead of failing the whole reply.
+  choice: RequestChoiceSchema.nullable().default(null).catch(null)
 })
 
 /** What the host did with a filing: the task it filed, the question it asks first, or no answer. */

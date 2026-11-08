@@ -100,6 +100,36 @@ describe('useEffectiveRateLimits', () => {
     expect(mocks.watchHostRateLimits).not.toHaveBeenCalled()
   })
 
+  it('reads the one host that owns every project when no workspace is open', () => {
+    useAppStore.setState({
+      repos: [
+        { id: 'r1', connectionId: null, executionHostId: 'runtime:env-1' },
+        { id: 'r2', connectionId: null, executionHostId: 'runtime:env-1' }
+      ] as never
+    })
+    const { result } = renderHook(() =>
+      useEffectiveRateLimits({ activeRuntimeEnvironmentId: null })
+    )
+    expect(mocks.watchHostRateLimits).toHaveBeenCalledWith('env-1', expect.any(Function))
+    act(() => emit({ type: 'state', state: host }))
+    expect(result.current.source).toBe('host')
+    expect(result.current.rateLimits.claude?.session?.usedPercent).toBe(77)
+  })
+
+  it('keeps the local snapshot when any project is local', () => {
+    useAppStore.setState({
+      repos: [
+        { id: 'r1', connectionId: null, executionHostId: 'runtime:env-1' },
+        { id: 'r2', connectionId: null, executionHostId: null }
+      ] as never
+    })
+    const { result } = renderHook(() =>
+      useEffectiveRateLimits({ activeRuntimeEnvironmentId: null })
+    )
+    expect(result.current.source).toBe('local')
+    expect(mocks.watchHostRateLimits).not.toHaveBeenCalled()
+  })
+
   it('shows the host snapshot, including nan, for a remote environment', () => {
     const { result } = renderHook(() =>
       useEffectiveRateLimits({ activeRuntimeEnvironmentId: 'env-1' })

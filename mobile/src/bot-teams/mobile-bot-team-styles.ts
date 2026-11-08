@@ -143,6 +143,14 @@ export const botTeamStyles = StyleSheet.create({
     borderRadius: radii.button,
     backgroundColor: colors.bgRaised
   },
+  fileShare: {
+    flexDirection: 'row',
+    alignSelf: 'flex-start',
+    gap: spacing.sm,
+    marginHorizontal: spacing.lg,
+    marginTop: spacing.sm,
+    paddingHorizontal: spacing.md
+  },
   sheetTitle: { color: colors.textPrimary, fontSize: 16, fontWeight: '600', padding: spacing.xs },
   sheetHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },

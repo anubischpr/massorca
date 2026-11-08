@@ -75,6 +75,7 @@ import {
   BotTeamAgentRemember,
   BotTeamAgentTaskCreate
 } from './bot-team-agent-params'
+import { BotTeamConnectedAppsParams } from './bot-team-connected-apps-params'
 import { BotTeamEngramList } from './bot-team-engram-params'
 import { BotTeamProjectFilesSelector } from './bot-team-files-project-params'
 import { BotTeamMemoryDelete, BotTeamMemoryList } from './bot-team-memory-params'
@@ -178,6 +179,7 @@ import {
 } from './browser-params'
 import { ScreencastUnsubscribe } from './browser-screencast-params'
 import { BrowserOpenUrlParams, BrowserTabCreateParams } from './browser-tab-create-params'
+import { ListChatResultsParams } from './chat-results-params'
 import { ClientEventsUnsubscribeParams } from './client-events-params'
 import {
   NativeChatSessionOptionsMutation,
@@ -431,7 +433,26 @@ import {
   ManagedServerSelector,
   ManagedServerUpdate
 } from './managed-server-params'
-import { MarketplaceVaultClear, MarketplaceVaultSet } from './marketplace-vault-params'
+import {
+  MarketplaceAppsAddOpenMetadataProfile,
+  MarketplaceAppsConnect,
+  MarketplaceAppsDisconnect,
+  MarketplaceAppsRemoveOpenMetadataProfile,
+  MarketplaceAppsSetAccessPolicy,
+  MarketplaceAppsSetEngramServer,
+  MarketplaceAppsSetOpenMetadataToken
+} from './marketplace-apps-params'
+import { MarketplaceCatalogAuditParams } from './marketplace-catalog-audit-params'
+import {
+  MarketplaceServiceConnect,
+  MarketplaceServiceDisconnect
+} from './marketplace-service-params'
+import {
+  MarketplaceVaultClear,
+  MarketplaceVaultClearProfile,
+  MarketplaceVaultSet,
+  MarketplaceVaultSetProfile
+} from './marketplace-vault-params'
 import { NativeChatSession, NativeChatUnsubscribe } from './native-chat-params'
 import {
   NotificationGetMissedSinceParams,
@@ -555,6 +576,7 @@ import {
   UpdatePaneLayout,
   WorktreeTabSelector
 } from './session-tabs-schemas-params'
+import { SkillPackageVersionInstallParams } from './skill-package-install-params'
 import {
   SkillsCancelInstallParams,
   SkillsDiscoverParams,
@@ -760,6 +782,7 @@ export const RPC_PARAMS_BY_METHOD = {
   'botTeams.addBot': BotTeamAddBot,
   'botTeams.archiveProject': BotTeamProjectArchive,
   'botTeams.assignRequest': BotTeamRequestAssign,
+  'botTeams.connectedApps': BotTeamConnectedAppsParams,
   'botTeams.create': BotTeamCreate,
   'botTeams.createProject': BotTeamProjectCreate,
   'botTeams.createRoutine': BotTeamRoutineCreate,
@@ -890,6 +913,7 @@ export const RPC_PARAMS_BY_METHOD = {
   'browser.upload': Upload,
   'browser.viewport': Viewport,
   'browser.wait': Wait,
+  'chat.results': ListChatResultsParams,
   'clipboard.abortImageUpload': AbortImageUpload,
   'clipboard.appendImageUploadChunk': AppendImageUploadChunk,
   'clipboard.commitImageUpload': CommitImageUpload,
@@ -1169,8 +1193,22 @@ export const RPC_PARAMS_BY_METHOD = {
   'managedServer.update': ManagedServerUpdate,
   'markdown.readTab': ActivateTab,
   'markdown.saveTab': SaveMarkdownTab,
+  'marketplace.apps.addOpenMetadataProfile': MarketplaceAppsAddOpenMetadataProfile,
+  'marketplace.apps.connect': MarketplaceAppsConnect,
+  'marketplace.apps.disconnect': MarketplaceAppsDisconnect,
+  'marketplace.apps.list': null,
+  'marketplace.apps.removeOpenMetadataProfile': MarketplaceAppsRemoveOpenMetadataProfile,
+  'marketplace.apps.setAccessPolicy': MarketplaceAppsSetAccessPolicy,
+  'marketplace.apps.setEngramServer': MarketplaceAppsSetEngramServer,
+  'marketplace.apps.setOpenMetadataToken': MarketplaceAppsSetOpenMetadataToken,
+  'marketplace.catalog.audit': MarketplaceCatalogAuditParams,
+  'marketplace.service.connect': MarketplaceServiceConnect,
+  'marketplace.service.disconnect': MarketplaceServiceDisconnect,
+  'marketplace.service.status': null,
   'marketplace.vault.clear': MarketplaceVaultClear,
+  'marketplace.vault.clearProfile': MarketplaceVaultClearProfile,
   'marketplace.vault.set': MarketplaceVaultSet,
+  'marketplace.vault.setProfile': MarketplaceVaultSetProfile,
   'marketplace.vault.status': null,
   'mobileWeb.bundle.chunk': MobileWebBundleChunkParamsSchema,
   'mobileWeb.bundle.manifest': null,
@@ -1334,6 +1372,7 @@ export const RPC_PARAMS_BY_METHOD = {
   'skills.getInstallProgress': SkillsGetInstallProgressParams,
   'skills.install': SkillInstallRequestSchema,
   'skills.installBundle': SkillBundleInstallRequestSchema,
+  'skills.installPackageVersion': SkillPackageVersionInstallParams,
   'skills.listManagedInstalls': null,
   'skills.previewDelete': SkillDeleteRequestSchema,
   'skills.previewInstall': SkillInstallPreviewRequestSchema,

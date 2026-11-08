@@ -24,7 +24,11 @@ export function deriveBotTeamApprovalRows(input: {
         continue
       }
       if (
-        botTeamTaskStatus(task.sessionId, input.statuses.get(task.sessionId)) !== 'Waiting for you'
+        botTeamTaskStatus(
+          task.sessionId,
+          input.statuses.get(task.sessionId),
+          task.awaitingPerson === true
+        ) !== 'Waiting for you'
       ) {
         continue
       }

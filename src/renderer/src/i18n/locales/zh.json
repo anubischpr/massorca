@@ -18003,9 +18003,12 @@
       }
     },
     "nativeChatSummary": {
-      "loadedResults": "已加载聊天记录中的文件更改和可视化内容",
-      "noResults": "未报告文件更改或可视化内容",
-      "visualKind": "可视化"
+      "loadedResults": "已加载聊天记录中的环境 URL、文件更改和可视化内容",
+      "noResults": "未报告文件更改、可视化内容或环境 URL",
+      "visualKind": "可视化",
+      "openUrl": "打开",
+      "previousUrl": "旧版",
+      "remoteUrlOnHost": "此 URL 位于远程主机上。转发其端口后即可在此电脑上打开。"
     },
     "native-chat": {
       "reasoning": "推理",

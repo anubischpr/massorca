@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { PrototypeAgent } from './prototype-request'
 import type { PrototypeCountSetting } from './prototype-count-setting'
 import {
+  asksForPrototypeTask,
   decideDelegatedTaskPrototypeCount,
   decideNativeChatPrototypeRequest,
   delegatedTaskAsksForPrototypes
@@ -202,5 +203,145 @@ describe('a delegated task whose wording is no prototype request', () => {
         delegatedTaskAsksForPrototypes({ text: AGENT_TASK, agents: ['codex'], userMessage })
       ).toBe(false)
     }
+  })
+})
+
+describe('a delegated task when the person asked for an artifact', () => {
+  const USER_MESSAGE =
+    'En NexusCare explora la documentación y crea un artifact interactivo donde pueda visualizarse el impacto probable de estas mejoras'
+  // What a lead bot wrote for a teammate: "rediseño" reads as a design keyword.
+  const AGENT_TASK =
+    'Haz un rediseño visual de la pantalla de liquidaciones con el impacto de las mejoras'
+
+  it('is no prototype task: the agent wording does not turn an artifact into prototypes', () => {
+    expect(
+      delegatedTaskAsksForPrototypes({
+        text: AGENT_TASK,
+        agents: ['codex'],
+        userMessage: USER_MESSAGE
+      })
+    ).toBe(false)
+    expect(
+      decideDelegatedTaskPrototypeCount({
+        text: AGENT_TASK,
+        agents: ['codex'],
+        setting: ASK,
+        userMessage: USER_MESSAGE
+      })
+    ).toEqual({ kind: 'none' })
+  })
+
+  it('still follows an explicit prototype command in the task', () => {
+    expect(
+      delegatedTaskAsksForPrototypes({
+        text: '/prototype the settlements screen',
+        agents: ['codex'],
+        userMessage: USER_MESSAGE
+      })
+    ).toBe(true)
+  })
+})
+
+describe('the room message that asks for an artifact and a design in a child session', () => {
+  // The lead bot splits this message into one child task per part, each in its own words.
+  const USER_MESSAGE =
+    'En NexusCare, crea un plan de exploración y explora el proyecto con sub agentes en búsqueda de puntos de mejora con Jev AI. Además crea un artifact interactivo donde pueda visualizarse el impacto probable de estas mejoras. Además ejecuta una tarea en segundo plano con un wait de 30 segundos. Por último, en una sesión hija crea un nuevo diseño para la página "clinical-report"'
+  const EXPLORE_TASK =
+    'Crea un plan de exploración y explora el proyecto NexusCare con subagentes en búsqueda de puntos de mejora.'
+  const ARTIFACT_TASK =
+    'Crea un artifact interactivo HTML donde pueda visualizarse el impacto probable de estas mejoras.'
+  const BACKGROUND_TASK = 'Ejecuta una tarea en segundo plano con un wait de 30 segundos.'
+  const DESIGN_TASK = 'Crea un nuevo diseño para la página "clinical-report".'
+  const EXPLORATION_TASK =
+    'En NexusCare, crea un plan de exploración y explora el proyecto con sub agentes en búsqueda de puntos de mejora con Jev AI.'
+
+  it('keeps the artifact task an artifact, whatever the design sentence of the message says', () => {
+    expect(
+      delegatedTaskAsksForPrototypes({
+        text: ARTIFACT_TASK,
+        agents: ['codex'],
+        userMessage: USER_MESSAGE
+      })
+    ).toBe(false)
+    expect(
+      decideDelegatedTaskPrototypeCount({
+        text: ARTIFACT_TASK,
+        agents: ['codex'],
+        setting: ASK,
+        userMessage: USER_MESSAGE
+      })
+    ).toEqual({ kind: 'none' })
+  })
+
+  it('makes no prototype of the exploration or background task, which name no design', () => {
+    for (const text of [EXPLORE_TASK, BACKGROUND_TASK]) {
+      expect(
+        delegatedTaskAsksForPrototypes({ text, agents: ['codex'], userMessage: USER_MESSAGE })
+      ).toBe(false)
+    }
+  })
+
+  it('keeps the design the person asked for in a child session a prototype task', () => {
+    expect(
+      delegatedTaskAsksForPrototypes({
+        text: DESIGN_TASK,
+        agents: ['codex'],
+        userMessage: USER_MESSAGE
+      })
+    ).toBe(true)
+    expect(
+      delegatedTaskAsksForPrototypes({
+        text: 'Build the clinical-report screen for the reviewer',
+        agents: ['codex'],
+        userMessage: USER_MESSAGE
+      })
+    ).toBe(true)
+  })
+
+  it('keeps an explicit prototype command in an artifact task a prototype task', () => {
+    expect(
+      delegatedTaskAsksForPrototypes({
+        text: '/prototype un artifact interactivo del impacto',
+        agents: ['codex'],
+        userMessage: USER_MESSAGE
+      })
+    ).toBe(true)
+  })
+
+  it('never makes the plan or exploration task a prototype, whatever the message says', () => {
+    for (const userMessage of [USER_MESSAGE, EXPLORATION_TASK]) {
+      expect(
+        delegatedTaskAsksForPrototypes({
+          text: EXPLORATION_TASK,
+          agents: ['codex'],
+          userMessage
+        })
+      ).toBe(false)
+      expect(
+        decideDelegatedTaskPrototypeCount({
+          text: EXPLORATION_TASK,
+          agents: ['codex'],
+          setting: ALWAYS_3,
+          userMessage
+        })
+      ).toEqual({ kind: 'none' })
+    }
+    expect(delegatedTaskAsksForPrototypes({ text: EXPLORATION_TASK, agents: ['codex'] })).toBe(
+      false
+    )
+    expect(decide(EXPLORATION_TASK, ALWAYS_3)).toEqual({ kind: 'as-typed' })
+  })
+})
+
+describe('asksForPrototypeTask', () => {
+  it('names a design or a prototype, and neither an artifact nor a plan', () => {
+    expect(
+      asksForPrototypeTask('Crea un nuevo diseño para la página "clinical-report".', ['codex'])
+    ).toBe(true)
+    expect(asksForPrototypeTask('/prototype the settlements screen', ['codex'])).toBe(true)
+    expect(asksForPrototypeTask('Crea un artifact interactivo del impacto', ['codex'])).toBe(false)
+    expect(asksForPrototypeTask('Ejecuta una tarea en segundo plano con un wait', ['codex'])).toBe(
+      false
+    )
   })
 })

@@ -124,6 +124,18 @@ describe('delegatedChildFirstPrompt', () => {
     expect(createRequest).toHaveBeenCalledTimes(1)
   })
 
+  it('makes no request for a bot task whose standing room rules mention a prototype', async () => {
+    const { deps, createRequest } = fakeDeps()
+    const botTask = [
+      'You are Estrella QA, a bot on the QA team.',
+      'Responde solo con la palabra: hecho',
+      'Every bot on a team can create option cards and MassOrca artifacts, whatever its job.',
+      'Work your own child sessions do is your work: speak of it in the first person ("Estoy a la espera de que elijas el tipo de agente para el prototipo").'
+    ].join('\n\n')
+    expect(await delegatedChildFirstPrompt(promptInput(botTask), deps)).toBeNull()
+    expect(createRequest).not.toHaveBeenCalled()
+  })
+
   it('asks with the default count in Ask mode, and with the default for an unreadable setting', async () => {
     const ask = fakeDeps({ readPrototypeCount: () => ({ mode: 'ask', count: 2 }) })
     await delegatedChildFirstPrompt(promptInput(NEXUS_TASK), ask.deps)

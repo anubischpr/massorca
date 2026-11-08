@@ -2,6 +2,8 @@ import { useCallback, useEffect } from 'react'
 import { useAppStore } from '../../store'
 import type { GlobalSettings } from '../../../../shared/global-settings-types'
 import type { RateLimitState } from '../../../../shared/rate-limit-types'
+import type { Repo } from '../../../../shared/repo-types'
+import { getRepoExecutionHostId, parseExecutionHostId } from '../../../../shared/execution-host'
 import { createEmptyRateLimitState } from '../../../../shared/rate-limit-state-factory'
 import { getActiveRuntimeTarget } from '../../runtime/runtime-client-target'
 import { getRuntimeEnvironmentIdForWorktree } from '../../lib/worktree-runtime-owner'
@@ -21,6 +23,21 @@ export type EffectiveRateLimits = {
 }
 
 const EMPTY_RATE_LIMITS = createEmptyRateLimitState()
+
+/** The one paired host that owns every project, or null when any project is local or hosts differ. */
+export function soleRepoRuntimeEnvironmentId(
+  repos: readonly Pick<Repo, 'connectionId' | 'executionHostId'>[] | undefined
+): string | null {
+  let environmentId: string | null = null
+  for (const repo of repos ?? []) {
+    const host = parseExecutionHostId(getRepoExecutionHostId(repo))
+    if (host?.kind !== 'runtime' || (environmentId && environmentId !== host.environmentId)) {
+      return null
+    }
+    environmentId = host.environmentId
+  }
+  return environmentId
+}
 
 function applyEvent(environmentId: string, event: HostRateLimitEvent): void {
   const { byEnvironmentId, setEntry } = useHostRateLimitCache.getState()
@@ -51,13 +68,15 @@ export function useEffectiveRateLimits(
   const workspaceOwnerId = useAppStore((s) =>
     s.activeWorktreeId ? getRuntimeEnvironmentIdForWorktree(s, s.activeWorktreeId) : undefined
   )
+  // Why: with no workspace open (Bot Teams, Marketplace), a desktop whose projects all live on one host reads that host.
+  const repoHostId = useAppStore((s) => soleRepoRuntimeEnvironmentId(s.repos))
   const target = getActiveRuntimeTarget(settings)
   const environmentId =
     workspaceOwnerId !== undefined
       ? workspaceOwnerId
       : target.kind === 'environment'
         ? target.environmentId
-        : null
+        : repoHostId
   const entry = useHostRateLimitCache((s) =>
     environmentId ? s.byEnvironmentId[environmentId] : undefined
   )

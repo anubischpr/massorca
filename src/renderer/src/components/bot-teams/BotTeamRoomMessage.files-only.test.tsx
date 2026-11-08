@@ -25,14 +25,14 @@ describe('BotTeamRoomMessage with only files', () => {
     host?.remove()
   })
 
-  function show(text: string): string {
+  function show(text: string, authorBotId: string | null = null): string {
     host = document.createElement('div')
     document.body.append(host)
     root = createRoot(host)
     act(() =>
       root!.render(
         <BotTeamRoomMessage
-          message={{ id: 'm1', teamId: 't1', authorBotId: null, text, attachments: files }}
+          message={{ id: 'm1', teamId: 't1', authorBotId, text, attachments: files }}
           team={team}
           otherTeams={[]}
           mentions={[]}
@@ -54,5 +54,15 @@ describe('BotTeamRoomMessage with only files', () => {
 
   it('keeps the words the person typed next to the files', () => {
     expect(show('Use this for the flyer')).toContain('Use this for the flyer')
+  })
+
+  it("shows a bot's file path as its file name only, and leaves the person's own text alone", () => {
+    const line = 'Guardé el informe en /home/me/orca/workspaces/nexus/docs/documentation-health.md.'
+    const shown = show(line, 'bot-1')
+    expect(shown).toContain('Guardé el informe en documentation-health.md.')
+    expect(shown).not.toContain('/home/me')
+    act(() => root?.unmount())
+    host?.remove()
+    expect(show(line)).toContain('/home/me/orca')
   })
 })

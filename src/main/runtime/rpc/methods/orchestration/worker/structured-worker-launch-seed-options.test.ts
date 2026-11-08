@@ -26,6 +26,7 @@ async function createWith(launchPreferences?: Record<string, string>) {
     worktreeId: 'repo::wt',
     agent: 'codex',
     dispatchId: 'ctx_1',
+    db: { db: { prepare: () => ({ get: () => undefined }) } } as never,
     ...(launchPreferences ? { launchPreferences } : {}),
     effects: []
   })

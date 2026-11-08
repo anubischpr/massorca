@@ -7,16 +7,27 @@ import type {
 } from '../../../src/shared/rpc-contract/bot-team-room-params'
 import type { BotTeamRoutine } from '../../../src/shared/rpc-contract/bot-team-routine-params'
 import type { RpcClient } from '../transport/rpc-client'
+import { MobileBotTeamBoardProjectPicker } from './MobileBotTeamBoardProjectPicker'
 import { MobileBotTeamCharacterIcon } from './MobileBotTeamCharacterIcon'
 import { useMobileBotTeamRoutines } from './MobileBotTeamRoutines'
 import { MobileBotTeamScheduledRows } from './MobileBotTeamScheduledRows'
 import { MobileBotTeamTaskCard } from './MobileBotTeamTaskCard'
 import { MobileBotTeamWorkBar } from './MobileBotTeamWorkBar'
+import {
+  BOARD_ALL_PROJECTS,
+  BOARD_NO_PROJECT,
+  BOARD_STATUS_FILTERS,
+  type BoardStatusFilter,
+  boardProjectFilterId,
+  boardStatusMatches,
+  boardTaskInProject
+} from './mobile-bot-team-board-filter'
 import { botTeamStyles as styles } from './mobile-bot-team-styles'
+import { useMobileBotTeamTaskStatus } from './use-mobile-bot-team-task-status'
 
 const NO_ROUTINES: readonly BotTeamRoutine[] = []
 
-/** The team's tasks, filtered by project: all of them, each project, then the tasks with none. */
+/** The team's tasks: a status view (Active by default, as on the desktop) and one project at a time. */
 export function MobileBotTeamBoard({
   client,
   team,
@@ -43,29 +54,35 @@ export function MobileBotTeamBoard({
   /** After a task changes hands, so the host's state is read again. */
   onChanged: () => void
 }) {
-  const [filter, setFilter] = useState('all')
+  const [statusFilter, setStatusFilter] = useState<BoardStatusFilter>('Active')
+  const [projectFilter, setProjectFilter] = useState(BOARD_ALL_PROJECTS)
+  const statusOf = useMobileBotTeamTaskStatus(client)
   const { read } = useMobileBotTeamRoutines(client, team.id, offline)
   const routines = read?.kind === 'ready' ? read.value : NO_ROUTINES
-  const chips = [
-    { id: 'all', name: `All ${tasks.length}` },
+  const statusTasks = tasks.filter((task) => boardStatusMatches(statusFilter, statusOf(task)))
+  const projectOptions = [
+    { id: BOARD_ALL_PROJECTS, name: 'All projects', count: statusTasks.length },
     ...projects.map((project) => ({
-      id: `project:${project.id}`,
-      name: `${project.name} ${tasks.filter((task) => task.projectId === project.id).length}`
+      id: boardProjectFilterId(project.id),
+      name: project.name,
+      count: statusTasks.filter((task) => task.projectId === project.id).length
     })),
-    { id: 'none', name: `No project ${tasks.filter((task) => task.projectId === null).length}` }
-  ]
-  const shown = tasks.filter((task) => {
-    if (filter === 'all') {
-      return true
+    {
+      id: BOARD_NO_PROJECT,
+      name: 'No project',
+      count: statusTasks.filter((task) => task.projectId === null).length
     }
-    return filter === 'none'
-      ? task.projectId === null
-      : task.projectId !== null && `project:${task.projectId}` === filter
-  })
+  ]
+  // A project that was removed while the board is open falls back to every project.
+  const project = projectOptions.some((option) => option.id === projectFilter)
+    ? projectFilter
+    : BOARD_ALL_PROJECTS
+  const shown = statusTasks.filter((task) => boardTaskInProject(task, project))
   const projectName = (task: BotTeamTask) =>
-    projects.find((project) => project.id === task.projectId)?.name ?? null
-  // A routine belongs to the team, not to a project, so it shows on the team's views only.
-  const teamViews = filter === 'all' || filter === 'none'
+    projects.find((item) => item.id === task.projectId)?.name ?? null
+  // A routine belongs to the team, not to a project, so it shows on the team's Active view only.
+  const routinesShown =
+    statusFilter === 'Active' && (project === BOARD_ALL_PROJECTS || project === BOARD_NO_PROJECT)
 
   return (
     <View style={styles.grow}>
@@ -82,20 +99,30 @@ export function MobileBotTeamBoard({
         onBack={onBack}
       />
       <ScrollView contentContainerStyle={styles.form}>
+        <MobileBotTeamBoardProjectPicker
+          options={projectOptions}
+          value={project}
+          onChange={setProjectFilter}
+        />
         <View style={styles.chips}>
-          {chips.map((chip) => (
+          {BOARD_STATUS_FILTERS.map((filter) => (
             <Pressable
-              key={chip.id}
+              key={filter}
               accessibilityRole="button"
-              onPress={() => setFilter(chip.id)}
-              style={[styles.chip, filter === chip.id && styles.rowSelected]}
+              accessibilityState={{ selected: filter === statusFilter }}
+              onPress={() => setStatusFilter(filter)}
+              style={[styles.chip, filter === statusFilter && styles.rowSelected]}
             >
-              <Text style={styles.rowTitle}>{chip.name}</Text>
+              <Text style={styles.rowTitle}>
+                {`${filter} ${tasks.filter((task) => boardStatusMatches(filter, statusOf(task))).length}`}
+              </Text>
             </Pressable>
           ))}
         </View>
-        {teamViews ? <MobileBotTeamScheduledRows routines={routines} /> : null}
-        {shown.length === 0 ? <Text style={styles.message}>No tasks here.</Text> : null}
+        {routinesShown ? <MobileBotTeamScheduledRows routines={routines} /> : null}
+        {shown.length === 0 ? (
+          <Text style={styles.message}>{`No ${statusFilter.toLowerCase()} tasks`}</Text>
+        ) : null}
         {shown.map((task) => (
           <MobileBotTeamTaskCard
             key={task.id}

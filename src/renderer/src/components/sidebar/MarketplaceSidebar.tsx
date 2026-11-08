@@ -1,33 +1,27 @@
-import { BookOpen, Bot, Cloud, LayoutGrid, Wrench, type LucideIcon } from 'lucide-react'
+import { Book, Bot, Check, LayoutGrid, Plug, Wrench, type LucideIcon } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { translate } from '@/i18n/i18n'
+import { AgentIcon } from '@/lib/agent-catalog'
+import { GentleShellIcon } from '@/lib/agent-icon-gentle-shell'
 import { useAppStore } from '@/store'
+import type { MarketplaceSection } from '@/store/slices/ui/ui-slice-contract-core'
+import { useMarketplaceCatalog } from '../marketplace/MarketplaceCatalogData'
 import type {
-  MarketplaceAppsState,
-  MarketplaceItemId,
-  MarketplaceSection
-} from '@/store/slices/ui/ui-slice-contract-core'
-import type { MarketplaceAppAgent } from '../../../../shared/marketplace-apps'
-import { MarketplaceAgentMark } from '../marketplace/marketplace-agent-mark'
-import { marketplaceAgentLabel } from '../marketplace/marketplace-catalog'
-import { appStatusFor } from '../marketplace/marketplace-status'
+  CatalogRow,
+  CatalogRowIcon,
+  MarketplaceCatalogFilter
+} from '../marketplace/MarketplaceCatalogRows'
 import { MarketplaceItemIcon } from '../marketplace/MarketplaceItemIcon'
-import { useMarketplaceAgents } from '../marketplace/use-marketplace-agents'
-import { useMarketplacePreflight } from '../marketplace/use-marketplace-preflight'
-import type { MarketplacePreflight } from '../marketplace/use-marketplace-preflight'
+import { requestSkillRowOpen } from '../marketplace/marketplace-skill-open-request'
 import { SidebarRow } from './BotTeamsSidebarProjectsRow'
 import { SidebarSearchRow } from './SidebarSearchRow'
 
-type InstalledRow = {
-  key: string
-  label: string
-  icon: React.ReactNode
-  /** The catalog item this row opens; null for an agent row, which opens the Agents section. */
-  itemId: MarketplaceItemId | null
-  open: () => void
-}
+/** The apps the sidebar lists under Your apps; "All of them" opens the whole list. */
+const SIDEBAR_APP_LIMIT = 6
 
-/** The left sidebar in Marketplace mode: Search, the five sections, then the apps on this computer. */
+const ROW_ICON_CLASS = 'size-4 shrink-0 text-worktree-sidebar-foreground/30'
+
+/** The left sidebar in Marketplace mode: Search, the five sections, then Your apps with its count. */
 export function MarketplaceSidebar(): React.JSX.Element {
   useTranslation()
   const section = useAppStore((s) => s.marketplaceSection)
@@ -35,22 +29,43 @@ export function MarketplaceSidebar(): React.JSX.Element {
   const selectedId = useAppStore((s) => s.marketplaceSelectedItemId)
   const selectItem = useAppStore((s) => s.selectMarketplaceItem)
   const apps = useAppStore((s) => s.marketplaceApps)
-  const preflight = useMarketplacePreflight({ refreshOnMount: false })
-  const agents = useMarketplaceAgents()
+  // Why: the sidebar always lists this computer; a remote host is picked on the page itself.
+  const catalog = useMarketplaceCatalog({
+    hostLabel: translate(
+      'auto.components.marketplace.MarketplaceAppHostPicker.thisComputer',
+      'This computer'
+    ),
+    local: true,
+    apps,
+    refreshPreflight: false
+  })
 
   const showSection = (next: MarketplaceSection): void => {
     setSection(next)
     selectItem(null)
   }
-  const rows = installedRows({
-    apps,
-    preflight,
-    agents,
-    selectItem,
-    showAgents: () => showSection('agents')
-  })
 
-  const sectionRows: readonly { section: MarketplaceSection; label: string; icon: LucideIcon }[] = [
+  const openRow = (row: CatalogRow): void => {
+    const target = row.target
+    if (target?.kind === 'item') {
+      selectItem(target.id)
+      return
+    }
+    if (row.section === 'skills' && target !== null) {
+      // Why: the Marketplace page scans the skill and opens its own page in the Skills section.
+      showSection('skills')
+      requestSkillRowOpen(row)
+      return
+    }
+    // Why: an agent opens its section here; its page is opened from the list itself.
+    showSection(row.section)
+  }
+
+  const sectionRows: readonly {
+    section: MarketplaceCatalogFilter
+    label: string
+    icon: LucideIcon
+  }[] = [
     {
       section: 'all',
       label: translate('auto.components.marketplace.MarketplaceSidebar.all', 'All'),
@@ -69,14 +84,16 @@ export function MarketplaceSidebar(): React.JSX.Element {
     {
       section: 'skills',
       label: translate('auto.components.marketplace.MarketplaceSidebar.skills', 'Skills'),
-      icon: BookOpen
+      icon: Book
     },
     {
       section: 'services',
       label: translate('auto.components.marketplace.MarketplaceSidebar.services', 'Services'),
-      icon: Cloud
+      icon: Plug
     }
   ]
+
+  const listed = catalog.owned.slice(0, SIDEBAR_APP_LIMIT)
 
   return (
     <nav
@@ -92,31 +109,35 @@ export function MarketplaceSidebar(): React.JSX.Element {
             active={selectedId === null && section === id}
             onClick={() => showSection(id)}
           >
-            <Icon className="size-4 shrink-0 text-worktree-sidebar-foreground/30" />
+            <Icon className={ROW_ICON_CLASS} />
             <span className="flex-1">{label}</span>
           </SidebarRow>
         ))}
       </div>
       <div className="scrollbar-sleek flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto px-2 pb-2">
-        <p className="px-2 pt-2 pb-1 text-[11px] font-semibold uppercase tracking-[0.05em] text-worktree-sidebar-foreground/45">
+        <p className="px-2 pt-2 pb-1 text-[11px] font-semibold tracking-[0.05em] text-worktree-sidebar-foreground/45 uppercase">
           {translate('auto.components.marketplace.MarketplaceSidebar.yourApps', 'Your apps')}
         </p>
-        <SidebarRow onClick={() => showSection('all')}>
+        <SidebarRow
+          active={selectedId === null && section === 'your-apps'}
+          onClick={() => showSection('your-apps')}
+        >
+          <Check className={ROW_ICON_CLASS} />
           <span className="flex-1">
             {translate('auto.components.marketplace.MarketplaceSidebar.allOfThem', 'All of them')}
           </span>
           <span className="rounded-full bg-worktree-sidebar-foreground/8 px-1.5 text-[11px] text-worktree-sidebar-foreground/55">
-            {rows.length}
+            {catalog.owned.length}
           </span>
         </SidebarRow>
-        {rows.map((row) => (
+        {listed.map((row) => (
           <SidebarRow
             key={row.key}
-            active={row.itemId !== null && selectedId === row.itemId}
-            onClick={row.open}
+            active={row.target?.kind === 'item' && selectedId === row.target.id}
+            onClick={() => openRow(row)}
           >
-            {row.icon}
-            <span className="min-w-0 flex-1 truncate">{row.label}</span>
+            <SidebarRowIcon icon={row.icon} />
+            <span className="min-w-0 flex-1 truncate">{row.name}</span>
           </SidebarRow>
         ))}
       </div>
@@ -124,53 +145,25 @@ export function MarketplaceSidebar(): React.JSX.Element {
   )
 }
 
-/** Git and GitHub from the preflight, agents detected here, then the connected apps. */
-function installedRows({
-  apps,
-  preflight,
-  agents,
-  selectItem,
-  showAgents
-}: {
-  apps: MarketplaceAppsState
-  preflight: MarketplacePreflight
-  agents: readonly MarketplaceAppAgent[] | null
-  selectItem: (id: MarketplaceItemId) => void
-  showAgents: () => void
-}): InstalledRow[] {
-  const rows: InstalledRow[] = []
-  const appRow = (id: MarketplaceItemId, label: string): InstalledRow => ({
-    key: id,
-    label,
-    icon: (
-      <MarketplaceItemIcon
-        id={id}
-        className="size-4 shrink-0 text-worktree-sidebar-foreground/30"
-      />
-    ),
-    itemId: id,
-    open: () => selectItem(id)
-  })
-  if (preflight.preflight?.git.installed) {
-    rows.push(appRow('git', 'Git'))
+function SidebarRowIcon({ icon }: { icon: CatalogRowIcon }): React.JSX.Element {
+  switch (icon.kind) {
+    case 'item':
+      return <MarketplaceItemIcon id={icon.id} className={ROW_ICON_CLASS} />
+    case 'agent':
+      return icon.agent === 'pi' ? (
+        <GentleShellIcon size={16} />
+      ) : (
+        <AgentIcon agent={icon.agent} size={16} />
+      )
+    case 'skill':
+      return <Book className={ROW_ICON_CLASS} aria-hidden />
+    case 'custom':
+      return icon.itemKind === 'agent' ? (
+        <Bot className={ROW_ICON_CLASS} aria-hidden />
+      ) : (
+        <Wrench className={ROW_ICON_CLASS} aria-hidden />
+      )
+    case 'glyph':
+      return <icon.glyph className={ROW_ICON_CLASS} aria-hidden />
   }
-  if (preflight.preflight?.gh.installed || appStatusFor(apps, 'github')?.connected) {
-    rows.push(appRow('github', 'GitHub'))
-  }
-  for (const agent of agents ?? []) {
-    rows.push({
-      key: `agent-${agent}`,
-      label: marketplaceAgentLabel(agent),
-      icon: <MarketplaceAgentMark agent={agent} size={16} />,
-      itemId: null,
-      open: showAgents
-    })
-  }
-  if (appStatusFor(apps, 'engram')?.connected) {
-    rows.push(appRow('engram', 'Engram'))
-  }
-  if (appStatusFor(apps, 'openmetadata')?.connected) {
-    rows.push(appRow('openmetadata', 'OpenMetadata'))
-  }
-  return rows
 }

@@ -6,6 +6,11 @@ import {
   type ClaimedBotTeamRoutineRun
 } from '../runtime/orchestration/db/bot-teams/bot-team-routine-store'
 
+import {
+  describeRoutineRunFailure,
+  settleAbandonedBotTeamRoutineRuns
+} from './bot-team-routine-run-failure'
+
 const CHECK_EVERY_MS = 30_000
 
 export type BotTeamRoutineSchedulerDeps = {
@@ -22,34 +27,42 @@ async function runClaimed(
   startTask: BotTeamRoutineSchedulerDeps['startTask'],
   at: number
 ): Promise<void> {
-  const team = db.listBotTeams().find((entry) => entry.id === routine.teamId)
-  if (!team?.bots.some((bot) => bot.id === routine.botId)) {
-    recordBotTeamRoutineRun(db, runId, {
-      taskId: null,
-      error: 'The routine’s bot is no longer on the team.'
-    })
-    return
-  }
-  const task = db.createBotTeamTask({
-    teamId: routine.teamId,
-    title: routine.name,
-    prompt: routine.prompt,
-    ownerBotId: routine.botId
-  })
-  // The run's own clock, on the routine's zone: "today" in its prompt is the day it runs.
-  const clock = botTeamClockNote(at, routine.schedule.timeZone)
-  if (clock !== null) {
-    db.setBotTeamTaskStartNotes(task.id, clock)
-  }
-  recordBotTeamRoutineRun(db, runId, { taskId: task.id, error: null })
+  let taskId: string | null = null
+  let stage = 'The routine’s task could not be created: '
   try {
+    const team = db.listBotTeams().find((entry) => entry.id === routine.teamId)
+    if (!team?.bots.some((bot) => bot.id === routine.botId)) {
+      recordBotTeamRoutineRun(db, runId, {
+        taskId: null,
+        error: 'The routine’s bot is no longer on the team.'
+      })
+      return
+    }
+    const task = db.createBotTeamTask({
+      teamId: routine.teamId,
+      title: routine.name,
+      prompt: routine.prompt,
+      ownerBotId: routine.botId
+    })
+    taskId = task.id
+    stage = 'The routine’s task was made but could not be prepared: '
+    // The run's own clock, on the routine's zone: "today" in its prompt is the day it runs.
+    const clock = botTeamClockNote(at, routine.schedule.timeZone)
+    if (clock !== null) {
+      db.setBotTeamTaskStartNotes(task.id, clock)
+    }
+    recordBotTeamRoutineRun(db, runId, { taskId: task.id, error: null })
+    stage = ''
     await startTask(task.id)
   } catch (error) {
-    // The task waits in Todo, where the person can start it.
-    recordBotTeamRoutineRun(db, runId, {
-      taskId: task.id,
-      error: error instanceof Error ? error.message : String(error)
-    })
+    // Whatever failed, the run says so; a task already made waits in Todo, where the person can start it.
+    const reason = `${stage}${describeRoutineRunFailure(error)}`
+    console.warn(`[bot-teams] routine run ${runId} failed`, error)
+    try {
+      recordBotTeamRoutineRun(db, runId, { taskId, error: reason })
+    } catch (recordError) {
+      console.warn(`[bot-teams] routine run ${runId} could not record its failure`, recordError)
+    }
   }
 }
 
@@ -64,6 +77,7 @@ export function createBotTeamRoutineScheduler(deps: BotTeamRoutineSchedulerDeps)
       return
     }
     const at = now()
+    settleAbandonedBotTeamRoutineRuns(db)
     const claimed = claimDueBotTeamRoutines(db, at)
     await Promise.allSettled(claimed.map((claim) => runClaimed(db, claim, deps.startTask, at)))
   }

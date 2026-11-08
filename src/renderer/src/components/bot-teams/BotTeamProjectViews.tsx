@@ -223,7 +223,8 @@ export function BotTeamProjectBoard({
       sessionId: task.sessionId,
       live: task.sessionId === null ? undefined : statuses.get(task.sessionId),
       kept: keptSessionSummary(task.sessionId),
-      stored: task.lastStatus
+      stored: task.lastStatus,
+      awaitingPerson: task.awaitingPerson === true
     })
   const own = [...tasks, ...projectTasks].filter((task) => task.projectId === projectId)
   return (

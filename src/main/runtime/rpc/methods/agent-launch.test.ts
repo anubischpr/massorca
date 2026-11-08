@@ -32,6 +32,12 @@ const createStructuredSession = vi.fn(
   })
 )
 
+const refuseBot = vi.hoisted(() => ({
+  fn: vi.fn(async (..._args: unknown[]): Promise<void> => {})
+}))
+vi.mock('./orchestration/worker/worker-bot-run', () => ({
+  refuseDeniedBotCaller: (...args: unknown[]) => refuseBot.fn(...args)
+}))
 vi.mock('./structured-agent-session-create', () => ({
   createStructuredAgentSessionForWorktree: (args: Record<string, unknown>) =>
     createStructuredSession(args)
@@ -81,6 +87,8 @@ const IDEMPOTENT_CREATE_LAUNCH = {
 
 beforeEach(() => {
   createStructuredSession.mockClear()
+  refuseBot.fn.mockReset()
+  refuseBot.fn.mockResolvedValue(undefined)
 })
 
 describe('who may call agent.launch', () => {
@@ -706,5 +714,26 @@ describe('launch inputs that cross the wire', () => {
     )
 
     expect(result.receipt).toMatchObject({ mode: 'terminal', reason: 'tui_launch_command' })
+  })
+})
+
+describe('agent.launch from a caller whose bot is kept out of an app', () => {
+  it('refuses before any worktree, terminal or chat is made', async () => {
+    refuseBot.fn.mockRejectedValue(
+      Object.assign(new Error('kept out'), { code: 'capability_unsupported' })
+    )
+    const runtime = runtimeStub()
+    await expect(launch(CREATE_LAUNCH, runtime)).rejects.toMatchObject({
+      code: 'capability_unsupported'
+    })
+    expect(runtime.createManagedWorktree).not.toHaveBeenCalled()
+    expect(createStructuredSession).not.toHaveBeenCalled()
+  })
+
+  it('launches exactly as before when nothing refuses, passing the request’s caller context', async () => {
+    const runtime = runtimeStub()
+    await launch(CREATE_LAUNCH, runtime)
+    expect(runtime.createManagedWorktree).toHaveBeenCalled()
+    expect(refuseBot.fn).toHaveBeenCalledTimes(1)
   })
 })

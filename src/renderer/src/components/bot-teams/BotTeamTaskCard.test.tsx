@@ -37,7 +37,10 @@ const task: BotTeamTask = {
 
 const mounted: { container: HTMLDivElement; root: Root }[] = []
 
-async function render(status: BotTeamTaskStatus): Promise<HTMLDivElement> {
+async function render(
+  status: BotTeamTaskStatus,
+  forTask: BotTeamTask = task
+): Promise<HTMLDivElement> {
   const container = document.createElement('div')
   document.body.appendChild(container)
   const root = createRoot(container)
@@ -45,7 +48,7 @@ async function render(status: BotTeamTaskStatus): Promise<HTMLDivElement> {
   await act(async () => {
     root.render(
       <BotTeamTaskCard
-        task={task}
+        task={forTask}
         owner={undefined}
         status={status}
         projects={[]}
@@ -81,5 +84,23 @@ describe('a task card while the host has not answered', () => {
 
     expect(card.querySelector('[data-bot-team-status-placeholder]')).toBeNull()
     expect(card.textContent).toContain('Working')
+  })
+})
+
+describe('a task card whose bot asked the person a question', () => {
+  it('reads Waiting for you, not Done, and turns orange', async () => {
+    const card = await render('Done', { ...task, awaitingPerson: true })
+
+    expect(card.textContent).toContain('Waiting for you')
+    expect(card.textContent).not.toContain('Done')
+    expect(card.querySelector('[data-bot-team-task-card]')?.className).toContain(
+      'border-agent-question'
+    )
+  })
+
+  it('keeps Done for a task that asked nothing', async () => {
+    const card = await render('Done')
+
+    expect(card.textContent).toContain('Done')
   })
 })

@@ -1,4 +1,4 @@
-import { Plus, RotateCw } from 'lucide-react'
+import { Database, Plus, RotateCw } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { translate } from '@/i18n/i18n'
@@ -9,11 +9,12 @@ import { MarketplaceAppSection } from './MarketplaceAppSection'
 import { MarketplaceInfoRow } from './MarketplaceInfoRow'
 import { credentialSummary } from './marketplace-vault-credential-text'
 import { MarketplaceVaultHosts } from './MarketplaceVaultHosts'
+import { useMarketplacePreflight } from './use-marketplace-preflight'
 
 // Why: the app has no sign-in flow of its own; the existing gh command is the way to add an account.
 const GH_LOGIN_COMMAND = 'gh auth login'
 
-/** Only what the app needs to connect; no per-agent switches here. */
+/** Only what the app needs to connect; no per-agent switches here. Connect itself lives in the header. */
 export function MarketplaceAppConnection({
   ctx
 }: {
@@ -32,27 +33,24 @@ export function MarketplaceAppConnection({
   )
 }
 
-function ConnectAction({ ctx }: { ctx: MarketplaceAppContext }): React.JSX.Element | null {
-  if (!ctx.canConnect) {
-    return null
-  }
-  return (
-    <Button type="button" size="sm" disabled={ctx.connectBlocked} onClick={ctx.connect}>
-      {translate('auto.components.marketplace.MarketplaceAppConnection.connect', 'Connect')}
-    </Button>
-  )
-}
-
 function EngramConnection({ ctx }: { ctx: MarketplaceAppContext }): React.JSX.Element {
   const program = ctx.status.program
   const installed = program?.found === true
   return (
     <div className="flex flex-col gap-3">
       <MarketplaceInfoRow
-        label={translate(
-          'auto.components.marketplace.MarketplaceAppConnection.engramOnComputer',
-          'Engram on this computer'
-        )}
+        label={
+          ctx.hostLabel
+            ? translate(
+                'auto.components.marketplace.MarketplaceAppConnection.engramOnHost',
+                'Engram on {{host}}',
+                { host: ctx.hostLabel }
+              )
+            : translate(
+                'auto.components.marketplace.MarketplaceAppConnection.engramOnComputer',
+                'Engram on this computer'
+              )
+        }
       >
         {program?.found && program.version ? (
           <span className="text-sm text-muted-foreground">{program.version}</span>
@@ -83,14 +81,19 @@ function EngramConnection({ ctx }: { ctx: MarketplaceAppContext }): React.JSX.El
             )}
           </Button>
         ) : null}
-        <ConnectAction ctx={ctx} />
       </MarketplaceInfoRow>
       {ctx.canConnect ? (
         <p className="text-xs text-muted-foreground">
-          {translate(
-            'auto.components.marketplace.MarketplaceAppConnection.engramConnectHint',
-            'Connect sets Engram up for every agent on this computer.'
-          )}
+          {ctx.hostLabel
+            ? translate(
+                'auto.components.marketplace.MarketplaceAppConnection.engramConnectHintHost',
+                'Connect sets Engram up for every agent on {{host}}.',
+                { host: ctx.hostLabel }
+              )
+            : translate(
+                'auto.components.marketplace.MarketplaceAppConnection.engramConnectHint',
+                'Connect sets Engram up for every agent on this computer.'
+              )}
         </p>
       ) : null}
       {ctx.status.credential?.stored ? (
@@ -105,7 +108,9 @@ function EngramConnection({ ctx }: { ctx: MarketplaceAppContext }): React.JSX.El
           </span>
         </MarketplaceInfoRow>
       ) : null}
-      {ctx.status.serverUrl ? <MarketplaceVaultHosts slot="engram-cloud" /> : null}
+      {ctx.status.serverUrl && !ctx.hostLabel ? (
+        <MarketplaceVaultHosts slot="engram-cloud" />
+      ) : null}
       <p className="text-xs text-muted-foreground">
         {translate(
           'auto.components.marketplace.MarketplaceAppConnection.engramHelp',
@@ -116,46 +121,98 @@ function EngramConnection({ ctx }: { ctx: MarketplaceAppContext }): React.JSX.El
   )
 }
 
+/** The board's two rows: the icon tile, the name, one line of detail, and the row's action. */
+export function ConnectionRow({
+  icon,
+  name,
+  sub,
+  action
+}: {
+  icon: React.ReactNode
+  name: string
+  sub: string
+  action: React.ReactNode
+}): React.JSX.Element {
+  return (
+    <div className="flex items-center gap-3 border-t border-border px-4 py-3 first:border-t-0">
+      <span className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-border bg-secondary">
+        {icon}
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-medium">{name}</p>
+        <p className="truncate text-xs text-muted-foreground">{sub}</p>
+      </div>
+      {action}
+    </div>
+  )
+}
+
 function OpenMetadataConnection({ ctx }: { ctx: MarketplaceAppContext }): React.JSX.Element {
   const stored = ctx.status.credential?.stored === true
   const notSet = translate('auto.components.marketplace.MarketplaceAppConnection.notSet', 'Not set')
+  const databaseIcon = <Database className="size-4 text-foreground" aria-hidden />
   return (
     <div className="flex flex-col gap-3">
-      <MarketplaceInfoRow
-        label={translate(
-          'auto.components.marketplace.MarketplaceAppConnection.serverAddress',
-          'Server address'
-        )}
-      >
-        <span className="text-sm text-muted-foreground">
-          {ctx.status.serverUrl ? ctx.status.serverUrl : notSet}
-        </span>
-      </MarketplaceInfoRow>
-      <MarketplaceInfoRow
-        label={translate('auto.components.marketplace.MarketplaceAppConnection.token', 'Token')}
-      >
-        <span className="text-sm text-muted-foreground">
-          {stored
-            ? (credentialSummary(ctx.status.credential ?? {}) ??
-              translate(
-                'auto.components.marketplace.MarketplaceAppConnection.tokenStored',
-                'Stored in the vault. Never shown.'
-              ))
-            : notSet}
-        </span>
-        {stored ? (
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => ctx.openDialog({ kind: 'openmetadata-token' })}
-          >
-            {translate('auto.components.marketplace.MarketplaceAppConnection.replace', 'Replace')}
-          </Button>
-        ) : null}
-      </MarketplaceInfoRow>
-      <MarketplaceVaultHosts slot="openmetadata" />
-      <ConnectAction ctx={ctx} />
+      <div className="flex flex-col rounded-xl border border-border bg-card">
+        <ConnectionRow
+          icon={databaseIcon}
+          name={translate(
+            'auto.components.marketplace.MarketplaceAppConnection.serverAddress',
+            'Server address'
+          )}
+          sub={ctx.status.serverUrl ?? notSet}
+          action={
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => ctx.openDialog({ kind: 'openmetadata-connect' })}
+            >
+              {translate('auto.components.marketplace.MarketplaceAppConnection.change', 'Change')}
+            </Button>
+          }
+        />
+        <ConnectionRow
+          icon={databaseIcon}
+          name={translate('auto.components.marketplace.MarketplaceAppConnection.token', 'Token')}
+          sub={
+            stored
+              ? (credentialSummary(ctx.status.credential ?? {}) ??
+                translate(
+                  'auto.components.marketplace.MarketplaceAppConnection.tokenStored',
+                  'Stored in the vault. Never shown.'
+                ))
+              : translate(
+                  'auto.components.marketplace.MarketplaceAppConnection.tokenNotSet',
+                  'Not set. Kept in the MassOrca vault and never shown once saved.'
+                )
+          }
+          action={
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => ctx.openDialog({ kind: 'openmetadata-token' })}
+            >
+              {stored
+                ? translate(
+                    'auto.components.marketplace.MarketplaceAppConnection.replace',
+                    'Replace'
+                  )
+                : translate(
+                    'auto.components.marketplace.MarketplaceAppConnection.addToken',
+                    'Add token'
+                  )}
+            </Button>
+          }
+        />
+      </div>
+      {ctx.hostLabel ? null : (
+        <MarketplaceVaultHosts
+          slot="openmetadata"
+          profiles={ctx.status.profiles?.map((profile) => profile.name) ?? []}
+        />
+      )}
       <p className="text-xs text-muted-foreground">
         {translate(
           'auto.components.marketplace.MarketplaceAppConnection.openMetadataHelp',
@@ -167,6 +224,8 @@ function OpenMetadataConnection({ ctx }: { ctx: MarketplaceAppContext }): React.
 }
 
 function GitHubConnection({ ctx }: { ctx: MarketplaceAppContext }): React.JSX.Element {
+  // Why: this section mounts only when the GitHub page opens, so the forced check runs once per visit.
+  useMarketplacePreflight({ refreshOnMount: false, forceOnMount: true })
   const gh = ctx.preflight.preflight?.gh
   return (
     <div className="flex flex-col gap-3">
@@ -214,7 +273,7 @@ function GitHubConnection({ ctx }: { ctx: MarketplaceAppContext }): React.JSX.El
 function GitHubAddAccount({ ctx }: { ctx: MarketplaceAppContext }): React.JSX.Element {
   return (
     <div className="flex items-center gap-1">
-      <Button type="button" variant="outline" size="sm" onClick={() => ctx.github.openSignIn()}>
+      <Button type="button" variant="ghost" size="sm" onClick={() => ctx.github.openSignIn()}>
         <Plus />
         {translate(
           'auto.components.marketplace.MarketplaceAppConnection.addAccount',

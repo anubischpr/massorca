@@ -4,9 +4,9 @@ import { useState } from 'react'
 import { useAppStore } from '@/store'
 import { Button } from '@/components/ui/button'
 import type { RuntimeClientTarget } from '@/runtime/runtime-rpc-client'
-import { browserUrlForPort, browserUrlForPortForwardEntry } from '@/lib/workspace-port-urls'
+import { browserUrlForPort } from '@/lib/workspace-port-urls'
 import { nativeChatSessionServers } from './native-chat-session-summary'
-import { getRuntimeSshAccess } from '../../../../shared/runtime-environments'
+import { useNativeChatPortRoute } from './use-native-chat-port-route'
 import {
   SshPortForwardDialog,
   type PortForwardDialogState
@@ -20,47 +20,14 @@ export function NativeChatSessionServers(props: {
 }): React.JSX.Element {
   const { t } = useTranslation()
   const scans = useAppStore((state) => state.workspacePortScansByKey)
-  const environmentId = props.target.kind === 'environment' ? props.target.environmentId : null
-  const environment = useAppStore((state) =>
-    environmentId
-      ? state.runtimeEnvironments.find((entry) => entry.id === environmentId)
-      : undefined
-  )
-  const access = environment ? getRuntimeSshAccess(environment) : undefined
-  const targetGeneration = useAppStore((state) =>
-    access ? state.sshTargetGenerations.get(access.sshTargetId) : undefined
-  )
-  const connection = useAppStore((state) =>
-    access ? state.sshConnectionStates.get(access.sshTargetId) : undefined
-  )
-  const forwards = useAppStore((state) =>
-    access ? state.portForwardsByConnection[access.sshTargetId] : undefined
-  )
-  const canForward =
-    access && targetGeneration === access.sshTargetGeneration && connection?.status === 'connected'
+  const { local, access, canForward, forwardedUrl } = useNativeChatPortRoute(props.target)
   const [dialog, setDialog] = useState<PortForwardDialogState>({ mode: 'closed' })
   const { scan, ports } = nativeChatSessionServers(scans, props.target, props.worktreeId)
   const [error, setError] = useState<string | null>(null)
   const title = t('components.nativeChatSummary.servers', 'QA servers')
   const unavailable = t('components.nativeChatSummary.unavailable', 'Unavailable')
-  const urlFor = (port: (typeof ports)[number]): string | null => {
-    if (props.target.kind === 'local') {
-      return browserUrlForPort(port)
-    }
-    const forward = canForward
-      ? forwards?.find(
-          (entry) =>
-            entry.remotePort === port.port &&
-            ['localhost', '127.0.0.1', '::1'].includes(entry.remoteHost)
-        )
-      : undefined
-    return forward
-      ? browserUrlForPortForwardEntry({
-          ...forward,
-          advertisedProtocol: port.protocol === 'https' ? 'https' : 'http'
-        })
-      : null
-  }
+  const urlFor = (port: (typeof ports)[number]): string | null =>
+    local ? browserUrlForPort(port) : forwardedUrl(port.port, port.protocol === 'https')
   const act = async (url: string, copy: boolean) => {
     setError(null)
     try {
@@ -136,7 +103,7 @@ export function NativeChatSessionServers(props: {
                       'A client-accessible route is required before this remote URL can be copied or opened on this PC.'
                     )}
                   </p>
-                  {canForward ? (
+                  {canForward && access ? (
                     <Button
                       variant="outline"
                       size="xs"
@@ -167,7 +134,7 @@ export function NativeChatSessionServers(props: {
         ) : null}
         <SshPortForwardDialog
           state={dialog}
-          activeConnectionId={canForward ? access.sshTargetId : null}
+          activeConnectionId={canForward && access ? access.sshTargetId : null}
           onClose={() => setDialog({ mode: 'closed' })}
         />
       </div>

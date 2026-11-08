@@ -16,7 +16,6 @@ import {
 } from '../../../../shared/agent-child-row-model'
 import type { StructuredAgentContextSummary } from '../../../../shared/structured-agent-session-context-usage'
 import type { StructuredAgentSubagentRoster } from '../../../../shared/structured-agent-session-subagent-roster'
-import { createNativeChatFileHref } from '../../../../shared/native-chat-href-routing'
 import { formatAgentTypeLabel } from '../../../../shared/agent-type-label'
 import type { CommentMarkdownLinkClickHandler } from '@/components/sidebar/CommentMarkdown'
 import { AgentChildRowContent } from '@/components/AgentChildRowContent'
@@ -36,21 +35,15 @@ import {
 import { NativeChatSessionConnectorRow } from './NativeChatSessionConnectorRow'
 import { NativeChatSessionContextSection } from './NativeChatSessionContextSection'
 import { NativeChatSessionEnvironment } from './NativeChatSessionEnvironment'
+import { NativeChatSessionResultsSection } from './NativeChatSessionResultsSection'
 import { NativeChatSessionPlanSection } from './NativeChatSessionPlanSection'
 import { NativeChatSessionChecklistSection } from './NativeChatSessionChecklistSection'
 import { NativeChatSessionSection } from './NativeChatSessionSection'
 import { NativeChatSessionServers } from './NativeChatSessionServers'
-import { NativeChatSessionVisualRow } from './NativeChatSessionVisualRow'
-import { useNativeChatVisualOwner } from './native-chat-visual-owner'
-import { useOpenNativeChatVisual } from './use-native-chat-visual-open'
-import { useBoundDesignFolders } from '../prototypes/prototype-bound-design-folders'
-import { isBoundDesignFile } from '../../../../shared/prototype-design-folders'
 import {
   nativeChatSessionConnectors,
   nativeChatSessionPlan,
-  nativeChatSessionPlanDocument,
-  nativeChatSessionResultFiles,
-  nativeChatSessionVisuals
+  nativeChatSessionPlanDocument
 } from './native-chat-session-summary'
 
 /** Every row in a tree, owned rows included, so running counts cover nested subagents too. */
@@ -93,25 +86,6 @@ export function NativeChatSessionSummary(props: {
   const hostLabel = useStructuredAgentSessionHostLabel(props.target)
   const worktreeId = props.fileContext?.worktreeId
   const workspaceRoot = props.fileContext?.worktreePath ?? null
-  const results = useMemo(
-    () => nativeChatSessionResultFiles(props.journalItems, workspaceRoot),
-    [props.journalItems, workspaceRoot]
-  )
-  // Visuals list only under a structured chat's owner, where the transcript can mount them too.
-  const owner = useNativeChatVisualOwner()
-  const openVisual = useOpenNativeChatVisual(owner)
-  // Why: a Gentle Shell design folder bound to a prototype request is the Prototypes view's, not an artifact.
-  const boundDesignFolders = useBoundDesignFolders(props.sessionId)
-  const visuals = useMemo(
-    () =>
-      owner
-        ? nativeChatSessionVisuals(props.journalItems).filter(
-            (visual) => !isBoundDesignFile(visual.file, boundDesignFolders)
-          )
-        : [],
-    [owner, props.journalItems, boundDesignFolders]
-  )
-  const resultCount = visuals.length + results.length
   const connectors = useMemo(
     () => nativeChatSessionConnectors(props.journalItems),
     [props.journalItems]
@@ -159,10 +133,6 @@ export function NativeChatSessionSummary(props: {
     'components.nativeChatSummary.backgroundUnknown',
     'Background task information is not reported by this provider or host.'
   )
-  const noResults = t(
-    'components.nativeChatSummary.noResults',
-    'No file changes or visuals reported.'
-  )
   const connectorUnknown = t(
     'components.nativeChatSummary.connectorUnknown',
     'Current connector status is not reported by this provider or host.'
@@ -172,59 +142,6 @@ export function NativeChatSessionSummary(props: {
         time: new Date(connectorSnapshot.observedAt).toLocaleTimeString()
       })
     : null
-
-  const resultsCompact =
-    resultCount === 0 ? (
-      <p>{noResults}</p>
-    ) : (
-      [
-        ...visuals.map((visual) => (
-          <NativeChatSessionVisualRow key={`visual:${visual.file}`} visual={visual} />
-        )),
-        ...results.map((file) => (
-          <p key={file.absolutePath} className="truncate" title={file.absolutePath}>
-            {file.displayPath}
-          </p>
-        ))
-      ].slice(0, 3)
-    )
-  const resultsExpanded = (
-    <>
-      <p className="text-muted-foreground">
-        {t(
-          'components.nativeChatSummary.loadedResults',
-          'File changes and visuals recorded in the loaded chat history.'
-        )}
-      </p>
-      {resultCount === 0 ? (
-        <p>{noResults}</p>
-      ) : (
-        <>
-          {visuals.map((visual) => (
-            <NativeChatSessionVisualRow
-              key={`visual:${visual.file}`}
-              visual={visual}
-              expanded
-              onOpen={openVisual}
-            />
-          ))}
-          {results.map((file) => (
-            <a
-              key={file.absolutePath}
-              className="block break-words underline"
-              title={file.absolutePath}
-              href={createNativeChatFileHref(file.absolutePath, 'literal')}
-              onClick={(event) =>
-                props.onLinkClick?.(event, createNativeChatFileHref(file.absolutePath, 'literal'))
-              }
-            >
-              {file.displayPath}
-            </a>
-          ))}
-        </>
-      )}
-    </>
-  )
 
   const agentsSummary =
     legacyAgents.length > 0
@@ -398,13 +315,13 @@ export function NativeChatSessionSummary(props: {
           summary={props.contextSummary}
           sessionId={props.sessionId}
         />
-        <NativeChatSessionSection
-          title={t('components.nativeChatSummary.results', 'Results')}
-          summary={count(resultCount)}
-          compact={resultsCompact}
-        >
-          {resultsExpanded}
-        </NativeChatSessionSection>
+        <NativeChatSessionResultsSection
+          target={props.target}
+          sessionId={props.sessionId}
+          journalItems={props.journalItems}
+          workspaceRoot={workspaceRoot}
+          onLinkClick={props.onLinkClick}
+        />
         <NativeChatSessionSection
           title={t('components.nativeChatSummary.agents', 'Subagents')}
           summary={agentsSummary}

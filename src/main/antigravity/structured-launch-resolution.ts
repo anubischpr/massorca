@@ -1,7 +1,5 @@
-import { resolveAgentSessionFullAccess } from '../../shared/agent-session-access-mode'
+import { antigravityAccessArgs } from './structured-access-args'
 import { randomUUID } from 'node:crypto'
-import { writeFile } from 'node:fs/promises'
-import { join } from 'node:path'
 import { LOCAL_EXECUTION_HOST_ID } from '../../shared/execution-host'
 import {
   agentSessionProviderHandleChainHead,
@@ -30,14 +28,19 @@ import { antigravityModelIdAtEffort } from '../../shared/antigravity-model-varia
 import { readAntigravityAccountBinding } from './structured-account-binding'
 import { prepareAntigravityAccountForLaunch } from './native-account-launch'
 import type { StructuredAgentSessionLogger } from '../native-chat/agent-session-wire/structured-agent-session-logger'
+import { buildMarketplaceAgentEnv } from '../marketplace/marketplace-agent-env'
 import { structuredSessionChildIdentityEnv } from '../runtime/structured-session-child-identity-env'
 import { delegationInstructionsForEnv } from '../delegated-session/delegation-agent-instructions'
 import {
+  botRunChildEnv,
+  deleteBotRunDeniedEnv,
+  type BotRunDenialResolver
+} from '../marketplace/marketplace-bot-run-denial'
+import {
   withNativeChatVisualsEnv,
-  type NativeChatVisualsLaunch,
   type PrepareNativeChatVisuals
 } from '../native-chat/native-chat-visuals-delivery'
-import { readNativeChatVisualsInstructions } from '../native-chat/native-chat-visuals-skill-location'
+import { antigravityVisualsFor } from './antigravity-chat-visuals'
 
 export type AntigravityResolvedLaunch = ProviderProcessLaunch & {
   previous: AgentSessionProviderHandleLink | null
@@ -46,6 +49,8 @@ export type AntigravityLaunchDeps = {
   store: AgentSessionRecordStore
   resolveWorkspacePath: (id: string) => Promise<string>
   resolveEnvironment: () => Promise<NodeJS.ProcessEnv>
+  /** The Marketplace apps a bot run is kept out of; absent reads the host's apps. */
+  resolveBotRunDenial?: BotRunDenialResolver
   resolveCommandSettings?: () => StructuredAgentCommandSettings
   resolveFullAccess?: () => boolean
   /** The user's saved Arguments tokens for agy, re-read per acquisition. */
@@ -106,34 +111,6 @@ function antigravityAddDirSupported(cliVersion: string | null): boolean {
   )
 }
 
-/** The chat's visuals folder with the skill written into it as AGENTS.md, which agy reads from every
- *  folder it is given; null leaves the chat without visuals. */
-async function antigravityVisualsFor(
-  deps: AntigravityLaunchDeps,
-  sessionId: string,
-  cwd: string
-): Promise<NativeChatVisualsLaunch | null> {
-  const visuals = (await deps.prepareVisuals?.(sessionId, cwd)) ?? null
-  if (!visuals) {
-    return null
-  }
-  const instructions = await readNativeChatVisualsInstructions(visuals.skill)
-  if (instructions === null) {
-    return null
-  }
-  try {
-    await writeFile(join(visuals.folder, 'AGENTS.md'), `${instructions}\n`)
-    return visuals
-  } catch (error) {
-    deps.logger?.warn('the chat visuals instructions could not be written', {
-      scope: 'nativeChatVisuals.antigravity',
-      sessionId,
-      error
-    })
-    return null
-  }
-}
-
 /** The instructions folder agy can be given, or null: a missing folder or a CLI that predates
  *  `--add-dir` starts the chat without the instructions, never fails it. */
 async function resolveInstructionsFolder(
@@ -182,12 +159,12 @@ export function createAntigravityLaunchResolver(deps: AntigravityLaunchDeps) {
     ) {
       throw new Error('Antigravity session does not belong to this execution host')
     }
-    const env: Record<string, string> = {}
-    for (const [key, value] of Object.entries(await deps.resolveEnvironment())) {
-      if (value !== undefined) {
-        env[key] = value
-      }
-    }
+    // A bot run keeps the tokens of the apps its bot is kept out of out of the agent's env.
+    const { env, envToDelete, denial } = await botRunChildEnv(
+      await deps.resolveEnvironment(),
+      record.options,
+      deps.resolveBotRunDenial
+    )
     await (deps.prepareAccount ?? prepareAntigravityAccountForLaunch)({
       launchAgent: 'antigravity',
       env,
@@ -239,7 +216,16 @@ export function createAntigravityLaunchResolver(deps: AntigravityLaunchDeps) {
     return {
       command,
       cwd,
-      env: withNativeChatVisualsEnv(identityEnv, visuals),
+      // Why: Marketplace apps reach agy as env vars named in its MCP config, never as values; a bot
+      // run's denial is applied after them, so a denied app's token never comes back.
+      env: withNativeChatVisualsEnv(
+        deleteBotRunDeniedEnv(
+          { ...identityEnv, ...buildMarketplaceAgentEnv('antigravity') },
+          denial
+        ),
+        visuals
+      ),
+      ...(envToDelete ? { envToDelete } : {}),
       previous,
       args: [
         ...savedArgs,
@@ -295,26 +281,6 @@ function antigravitySavedLaunchArgs(
     ]),
     switches: new Set(ANTIGRAVITY_OWNED_SWITCHES)
   })
-}
-
-const ANTIGRAVITY_MODE_FLAGS = {
-  auto: 'auto',
-  'accept-edits': 'accept-edits',
-  plan: 'plan'
-} as const
-
-/** `--mode` for a preset (agy 1.3.5: accept-edits, auto, plan), the skip flag for full access, and
- *  nothing for the CLI's own approving default. */
-export function antigravityAccessArgs(
-  accessMode: string | undefined,
-  inheritedFullAccess: boolean
-): string[] {
-  if (accessMode === 'auto' || accessMode === 'accept-edits' || accessMode === 'plan') {
-    return ['--mode', ANTIGRAVITY_MODE_FLAGS[accessMode]]
-  }
-  return resolveAgentSessionFullAccess(accessMode, inheritedFullAccess)
-    ? ['--dangerously-skip-permissions']
-    : []
 }
 
 export function antigravityProviderLink(

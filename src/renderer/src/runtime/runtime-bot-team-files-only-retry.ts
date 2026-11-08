@@ -1,8 +1,11 @@
 import { botTeamFileNamesText } from '../../../shared/bot-team-room-attachments-line'
 import type { BotTeamRoomAttachment } from '../../../shared/bot-team-room-attachments'
 
-/** A host from before files-only messages refuses empty text: send once more with the file names. */
-export async function postWithFileNamesIfTextRequired<
+/**
+ * A host from before files-only messages (or files-only answers) refuses empty text: send once more
+ * with the file names.
+ */
+export async function withFileNamesIfTextRequired<
   T extends { text: string; attachments?: BotTeamRoomAttachment[] },
   R
 >(input: T, send: (input: T) => Promise<R>): Promise<R> {
@@ -13,7 +16,7 @@ export async function postWithFileNamesIfTextRequired<
     if (
       input.text.trim() === '' &&
       files.length > 0 &&
-      /Missing message text/.test(String(error))
+      /Missing (message|request) text/.test(String(error))
     ) {
       return send({ ...input, text: botTeamFileNamesText(files) })
     }

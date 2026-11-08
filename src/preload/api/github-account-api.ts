@@ -23,6 +23,11 @@ export type GhSignInStartResult =
   | { ok: true }
   | { ok: false; reason: 'invalid_host' | 'unsupported' }
 
+/** Why: the renderer only learns whether gh removed the login; gh's own output never crosses IPC. */
+export type GhAccountRemoveResult =
+  | { ok: true }
+  | { ok: false; reason: 'invalid_account' | 'unsupported' | 'failed' }
+
 export type GithubAccountApi = {
   listBindableAccounts: (args: {
     repoPath: string
@@ -52,6 +57,12 @@ export type GithubAccountApi = {
     user: string
     wslDistro?: string
   }) => Promise<GhActiveAccountSwitchResult>
+  /** Signs one keyring login out of gh on this host; the confirmation happens in the renderer first. */
+  removeAccount: (args: {
+    host: string
+    user: string
+    wslDistro?: string
+  }) => Promise<GhAccountRemoveResult>
   listAccountOrgs: (args: {
     accounts: { host: string; user: string }[]
     wslDistro?: string

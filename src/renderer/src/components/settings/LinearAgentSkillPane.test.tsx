@@ -22,7 +22,8 @@ const mocks = vi.hoisted(() => ({
   linearConnected: true,
   visibleTaskProviders: ['github', 'linear'] as string[],
   openSettingsPage: vi.fn(),
-  openSettingsTarget: vi.fn()
+  openSettingsTarget: vi.fn(),
+  openMarketplaceSection: vi.fn()
 }))
 
 vi.mock('./AgentSkillSetupPanel', () => ({
@@ -95,6 +96,7 @@ vi.mock('@/store', () => ({
     selector: (state: {
       openSettingsPage: () => void
       openSettingsTarget: (target: unknown) => void
+      openMarketplaceSection: (section: string) => void
       settings: { visibleTaskProviders: string[] }
       linearStatusChecked: boolean
       linearStatusContextKey: string
@@ -105,6 +107,7 @@ vi.mock('@/store', () => ({
     selector({
       openSettingsPage: mocks.openSettingsPage,
       openSettingsTarget: mocks.openSettingsTarget,
+      openMarketplaceSection: mocks.openMarketplaceSection,
       settings: { visibleTaskProviders: mocks.visibleTaskProviders },
       linearStatusChecked: true,
       linearStatusContextKey: 'runtime-key',
@@ -145,12 +148,13 @@ describe('LinearAgentSkillPane', () => {
     mocks.visibleTaskProviders = ['github', 'linear']
     mocks.openSettingsPage.mockClear()
     mocks.openSettingsTarget.mockClear()
+    mocks.openMarketplaceSection.mockClear()
   })
 
-  it('keeps a clickable route to the Integrations credentials pane', async () => {
+  it('keeps a clickable route to the Marketplace services', async () => {
     const rendered = await renderPane()
     const link = [...rendered.querySelectorAll('button')].find(
-      (button) => button.textContent === 'Integrations'
+      (button) => button.textContent === 'Marketplace'
     )
 
     expect(link).toBeDefined()
@@ -158,15 +162,11 @@ describe('LinearAgentSkillPane', () => {
       link?.click()
     })
 
-    expect(mocks.openSettingsPage).toHaveBeenCalled()
-    expect(mocks.openSettingsTarget).toHaveBeenCalledWith({
-      pane: 'integrations',
-      repoId: null,
-      sectionId: 'integrations-linear'
-    })
+    expect(mocks.openMarketplaceSection).toHaveBeenCalledWith('services')
+    expect(mocks.openSettingsTarget).not.toHaveBeenCalled()
   })
 
-  it('routes the connected checklist credential action to Integrations', async () => {
+  it('routes the connected checklist credential action to the Marketplace', async () => {
     const rendered = await renderPane()
     const manageKeys = [...rendered.querySelectorAll('button')].find(
       (button) => button.textContent === 'Manage keys'
@@ -177,11 +177,7 @@ describe('LinearAgentSkillPane', () => {
       manageKeys?.click()
     })
 
-    expect(mocks.openSettingsTarget).toHaveBeenCalledWith({
-      pane: 'integrations',
-      repoId: null,
-      sectionId: 'integrations-linear'
-    })
+    expect(mocks.openMarketplaceSection).toHaveBeenCalledWith('services')
   })
 
   it('does not pass an icon the hideHeader layout would drop', () => {

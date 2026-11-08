@@ -22,6 +22,12 @@ vi.mock('react-native', () => ({
   View: 'View'
 }))
 vi.mock('react-native-safe-area-context', () => ({ SafeAreaView: 'SafeAreaView' }))
+vi.mock('../files/MobileFileMediaPreview', () => ({ MobileFileMediaPreview: () => null }))
+vi.mock('../files/MobileFileMarkdownPreview', () => ({ MobileFileMarkdownPreview: () => null }))
+// Why: expo-sharing needs the native runtime's __DEV__ global, which this node test does not provide.
+vi.mock('../files/mobile-file-share', () => ({ shareMobileFile: async () => {} }))
+// Why: the Marketplace glyphs load react-native-svg, which this node test cannot parse.
+vi.mock('../marketplace/marketplace-glyphs', () => ({ MarketplaceGlyph: () => null }))
 vi.mock('../components/MobileRepoIcon', () => ({ MobileRepoIcon: 'MobileRepoIcon' }))
 vi.mock('lucide-react-native', () => ({
   ChevronDown: 'ChevronDown',
@@ -72,6 +78,7 @@ describe('MobileBotTeamsScreen', () => {
         createElement(MobileBotTeamsScreen, {
           hostId: 'host',
           onShowWorkspaces: () => {},
+          onOpenMarketplace: () => {},
           onOpenTask: () => {}
         })
       )
@@ -87,6 +94,7 @@ describe('MobileBotTeamsScreen', () => {
         createElement(MobileBotTeamsScreen, {
           hostId: 'host',
           onShowWorkspaces: () => {},
+          onOpenMarketplace: () => {},
           onOpenTask: () => {}
         })
       )
@@ -102,6 +110,24 @@ describe('MobileBotTeamsScreen', () => {
     expect(nameInput().props.value).toBe('Marketing')
   })
 
+  it('opens the shared Marketplace from the Bot teams settings wheel', async () => {
+    const onOpenMarketplace = vi.fn()
+    let renderer!: ReactTestRenderer
+    await act(async () => {
+      renderer = create(
+        createElement(MobileBotTeamsScreen, {
+          hostId: 'host',
+          onShowWorkspaces: () => {},
+          onOpenMarketplace,
+          onOpenTask: () => {}
+        })
+      )
+    })
+    press(renderer, 'Bot teams settings')
+    press(renderer, 'Marketplace')
+    expect(onOpenMarketplace).toHaveBeenCalledTimes(1)
+  })
+
   it('edits a bot while creating a team, in the add form with its values', async () => {
     let renderer!: ReactTestRenderer
     await act(async () => {
@@ -109,6 +135,7 @@ describe('MobileBotTeamsScreen', () => {
         createElement(MobileBotTeamsScreen, {
           hostId: 'host',
           onShowWorkspaces: () => {},
+          onOpenMarketplace: () => {},
           onOpenTask: () => {}
         })
       )

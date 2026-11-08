@@ -1,6 +1,9 @@
 import { statSync } from 'node:fs'
 import { MAX_FILE_BYTES } from './bot-team-deliverables'
 
+/** A file a finished task may hand over: a path inside the folder it was made in. */
+export type DeliverableFile = { root: string; relative: string }
+
 /** A file a finished task may hand over as a copy: a regular file under the size limit, binary or text. */
 export function isCopyableFile(file: string): boolean {
   try {

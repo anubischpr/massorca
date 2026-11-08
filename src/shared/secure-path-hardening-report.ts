@@ -6,10 +6,21 @@ export type SecurePathHardeningReport = {
   targetPath: string
   /**
    * `throttled` and `recovered` mark entering and leaving the rate-limited degraded state;
-   * `settle` is the async lane's own callback failing, which is a caller bug rather than a host one.
+   * `settle` is the async lane's own callback failing, which is a caller bug rather than a host one;
+   * `sync-lane-tripped` is a write-path icacls that stalled, which moves later writes off the thread.
    */
-  stage: 'sid-lookup' | 'reset' | 'grant' | 'verify' | 'settle' | 'throttled' | 'recovered'
+  stage:
+    | 'sid-lookup'
+    | 'reset'
+    | 'grant'
+    | 'verify'
+    | 'settle'
+    | 'throttled'
+    | 'recovered'
+    | 'sync-lane-tripped'
   detail: string
+  /** Time spent restricting this path before the outcome, when the lane measured it. */
+  durationMs?: number
 }
 
 /**
@@ -37,7 +48,13 @@ export function setSecurePathHardeningReporter(
 export function reportSecurePathHardening(
   targetPath: string,
   stage: SecurePathHardeningReport['stage'],
-  detail: string
+  detail: string,
+  durationMs?: number
 ): void {
-  reportEntry({ targetPath, stage, detail: detail.trim().slice(0, 500) })
+  reportEntry({
+    targetPath,
+    stage,
+    detail: detail.trim().slice(0, 500),
+    ...(durationMs === undefined ? {} : { durationMs: Math.round(durationMs) })
+  })
 }

@@ -1,12 +1,14 @@
 import { callRuntimeRpc } from '@/runtime/runtime-rpc-client'
 import { hasRuntimeRpcErrorCode } from '../../../../shared/runtime-rpc-error-code'
 import type {
-  MarketplaceRemoteCredentialSlot,
-  MarketplaceVaultHostResult
+  MarketplaceVaultHostResult,
+  MarketplaceVaultSlot
 } from '../../../../shared/marketplace-apps'
 import {
   MARKETPLACE_VAULT_CLEAR_METHOD,
+  MARKETPLACE_VAULT_CLEAR_PROFILE_METHOD,
   MARKETPLACE_VAULT_SET_METHOD,
+  MARKETPLACE_VAULT_SET_PROFILE_METHOD,
   MARKETPLACE_VAULT_STATUS_METHOD,
   MarketplaceVaultHostAnswerSchema
 } from '../../../../shared/rpc-contract/marketplace-vault-params'
@@ -15,9 +17,12 @@ import {
 export type MarketplaceVaultHostTarget =
   | { kind: 'ssh'; connectionId: string; label: string }
   | { kind: 'runtime'; environmentId: string; label: string }
+  | { kind: 'wsl'; distro: string; label: string }
 
 const RPC_TIMEOUT_MS = 30_000
 const NEEDS_UPDATE: MarketplaceVaultHostResult = { ok: false, reason: 'host-needs-update' }
+// Why: no vault runs inside WSL yet, so a distro answers failed rather than with this computer's vault.
+const WSL_UNAVAILABLE: MarketplaceVaultHostResult = { ok: false, reason: 'failed' }
 
 function answerOf(value: unknown): MarketplaceVaultHostResult {
   const parsed = MarketplaceVaultHostAnswerSchema.safeParse(value)
@@ -31,6 +36,9 @@ async function callHost(
   params: Record<string, unknown>,
   viaSsh: () => Promise<MarketplaceVaultHostResult> | undefined
 ): Promise<MarketplaceVaultHostResult> {
+  if (target.kind === 'wsl') {
+    return WSL_UNAVAILABLE
+  }
   try {
     if (target.kind === 'ssh') {
       return (await viaSsh()) ?? NEEDS_UPDATE
@@ -66,12 +74,26 @@ export function readVaultHost(
   )
 }
 
-/** Sets or replaces a token on the host. The token is sent once and never read back. */
+/**
+ * Sets or replaces a token on the host. The token is sent once and never read back. A profile
+ * goes through its own method, so a host that predates profile tokens answers "update it first".
+ */
 export function setVaultHostToken(
   target: MarketplaceVaultHostTarget,
-  slot: MarketplaceRemoteCredentialSlot,
+  slot: MarketplaceVaultSlot,
   token: string
 ): Promise<MarketplaceVaultHostResult> {
+  if (typeof slot !== 'string') {
+    return callHost(target, MARKETPLACE_VAULT_SET_PROFILE_METHOD, { name: slot.name, token }, () =>
+      target.kind === 'ssh'
+        ? window.api.marketplaceApps.remoteVault?.set({
+            connectionId: target.connectionId,
+            profile: slot.name,
+            token
+          })
+        : undefined
+    )
+  }
   return callHost(target, MARKETPLACE_VAULT_SET_METHOD, { slot, token }, () =>
     target.kind === 'ssh'
       ? window.api.marketplaceApps.remoteVault?.set({
@@ -85,8 +107,18 @@ export function setVaultHostToken(
 
 export function clearVaultHostToken(
   target: MarketplaceVaultHostTarget,
-  slot: MarketplaceRemoteCredentialSlot
+  slot: MarketplaceVaultSlot
 ): Promise<MarketplaceVaultHostResult> {
+  if (typeof slot !== 'string') {
+    return callHost(target, MARKETPLACE_VAULT_CLEAR_PROFILE_METHOD, { name: slot.name }, () =>
+      target.kind === 'ssh'
+        ? window.api.marketplaceApps.remoteVault?.clear({
+            connectionId: target.connectionId,
+            profile: slot.name
+          })
+        : undefined
+    )
+  }
   return callHost(target, MARKETPLACE_VAULT_CLEAR_METHOD, { slot }, () =>
     target.kind === 'ssh'
       ? window.api.marketplaceApps.remoteVault?.clear({

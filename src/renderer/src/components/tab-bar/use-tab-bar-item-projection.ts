@@ -76,7 +76,8 @@ export function useTabBarItemProjection({
             tab.groupId === resolvedGroupId &&
             (tab.contentType === 'simulator' ||
               tab.contentType === 'checklist' ||
-              tab.contentType === 'session-ref')
+              tab.contentType === 'session-ref' ||
+              tab.contentType === 'create-session')
         )
         .map((tab) => tab.id),
     [unifiedTabs, resolvedGroupId]

@@ -75,7 +75,7 @@ describe('settings navigation metadata', () => {
   })
 
   it('puts AI capability panes at the top on desktop', () => {
-    expect(ids().slice(0, 10)).toEqual([
+    expect(ids().slice(0, 9)).toEqual([
       'agents',
       'accounts',
       'orchestration',
@@ -84,7 +84,6 @@ describe('settings navigation metadata', () => {
       'orca-account',
       'setup-guide',
       'general',
-      'integrations',
       'mobile'
     ])
   })
@@ -196,13 +195,12 @@ describe('settings navigation metadata', () => {
   })
 
   it('puts web-safe AI capability panes at the top while hiding desktop-only panes', () => {
-    expect(ids({ isWebClient: true }).slice(0, 6)).toEqual([
+    expect(ids({ isWebClient: true }).slice(0, 5)).toEqual([
       'agents',
       'accounts',
       'orchestration',
       'setup-guide',
-      'general',
-      'integrations'
+      'general'
     ])
   })
 

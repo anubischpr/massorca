@@ -16,8 +16,8 @@ import type { ExecutionHostId } from '../../../../../shared/execution-host'
 import type { TaskResumeState, TopLevelView } from '../../../../../shared/ui-chrome-types'
 import type { MarketplaceAppStatus } from '../../../../../shared/marketplace-apps'
 
-/** A Marketplace sidebar section; the catalog list shows its items. */
-export type MarketplaceSection = 'all' | 'tools' | 'agents' | 'skills' | 'services'
+/** A Marketplace sidebar choice: a catalog section, or Your apps (what is installed and connected). */
+export type MarketplaceSection = 'all' | 'tools' | 'agents' | 'skills' | 'services' | 'your-apps'
 
 /** A catalog item. Git keeps its own page; the other three use the standard app page. */
 export type MarketplaceItemId = 'git' | 'github' | 'engram' | 'openmetadata'
@@ -280,6 +280,8 @@ export type UISliceCore = {
   /** The rail's Calendar page: scheduled bot runs and automations. */
   openCalendarPage: () => void
   openMarketplacePage: () => void
+  /** Opens the Marketplace catalog on one section, from another page. */
+  openMarketplaceSection: (section: MarketplaceSection) => void
   closeMarketplacePage: () => void
   /** The Marketplace sidebar's section; the catalog list shows its items. */
   marketplaceSection: MarketplaceSection

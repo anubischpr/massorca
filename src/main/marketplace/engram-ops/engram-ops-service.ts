@@ -5,6 +5,12 @@ import type {
   EngramUpdateResult
 } from '../../../shared/marketplace-engram-ops'
 import {
+  createEngramCloudService,
+  type EngramCloudDeps,
+  type EngramCloudRun,
+  type EngramCloudService
+} from './engram-cloud-service'
+import {
   parseEngramImportCounts,
   parseEngramVersionOutput,
   selectEngramUpdateAdvice
@@ -14,22 +20,20 @@ export const ENGRAM_IMPORT_MAX_BYTES = 256 * 1024 * 1024
 const VERSION_TIMEOUT_MS = 5000
 const IMPORT_TIMEOUT_MS = 120_000
 
-export type EngramOpsRun = (
-  program: string,
-  args: readonly string[],
-  timeoutMs: number
-) => Promise<{ code: number | null; output: string }>
+export type EngramOpsRun = EngramCloudRun
 
 export type EngramOpsDeps = {
   resolveProgram: () => Promise<string | null>
   run: EngramOpsRun
+  /** Cloud sync's own inputs; without them every cloud call answers "no server". */
+  cloud?: Omit<EngramCloudDeps, 'resolveProgram' | 'run'>
   /** Asks the user for one file; null when they cancel. */
   pickFile: () => Promise<string | null>
   /** Size in bytes of a regular file, null when it cannot be read. */
   fileSize: (path: string) => Promise<number | null>
 }
 
-export type EngramOpsService = {
+export type EngramOpsService = EngramCloudService & {
   getProgram: () => Promise<EngramProgramInfo>
   updateNow: () => Promise<EngramUpdateResult>
   importMemories: () => Promise<EngramImportResult>
@@ -100,5 +104,15 @@ export function createEngramOpsService(deps: EngramOpsDeps): EngramOpsService {
     }
   }
 
-  return { getProgram, updateNow, importMemories }
+  const cloud = createEngramCloudService({
+    resolveProgram: deps.resolveProgram,
+    run: deps.run,
+    cloudEnv: () => ({}),
+    loadSyncTimes: async () => ({}),
+    saveSyncTime: async () => undefined,
+    now: Date.now,
+    ...deps.cloud
+  })
+
+  return { getProgram, updateNow, importMemories, ...cloud }
 }

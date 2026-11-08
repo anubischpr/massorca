@@ -158,6 +158,7 @@ export function usePersistedUIWriter(): void {
       showSleepingWorkspaces: s.showSleepingWorkspaces,
       workspaceHostScope: s.workspaceHostScope,
       visibleWorkspaceHostIds: s.visibleWorkspaceHostIds,
+      marketplaceHostKey: s.marketplaceHostKey,
       hideDefaultBranchWorkspace: s.hideDefaultBranchWorkspace,
       hideAutomationGeneratedWorkspaces: s.hideAutomationGeneratedWorkspaces,
       hideCliCreatedWorkspaces: s.hideCliCreatedWorkspaces,

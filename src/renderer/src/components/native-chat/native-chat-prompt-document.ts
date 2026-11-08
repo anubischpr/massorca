@@ -1,3 +1,4 @@
+import { NativeChatMentionPill } from './NativeChatMentionPill'
 import { NativeChatSkillPill } from './NativeChatSkillPill'
 import { ReactNodeViewRenderer, Node } from '@tiptap/react'
 import type { Node as ProseMirrorNode } from '@tiptap/pm/model'
@@ -25,8 +26,33 @@ export const NativeChatSkill = Node.create({
   ]
 })
 
+/** A file or app picked from the @ menu: one chip whose text is the `@path` reference it sends. */
+export const NativeChatMention = Node.create({
+  name: 'nativeChatMention',
+  group: 'inline',
+  inline: true,
+  atom: true,
+  selectable: true,
+  addNodeView: () => ReactNodeViewRenderer(NativeChatMentionPill),
+  addAttributes: () => ({
+    token: { default: '' },
+    label: { default: '' },
+    kind: { default: 'file' },
+    appId: { default: null }
+  }),
+  renderText: ({ node }) => node.attrs.token,
+  renderHTML: ({ node }) => [
+    'span',
+    { 'data-native-chat-mention': node.attrs.label, contenteditable: 'false' },
+    String(node.attrs.label)
+  ]
+})
+
 /** Each boundary maps a plain-text caret to a document position, including atomic skills. */
-export function promptTextMap(doc: ProseMirrorNode): { text: string; positions: number[] } {
+export function promptTextMap(doc: ProseMirrorNode): {
+  text: string
+  positions: number[]
+} {
   let text = ''
   const positions = [1]
   doc.forEach((block, blockOffset, index) => {

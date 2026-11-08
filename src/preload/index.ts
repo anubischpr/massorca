@@ -43,7 +43,10 @@ import { preflightApi } from './api/preflight-bridge'
 import { marketplaceApi } from './api/marketplace-bridge'
 import { marketplaceInstallApi } from './api/marketplace-install-bridge'
 import { marketplaceEngramOpsApi } from './api/marketplace-engram-ops-bridge'
+import { marketplaceCustomApi } from './api/marketplace-custom-bridge'
+import { marketplaceAuditBridgeApi } from './api/marketplace-audit-bridge'
 import { marketplaceAppsApi } from './api/marketplace-apps-bridge'
+import { marketplaceServicesApi } from './api/marketplace-services-bridge'
 import { notificationsApi } from './api/notifications-bridge'
 import { onboardingApi } from './api/onboarding-bridge'
 import { dashboardApi } from './api/dashboard-bridge'
@@ -151,7 +154,10 @@ const api = {
   marketplace: marketplaceApi,
   marketplaceInstall: marketplaceInstallApi,
   marketplaceEngramOps: marketplaceEngramOpsApi,
+  marketplaceCustom: marketplaceCustomApi,
+  marketplaceAudit: marketplaceAuditBridgeApi,
   marketplaceApps: marketplaceAppsApi,
+  marketplaceServices: marketplaceServicesApi,
   notifications: notificationsApi,
   onboarding: onboardingApi,
   dashboard: dashboardApi,

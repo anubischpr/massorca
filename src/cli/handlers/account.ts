@@ -1,29 +1,16 @@
-import { spawn } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { delimiter, join } from 'node:path'
+import { join } from 'node:path'
 import type { CommandHandler, HandlerContext } from '../dispatch'
 import { printResult } from '../format'
 import { RuntimeClientError } from '../runtime-client'
-import { stripElectronRunAsNode } from '../runtime/launch'
 import { rejectRemoteSelectionFlags } from '../remote-selection-flag-rejection'
 import {
   deleteActiveClaudeKeychainCredentialsStrict,
   readActiveClaudeKeychainCredentialsStrict,
   writeActiveClaudeKeychainCredentials
 } from '../../main/claude-accounts/keychain'
-import {
-  getVersionManagerBinPaths,
-  resolveCliCommand,
-  withCliRuntimeOnPath
-} from '../../shared/node-cli-command-resolution'
-import {
-  getSpawnArgsForWindows,
-  UnsafeWindowsBatchArgumentsError,
-  WINDOWS_BATCH_UNSAFE_CHARACTERS_LABEL
-} from '../../shared/windows-batch-spawn'
-import { stdioForWindowsInteractiveChild } from '../../shared/windows-console-input'
 import { ACCOUNT_IMPORT_RUNTIME_CAPABILITY } from '../../shared/protocol-version'
 import type { RuntimeStatus } from '../../shared/runtime-types'
 import type {
@@ -36,8 +23,17 @@ import {
   withInteractiveLoginCleanup
 } from './interactive-login-interruption'
 import { getWslAccountTarget } from './account-wsl-location'
+import { runAgentLoginInTerminal } from './account-login-terminal'
 import { addDataAccount, listDataAccounts, mutateDataAccount } from './data-account-commands'
 import { formatAccountsBlock, formatDataAccounts } from './account-list-format'
+import {
+  addAntigravityAccount,
+  consumeCodexResetCredit,
+  isProviderAccountAgent,
+  listAntigravityAccounts,
+  removeProviderAccount,
+  selectProviderAccount
+} from './account-provider-commands'
 
 // Why: add returns just that provider's state; list returns the full snapshot.
 type AccountsListSnapshot = {
@@ -45,99 +41,6 @@ type AccountsListSnapshot = {
   devin?: ManagedDataAccountsState
   claude: ClaudeRateLimitAccountsState
   codex: CodexRateLimitAccountsState
-}
-
-function addAgentNodePaths(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
-  const pathKey =
-    process.platform === 'win32' && env.Path !== undefined && env.PATH === undefined
-      ? 'Path'
-      : 'PATH'
-  const currentEntries = (env[pathKey] ?? '').split(delimiter).filter(Boolean)
-  const existing = new Set(currentEntries)
-  const missing = getVersionManagerBinPaths().filter((entry) => !existing.has(entry))
-  if (missing.length > 0) {
-    env[pathKey] = [...missing, ...currentEntries].join(delimiter)
-  }
-  return env
-}
-
-/**
- * Runs the real agent login attached to the user's terminal so the OAuth
- * URL/device-code prompt is visible and the code can be pasted back — the desktop
- * GUI flow drives this via a browser Orca can't reach on a headless host.
- */
-async function runAgentLoginInTerminal(
-  command: string,
-  args: string[],
-  extraEnv: Record<string, string>,
-  json: boolean,
-  session: InteractiveLoginSession
-): Promise<void> {
-  await new Promise<void>((resolvePromise, rejectPromise) => {
-    const resolvedCommand = resolveCliCommand(command)
-    let spawnCmd: string
-    let spawnArgs: string[]
-    try {
-      ;({ spawnCmd, spawnArgs } = getSpawnArgsForWindows(resolvedCommand, args))
-    } catch (error) {
-      // Why: the bare sentinel message reaches the user verbatim otherwise, with
-      // nothing naming the path or the characters that made it unspawnable.
-      rejectPromise(
-        error instanceof UnsafeWindowsBatchArgumentsError
-          ? new RuntimeClientError(
-              'invalid_environment',
-              `Cannot run \`${command}\` from "${resolvedCommand}": the path contains characters ` +
-                `cmd.exe would reinterpret. Install it somewhere without ` +
-                `${WINDOWS_BATCH_UNSAFE_CHARACTERS_LABEL} in the path.`
-            )
-          : error
-      )
-      return
-    }
-    // Why paired after the seed: addAgentNodePaths prepends the *newest* version
-    // manager bin, which is not necessarily where this CLI lives. Pairing last puts
-    // the CLI's own node in front of that seed (stablyai/orca#10932).
-    const env = withCliRuntimeOnPath(
-      resolvedCommand,
-      addAgentNodePaths({ ...stripElectronRunAsNode(process.env), ...extraEnv })
-    )
-    const consoleStdio = stdioForWindowsInteractiveChild(json)
-    let child: ReturnType<typeof spawn>
-    try {
-      child = spawn(spawnCmd, spawnArgs, {
-        // Why: JSON mode reserves stdout for the response envelope while keeping
-        // the interactive login attached to the user's terminal via stderr.
-        stdio: consoleStdio.stdio,
-        env
-      })
-    } finally {
-      consoleStdio.dispose()
-    }
-    session.child = child
-    child.once('error', (error) =>
-      rejectPromise(
-        new RuntimeClientError(
-          'internal',
-          `Could not launch \`${command}\`. Is it installed and on PATH? (${
-            error instanceof Error ? error.message : String(error)
-          })`
-        )
-      )
-    )
-    child.once('exit', (code) => {
-      session.child = null
-      if (code === 0) {
-        resolvePromise()
-        return
-      }
-      rejectPromise(
-        new RuntimeClientError(
-          'internal',
-          `\`${command} ${args.join(' ')}\` exited with code ${code ?? 'null'}.`
-        )
-      )
-    })
-  })
 }
 
 async function cleanupClaudeLoginArtifacts(
@@ -288,6 +191,11 @@ export const ACCOUNT_HANDLERS: Record<string, CommandHandler> = {
       )
     }
     const agent = agentFlag ?? 'claude'
+    if (agent === 'antigravity') {
+      rejectAccountRemoteSelectionFlags(ctx, 'orca account add')
+      await addAntigravityAccount(ctx)
+      return
+    }
     if (agent !== 'claude' && agent !== 'codex' && agent !== 'opencode' && agent !== 'devin') {
       throw new RuntimeClientError(
         'invalid_argument',
@@ -307,6 +215,10 @@ export const ACCOUNT_HANDLERS: Record<string, CommandHandler> = {
   'account list': async (ctx) => {
     rejectAccountRemoteSelectionFlags(ctx, 'orca account list')
     const provider = ctx.flags.get('agent')
+    if (provider === 'antigravity') {
+      await listAntigravityAccounts(ctx)
+      return
+    }
     if (provider !== undefined) {
       await listDataAccounts(ctx, provider)
       return
@@ -328,10 +240,21 @@ export const ACCOUNT_HANDLERS: Record<string, CommandHandler> = {
   },
   'account select': async (ctx) => {
     rejectAccountRemoteSelectionFlags(ctx, 'orca account select')
+    const agent = ctx.flags.get('agent')
+    if (isProviderAccountAgent(agent)) {
+      await selectProviderAccount(ctx, agent)
+      return
+    }
     await mutateDataAccount(ctx, 'select')
   },
   'account rm': async (ctx) => {
     rejectAccountRemoteSelectionFlags(ctx, 'orca account rm')
+    const agent = ctx.flags.get('agent')
+    if (isProviderAccountAgent(agent)) {
+      await removeProviderAccount(ctx, agent)
+      return
+    }
     await mutateDataAccount(ctx, 'remove')
-  }
+  },
+  'account codex-reset-credit': consumeCodexResetCredit
 }

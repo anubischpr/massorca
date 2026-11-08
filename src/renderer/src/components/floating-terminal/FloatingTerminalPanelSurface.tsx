@@ -70,6 +70,8 @@ export function renderFloatingTerminalPanelSurface({
   newBrowserShortcut,
   newMarkdownShortcut,
   openMarkdownShortcut,
+  newChecklistShortcut,
+  openSessionShortcut,
   closeShortcut,
   showOrchestrationSetup,
   dismissOrchestrationSetup,
@@ -179,13 +181,15 @@ export function renderFloatingTerminalPanelSurface({
                   activeSimulatorTabId={
                     activeTab?.contentType === 'simulator' ||
                     activeTab?.contentType === 'checklist' ||
-                    activeTab?.contentType === 'session-ref'
+                    activeTab?.contentType === 'session-ref' ||
+                    activeTab?.contentType === 'create-session'
                       ? activeTab.id
                       : null
                   }
                   activeTabType={
                     activeTab?.contentType === 'checklist' ||
-                    activeTab?.contentType === 'session-ref'
+                    activeTab?.contentType === 'session-ref' ||
+                    activeTab?.contentType === 'create-session'
                       ? 'simulator'
                       : activeTabType
                   }
@@ -289,6 +293,8 @@ export function renderFloatingTerminalPanelSurface({
                   newBrowserShortcut={newBrowserShortcut}
                   newMarkdownShortcut={newMarkdownShortcut}
                   openMarkdownShortcut={openMarkdownShortcut}
+                  newChecklistShortcut={newChecklistShortcut}
+                  openSessionShortcut={openSessionShortcut}
                   closeShortcut={closeShortcut}
                 />
               )}

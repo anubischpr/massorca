@@ -40,6 +40,22 @@ export function createWorkspaceTabCloseCommands({
     return true
   }
 
+  /** Ends the terminal a floating tab started; through the owner's own close, so its host is told. */
+  const closeReferencedTerminal = (
+    ref: NonNullable<Tab['sessionRef']>,
+    skipRunningProcessConfirm: boolean
+  ) => {
+    const owner = (useAppStore.getState().unifiedTabsByWorktree[ref.worktreeId] ?? []).find(
+      (candidate) => candidate.id === ref.tabId
+    )
+    if (owner?.contentType === 'terminal') {
+      closeTerminalTab(
+        owner.entityId,
+        skipRunningProcessConfirm ? { skipRunningProcessConfirm } : {}
+      )
+    }
+  }
+
   /** `whenEmptied` is captured by the caller when the close is requested, before any prompt. */
   const closeItem = (
     itemId: string,
@@ -74,9 +90,13 @@ export function createWorkspaceTabCloseCommands({
     } else if (
       item.contentType === 'simulator' ||
       item.contentType === 'checklist' ||
-      item.contentType === 'session-ref'
+      item.contentType === 'session-ref' ||
+      item.contentType === 'create-session'
     ) {
       closeUnifiedTab(item.id)
+      if (item.sessionRef?.endsSessionOnClose) {
+        closeReferencedTerminal(item.sessionRef, opts?.skipRunningProcessConfirm === true)
+      }
     } else {
       const canCloseTab = closeEditorIfUnreferenced(item.entityId, item.id, whenEmptied)
       if (!canCloseTab) {

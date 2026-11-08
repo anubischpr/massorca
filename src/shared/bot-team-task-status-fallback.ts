@@ -24,12 +24,16 @@ export function botTeamTaskPlacement(input: {
   live: AgentSessionStatusSummary | undefined
   kept: AgentSessionStatusSummary | undefined
   stored: BotTeamTaskLastStatus | null | undefined
+  /** The bot ended its turn on a question for the person; a Done task then waits for them. */
+  awaitingPerson?: boolean
 }): BotTeamTaskPlacement {
-  const status = botTeamTaskStatus(input.sessionId, input.live)
+  const awaiting = input.awaitingPerson === true
+  const status = botTeamTaskStatus(input.sessionId, input.live, awaiting)
   if (status !== 'Unknown') {
     return { status, placedAs: status }
   }
-  const keptStatus = botTeamTaskStatus(input.sessionId, input.kept)
-  const placedAs = input.stored ?? (keptStatus === 'Unknown' ? 'Not started' : keptStatus)
-  return { status, placedAs }
+  const keptStatus = botTeamTaskStatus(input.sessionId, input.kept, awaiting)
+  const known: PlacedBotTeamTaskStatus =
+    input.stored ?? (keptStatus === 'Unknown' ? 'Not started' : keptStatus)
+  return { status, placedAs: awaiting && known === 'Done' ? 'Waiting for you' : known }
 }

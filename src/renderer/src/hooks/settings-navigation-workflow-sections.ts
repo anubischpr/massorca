@@ -25,6 +25,7 @@ import {
   PanelsTopLeft,
   Play,
   SquareTerminal,
+  Store,
   TabletSmartphone
 } from 'lucide-react'
 import type { SettingsNavigationBuildOptions } from './settings-navigation-build-options'
@@ -91,6 +92,17 @@ export function buildWorkflowSettingsSections(
         'What each team can do without asking. New teams start with full access.'
       ),
       icon: UsersRound,
+      searchEntries: [],
+      group: 'workflows'
+    },
+    {
+      id: 'marketplace',
+      title: translate('auto.components.settings.marketplace.title', 'Marketplace'),
+      description: translate(
+        'auto.components.settings.marketplace.description',
+        'Tools, agents, skills and services MassOrca uses on each host.'
+      ),
+      icon: Store,
       searchEntries: [],
       group: 'workflows'
     },

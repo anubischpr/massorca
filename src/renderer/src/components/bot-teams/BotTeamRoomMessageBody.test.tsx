@@ -9,13 +9,23 @@ globalThis.IS_REACT_ACT_ENVIRONMENT = true
 
 vi.mock('./BotAgentIcon', () => ({ BotAgentIcon: () => null }))
 vi.mock('./BotTeamCharacterIcon', () => ({ BotTeamCharacterIcon: () => null }))
+vi.mock('./BotTeamFileHoverPreview', () => ({
+  BotTeamFileHoverPreview: (props: { teamId: string; path: string; name: string }) => (
+    <span data-testid="file-preview">{`${props.teamId}:${props.path}:${props.name}`}</span>
+  )
+}))
 
 const { BotTeamRoomMessageBody } = await import('./BotTeamRoomMessageBody')
+const { BotTeamFileChipTeamContext } = await import('./BotTeamFileChipHover')
 
 const MENTIONS = [
   { name: 'Iris', kind: 'bot' as const, agent: 'claude' as const },
   { name: 'Marketing', kind: 'team' as const, character: 'square' as const },
-  { name: 'Shop', kind: 'project' as const, logo: { type: 'emoji' as const, emoji: '🛒' } },
+  {
+    name: 'Shop',
+    kind: 'project' as const,
+    logo: { type: 'emoji' as const, emoji: '🛒' }
+  },
   { name: 'Spring', kind: 'project' as const, logo: null },
   { name: 'Engram', kind: 'app' as const, id: 'engram' as const }
 ]
@@ -29,12 +39,18 @@ afterEach(() => {
   }
 })
 
-function render(text: string): HTMLDivElement {
+function render(text: string, teamId: string | null = null): HTMLDivElement {
   const container = document.createElement('div')
   document.body.append(container)
   const root = createRoot(container)
   mounted.push({ container, root })
-  act(() => root.render(<BotTeamRoomMessageBody text={text} mentions={MENTIONS} />))
+  act(() =>
+    root.render(
+      <BotTeamFileChipTeamContext.Provider value={teamId}>
+        <BotTeamRoomMessageBody text={text} mentions={MENTIONS} />
+      </BotTeamFileChipTeamContext.Provider>
+    )
+  )
   return container
 }
 
@@ -81,13 +97,25 @@ describe('the room message body', () => {
     expect(container.textContent).toContain('Usa site/flyer.html.')
   })
 
-  it('shows a file chip’s full path as its tooltip', async () => {
+  it('gives a file chip no tooltip repeating the path it already shows', async () => {
     const container = render('Usa @site/flyer.html')
     const chip = container.querySelector<HTMLElement>('[data-bot-team-mention-file]')
-    expect(chip?.getAttribute('data-slot')).toBe('tooltip-trigger')
     chip?.setAttribute('tabindex', '0')
     await act(async () => chip?.focus())
-    expect(document.body.querySelector('[role="tooltip"]')?.textContent).toBe('site/flyer.html')
+    await act(() => new Promise((resolve) => setTimeout(resolve, 450)))
+    expect(document.body.querySelector('[role="tooltip"]')).toBeNull()
+  })
+
+  it('previews a file chip’s file from the team folder on hover inside a room', async () => {
+    const container = render('Usa @attachments/photo.jpg', 'team-1')
+    const chip = container.querySelector<HTMLElement>('[data-bot-team-mention-file]')
+    chip?.setAttribute('tabindex', '0')
+    await act(async () => chip?.focus())
+    await act(() => new Promise((resolve) => setTimeout(resolve, 350)))
+    expect(document.body.querySelector('[data-testid="file-preview"]')?.textContent).toBe(
+      'team-1:attachments/photo.jpg:photo.jpg'
+    )
+    expect(document.body.querySelector('[role="tooltip"]')).toBeNull()
   })
 
   it('draws an installed app mention as a chip with the app’s logo', () => {

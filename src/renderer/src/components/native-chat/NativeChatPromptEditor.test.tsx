@@ -50,6 +50,32 @@ describe('native chat skill editor', () => {
     expect(input.value).toBe('Please $review $review typed manually')
   })
 
+  it('draws a picked file or app as a chip without the @ and sends its reference', async () => {
+    const { input, container } = setup('See @rou')
+    await act(async () =>
+      input.insertMention!(4, 8, {
+        token: '@src/routine.ts',
+        label: 'src/routine.ts',
+        kind: 'file'
+      })
+    )
+    await act(async () =>
+      input.insertMention!(20, 20, {
+        token: '@Engram',
+        label: 'Engram',
+        kind: 'app',
+        appId: 'engram'
+      })
+    )
+    const file = container.querySelector('[data-native-chat-mention="src/routine.ts"]')
+    expect(file?.textContent).toBe('src/routine.ts')
+    expect(file?.querySelector('svg.lucide-file-code')).not.toBeNull()
+    const app = container.querySelector('[data-native-chat-mention="Engram"]')
+    expect(app?.textContent).toBe('Engram')
+    expect(app?.querySelector('svg.lucide-brain')).not.toBeNull()
+    expect(input.value).toBe('See @src/routine.ts @Engram ')
+  })
+
   it('keeps typed and restored invocations plain', () => {
     const { container, input } = setup('$review /review')
     expect(container.querySelector('[data-native-chat-skill]')).toBeNull()

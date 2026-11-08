@@ -51,7 +51,8 @@ export function resolveFloatingWorkspaceSurfaceModel(
       tab.contentType === 'agent-session' ||
       tab.contentType === 'simulator' ||
       tab.contentType === 'checklist' ||
-      tab.contentType === 'session-ref'
+      tab.contentType === 'session-ref' ||
+      tab.contentType === 'create-session'
     ) {
       return true
     }

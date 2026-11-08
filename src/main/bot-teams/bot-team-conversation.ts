@@ -2,6 +2,7 @@ import { getCommitMessageAgentSpec } from '../../shared/commit-message-agent-spe
 import { BOT_TEAM_ALL_AUTHOR } from '../../shared/bot-team-greeting'
 import { isTuiAgent } from '../../shared/tui-agent-config'
 import { withMarketplaceAppPromptLines } from '../../shared/marketplace-app-mentions'
+import type { MarketplaceAppId } from '../../shared/marketplace-apps'
 import type { BotTeam, BotTeamBot } from '../../shared/rpc-contract/bot-team-params'
 import type { BotTeamMessage, BotTeamTask } from '../../shared/rpc-contract/bot-team-room-params'
 import { buildBotTeamCodeAnswerPrompt, CODE_NOT_READ_NOTE } from './bot-team-code-answer'
@@ -169,9 +170,16 @@ function researchPrompt(args: {
 
 /** One short question to the bot's own agent, told to use the apps the question names. */
 export function buildBotTeamConversationPrompt(
-  args: Parameters<typeof conversationPrompt>[0]
+  args: Parameters<typeof conversationPrompt>[0] & {
+    /** Connected Marketplace apps the answering bot is kept out of; the question gets no line for them. */
+    deniedMarketplaceApps?: readonly MarketplaceAppId[]
+  }
 ): string {
-  return withMarketplaceAppPromptLines(conversationPrompt(args), args.text)
+  return withMarketplaceAppPromptLines(
+    conversationPrompt(args),
+    args.text,
+    args.deniedMarketplaceApps
+  )
 }
 
 /** Read the room and the board, answer once, do nothing. */

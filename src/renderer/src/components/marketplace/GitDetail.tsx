@@ -13,8 +13,23 @@ import type { GitInstallView } from './GitInstallState'
 import { GIT_DOWNLOADS_URL } from './marketplace-catalog'
 import type { MarketplaceBadgeState } from './marketplace-status'
 
-/** Git's card: what will happen, live install progress, the installed facts, and the failure board with a manual command. */
-export function GitDetail({ state }: { state: MarketplaceBadgeState }): React.JSX.Element {
+/** Git's card: a picked host reports its own Git state; This computer gets the install and adopt boards. */
+export function GitDetail({
+  state,
+  hostLabel
+}: {
+  state: MarketplaceBadgeState
+  /** The picked host's name; null for This computer. */
+  hostLabel: string | null
+}): React.JSX.Element {
+  if (hostLabel !== null) {
+    return <RemoteGitState state={state} host={hostLabel} />
+  }
+  return <ThisComputerGitDetail state={state} />
+}
+
+/** This computer's Git: live install progress, the installed facts, and the failure board with a manual command. */
+function ThisComputerGitDetail({ state }: { state: MarketplaceBadgeState }): React.JSX.Element {
   const controller = useGitInstallController()
   const view = controller.view
   switch (view.kind) {
@@ -62,6 +77,67 @@ export function GitDetail({ state }: { state: MarketplaceBadgeState }): React.JS
     case 'unavailable':
       return <BadgeFallback state={state} view={view} />
   }
+}
+
+/** A picked host's Git as that host reports it; installing Git there is not offered yet. */
+function RemoteGitState({
+  state,
+  host
+}: {
+  state: MarketplaceBadgeState
+  host: string
+}): React.JSX.Element {
+  if (state === 'installed') {
+    return (
+      <p className="text-sm">
+        {translate(
+          'auto.components.marketplace.GitDetail.remoteInstalled',
+          'Git is installed on {{host}}.',
+          { host }
+        )}
+      </p>
+    )
+  }
+  if (state === 'not-installed') {
+    return (
+      <div className="flex flex-col items-start gap-2">
+        <p className="text-sm">
+          {translate(
+            'auto.components.marketplace.GitDetail.remoteNotInstalled',
+            'Git is not installed on {{host}}.',
+            { host }
+          )}
+        </p>
+        <p className="text-xs text-muted-foreground">
+          {translate(
+            'auto.components.marketplace.GitDetail.remoteInstallLater',
+            'Installing Git on {{host}} is not available yet.',
+            { host }
+          )}
+        </p>
+      </div>
+    )
+  }
+  if (state === 'checking') {
+    return (
+      <p className="text-sm text-muted-foreground">
+        {translate(
+          'auto.components.marketplace.GitDetail.remoteChecking',
+          'Checking Git on {{host}}…',
+          { host }
+        )}
+      </p>
+    )
+  }
+  return (
+    <p className="text-sm text-muted-foreground">
+      {translate(
+        'auto.components.marketplace.GitDetail.remoteUnknown',
+        'Could not check Git on {{host}}.',
+        { host }
+      )}
+    </p>
+  )
 }
 
 /** Shown only while the check runs or when the bridge is missing; the badge is the only signal then. */

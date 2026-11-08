@@ -1,7 +1,5 @@
 import { useState } from 'react'
-import { createPortal } from 'react-dom'
 import { Pencil, Plus } from 'lucide-react'
-import { usePageTopBandTitleTarget } from '../../app-shell/page-top-band-slot'
 import { Button } from '@/components/ui/button'
 import StatusIndicator, { type Status } from '@/components/sidebar/StatusIndicator'
 import { translate } from '@/i18n/i18n'
@@ -24,6 +22,7 @@ import { BotTeamProjectBrief, type BotTeamProjectTab } from './BotTeamProjectBri
 import { BotTeamBoard, BotTeamProjectBoard, NewBotProjectForm } from './BotTeamProjectViews'
 import { BotTeamMemory } from './BotTeamMemory'
 import { BotTeamRoom } from './BotTeamRoom'
+import { BotTeamRoomTitle } from './BotTeamRoomTitle'
 import { BotTeamRoutineForm } from './BotTeamRoutineForm'
 import { BotTeamRoutineRuns } from './BotTeamRoutineRuns'
 import { BotTeamRoutines } from './BotTeamRoutines'
@@ -37,23 +36,6 @@ const TEAM_STATUS_GLYPH: Record<BotTeamOverallStatus, Status> = {
   'Waiting for you': 'permission',
   Working: 'working',
   'Nothing running': 'inactive'
-}
-
-/** The room's title sits in the one top bar when there is one, otherwise over the conversation. */
-function BotTeamRoomTitle({ children }: { children: React.ReactNode }): React.JSX.Element {
-  const target = usePageTopBandTitleTarget()
-  return target ? (
-    createPortal(
-      <div className="flex min-w-0 flex-1 items-center gap-2 px-2 text-sm font-medium">
-        {children}
-      </div>,
-      target
-    )
-  ) : (
-    <div className="flex h-11 shrink-0 items-center gap-2 border-b border-border px-4 text-sm font-medium">
-      {children}
-    </div>
-  )
 }
 
 function TeamDetail({
@@ -273,6 +255,7 @@ function TeamGrid({
               <div key={team.id} className="relative">
                 <button
                   type="button"
+                  data-bot-character-zone=""
                   onClick={() => onOpen(team.id)}
                   className="flex h-full min-h-[148px] w-full flex-col gap-2.5 rounded-xl border border-border bg-card p-4 text-left transition-colors hover:bg-muted"
                 >
@@ -358,17 +341,17 @@ export default function BotTeamsPage({
             team: editingTeam,
             onSave: (input) => {
               void applyChange(() => updateBotTeam({ teamId: editingTeam.id, ...input })).then(
-                (done) => done && setEditingTeamId(null)
+                (outcome) => outcome.done && setEditingTeamId(null)
               )
             },
-            onAddBot: (bot) => void applyChange(() => addBotToTeam(editingTeam.id, bot)),
+            onAddBot: (bot) => applyChange(() => addBotToTeam(editingTeam.id, bot)),
             onUpdateBot: (botId, bot) =>
-              void applyChange(() => updateBotOnTeam(editingTeam.id, botId, bot)),
+              applyChange(() => updateBotOnTeam(editingTeam.id, botId, bot)),
             onRemoveBot: (botId) =>
               void applyChange(() => removeBotFromTeam(editingTeam.id, botId)),
             onDelete: () => {
               void applyChange(() => deleteBotTeam(editingTeam.id)).then(
-                (done) => done && setEditingTeamId(null)
+                (outcome) => outcome.done && setEditingTeamId(null)
               )
             }
           }}
@@ -380,8 +363,8 @@ export default function BotTeamsPage({
           usedCharacters={(teams ?? []).map((team) => team.character)}
           onCancel={() => select(NOTHING_OPEN)}
           onCreate={(input) => {
-            void applyChange(() => createBotTeam(input)).then((done) => {
-              if (done) {
+            void applyChange(() => createBotTeam(input)).then((outcome) => {
+              if (outcome.done) {
                 select(NOTHING_OPEN)
               }
             })

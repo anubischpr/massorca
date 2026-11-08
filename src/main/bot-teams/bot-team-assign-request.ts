@@ -6,10 +6,12 @@ import {
   botTeamRoomAttachmentsNote,
   type BotTeamRoomAttachment
 } from '../../shared/bot-team-room-attachments'
+import { botTeamFilesOnlyText } from '../../shared/bot-team-room-attachments-line'
 import { botTeamTaskTitle } from '../../shared/bot-team-request-route'
-import type { BotTeamTask } from '../../shared/rpc-contract/bot-team-room-params'
+import type { BotTeamMessage, BotTeamTask } from '../../shared/rpc-contract/bot-team-room-params'
 import type { OrchestrationDb } from '../runtime/orchestration/db/orchestration-db'
 import { botTeamCompositeNotes } from './bot-team-composite'
+import { botTeamReplyNote, type BotTeamReplyQuote } from './bot-team-prompt-notes'
 import { botTeamFiledReply } from './bot-team-filed-reply'
 import { returnUnstartedBotTeamTask } from './bot-team-return'
 
@@ -22,6 +24,30 @@ export function activeTasksByBot(db: OrchestrationDb, teamId: string): Record<st
     }
   }
   return counts
+}
+
+/** The person's last few lines in the room: what the language of a line with no words is read from. */
+export function earlierPersonText(messages: readonly BotTeamMessage[]): string {
+  return messages
+    .filter((message) => message.authorBotId === null)
+    .slice(-5)
+    .map((message) => message.text)
+    .join(' ')
+}
+
+/**
+ * The text a request is filed with. A message of only files gets the line that names them, in the
+ * language the person wrote before; a request with words keeps them as typed.
+ */
+export function botTeamRequestText(
+  db: OrchestrationDb,
+  teamId: string,
+  typed: string,
+  attachments: readonly BotTeamRoomAttachment[]
+): string {
+  return typed.trim() === '' && attachments.length > 0
+    ? botTeamFilesOnlyText(attachments, earlierPersonText(db.listBotTeamMessages(teamId)))
+    : typed
 }
 
 /** What filing a request needs: where it goes, who takes it, and the person's answers so far. */
@@ -46,6 +72,8 @@ export type BotTeamRequestFiling = {
   originMessageId?: string
   /** The sender's zone: the task's start notes keep the clock the request was asked on. */
   timeZone?: string | null
+  /** The room message the request answers; the task's start notes quote it, and a reply never asks the project question. */
+  quote?: BotTeamReplyQuote
 }
 
 export type BotTeamFiling = {
@@ -71,15 +99,29 @@ export async function startFiled(
   }
 }
 
-/** The task's start notes: the person's clock, a composite task's parts, then the files attached. */
+/**
+ * The person's latest line with this request's text: where a choice card's answer, which names no
+ * message, sends its card, so it stays under the request instead of the end of the room.
+ */
+function askingMessageId(db: OrchestrationDb, teamId: string, typed: string): string | null {
+  const wanted = typed.trim()
+  const asked = db
+    .listBotTeamMessages(teamId)
+    .findLast((message) => message.authorBotId === null && message.text.trim() === wanted)
+  return asked?.id ?? null
+}
+
+/** The task's start notes: the person's clock, the message a reply quotes, a composite's parts, the files. */
 function taskStartNotes(
   bots: Parameters<typeof botTeamCompositeNotes>[0],
   alsoNeeds: readonly string[],
   attachments: readonly BotTeamRoomAttachment[],
-  clock: string | null
+  clock: string | null,
+  quote: BotTeamReplyQuote | undefined
 ): string | null {
   const notes = [
     clock,
+    quote ? botTeamReplyNote(quote) : null,
     botTeamCompositeNotes(bots, alsoNeeds),
     botTeamRoomAttachmentsNote(attachments)
   ]
@@ -96,6 +138,8 @@ export async function fileBotTeamRequest(
   input: BotTeamRequestFiling,
   startTask: (taskId: string) => Promise<BotTeamTask>
 ): Promise<BotTeamFiling> {
+  // The answer to the project question sends back the empty text it held when the files came alone.
+  const text = botTeamRequestText(db, input.teamId, input.text, input.attachments ?? [])
   const receivingId = input.toTeamId ?? input.teamId
   const receiving = db.listBotTeams().find((entry) => entry.id === receivingId)
   if (!receiving) {
@@ -116,10 +160,14 @@ export async function fileBotTeamRequest(
   }
   const alsoNeeds = input.alsoNeeds ?? []
   const projects = db.listBotTeamProjects(receiving.id, { includeLinked: true })
-  const named = findNamedProject(input.text, projects)
-  // Asked only of this team: a request sent to another team takes that team's own reading.
+  const named = findNamedProject(text, projects)
+  // A reply inherits the project of the task that posted the line it answers, if that project is still here.
+  const quotedProjectId =
+    projects.find((project) => project.id === input.quote?.sourceTask?.projectId)?.id ?? null
+  // Asked only of this team, and never of a reply: a request sent to another team takes that team's own reading.
   if (
     input.askProject &&
+    input.quote === undefined &&
     input.toTeamId === undefined &&
     input.projectId === undefined &&
     projects.length > 0 &&
@@ -131,22 +179,31 @@ export async function fileBotTeamRequest(
       choice: { kind: 'project', botId: owner.id, ...(alsoNeeds.length > 0 ? { alsoNeeds } : {}) }
     }
   }
-  const projectId = input.projectId !== undefined ? input.projectId : (named?.id ?? null)
+  const projectId = input.projectId !== undefined ? input.projectId : (named?.id ?? quotedProjectId)
   if (projectId !== null && !projects.some((project) => project.id === projectId)) {
     throw new Error(`Project ${projectId} is not on team ${receiving.id}.`)
   }
   const created = db.createBotTeamTask({
     teamId: receiving.id,
-    title: botTeamTaskTitle(input.text, receiving.bots),
-    prompt: input.text,
+    title: botTeamTaskTitle(text, receiving.bots),
+    prompt: text,
     ownerBotId: owner.id
   })
   if (projectId !== null) {
     db.setBotTeamTaskProject(created.id, projectId)
   }
+  // A task that answers a room message is shown as the bot typing there, not as a card.
+  const answered = input.quote?.messageId
+  if (answered !== undefined) {
+    db.setBotTeamTaskAnswers(created.id, answered)
+  }
   // The asking team's room tracks a task another team holds for it.
   if (receiving.id !== input.teamId) {
-    db.setBotTeamTaskOrigin(created.id, input.teamId, input.originMessageId ?? null)
+    db.setBotTeamTaskOrigin(
+      created.id,
+      input.teamId,
+      input.originMessageId ?? askingMessageId(db, input.teamId, input.text)
+    )
   }
   // Saved with the task, so the owner reads it whether the task starts now or from Todo later.
   // The clock is the one the request was asked on, so "mañana" stays the day it meant.
@@ -156,29 +213,29 @@ export async function fileBotTeamRequest(
       receiving.bots,
       alsoNeeds,
       input.attachments ?? [],
-      botTeamClockNote(Date.now(), input.timeZone)
+      botTeamClockNote(Date.now(), input.timeZone),
+      input.quote
     )
   )
   // Read again: the project was set after the task was created.
   const task = db.getBotTeamTask(created.id)
-  const timing = botTeamRequestTiming(input.text)
+  const timing = botTeamRequestTiming(text)
   const later = input.later || timing.later
   const started = input.start && !later
   const filed = started
     ? await startFiled(task, true, startTask)
     : { task, startError: null as string | null }
-  db.postBotTeamMessage({
-    teamId: receiving.id,
-    authorBotId: owner.id,
-    text: botTeamFiledReply({
-      started,
-      later,
-      when: timing.when,
-      projectName: projects.find((project) => project.id === projectId)?.name ?? null,
-      startError: filed.startError,
-      text: input.text
-    })
+  const filedReply = botTeamFiledReply({
+    started,
+    later,
+    when: timing.when,
+    projectName: projects.find((project) => project.id === projectId)?.name ?? null,
+    startError: filed.startError,
+    text
   })
+  if (filedReply !== null) {
+    db.postBotTeamMessage({ teamId: receiving.id, authorBotId: owner.id, text: filedReply })
+  }
   // A task another team asked for that cannot start must not leave the asking room waiting.
   if (filed.startError !== null && receiving.id !== input.teamId) {
     returnUnstartedBotTeamTask(db, created.id, filed.startError)

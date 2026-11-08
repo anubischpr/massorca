@@ -2,10 +2,13 @@ import {
   botTeamComposerMenu,
   type BotTeamMentionProject
 } from '../../../src/shared/bot-team-composer-menu'
+import { Plug } from 'lucide-react-native'
+import type { MarketplaceAppMention } from '../../../src/shared/marketplace-app-mentions'
 import type { BotTeam } from '../../../src/shared/rpc-contract/bot-team-params'
 import type { ComposerSuggestion } from '../session/MobileNativeChatComposerSuggestions'
 import { MobileFileTypeIcon } from '../components/MobileFileTypeIcon'
 import { MobileRepoIcon } from '../components/MobileRepoIcon'
+import { colors } from '../theme/mobile-theme'
 import { MobileBotAgentIcon } from './MobileBotAgentIcon'
 import { MobileBotTeamCharacterIcon } from './MobileBotTeamCharacterIcon'
 
@@ -14,11 +17,12 @@ const GROUP_HEADINGS = {
   bot: 'Bots',
   team: 'Teams',
   project: 'Projects',
-  file: 'Files'
+  file: 'Files',
+  app: 'Apps'
 } as const
 
 /**
- * What the room's composer offers at the caret: bots, then other teams, then projects and files, after an @.
+ * What the room's composer offers at the caret: bots, other teams, projects, files, then connected apps, after an @.
  * Inserts stop at the name: the composer adds the space after a pick, so a trailing one doubles it.
  */
 export function botTeamRoomSuggestions({
@@ -27,7 +31,8 @@ export function botTeamRoomSuggestions({
   team,
   otherTeams,
   projects = [],
-  files
+  files,
+  apps = []
 }: {
   text: string
   caret: number
@@ -35,6 +40,7 @@ export function botTeamRoomSuggestions({
   otherTeams: readonly BotTeam[]
   projects?: readonly BotTeamMentionProject[]
   files: readonly string[]
+  apps?: readonly MarketplaceAppMention[]
 }): ComposerSuggestion[] | null {
   const menu = botTeamComposerMenu({
     text,
@@ -42,7 +48,8 @@ export function botTeamRoomSuggestions({
     bots: team.bots,
     teams: otherTeams,
     projects,
-    files
+    files,
+    apps
   })
   if (!menu) {
     return null
@@ -101,6 +108,19 @@ export function botTeamRoomSuggestions({
           insert: item.insert.trimEnd(),
           label: item.path,
           icon: <MobileFileTypeIcon path={item.path} size={16} />
+        }
+      ]
+    }
+    if (item.kind === 'app') {
+      // The host adds the app's prompt lines from the inserted @Name, as on the desktop.
+      return [
+        {
+          ...group('app'),
+          kind: 'custom',
+          key: `app:${item.app.id}`,
+          insert: item.insert.trimEnd(),
+          label: item.app.name,
+          icon: <Plug size={16} color={colors.textSecondary} />
         }
       ]
     }

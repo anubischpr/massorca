@@ -1,4 +1,4 @@
-import type { NativeChatComposerInput } from './native-chat-composer-input'
+import type { NativeChatComposerInput, NativeChatMentionChip } from './native-chat-composer-input'
 import {
   useCallback,
   useEffect,
@@ -38,7 +38,7 @@ export type NativeChatPickerState = {
   classifySend: (draft: string) => NativeChatSendClassification
   clearSkillOrigin: () => void
   completeItem: (item: NativeChatPickerItem) => void
-  completeMention: (path: string) => void
+  completeMention: (path: string, chip?: NativeChatMentionChip) => void
   dismiss: (triggerKey: string) => void
   handleDraftOrCaretChange: (value: string, caret: number) => void
 }
@@ -78,7 +78,10 @@ export function useNativeChatPickerState(args: {
   const discovery = useNativeChatSkills(agent, terminalTabId, skillPickerTriggered)
   const listboxId = `native-chat-picker-${useId().replaceAll(':', '')}`
   const dismissalContext = `${draftScopeKey}:${agent}`
-  const [dismissed, setDismissed] = useState<{ context: string; triggerKey: string } | null>(null)
+  const [dismissed, setDismissed] = useState<{
+    context: string
+    triggerKey: string
+  } | null>(null)
   const skillOriginRef = useRef<string | null>(null)
   const lastOpenKeyRef = useRef<string | null>(null)
   const autocomplete = useMemo<ComposerAutocomplete>(
@@ -159,8 +162,16 @@ export function useNativeChatPickerState(args: {
   )
 
   const completeMention = useCallback(
-    (path: string) => commitCompletion(applyMentionSuggestion(draft, caret, path)),
-    [caret, commitCompletion, draft]
+    (path: string, chip?: NativeChatMentionChip) => {
+      const result = applyMentionSuggestion(draft, caret, path)
+      const input = textareaRef.current
+      // The editor swaps the typed "@query" for the chip; the draft text stays the same reference.
+      if (chip && result.draft !== draft && input?.insertMention) {
+        input.insertMention(result.caret - chip.token.length - 1, caret, chip)
+      }
+      commitCompletion(result)
+    },
+    [caret, commitCompletion, draft, textareaRef]
   )
 
   const handleDraftOrCaretChange = useCallback(

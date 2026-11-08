@@ -26,6 +26,8 @@ import {
   renderPanel,
   runEffects
 } from './floating-terminal-panel-render-probe'
+import { openFloatingChecklistTab } from '@/lib/floating-workspace-checklist-tab'
+import { useFloatingOpenSessionPickerStore } from './session-picker/FloatingOpenSessionPicker'
 
 vi.mock('zustand/react/shallow', () => ({
   // Why: zustand resolves the real react (unmocked in node_modules); the memo wrapper is inert here.
@@ -118,6 +120,13 @@ vi.mock('@/lib/connection-context', async () => {
   return (
     await import('./floating-terminal-panel-test-module-mocks')
   ).createConnectionContextModule()
+})
+
+vi.mock('@/lib/floating-workspace-checklist-tab', async () => {
+  const actual = await vi.importActual<typeof import('@/lib/floating-workspace-checklist-tab')>( // eslint-disable-line @typescript-eslint/consistent-type-imports -- vi.importActual requires inline import()
+    '@/lib/floating-workspace-checklist-tab'
+  )
+  return { ...actual, openFloatingChecklistTab: vi.fn(() => 'checklist-tab') }
 })
 
 // Why inline and sync: this module is imported by the test file itself, so an async factory
@@ -791,5 +800,71 @@ describe('FloatingTerminalPanel close behavior', () => {
 
     expect(onOpenChange).toHaveBeenCalledWith(false)
     expect(mocks.closeTab).not.toHaveBeenCalled()
+  })
+})
+
+describe('FloatingTerminalPanel new-tab chords', () => {
+  beforeEach(async () => {
+    // Why awaited: the setup stubs navigator asynchronously, which would overwrite a Windows stub set in a test.
+    await setupFloatingTerminalPanelTest()
+    vi.mocked(openFloatingChecklistTab).mockClear()
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    useFloatingOpenSessionPickerStore.setState({ open: false })
+  })
+
+  it('opens the Checklist tab on Cmd+Shift+H', async () => {
+    const element = await renderPanel(true)
+    const { keydownListener, panelElement } = bindFocusedFloatingPanelKeydown(element)
+    const preventDefault = vi.fn()
+
+    keydownListener(
+      makeFocusedPanelKeyEvent({
+        key: 'h',
+        metaKey: true,
+        preventDefault,
+        shiftKey: true,
+        target: panelElement
+      })
+    )
+
+    expect(preventDefault).toHaveBeenCalledWith()
+    expect(openFloatingChecklistTab).toHaveBeenCalledWith('Checklist')
+  })
+
+  it('opens the session picker on Cmd+Shift+Y', async () => {
+    const element = await renderPanel(true)
+    const { keydownListener, panelElement } = bindFocusedFloatingPanelKeydown(element)
+    const preventDefault = vi.fn()
+
+    keydownListener(
+      makeFocusedPanelKeyEvent({
+        key: 'y',
+        metaKey: true,
+        preventDefault,
+        shiftKey: true,
+        target: panelElement
+      })
+    )
+
+    expect(preventDefault).toHaveBeenCalledWith()
+    expect(useFloatingOpenSessionPickerStore.getState().open).toBe(true)
+  })
+
+  it('uses Ctrl+Shift for the same two chords on Windows', async () => {
+    vi.stubGlobal('navigator', { userAgent: 'Windows NT' })
+    const element = await renderPanel(true)
+    const { keydownListener, panelElement } = bindFocusedFloatingPanelKeydown(element)
+    keydownListener(
+      makeFocusedPanelKeyEvent({ key: 'h', ctrlKey: true, shiftKey: true, target: panelElement })
+    )
+    expect(openFloatingChecklistTab).toHaveBeenCalledWith('Checklist')
+
+    keydownListener(
+      makeFocusedPanelKeyEvent({ key: 'y', ctrlKey: true, shiftKey: true, target: panelElement })
+    )
+    expect(useFloatingOpenSessionPickerStore.getState().open).toBe(true)
   })
 })

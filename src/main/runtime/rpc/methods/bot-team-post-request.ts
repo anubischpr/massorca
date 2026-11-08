@@ -3,7 +3,6 @@ import {
   parseBotTeamClassifyResearch
 } from '../../../../shared/bot-team-request-classify'
 import type { BotTeamRequestChoice } from '../../../../shared/bot-team-request-choice'
-import { botTeamFilesOnlyText } from '../../../../shared/bot-team-room-attachments-line'
 import {
   botTeamRoomTextWithAttachments,
   type BotTeamRoomAttachment
@@ -12,15 +11,31 @@ import type {
   BotTeamMessage,
   BotTeamTask
 } from '../../../../shared/rpc-contract/bot-team-room-params'
-import { botTeamTaskTitle, withoutBotTeamMention } from '../../../../shared/bot-team-request-route'
-import { activeTasksByBot, fileBotTeamRequest } from '../../../bot-teams/bot-team-assign-request'
-import { botTeamScheduledReply } from '../../../bot-teams/bot-team-filed-reply'
+import { withoutBotTeamMention } from '../../../../shared/bot-team-request-route'
+import {
+  activeTasksByBot,
+  botTeamRequestText,
+  earlierPersonText,
+  fileBotTeamRequest
+} from '../../../bot-teams/bot-team-assign-request'
+import {
+  botTeamFilesAwaitingInstruction,
+  botTeamRequestFiles
+} from '../../../bot-teams/bot-team-files-only-carry'
+import { botTeamFilesQuestion } from '../../../bot-teams/bot-team-files-only-question'
+import {
+  isBotTeamFilesSaveAnswer,
+  postBotTeamFilesSaved
+} from '../../../bot-teams/bot-team-files-save'
+import { scheduleBotTeamRequest } from '../../../bot-teams/bot-team-routine-request'
+import { botTeamReplyTarget } from '../../../bot-teams/bot-team-reply-quote'
 import { replyToBotTeamGreeting } from '../../../bot-teams/bot-team-greeting-reply'
 import { decideBotTeamRequest } from '../../../bot-teams/bot-team-request-flow'
+import { answerWaitingBotTeamTask } from '../../../bot-teams/bot-team-task-answer'
+import { sendBotTeamTaskFollowUp } from '../../../bot-teams/bot-team-task-session-turns'
 import { askDefaultAgentForBotTeamRequest } from '../../../bot-teams/bot-team-request-query'
-import { isKnownTimeZone } from '../../../../shared/bot-team-routine-zone'
-import { createBotTeamRoutine } from '../../orchestration/db/bot-teams/bot-team-routine-store'
-import type { OrchestrationDb } from '../../orchestration/db/orchestration-db'
+import type { BotTeamPrototypeChoice } from '../../../../shared/bot-team-prototype-choice'
+import { keepBotTeamPrototypeChoice } from '../../../bot-teams/bot-team-task-prototype'
 import type { RpcContext } from '../core'
 import { startBotTeamConversationReply } from './bot-team-conversation-reply'
 
@@ -34,7 +49,7 @@ export type BotTeamPostResult = {
   choice?: BotTeamRequestChoice
   /** The other bots a composite task has parts for. */
   composite?: string[]
-  /** A bot answered a plain conversation in the room; nothing was filed. */
+  /** A bot answered in the room (a conversation, or a question about files); nothing was filed. */
   answered?: true
   /** A bot is answering a plain conversation in the background; its line reaches the room when ready. */
   replying?: { botId: string }
@@ -46,16 +61,6 @@ export type BotTeamPostResult = {
   scheduled?: { routineId: string; date: string; time: string }
 }
 
-/** The person's last few lines in the room: what the language of a line with no words is read from. */
-function earlierPersonText(db: OrchestrationDb, teamId: string): string {
-  return db
-    .listBotTeamMessages(teamId)
-    .filter((message) => message.authorBotId === null)
-    .slice(-5)
-    .map((message) => message.text)
-    .join(' ')
-}
-
 /** Files the person's line, then lets the one host query decide who takes it. */
 export async function postBotTeamRequestOnHost(
   ctx: RpcContext,
@@ -65,7 +70,9 @@ export async function postBotTeamRequestOnHost(
     start,
     askProject = false,
     attachments = [],
-    timeZone
+    timeZone,
+    prototypeChoice,
+    replyToMessageId
   }: {
     teamId: string
     text: string
@@ -73,16 +80,30 @@ export async function postBotTeamRequestOnHost(
     askProject?: boolean
     attachments?: BotTeamRoomAttachment[]
     timeZone?: string
+    /** The count the person chose on the prototype card; the task that starts reads it from its notes. */
+    prototypeChoice?: BotTeamPrototypeChoice
+    /** The room message this request replies to; an older client never sends it. */
+    replyToMessageId?: string
   },
-  startTask: (taskId: string) => Promise<BotTeamTask>
+  startTaskAsFiled: (taskId: string) => Promise<BotTeamTask>
 ): Promise<BotTeamPostResult> {
   const db = ctx.runtime.getOrchestrationDb()
-  // Files with no words are filed as a request that names them, in the language the person wrote before.
-  const text =
-    typed.trim() === '' && attachments.length > 0
-      ? botTeamFilesOnlyText(attachments, earlierPersonText(db, teamId))
-      : typed
-  const message = db.postBotTeamMessage({ teamId, text, authorBotId: null, attachments })
+  const { keep: keepChoice, startKept } = keepBotTeamPrototypeChoice(db, prototypeChoice)
+  const startTask = startKept(startTaskAsFiled)
+  // A message of only files is stored with the line that names them, in the language the person wrote before.
+  const text = botTeamRequestText(db, teamId, typed, attachments)
+  // The room before this line: its words, and the files an earlier line still waits on.
+  const earlier = db.listBotTeamMessages(teamId)
+  const files = botTeamRequestFiles(text, attachments, botTeamFilesAwaitingInstruction(earlier))
+  // The sent line keeps the message it answers, so the room can quote it in the bubble.
+  const answers = earlier.some((entry) => entry.id === replyToMessageId)
+  const message = db.postBotTeamMessage({
+    teamId,
+    text,
+    authorBotId: null,
+    attachments,
+    ...(answers ? { replyToMessageId } : {})
+  })
   // A greeting gets the team's one line and stops here: no query, task or usage.
   if (replyToBotTeamGreeting(db, { teamId, text })) {
     return { message, task: null, startError: null, greeted: true }
@@ -92,6 +113,37 @@ export async function postBotTeamRequestOnHost(
   if (!team) {
     return { message, task: null, startError: null }
   }
+  // A reply quotes the message it answers; a message from another team, or none, quotes nothing.
+  const reply =
+    replyToMessageId === undefined ? null : botTeamReplyTarget(db, team, replyToMessageId)
+  // A reply to a bot's open question goes to that bot's session, not a new task.
+  const answered = await answerWaitingBotTeamTask(
+    db,
+    { sendToSession: sendBotTeamTaskFollowUp },
+    { teamId, text: typed, attachments }
+  )
+  if (answered) {
+    return { message, task: answered, startError: null }
+  }
+  // A save-only line keeps the files it answers or carries: nothing is filed or classified.
+  if (
+    isBotTeamFilesSaveAnswer({
+      text,
+      files,
+      otherTeams: teams.filter((entry) => entry.id !== teamId)
+    })
+  ) {
+    postBotTeamFilesSaved(db, {
+      team,
+      text,
+      earlier,
+      earlierText: earlierPersonText(earlier),
+      files,
+      quotedBot: reply?.bot ?? null,
+      activeTasksByBot: activeTasksByBot(db, teamId)
+    })
+    return { message, task: null, startError: null, answered: true }
+  }
   // The classify reply also says whether a conversation needs outside knowledge or the project code.
   let classifyReply: string | null = null
   const decision = await decideBotTeamRequest({
@@ -100,6 +152,8 @@ export async function postBotTeamRequestOnHost(
     otherTeams: teams.filter((entry) => entry.id !== teamId),
     activeTasksByBot: activeTasksByBot(db, teamId),
     timeZone: timeZone ?? null,
+    quotedBot: reply?.bot ?? null,
+    attachments: files,
     classify: async (prompt) => {
       classifyReply = await askDefaultAgentForBotTeamRequest({
         prompt,
@@ -123,13 +177,23 @@ export async function postBotTeamRequestOnHost(
         start,
         later,
         askProject: false,
-        attachments,
+        attachments: files,
         originMessageId: message.id,
         timeZone: timeZone ?? null
       },
       startTask
     )
+    keepChoice(filed.task)
     return { message, ...filed, sentTo }
+  }
+  if (decision.type === 'files') {
+    // Nothing is filed: the bot asks what the files are for, and the person's next line answers it.
+    db.postBotTeamMessage({
+      teamId,
+      authorBotId: decision.bot.id,
+      text: botTeamFilesQuestion(files, earlierPersonText(earlier))
+    })
+    return { message, task: null, startError: null, answered: true }
   }
   if (decision.type === 'choice') {
     return { message, task: null, startError: null, choice: decision.choice, ...laterFlag }
@@ -138,7 +202,7 @@ export async function postBotTeamRequestOnHost(
     // The reply can take a minute, so it runs on: the room shows the bot typing until it lands.
     const started = startBotTeamConversationReply(ctx, {
       team,
-      text: botTeamRoomTextWithAttachments(text, attachments),
+      text: botTeamRoomTextWithAttachments(text, files),
       subjectBotIds: decision.subjectBotIds,
       research: classifyReply !== null && parseBotTeamClassifyResearch(classifyReply),
       code: classifyReply !== null && parseBotTeamClassifyCode(classifyReply),
@@ -155,35 +219,23 @@ export async function postBotTeamRequestOnHost(
   }
   if (decision.scheduledFor) {
     const { date, time } = decision.scheduledFor
-    const routine = createBotTeamRoutine(
-      db,
-      {
-        teamId,
-        botId: decision.bot.id,
-        name: botTeamTaskTitle(text, team.bots),
-        prompt: botTeamRoomTextWithAttachments(text, attachments),
-        schedule: {
-          frequency: 'once',
-          time,
-          weekday: null,
-          monthDay: null,
-          date,
-          timeZone: timeZone && isKnownTimeZone(timeZone) ? timeZone : null
-        }
-      },
-      Date.now()
-    )
-    db.postBotTeamMessage({
-      teamId,
-      authorBotId: decision.bot.id,
-      text: botTeamScheduledReply({ date, time, text })
+    const scheduled = scheduleBotTeamRequest(db, {
+      team,
+      botId: decision.bot.id,
+      text,
+      files,
+      moment: decision.scheduledFor,
+      timeZone: timeZone ?? null
     })
+    if (scheduled.kind === 'similar') {
+      return { message, task: null, startError: null, later: true, choice: scheduled.choice }
+    }
     return {
       message,
       task: null,
       startError: null,
       later: true,
-      scheduled: { routineId: routine.id, date, time }
+      scheduled: { routineId: scheduled.routineId, date, time }
     }
   }
   const filed = await fileBotTeamRequest(
@@ -196,11 +248,13 @@ export async function postBotTeamRequestOnHost(
       start,
       later,
       askProject,
-      attachments,
-      timeZone: timeZone ?? null
+      attachments: files,
+      timeZone: timeZone ?? null,
+      ...(reply ? { quote: reply.quote } : {})
     },
     startTask
   )
+  keepChoice(filed.task)
   return {
     message,
     ...filed,

@@ -3,6 +3,7 @@
  */
 import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
+import type * as I18nModule from '@/i18n/i18n'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { BotTeam } from '../../../../shared/rpc-contract/bot-team-params'
 import type { BotTeamTask } from '../../../../shared/rpc-contract/bot-team-room-params'
@@ -39,9 +40,14 @@ vi.mock('@/runtime/runtime-bot-team-client', () => ({
   listBotTeamRoom,
   postBotTeamRequest
 }))
-vi.mock('../bot-teams/use-bot-team-files', () => ({ useBotTeamFilePaths: () => ['brief.md'] }))
+vi.mock('../bot-teams/use-bot-team-files', () => ({
+  useBotTeamFilePaths: () => ['brief.md']
+}))
 vi.mock('../bot-teams/BotAgentIcon', () => ({ BotAgentIcon: () => null }))
-vi.mock('@/i18n/i18n', () => ({ translate: (_key: string, fallback: string) => fallback }))
+vi.mock('@/i18n/i18n', async (importOriginal) => ({
+  ...(await importOriginal<typeof I18nModule>()),
+  translate: (_key: string, fallback: string) => fallback
+}))
 vi.mock('sonner', () => ({ toast: { error: toastError } }))
 vi.mock('@/lib/agent-catalog', () => ({ AgentIcon: () => null }))
 
@@ -73,22 +79,17 @@ async function mount(): Promise<HTMLDivElement> {
 
 /** Types into the team's field, or the plain box shown while no team is picked. */
 async function type(container: HTMLElement, text: string): Promise<void> {
-  const field = container.querySelector<HTMLElement>('[role="combobox"]')
-  if (field) {
-    await act(async () => {
-      promptEditor(field).commands.setContent(promptTextContent(text), { emitUpdate: true })
-      promptEditor(field).commands.focus('end')
-    })
-    return
-  }
-  const box = container.querySelector('textarea')
-  if (!box) {
+  const field =
+    container.querySelector<HTMLElement>('[role="combobox"]') ??
+    container.querySelector<HTMLElement>('[role="textbox"]')
+  if (!field) {
     throw new Error('Composer missing')
   }
   await act(async () => {
-    const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')?.set
-    setter?.call(box, text)
-    box.dispatchEvent(new Event('input', { bubbles: true }))
+    promptEditor(field).commands.setContent(promptTextContent(text), {
+      emitUpdate: true
+    })
+    promptEditor(field).commands.focus('end')
   })
 }
 
@@ -101,7 +102,11 @@ function press(label: string): void {
   const trigger = document.querySelector<HTMLButtonElement>(`button[aria-label="${label}"]`)
   act(() => {
     trigger?.dispatchEvent(
-      new PointerEvent('pointerdown', { bubbles: true, cancelable: true, button: 0 })
+      new PointerEvent('pointerdown', {
+        bubbles: true,
+        cancelable: true,
+        button: 0
+      })
     )
   })
 }
@@ -167,6 +172,19 @@ afterEach(() => {
 })
 
 describe('the Tasks home Bot Team composer', () => {
+  it('moves a team character when its row in the team picker is hovered', async () => {
+    await mount()
+    press('Team')
+    const row = [...document.querySelectorAll<HTMLElement>('[role="menuitemradio"]')].find(
+      (candidate) => candidate.textContent?.includes('Sales')
+    )
+    expect(row?.querySelector('.bc-root')).not.toBeNull()
+
+    act(() => row?.dispatchEvent(new PointerEvent('pointerenter', { pointerType: 'mouse' })))
+
+    expect(row?.querySelector('.bc-root')?.getAttribute('class') ?? '').toMatch(/bc-move-/)
+  })
+
   it('shows the canvas row: team chip, Save to Todo, the team placeholder, and no project chip', async () => {
     const container = await mount()
     expect(container.querySelector('[role="combobox"]')?.getAttribute('aria-label')).toBe(
@@ -208,7 +226,10 @@ describe('the Tasks home Bot Team composer', () => {
   })
 
   it('starts the task when Start now is picked, and opens its thread', async () => {
-    postBotTeamRequest.mockResolvedValue({ task: task({ sessionId: 's-1' }), startError: null })
+    postBotTeamRequest.mockResolvedValue({
+      task: task({ sessionId: 's-1' }),
+      startError: null
+    })
     const container = await mount()
     press('When the task starts')
     pick('Start now')
@@ -248,7 +269,10 @@ describe('the Tasks home Bot Team composer', () => {
   })
 
   it('reports a bot that could not start, and still opens the room', async () => {
-    postBotTeamRequest.mockResolvedValue({ task: task(), startError: 'No agent' })
+    postBotTeamRequest.mockResolvedValue({
+      task: task(),
+      startError: 'No agent'
+    })
     const container = await mount()
     await type(container, '@Iris go')
     await send(container)

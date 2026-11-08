@@ -11,10 +11,13 @@ export function MobileBotTeamAttachChips({
   files,
   onRemove,
   inset = false,
-  tag
+  tag,
+  onOpen
 }: {
   files: readonly BotTeamRoomAttachment[]
   onRemove?: (path: string) => void
+  /** A sent message's file opens on a tap, as a chat attachment does. */
+  onOpen?: (path: string) => void
   inset?: boolean
   /** Names where the files came from, such as "From Warehouse". */
   tag?: string
@@ -25,7 +28,14 @@ export function MobileBotTeamAttachChips({
   return (
     <View style={[styles.row, inset ? styles.inset : null]}>
       {files.map((file) => (
-        <View key={file.path} style={styles.chip}>
+        <Pressable
+          key={file.path}
+          style={styles.chip}
+          disabled={!onOpen}
+          accessibilityRole={onOpen ? 'button' : undefined}
+          accessibilityLabel={onOpen ? `Open ${file.name}` : undefined}
+          onPress={onOpen ? () => onOpen(file.path) : undefined}
+        >
           <FileText size={12} color={colors.textSecondary} />
           <Text style={styles.name} numberOfLines={1}>
             {file.name}
@@ -40,7 +50,7 @@ export function MobileBotTeamAttachChips({
               <X size={12} color={colors.textSecondary} />
             </Pressable>
           ) : null}
-        </View>
+        </Pressable>
       ))}
     </View>
   )

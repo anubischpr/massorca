@@ -7,7 +7,7 @@ import {
 
 describe('where the left sidebar exists', () => {
   it('is on the home views, the ones the Workspaces / Bot Teams rail button opens, and on Prototypes', () => {
-    for (const view of ['terminal', 'create-chat', 'bot-teams', 'prototypes'] as const) {
+    for (const view of ['terminal', 'create-chat', 'bot-teams', 'prototypes', 'marketplace'] as const) {
       expect(isLeftSidebarView(view), view).toBe(true)
     }
   })
@@ -30,7 +30,7 @@ describe('where the left sidebar exists', () => {
 
 describe('where the sidebar toggle shows', () => {
   it('is on the home views and on Prototypes, whose list is its left sidebar', () => {
-    for (const view of ['terminal', 'create-chat', 'bot-teams', 'prototypes'] as const) {
+    for (const view of ['terminal', 'create-chat', 'bot-teams', 'prototypes', 'marketplace'] as const) {
       expect(hasLeftSidebarToggle(view), view).toBe(true)
     }
   })

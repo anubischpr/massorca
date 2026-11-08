@@ -26,9 +26,23 @@ import {
 import type { BotTeam } from '../../../../shared/rpc-contract/bot-team-params'
 import { useConnectedMarketplaceApps } from '../marketplace/use-connected-marketplace-apps'
 import { BotTeamComposerMenu } from './BotTeamComposerMenu'
+import { BotTeamFileChipTeamContext } from './BotTeamFileChipHover'
 import { botTeamComposerChipAttrs } from './bot-team-composer-document'
 import { useBotTeamComposerEditor } from './bot-team-composer-editor'
+import { whenBotTeamEditorMounted } from './bot-team-editor-mount'
 import { useBotTeamFilePaths } from './use-bot-team-files'
+
+/** How far PageUp and PageDown move the highlight in the open @ or / menu. */
+const MENU_PAGE_STEP = 10
+
+/** The item a page key lands on, clamped to the menu's ends; null for other keys. */
+function pagedMenuIndex(index: number, count: number, key: string): number | null {
+  if (key !== 'PageDown' && key !== 'PageUp') {
+    return null
+  }
+  const step = key === 'PageDown' ? MENU_PAGE_STEP : -MENU_PAGE_STEP
+  return Math.min(Math.max(index + step, 0), count - 1)
+}
 
 /**
  * The room's message field: its TipTap box, the @ and / menu over it and the keys, shared by the
@@ -62,12 +76,19 @@ export function useBotTeamMentionField(args: {
   const [menuDismissed, setMenuDismissed] = useState(false)
   const menuId = useId()
   const files = useBotTeamFilePaths(team.id, !offline && botTeamMentionOpen(text, caret))
-  const apps = useConnectedMarketplaceApps()
+  // Why: the menu is team-wide while a mention targets one bot, so only an app no bot may use is hidden.
+  const apps = useConnectedMarketplaceApps(team)
   const mentionNames = useMemo<BotTeamMentionName[]>(
     () => [
       ...team.bots.map((bot) => ({ name: bot.name, kind: 'bot' as const })),
-      ...otherTeams.map((entry) => ({ name: entry.name, kind: 'team' as const })),
-      ...projects.map((entry) => ({ name: entry.name, kind: 'project' as const })),
+      ...otherTeams.map((entry) => ({
+        name: entry.name,
+        kind: 'team' as const
+      })),
+      ...projects.map((entry) => ({
+        name: entry.name,
+        kind: 'project' as const
+      })),
       ...apps.map((app) => ({ name: app.name, kind: 'app' as const }))
     ],
     [team.bots, otherTeams, projects, apps]
@@ -116,18 +137,19 @@ export function useBotTeamMentionField(args: {
   }, [menuOpen])
   // The ARIA links follow the open menu, so a screen reader reads the option the caret is on.
   useLayoutEffect(() => {
-    const dom = editor?.view.dom
-    if (!dom) {
+    if (!editor) {
       return
     }
-    dom.setAttribute('aria-expanded', String(menu !== null))
-    if (menu) {
-      dom.setAttribute('aria-controls', menuId)
-      dom.setAttribute('aria-activedescendant', `${menuId}-option-${menuIndex}`)
-    } else {
-      dom.removeAttribute('aria-controls')
-      dom.removeAttribute('aria-activedescendant')
-    }
+    return whenBotTeamEditorMounted(editor, (dom) => {
+      dom.setAttribute('aria-expanded', String(menu !== null))
+      if (menu) {
+        dom.setAttribute('aria-controls', menuId)
+        dom.setAttribute('aria-activedescendant', `${menuId}-option-${menuIndex}`)
+      } else {
+        dom.removeAttribute('aria-controls')
+        dom.removeAttribute('aria-activedescendant')
+      }
+    })
   }, [editor, menu, menuId, menuIndex])
   const chooseMenuItem = (item: BotTeamComposerItem): void => {
     if (!menu || !editor) {
@@ -220,28 +242,37 @@ export function useBotTeamMentionField(args: {
       />
     ) : null,
     field: (className) => (
-      <EditorContent
-        editor={editor}
-        className={className}
-        onKeyDownCapture={(event) => {
-          if (imeEnterGesture.ownsKeyDown(event)) {
-            return
-          }
-          // Shift+Enter is the newline the box takes; a plain Enter sends.
-          if (event.key === 'Enter' && event.shiftKey && !imeEnterGesture.isComposing()) {
-            event.preventDefault()
-            editor?.commands.setHardBreak()
-            return
-          }
-          if (!removeMentionBeforeCaret(event)) {
-            onKeyDown(event)
-          }
-        }}
-        onKeyUp={imeEnterGesture.onKeyUp}
-        onCompositionStart={() => imeEnterGesture.setComposing(true)}
-        onCompositionEnd={imeEnterGesture.onCompositionEnd}
-        onBlur={imeEnterGesture.reset}
-      />
+      // The chips' node views render inside EditorContent, so they read the team from here.
+      <BotTeamFileChipTeamContext.Provider value={team.id}>
+        <EditorContent
+          editor={editor}
+          className={className}
+          onKeyDownCapture={(event) => {
+            if (imeEnterGesture.ownsKeyDown(event)) {
+              return
+            }
+            // Shift+Enter is the newline the box takes; a plain Enter sends.
+            if (event.key === 'Enter' && event.shiftKey && !imeEnterGesture.isComposing()) {
+              event.preventDefault()
+              editor?.commands.setHardBreak()
+              return
+            }
+            const paged = menu ? pagedMenuIndex(menuIndex, menu.items.length, event.key) : null
+            if (paged !== null && !imeEnterGesture.isComposing()) {
+              event.preventDefault()
+              setMenuIndex(paged)
+              return
+            }
+            if (!removeMentionBeforeCaret(event)) {
+              onKeyDown(event)
+            }
+          }}
+          onKeyUp={imeEnterGesture.onKeyUp}
+          onCompositionStart={() => imeEnterGesture.setComposing(true)}
+          onCompositionEnd={imeEnterGesture.onCompositionEnd}
+          onBlur={imeEnterGesture.reset}
+        />
+      </BotTeamFileChipTeamContext.Provider>
     )
   }
 }

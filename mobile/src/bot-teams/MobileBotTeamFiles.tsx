@@ -1,14 +1,17 @@
 import { useEffect, useState } from 'react'
-import { Pressable, ScrollView, Text, View } from 'react-native'
-import { FileText } from 'lucide-react-native'
-import { colors } from '../theme/mobile-theme'
-import type { RpcClient } from '../transport/rpc-client'
+import { Pressable, ScrollView, Text, View, useWindowDimensions } from 'react-native'
+import { FileText, Share2 } from 'lucide-react-native'
+import { MobileFilePreviewBody } from '../files/MobileFilePreviewBody'
 import {
-  listMobileBotTeamFiles,
-  readMobileBotTeamFile,
-  type MobileBotTeamFileResult,
-  type MobileBotTeamFilesResult
-} from './mobile-bot-team-files'
+  loadMobileFilePreview,
+  previewError,
+  type MobileFilePreviewResult
+} from '../files/mobile-file-preview-request'
+import { displayNameFromPreviewPath } from '../files/mobile-file-preview-route'
+import { shareMobileFile } from '../files/mobile-file-share'
+import { colors, spacing } from '../theme/mobile-theme'
+import type { RpcClient } from '../transport/rpc-client'
+import { listMobileBotTeamFiles, type MobileBotTeamFilesResult } from './mobile-bot-team-files'
 import { botTeamStyles as styles } from './mobile-bot-team-styles'
 import { MobileBotTeamWorkBar } from './MobileBotTeamWorkBar'
 
@@ -78,48 +81,124 @@ export function MobileBotTeamFiles({
   )
 }
 
-/** One file of the team folder as text, read-only. */
+const LOADING: MobileFilePreviewResult = { status: 'loading', message: 'Loading preview...' }
+
+/**
+ * One file of the team folder, previewed the way the phone previews its own files: an image, text,
+ * markdown or media. A room's path is relative to the folder, which the host reads as a worktree.
+ */
 export function MobileBotTeamFile({
   client,
   workspaceId,
+  folderKnown,
+  offline,
   path,
   onBack
 }: {
   client: RpcClient
   workspaceId: string | null
+  /** Whether the room that names the folder has been read; before that the folder is just unknown. */
+  folderKnown: boolean
+  offline: boolean
   path: string
   onBack: () => void
 }) {
-  const [file, setFile] = useState<MobileBotTeamFileResult | null>(null)
+  const [preview, setPreview] = useState<MobileFilePreviewResult>(LOADING)
+  const [attempt, setAttempt] = useState(0)
+  const [sharing, setSharing] = useState(false)
+  const [shareNote, setShareNote] = useState('')
+  const { width, height } = useWindowDimensions()
 
   useEffect(() => {
     if (workspaceId === null) {
       return
     }
     let current = true
-    void readMobileBotTeamFile(client, workspaceId, path).then((next) => {
-      if (current) {
-        setFile(next)
-      }
-    })
+    setPreview(LOADING)
+    void loadMobileFilePreview(client, workspaceId, path)
+      .catch(() => previewError('Unable to load preview'))
+      .then((next) => {
+        if (current) {
+          setPreview(next)
+        }
+      })
     return () => {
       current = false
     }
-  }, [client, path, workspaceId])
+  }, [attempt, client, path, workspaceId])
+
+  const notice =
+    workspaceId !== null
+      ? null
+      : folderKnown
+        ? 'This team has no folder yet.'
+        : offline
+          ? 'Check the connection to this host and try again.'
+          : null
+
+  async function share() {
+    if (workspaceId === null) {
+      return
+    }
+    setSharing(true)
+    setShareNote('')
+    try {
+      const outcome = await shareMobileFile(
+        client,
+        { worktreeId: workspaceId, relativePath: path },
+        displayNameFromPreviewPath(path)
+      )
+      if (outcome === 'unavailable') {
+        setShareNote('Sharing is not available on this device.')
+      }
+    } catch (error) {
+      setShareNote(error instanceof Error ? error.message : 'Unable to share this file')
+    } finally {
+      setSharing(false)
+    }
+  }
 
   return (
     <View style={styles.grow}>
       <MobileBotTeamWorkBar title={path} onBack={onBack} />
-      <ScrollView contentContainerStyle={styles.form}>
-        {file?.kind === 'ready' ? (
-          <Text selectable style={styles.rowTitle}>
-            {file.content}
-          </Text>
-        ) : null}
-        {workspaceId === null || file?.kind === 'failed' ? (
-          <Text style={styles.message}>This file cannot be opened here.</Text>
-        ) : null}
-      </ScrollView>
+      {notice ? (
+        <ScrollView contentContainerStyle={styles.form}>
+          <Text style={styles.message}>{notice}</Text>
+        </ScrollView>
+      ) : (
+        <>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Share file"
+            disabled={workspaceId === null || offline || sharing}
+            onPress={() => void share()}
+            style={[
+              styles.secondary,
+              styles.fileShare,
+              (workspaceId === null || offline || sharing) && styles.disabledAction
+            ]}
+          >
+            <Share2 size={18} color={colors.textSecondary} />
+            <Text style={styles.rowTitle}>Share</Text>
+          </Pressable>
+          {shareNote ? <Text style={styles.rowMeta}>{shareNote}</Text> : null}
+          <MobileFilePreviewBody
+            preview={preview}
+            client={client}
+            relativePath={path}
+            title={displayNameFromPreviewPath(path)}
+            editable={false}
+            draftContent=""
+            saveError=""
+            lineColumn={null}
+            imageWidth={Math.max(1, width - spacing.md * 2)}
+            imageHeight={Math.max(240, height - 160)}
+            onDraftChange={() => undefined}
+            onImageError={() => setPreview(previewError('Unable to load preview'))}
+            onRetry={() => setAttempt((count) => count + 1)}
+          />
+        </>
+      )}
     </View>
   )
 }

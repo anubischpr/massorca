@@ -1,7 +1,7 @@
-import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card'
 import { translate } from '@/i18n/i18n'
+import { getFileTypeIcon } from '@/lib/file-type-icons'
 import type { BotTeamRoomAttachment } from '../../../../shared/bot-team-room-attachments'
-import { BotTeamFileHoverPreview } from './BotTeamFileHoverPreview'
+import { BotTeamFileHoverCard } from './BotTeamFileChipHover'
 
 /**
  * The files a room message names, listed under its text. A chip opens the file when `onOpen` is
@@ -27,7 +27,16 @@ export function BotTeamRoomAttachChips({
       className="mt-2 flex flex-wrap gap-1.5"
     >
       {files.map((file) => {
+        const FileIcon = getFileTypeIcon(file.path)
+        const label = (
+          <>
+            <FileIcon aria-hidden className="mr-1.5 size-3 shrink-0 text-muted-foreground" />
+            <span className="truncate">{file.name}</span>
+            {tag ? <span className="ml-1.5 shrink-0 text-muted-foreground">{tag}</span> : null}
+          </>
+        )
         // Why: the hover card names the file, so the native tooltip would only repeat the path.
+        // The chip's own background keeps hover visible on a person's bubble, where accent equals muted.
         const chip = onOpen ? (
           <button
             type="button"
@@ -35,30 +44,25 @@ export function BotTeamRoomAttachChips({
             aria-label={translate('components.botTeams.openFile', 'Open {{file}}', {
               file: file.name
             })}
-            className="flex max-w-full items-center rounded-md border border-input px-2 py-0.5 text-xs hover:bg-accent"
+            className="flex max-w-full items-center rounded-md border border-input bg-background px-2 py-0.5 text-xs hover:border-ring hover:bg-accent"
             onClick={() => onOpen(file.path)}
           >
-            <span className="truncate">{file.name}</span>
-            {tag ? <span className="ml-1.5 shrink-0 text-muted-foreground">{tag}</span> : null}
+            {label}
           </button>
         ) : (
           <span
             title={teamId ? undefined : file.path}
-            className="flex max-w-full items-center rounded-md border border-input px-2 py-0.5 text-xs"
+            className="flex max-w-full items-center rounded-md border border-input bg-background px-2 py-0.5 text-xs hover:border-ring"
           >
-            <span className="truncate">{file.name}</span>
-            {tag ? <span className="ml-1.5 shrink-0 text-muted-foreground">{tag}</span> : null}
+            {label}
           </span>
         )
         return (
           <li key={file.path} className="flex max-w-full">
             {teamId ? (
-              <HoverCard openDelay={300}>
-                <HoverCardTrigger asChild>{chip}</HoverCardTrigger>
-                <HoverCardContent side="top" align="start" variant="workspace-details">
-                  <BotTeamFileHoverPreview teamId={teamId} path={file.path} name={file.name} />
-                </HoverCardContent>
-              </HoverCard>
+              <BotTeamFileHoverCard teamId={teamId} path={file.path} name={file.name}>
+                {chip}
+              </BotTeamFileHoverCard>
             ) : (
               chip
             )}

@@ -1,4 +1,5 @@
 import { MARKETPLACE_APP_AGENTS, type MarketplaceAppAgent } from '../../shared/marketplace-apps'
+import type { AgentWriteFailureReason } from './agent-file-write'
 import { applyAgentInstructionsBlock } from './marketplace-agent-instructions'
 import { applyAgentMcpEdits, type McpEntryEdit } from './marketplace-agent-config'
 import type { MarketplaceAgentPaths } from './marketplace-agent-paths'
@@ -8,7 +9,7 @@ export type WrittenApp = 'engram' | 'openmetadata'
 
 export type AgentFailure = {
   agent: MarketplaceAppAgent
-  reason: 'unreadable-config' | 'unsupported-shape' | 'failed'
+  reason: AgentWriteFailureReason
 }
 
 export type AppWritePlan = {

@@ -92,7 +92,8 @@ export function BotTeamBoard({
               const owner = team.bots.find((bot) => bot.id === task.ownerBotId)
               const status = botTeamTaskStatus(
                 task.sessionId,
-                task.sessionId === null ? undefined : statuses.get(task.sessionId)
+                task.sessionId === null ? undefined : statuses.get(task.sessionId),
+                task.awaitingPerson === true
               )
               return (
                 <button

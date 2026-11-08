@@ -2,8 +2,15 @@
 import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { toast } from 'sonner'
+import { marketplaceAgentSwitchBlockedMessage } from '../../../../shared/marketplace-apps'
 import type { BotTeam } from '../../../../shared/rpc-contract/bot-team-params'
-import { useBotTeamIdsKey, useBotTeams, type BotTeamsState } from './use-bot-teams'
+import {
+  useBotTeamIdsKey,
+  useBotTeams,
+  type BotTeamChangeResult,
+  type BotTeamsState
+} from './use-bot-teams'
 
 const listBotTeams = vi.hoisted(() => vi.fn())
 const host = vi.hoisted(() => ({ current: 'local' }))
@@ -102,6 +109,47 @@ describe('useBotTeams', () => {
     expect(seen.sidebar?.teams).toBeNull()
     await act(async () => answerNew([team('z')]))
     expect(ids(seen.sidebar)).toEqual(['z'])
+  })
+
+  it('answers a refused agent switch with its text, flagged for the agent picker', async () => {
+    const refusal = marketplaceAgentSwitchBlockedMessage(['Engram'])
+    let outcome: BotTeamChangeResult | undefined
+    await act(async () => {
+      outcome = await seen.page?.applyChange(async () => {
+        throw new Error(`Error invoking remote method: ${refusal}`)
+      })
+    })
+    expect(outcome).toEqual({
+      done: false,
+      refusal: expect.stringContaining('Engram'),
+      agentSwitch: true
+    })
+    if (outcome?.done !== false) {
+      throw new Error('the refused switch must not read as done')
+    }
+    expect(toast.error).toHaveBeenCalledWith(outcome.refusal)
+  })
+
+  it('answers any other failure with the host text, not flagged for the agent picker', async () => {
+    let outcome: BotTeamChangeResult | undefined
+    await act(async () => {
+      outcome = await seen.page?.applyChange(async () => {
+        throw new Error('Bot bob is not on team t1.')
+      })
+    })
+    expect(outcome).toEqual({
+      done: false,
+      refusal: 'Bot bob is not on team t1.',
+      agentSwitch: false
+    })
+  })
+
+  it('answers a change that went through with done', async () => {
+    let outcome: BotTeamChangeResult | undefined
+    await act(async () => {
+      outcome = await seen.page?.applyChange(async () => {})
+    })
+    expect(outcome).toEqual({ done: true })
   })
 
   it('stops asking once no surface is open', async () => {

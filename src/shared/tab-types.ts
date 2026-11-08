@@ -31,6 +31,8 @@ export type TabContentType =
   | 'checklist'
   /** A session another workspace owns, shown as a tab of the floating workspace by reference. */
   | 'session-ref'
+  /** The floating workspace's New Session tab: the create screen, until its session shows by reference. */
+  | 'create-session'
 
 export type WorkspaceVisibleTabType =
   | 'terminal'
@@ -90,7 +92,12 @@ export type Tab = {
  * A pane that shows a live session owned by another workspace, by reference: the session keeps its
  * workspace, host and working directory, and this pane holds no tab of its own.
  */
-export type TabGroupSessionRef = { worktreeId: string; tabId: string }
+export type TabGroupSessionRef = {
+  worktreeId: string
+  tabId: string
+  /** Set when the floating workspace started the session: closing the tab that shows it ends it. */
+  endsSessionOnClose?: true
+}
 
 /** Focus on a pane that shows another workspace's session: whose layout shows it, and whose session it is. */
 export type PaneSessionFocus = {

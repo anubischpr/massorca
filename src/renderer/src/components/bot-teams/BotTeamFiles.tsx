@@ -63,7 +63,8 @@ function OpenFile({
     }
   }, [teamId, file.relativePath, file.kind, file.workspaceId])
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
+    // Why: the Files page is a block without a height, so an opened file takes the pane's height itself.
+    <div className="flex h-full min-h-0 flex-1 flex-col">
       <BotTeamFilesBar>
         <Button
           variant="ghost"
@@ -75,7 +76,7 @@ function OpenFile({
         </Button>
         <span className="min-w-0 truncate">{file.relativePath}</span>
       </BotTeamFilesBar>
-      <div className="scrollbar-sleek min-h-0 flex-1 overflow-y-auto p-5">
+      <div className="scrollbar-sleek flex min-h-0 flex-1 flex-col overflow-y-auto p-5">
         <BotTeamFilePreview
           teamId={teamId}
           relativePath={file.relativePath}

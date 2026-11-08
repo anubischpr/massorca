@@ -1,3 +1,4 @@
+import { FLOATING_TERMINAL_WORKTREE_ID } from '../../../../../shared/constants'
 import type { Tab, TabGroup, TabGroupSessionRef } from '../../../../../shared/tab-types'
 import type { AppState } from '../../types'
 import { isSessionTab, isSidePanelGroupId } from './side-panel-group'
@@ -174,24 +175,54 @@ export type ReferencedPlacement = {
   focusWorktreeId: string
 }
 
+/** Owners of the sessions the floating panel's active tabs show, so their layers can mount. */
+export function selectFloatingReferenceOwnerWorktreeIds(state: RefState): string[] {
+  const owners = new Set<string>()
+  for (const shown of selectReferencedSessions(state).values()) {
+    if (
+      shown.layoutWorktreeId === FLOATING_TERMINAL_WORKTREE_ID &&
+      shown.isSessionTabActive !== false
+    ) {
+      owners.add(shown.ownerWorktreeId)
+    }
+  }
+  return [...owners]
+}
+
 /**
  * Where an overlay places a session that a pane shows by reference. It is visible only while the
  * layout that shows it is on screen, which is what keeps one live copy: its own workspace's
  * layout, when on screen, shows the picker in its place instead. A floating session tab shows its
- * session only while it is its group's active tab; the other tabs keep it running and unseen.
+ * session only while it is its group's active tab; the other tabs keep it running and unseen. The
+ * floating panel sits over every workspace, so it is on screen whenever it is open.
  */
+/** A floating tab holds its session only while the panel is open and the tab is active; otherwise the owner shows it. */
+export function isFloatingReferenceDormant(
+  shown: ReferencedSession,
+  isFloatingPanelOpen: boolean
+): boolean {
+  return (
+    shown.layoutWorktreeId === FLOATING_TERMINAL_WORKTREE_ID &&
+    (!isFloatingPanelOpen || shown.isSessionTabActive === false)
+  )
+}
+
 export function referencedPlacement(
   referenced: ReadonlyMap<string, ReferencedSession>,
   tabId: string,
   layoutWorktreeId: string | null,
-  activeGroupIdByWorktree: Readonly<Record<string, string | undefined>>
+  activeGroupIdByWorktree: Readonly<Record<string, string | undefined>>,
+  isFloatingPanelOpen = false
 ): ReferencedPlacement | null {
   const shown = referenced.get(tabId)
-  if (!shown) {
+  if (!shown || isFloatingReferenceDormant(shown, isFloatingPanelOpen)) {
     return null
   }
-  const isVisible =
-    shown.layoutWorktreeId === layoutWorktreeId && shown.isSessionTabActive !== false
+  const isLayoutOnScreen =
+    shown.layoutWorktreeId === FLOATING_TERMINAL_WORKTREE_ID
+      ? isFloatingPanelOpen
+      : shown.layoutWorktreeId === layoutWorktreeId
+  const isVisible = isLayoutOnScreen && shown.isSessionTabActive !== false
   return {
     groupId: shown.groupId,
     isVisible,

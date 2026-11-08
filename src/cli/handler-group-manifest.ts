@@ -1,5 +1,6 @@
 import type { CommandHandler } from './dispatch'
 import { BROWSER_HANDLER_GROUPS } from './browser-handler-groups'
+import { MASSORCA_HANDLER_GROUPS } from './massorca-handler-groups'
 
 export type HandlerGroup = {
   name: string
@@ -19,7 +20,13 @@ export const HANDLER_GROUPS: readonly HandlerGroup[] = [
   },
   {
     name: 'account',
-    keys: ['account add', 'account list', 'account select', 'account rm'],
+    keys: [
+      'account add',
+      'account list',
+      'account select',
+      'account rm',
+      'account codex-reset-credit'
+    ],
     load: async () => (await import('./handlers/account.js')).ACCOUNT_HANDLERS
   },
   {
@@ -276,11 +283,6 @@ export const HANDLER_GROUPS: readonly HandlerGroup[] = [
     load: async () => (await import('./handlers/vm.js')).VM_HANDLERS
   },
   {
-    name: 'prototypes',
-    keys: ['prototypes design-system'],
-    load: async () => (await import('./handlers/prototypes.js')).PROTOTYPE_HANDLERS
-  },
-  {
     name: 'skill-sharing',
     keys: ['skills installed', 'skills share'],
     load: async () => (await import('./handlers/skill-sharing.js')).SKILL_SHARING_HANDLERS
@@ -294,5 +296,6 @@ export const HANDLER_GROUPS: readonly HandlerGroup[] = [
     name: 'search',
     keys: ['search'],
     load: async () => (await import('./handlers/search.js')).SEARCH_HANDLERS
-  }
+  },
+  ...MASSORCA_HANDLER_GROUPS
 ]

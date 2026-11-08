@@ -2,7 +2,12 @@ import type { PrototypeSystemCard } from '../../shared/prototype-design-system-c
 import type { RateLimitState } from '../../shared/rate-limit-types'
 import type { StructuredAgentSessionHostRows } from '../native-chat/agent-session-wire/structured-agent-session-host-rows'
 import type { OrchestrationDb } from '../runtime/orchestration/db'
-import type { DelegationStoredAgent, DelegationTierAdvisor } from './delegation-options'
+import type { PiRuntimeSelection } from '../../shared/pi-runtime-selection'
+import type {
+  DelegationAgentRefusal,
+  DelegationStoredAgent,
+  DelegationTierAdvisor
+} from './delegation-options'
 
 /** The parent chat as a delegation request reads it. */
 export type DelegationParentSession = {
@@ -29,8 +34,16 @@ export type DelegationHostDeps = {
 
 export type DelegationRequestDeps = DelegationHostDeps & {
   requireDb: () => OrchestrationDb
-  /** Agents registered on this host and usable in the parent's workspace. */
-  listAgents: (parent: DelegationParentSession) => Promise<DelegationStoredAgent[]>
+  /** Agents registered on this host and usable in the parent's workspace; a Pi runtime named is the one checked. */
+  listAgents: (
+    parent: DelegationParentSession,
+    piRuntime?: PiRuntimeSelection
+  ) => Promise<DelegationStoredAgent[]>
+  /** The agents registered on this host that cannot start a chat in the parent's workspace, each with its reason. */
+  explainRefusals?: (
+    parent: DelegationParentSession,
+    piRuntime?: PiRuntimeSelection
+  ) => Promise<DelegationAgentRefusal[]>
   /** The saved Settings value for the prototype count, unsanitized. */
   readPrototypeCount: () => unknown
   /** The parent chat's project design system as its card shows it; null when it cannot be shown. */

@@ -3,10 +3,22 @@
 import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import type { DiscoveredSkill } from '../../../../shared/skills'
+import type { MarketplaceInstalledSkills } from '../marketplace/MarketplaceCatalogSkills'
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true
 
-const mocks = vi.hoisted((): { agents: string[] | null } => ({ agents: [] }))
+const mocks = vi.hoisted(
+  (): {
+    detected: string[] | null
+    skills: MarketplaceInstalledSkills
+    requestOpen: (row: unknown) => void
+  } => ({
+    detected: [],
+    skills: { status: 'loading' },
+    requestOpen: () => undefined
+  })
+)
 
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 vi.mock('react-i18next', () => ({ useTranslation: () => ({}) }))
@@ -18,21 +30,45 @@ vi.mock('@/lib/local-preflight-context', () => ({
   getLocalPreflightContext: () => ({}),
   localPreflightContextKey: () => 'local'
 }))
-vi.mock('@/lib/agent-catalog', () => ({
-  AgentIcon: () => null,
-  getAgentLabel: (agent: string) => {
-    const labels: Record<string, string> = {
-      claude: 'Claude Code',
-      codex: 'Codex',
-      antigravity: 'Antigravity'
-    }
-    return labels[agent] ?? agent
+vi.mock('@/lib/agent-catalog', () => {
+  const entries = [
+    { id: 'claude', label: 'Claude Code' },
+    { id: 'codex', label: 'Codex' },
+    { id: 'gemini', label: 'Gemini' },
+    { id: 'opencode', label: 'OpenCode' },
+    { id: 'cursor', label: 'Cursor' },
+    { id: 'copilot', label: 'Copilot' }
+  ]
+  const labelFor = (agent: string): string =>
+    entries.find((entry) => entry.id === agent)?.label ?? agent
+  return {
+    AgentIcon: () => null,
+    getAgentCatalog: () => entries,
+    getAgentLabel: labelFor,
+    getAgentDisplayLabel: labelFor
   }
+})
+vi.mock('@/lib/use-pi-runtime', () => ({ usePiDisplayRuntime: () => 'unknown' }))
+vi.mock('@/hooks/useDetectedAgents', () => ({
+  useDetectedAgents: () => ({
+    detectedIds: mocks.detected,
+    isLoading: false,
+    detectionFailed: false,
+    isRefreshing: false,
+    refresh: vi.fn()
+  })
 }))
-vi.mock('@/lib/agent-icon-gentle-shell', () => ({ GentleShellIcon: () => null }))
-vi.mock('@/lib/pi-agent-display', () => ({ piRuntimeLabel: () => 'Gentle Shell' }))
-vi.mock('../marketplace/use-marketplace-agents', () => ({
-  useMarketplaceAgents: () => mocks.agents
+vi.mock('@/hooks/use-active-skill-discovery-runtime-target', () => ({
+  useActiveSkillDiscoveryRuntimeTarget: () => null
+}))
+vi.mock('@/runtime/runtime-skills-client', () => ({
+  discoverSkillsForRuntimeTarget: vi.fn()
+}))
+vi.mock('../marketplace/MarketplaceCatalogSkills', () => ({
+  useMarketplaceInstalledSkills: () => mocks.skills
+}))
+vi.mock('../marketplace/marketplace-skill-open-request', () => ({
+  requestSkillRowOpen: (row: unknown) => mocks.requestOpen(row)
 }))
 vi.mock('./SidebarSearchRow', () => ({
   SidebarSearchRow: () => <button type="button">Search</button>
@@ -84,8 +120,26 @@ async function clickRow(container: ParentNode, label: string): Promise<void> {
   })
 }
 
+function installedSkill(name: string): DiscoveredSkill {
+  return {
+    id: `skill-${name}`,
+    name,
+    description: null,
+    providers: ['agent-skills'],
+    sourceKind: 'home',
+    sourceLabel: 'Agent skills home',
+    rootPath: '/home/dev/.agents/skills',
+    directoryPath: `/home/dev/.agents/skills/${name}`,
+    skillFilePath: `/home/dev/.agents/skills/${name}/SKILL.md`,
+    installed: true,
+    source: 'marketplace',
+    updatedAt: null
+  }
+}
+
 beforeEach(() => {
-  mocks.agents = ['claude', 'gentle-shell']
+  mocks.detected = ['claude']
+  mocks.skills = { status: 'loading' }
   seedStore(store, {
     activeView: 'marketplace',
     marketplaceSection: 'all',
@@ -111,7 +165,7 @@ afterEach(() => {
 })
 
 describe('the Marketplace sidebar', () => {
-  it('lists Search, the five sections, then Your apps with the count and the installed apps', async () => {
+  it('lists Search, the five tabs, then Your apps with the count and the installed apps', async () => {
     const container = await mount()
     expect(rowLabels(container)).toEqual([
       'Search',
@@ -122,18 +176,26 @@ describe('the Marketplace sidebar', () => {
       'Services',
       'All of them',
       'Git',
-      'GitHub',
-      'Claude Code',
-      'Gentle Shell',
-      'Engram'
+      'GitHub CLI',
+      'Engram',
+      'Claude Code'
     ])
-    expect(rowByLabel(container, 'All of them').textContent).toContain('5')
+    expect(rowByLabel(container, 'All of them').textContent).toContain('4')
+    expect(container.textContent).toContain('Your apps')
   })
 
-  it('names Gentle Shell by its own name, never as Pi', async () => {
+  it('lists only the board agents under Your apps, never other found agents', async () => {
+    mocks.detected = ['claude', 'codex', 'gemini', 'opencode', 'cursor', 'copilot']
     const container = await mount()
-    expect(rowLabels(container)).toContain('Gentle Shell')
-    expect(rowLabels(container)).not.toContain('Pi')
+    const labels = rowLabels(container)
+    expect(labels.slice(labels.indexOf('All of them') + 1)).toEqual([
+      'Git',
+      'GitHub CLI',
+      'Engram',
+      'Claude Code',
+      'Codex'
+    ])
+    expect(rowByLabel(container, 'All of them').textContent).toContain('5')
   })
 
   it('a section click picks that section and returns to the catalog', async () => {
@@ -142,6 +204,12 @@ describe('the Marketplace sidebar', () => {
     await clickRow(container, 'Tools')
     expect(store.getState().marketplaceSection).toBe('tools')
     expect(store.getState().marketplaceSelectedItemId).toBeNull()
+  })
+
+  it('All of them opens Your apps', async () => {
+    const container = await mount()
+    await clickRow(container, 'All of them')
+    expect(store.getState().marketplaceSection).toBe('your-apps')
   })
 
   it('an app click opens that app page', async () => {
@@ -156,8 +224,25 @@ describe('the Marketplace sidebar', () => {
     expect(store.getState().marketplaceSection).toBe('agents')
   })
 
-  it('without the desktop bridge, lists only the apps this computer shows', async () => {
-    mocks.agents = null
+  it('a skill click opens that skill on its own page inside the Marketplace', async () => {
+    mocks.skills = { status: 'ready', skills: [installedSkill('alpha')] }
+    const requestOpen = vi.fn()
+    mocks.requestOpen = requestOpen
+    const container = await mount()
+    expect(rowLabels(container)).toContain('Alpha')
+    await clickRow(container, 'Alpha')
+    expect(store.getState().marketplaceSection).toBe('skills')
+    expect(store.getState().activeView).toBe('marketplace')
+    expect(requestOpen).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: 'Alpha',
+        section: 'skills',
+        target: { kind: 'skill', skill: installedSkill('alpha') }
+      })
+    )
+  })
+
+  it('without the desktop bridge, Engram is not listed as installed', async () => {
     seedStore(store, { marketplaceApps: { status: 'unavailable' } })
     const container = await mount()
     expect(rowLabels(container)).toEqual([
@@ -169,7 +254,8 @@ describe('the Marketplace sidebar', () => {
       'Services',
       'All of them',
       'Git',
-      'GitHub'
+      'GitHub CLI',
+      'Claude Code'
     ])
   })
 })

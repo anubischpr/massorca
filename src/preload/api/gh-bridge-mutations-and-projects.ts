@@ -192,6 +192,7 @@ export const ghMutationsAndProjectsApi = {
   listHostBindableAccounts: (args?: { wslDistro?: string }): Promise<GhAccountBindingInventory> =>
     ipcRenderer.invoke('gh:listHostBindableAccounts', args),
   switchActiveAccount: (args) => ipcRenderer.invoke('gh:switchActiveAccount', args),
+  removeAccount: (args) => ipcRenderer.invoke('gh:removeAccount', args),
   listAccountOrgs: (args: {
     accounts: { host: string; user: string }[]
     wslDistro?: string

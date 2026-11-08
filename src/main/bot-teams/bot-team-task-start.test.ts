@@ -96,6 +96,19 @@ describe('startBotTeamTask', () => {
     )
   })
 
+  it('starts a Gentle Shell bot with its model for the chat to apply after launch', async () => {
+    const d = deps()
+    const bot = { ...TEAM.bots[0], agent: 'pi' as const, model: 'nan/deepseek-v4-flash' }
+    await startBotTeamTask(d, { team: { ...TEAM, bots: [bot] }, task: TASK })
+
+    expect(d.createSession).toHaveBeenCalledWith(
+      expect.objectContaining({
+        piRuntime: 'gentle-shell',
+        options: { model: 'nan/deepseek-v4-flash' }
+      })
+    )
+  })
+
   it("runs on the owner's engine with the team's access, in the team's workspace", async () => {
     const d = deps()
     const started = await startBotTeamTask(d, { team: TEAM, task: TASK })
@@ -103,7 +116,8 @@ describe('startBotTeamTask', () => {
     expect(d.createSession).toHaveBeenCalledWith({
       workspaceId: 'folder:1',
       agent: 'codex',
-      accessMode: 'full-access'
+      accessMode: 'full-access',
+      botRun: { botId: 'bot', teamId: 'team' }
     })
     expect(started.sessionId).toBe('session-1')
   })
@@ -263,6 +277,32 @@ describe('startBotTeamTask', () => {
     expect(d.createSession).toHaveBeenCalledWith(
       expect.objectContaining({ workspaceId: 'folder:1' })
     )
+  })
+})
+
+describe('Marketplace apps in a bot task', () => {
+  const MENTION = { ...TASK, prompt: 'Check @Engram and @GitHub for the flyer' }
+
+  it('tells the bot to use each app its request names', async () => {
+    const d = deps()
+    await startBotTeamTask(d, { team: TEAM, task: MENTION })
+
+    const text = vi.mocked(d.sendPrompt).mock.calls[0][1]
+    expect(text).toContain('Use the Engram tools (MCP server engram) for this request.')
+    expect(text).toContain('Use GitHub (the gh command) for this request.')
+  })
+
+  it('adds no line for an app the owner bot is kept out of', async () => {
+    const d = deps()
+    await startBotTeamTask(d, {
+      team: TEAM,
+      task: MENTION,
+      deniedMarketplaceApps: ['engram']
+    })
+
+    const text = vi.mocked(d.sendPrompt).mock.calls[0][1]
+    expect(text).not.toContain('MCP server engram')
+    expect(text).toContain('Use GitHub (the gh command) for this request.')
   })
 })
 

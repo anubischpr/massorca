@@ -1,11 +1,11 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { translate } from '@/i18n/i18n'
-import { useAppStore } from '@/store'
 import type {
   MarketplaceRemoteCredentialSlot,
   MarketplaceVaultHostResult,
-  MarketplaceVaultHostStatus
+  MarketplaceVaultHostStatus,
+  MarketplaceVaultSlot
 } from '../../../../shared/marketplace-apps'
 import { MarketplaceFormDialog, TextField } from './MarketplaceFormDialog'
 import { MarketplaceInfoRow } from './MarketplaceInfoRow'
@@ -15,60 +15,46 @@ import {
   type MarketplaceVaultHostTarget
 } from './marketplace-vault-host-client'
 import {
-  storedEncryptedOn,
-  updatedAgo,
-  vaultHostFailureMessage
-} from './marketplace-vault-credential-text'
+  profileTokenNeedsUpdateMessage,
+  vaultSlotFailureMessage
+} from './marketplace-action-messages'
+import { marketplaceHostKey, useMarketplaceHostTargets } from './use-marketplace-host-targets'
+import { storedEncryptedOn, updatedAgo } from './marketplace-vault-credential-text'
+
+const NO_PROFILES: readonly string[] = []
 
 type HostView =
   | { kind: 'loading' }
   | { kind: 'ready'; status: MarketplaceVaultHostStatus }
   | { kind: 'failed'; message: string }
 
-/** Hosts that keep their own vault: the active paired server and every connected SSH host. */
-function useVaultHostTargets(): MarketplaceVaultHostTarget[] {
-  const environmentId = useAppStore((s) => s.settings?.activeRuntimeEnvironmentId ?? null)
-  const environments = useAppStore((s) => s.runtimeEnvironments)
-  const sshStates = useAppStore((s) => s.sshConnectionStates)
-  const sshLabels = useAppStore((s) => s.sshTargetLabels)
-  return useMemo(() => {
-    const targets: MarketplaceVaultHostTarget[] = []
-    const trimmed = environmentId?.trim()
-    if (trimmed) {
-      const name = environments.find((environment) => environment.id === trimmed)?.name
-      targets.push({ kind: 'runtime', environmentId: trimmed, label: name || trimmed })
-    }
-    for (const [connectionId, state] of sshStates) {
-      if (state.status === 'connected') {
-        targets.push({
-          kind: 'ssh',
-          connectionId,
-          label: sshLabels.get(connectionId) ?? connectionId
-        })
-      }
-    }
-    return targets
-  }, [environmentId, environments, sshStates, sshLabels])
-}
-
-function targetKey(target: MarketplaceVaultHostTarget): string {
-  return target.kind === 'ssh' ? `ssh:${target.connectionId}` : `runtime:${target.environmentId}`
-}
-
-function viewOf(result: MarketplaceVaultHostResult, label: string): HostView {
+function viewOf(
+  result: MarketplaceVaultHostResult,
+  label: string,
+  slot: MarketplaceVaultSlot
+): HostView {
   return result.ok
     ? { kind: 'ready', status: result.status }
-    : { kind: 'failed', message: vaultHostFailureMessage(result.reason, label) }
+    : { kind: 'failed', message: vaultSlotFailureMessage(result.reason, label, slot) }
 }
 
-function hostText(view: HostView, slot: MarketplaceRemoteCredentialSlot, label: string): string {
+function credentialOf(
+  status: MarketplaceVaultHostStatus,
+  slot: MarketplaceVaultSlot
+): { stored: boolean; updatedAt?: number } | undefined {
+  return typeof slot === 'string'
+    ? status.credentials.find((candidate) => candidate.slot === slot)
+    : status.profiles?.find((candidate) => candidate.name === slot.name)
+}
+
+function hostText(view: HostView, slot: MarketplaceVaultSlot, label: string): string {
   if (view.kind === 'loading') {
     return translate('auto.components.marketplace.MarketplaceVaultHosts.checking', 'Checking...')
   }
   if (view.kind === 'failed') {
     return view.message
   }
-  const credential = view.status.credentials.find((candidate) => candidate.slot === slot)
+  const credential = credentialOf(view.status, slot)
   if (!credential?.stored) {
     return translate(
       'auto.components.marketplace.MarketplaceVaultHosts.notSetOn',
@@ -82,28 +68,24 @@ function hostText(view: HostView, slot: MarketplaceRemoteCredentialSlot, label: 
     : `${place} · ${updatedAgo(credential.updatedAt)}`
 }
 
-function VaultHostRow({
+function VaultCredentialRow({
   target,
-  slot
+  slot,
+  label,
+  view,
+  onResult
 }: {
   target: MarketplaceVaultHostTarget
-  slot: MarketplaceRemoteCredentialSlot
+  slot: MarketplaceVaultSlot
+  label: string
+  view: HostView
+  onResult: (result: MarketplaceVaultHostResult) => void
 }): React.JSX.Element {
-  const [view, setView] = useState<HostView>({ kind: 'loading' })
   const [editing, setEditing] = useState(false)
-  const reload = useCallback(async (): Promise<void> => {
-    setView(viewOf(await readVaultHost(target), target.label))
-  }, [target])
-  useEffect(() => {
-    void reload()
-  }, [reload])
-
-  const stored =
-    view.kind === 'ready' &&
-    view.status.credentials.some((credential) => credential.slot === slot && credential.stored)
+  const stored = view.kind === 'ready' && credentialOf(view.status, slot)?.stored === true
   return (
     <>
-      <MarketplaceInfoRow label={target.label}>
+      <MarketplaceInfoRow label={label}>
         <span className="text-sm text-muted-foreground">{hostText(view, slot, target.label)}</span>
         {view.kind === 'ready' ? (
           <Button type="button" variant="outline" size="sm" onClick={() => setEditing(true)}>
@@ -119,9 +101,85 @@ function VaultHostRow({
           slot={slot}
           replacing={stored}
           onClose={() => setEditing(false)}
-          onDone={(result) => setView(viewOf(result, target.label))}
+          onDone={onResult}
         />
       ) : null}
+    </>
+  )
+}
+
+/** A profile the host cannot take a token for yet, said in words instead of a button. */
+function profileRowText(hostProfiles: boolean, label: string): string {
+  return hostProfiles
+    ? translate(
+        'auto.components.marketplace.MarketplaceVaultHosts.profileNotOnHost',
+        'Add this profile on {{host}} first.',
+        { host: label }
+      )
+    : profileTokenNeedsUpdateMessage(label)
+}
+
+function profileRowLabel(host: string, profile: string): string {
+  return translate(
+    'auto.components.marketplace.MarketplaceVaultHosts.profileRow',
+    '{{host}} · {{profile}}',
+    { host, profile }
+  )
+}
+
+function VaultHostRow({
+  target,
+  slot,
+  profiles
+}: {
+  target: MarketplaceVaultHostTarget
+  slot: MarketplaceRemoteCredentialSlot
+  profiles: readonly string[]
+}): React.JSX.Element {
+  const [view, setView] = useState<HostView>({ kind: 'loading' })
+  const reload = useCallback(async (): Promise<void> => {
+    setView(viewOf(await readVaultHost(target), target.label, slot))
+  }, [target, slot])
+  useEffect(() => {
+    void reload()
+  }, [reload])
+
+  // Why: profile tokens sit beside the main OpenMetadata one; a host that never sent a profile list
+  // predates them, and a name only this computer knows needs adding on the host first.
+  const hostProfiles = view.kind === 'ready' ? view.status.profiles : undefined
+  const profileNames =
+    slot === 'openmetadata' && view.kind === 'ready'
+      ? [...new Set([...(hostProfiles ?? []).map((profile) => profile.name), ...profiles])]
+      : []
+  return (
+    <>
+      <VaultCredentialRow
+        target={target}
+        slot={slot}
+        label={target.label}
+        view={view}
+        onResult={(result) => setView(viewOf(result, target.label, slot))}
+      />
+      {profileNames.map((name) =>
+        hostProfiles?.some((profile) => profile.name === name) ? (
+          <VaultCredentialRow
+            key={name}
+            target={target}
+            slot={{ kind: 'openmetadata-profile', name }}
+            label={profileRowLabel(target.label, name)}
+            view={view}
+            onResult={(result) =>
+              setView(viewOf(result, target.label, { kind: 'openmetadata-profile', name }))
+            }
+          />
+        ) : (
+          <MarketplaceInfoRow key={name} label={profileRowLabel(target.label, name)}>
+            <span className="text-sm text-muted-foreground">
+              {profileRowText(hostProfiles !== undefined, target.label)}
+            </span>
+          </MarketplaceInfoRow>
+        )
+      )}
     </>
   )
 }
@@ -135,7 +193,7 @@ function VaultTokenDialog({
   onDone
 }: {
   target: MarketplaceVaultHostTarget
-  slot: MarketplaceRemoteCredentialSlot
+  slot: MarketplaceVaultSlot
   replacing: boolean
   onClose: () => void
   onDone: (result: MarketplaceVaultHostResult) => void
@@ -144,6 +202,7 @@ function VaultTokenDialog({
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const secret = token.trim()
+  const profile = typeof slot === 'string' ? null : slot.name
   const submit = async (): Promise<void> => {
     setPending(true)
     setError(null)
@@ -153,24 +212,36 @@ function VaultTokenDialog({
       onDone(result)
       onClose()
     } else {
-      setError(vaultHostFailureMessage(result.reason, target.label))
+      setError(vaultSlotFailureMessage(result.reason, target.label, slot))
     }
   }
+  const forProfile = profile ?? ''
+  const subject = replacing
+    ? profile === null
+      ? translate(
+          'auto.components.marketplace.MarketplaceVaultHosts.replaceTitle',
+          'Replace the token on {{host}}',
+          { host: target.label }
+        )
+      : translate(
+          'auto.components.marketplace.MarketplaceVaultHosts.replaceProfileTitle',
+          'Replace the {{profile}} token on {{host}}',
+          { host: target.label, profile: forProfile }
+        )
+    : profile === null
+      ? translate(
+          'auto.components.marketplace.MarketplaceVaultHosts.setTitle',
+          'Set the token on {{host}}',
+          { host: target.label }
+        )
+      : translate(
+          'auto.components.marketplace.MarketplaceVaultHosts.setProfileTitle',
+          'Set the {{profile}} token on {{host}}',
+          { host: target.label, profile: forProfile }
+        )
   return (
     <MarketplaceFormDialog
-      title={
-        replacing
-          ? translate(
-              'auto.components.marketplace.MarketplaceVaultHosts.replaceTitle',
-              'Replace the token on {{host}}',
-              { host: target.label }
-            )
-          : translate(
-              'auto.components.marketplace.MarketplaceVaultHosts.setTitle',
-              'Set the token on {{host}}',
-              { host: target.label }
-            )
-      }
+      title={subject}
       description={translate(
         'auto.components.marketplace.MarketplaceVaultHosts.description',
         '{{host}} keeps the token in its own encrypted vault and gives it to the agents it runs. It is never shown again.',
@@ -188,7 +259,7 @@ function VaultTokenDialog({
       onClose={onClose}
     >
       <TextField
-        id={`marketplace-vault-token-${targetKey(target)}`}
+        id={`marketplace-vault-token-${marketplaceHostKey(target)}${profile === null ? '' : `-${profile}`}`}
         label={translate('auto.components.marketplace.MarketplaceVaultHosts.token', 'Token')}
         type="password"
         value={token}
@@ -198,13 +269,20 @@ function VaultTokenDialog({
   )
 }
 
-/** The same credential on the other hosts that run agents; renders nothing when there are none. */
+/**
+ * The same credential on the other hosts that run agents; renders nothing when there are none.
+ * `profiles` names the extra OpenMetadata profiles this computer has, so a host that cannot hold
+ * their tokens says so.
+ */
 export function MarketplaceVaultHosts({
-  slot
+  slot,
+  profiles = NO_PROFILES
 }: {
   slot: MarketplaceRemoteCredentialSlot
+  profiles?: readonly string[]
 }): React.JSX.Element | null {
-  const targets = useVaultHostTargets()
+  // Why: the vault has no WSL path yet, so a distro would only ever show a failed change.
+  const targets = useMarketplaceHostTargets().filter((target) => target.kind !== 'wsl')
   if (targets.length === 0) {
     return null
   }
@@ -217,7 +295,12 @@ export function MarketplaceVaultHosts({
         )}
       </span>
       {targets.map((target) => (
-        <VaultHostRow key={targetKey(target)} target={target} slot={slot} />
+        <VaultHostRow
+          key={marketplaceHostKey(target)}
+          target={target}
+          slot={slot}
+          profiles={profiles}
+        />
       ))}
     </div>
   )

@@ -6,6 +6,7 @@
 // must name the thread this session actually proved — never one a caller asks
 // for, which is how a resume becomes a fork wearing a resume's name.
 
+import { buildMarketplaceAgentEnv } from '../marketplace/marketplace-agent-env'
 import { rememberCodexSessionLaunch } from './codex-forked-thread-process'
 import type { AgentSessionJournalIdentity } from '../../shared/agent-session-journal-types'
 import { requireLegacyAgentSessionAccountHome } from '../../shared/agent-session-account-home'
@@ -23,6 +24,12 @@ import type { PrepareNativeChatVisuals } from '../native-chat/native-chat-visual
 import { codexStructuredPermissionPolicyForSession } from './codex-structured-permission-policy'
 import { delegationInstructionsForEnv } from '../delegated-session/delegation-agent-instructions'
 import { buildCodexStructuredChildEnvironment } from './codex-structured-child-environment'
+import { codexBotRunMcpOverrideArgs } from './codex-bot-run-mcp-overrides'
+import {
+  botRunEnvKeysToDelete,
+  deleteBotRunDeniedEnv,
+  resolveBotRunDenial
+} from '../marketplace/marketplace-bot-run-denial'
 
 export type CodexStructuredLaunchResolverDeps = {
   store: Pick<AgentSessionRecordStore, 'getRecord' | 'pinLaunchDirectory'>
@@ -40,6 +47,8 @@ export type CodexStructuredLaunchResolverDeps = {
   resolvePermissionPolicy?: () => CodexStructuredPermissionPolicy
   /** This chat's visuals folder and skill; absent or null ⇒ the chat gets neither. */
   prepareVisuals?: PrepareNativeChatVisuals
+  /** The Marketplace apps a bot run is kept out of; absent reads the host's apps. */
+  resolveBotRunDenial?: typeof resolveBotRunDenial
 }
 
 export type CodexStructuredInvocation = {
@@ -93,7 +102,19 @@ export function createCodexStructuredLaunchResolver(
       throw new Error(`codex sessions pin ${pinned}, not ${accountHome.variable}`)
     }
     const { command, environment } = await resolveCodexStructuredInvocation(deps)
-    const args = codexStructuredLaunchArgs(await deps.resolveLaunchArgs())
+    // A bot run leaves the apps its bot is kept out of: no token in its env, those servers disabled.
+    const botDenial = await (deps.resolveBotRunDenial ?? resolveBotRunDenial)(record.options)
+    // Why: config.toml names each MCP token by env var (never the value); a fresh read per start
+    // also gives a session opened after a vault change the new vars, since each owns its app-server.
+    const marketplaceEnv = buildMarketplaceAgentEnv('codex')
+    const childEnvironment =
+      environment || Object.keys(marketplaceEnv).length > 0
+        ? { ...environment, ...marketplaceEnv }
+        : undefined
+    const args = [
+      ...codexStructuredLaunchArgs(await deps.resolveLaunchArgs()),
+      ...(await codexBotRunMcpOverrideArgs(botDenial, accountHome.path))
+    ]
     const permissionPolicy = codexStructuredPermissionPolicyForSession(
       record.options?.accessMode,
       deps.resolvePermissionPolicy?.()
@@ -110,7 +131,19 @@ export function createCodexStructuredLaunchResolver(
       args: [...args, 'app-server'],
       cwd,
       codexHome: accountHome.path,
-      ...(environment ? { env: { ...environment } as Record<string, string> } : {}),
+      ...(childEnvironment
+        ? {
+            env: deleteBotRunDeniedEnv(
+              Object.fromEntries(
+                Object.entries(childEnvironment).filter(
+                  (entry): entry is [string, string] => entry[1] !== undefined
+                )
+              ),
+              botDenial
+            )
+          }
+        : {}),
+      ...(botDenial ? { envToDelete: botRunEnvKeysToDelete(botDenial) } : {}),
       // An empty chain is a session that has never proved a thread, so it
       // starts one; anything else resumes the last link this session proved.
       resumeThreadId,

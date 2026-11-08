@@ -12,6 +12,10 @@ import { skillInstallWorkspaceChoices } from './skill-install-workspace-choices'
 import { isSkillBundleVersion, type ResolvedSkillShare } from './skill-share-version-summary'
 import { SkillBundleInstallFlow } from './SkillBundleInstallFlow'
 import { SkillInstallTargetFields } from './SkillInstallTargetFields'
+import {
+  skillInstallStartState,
+  type SkillInstallInitialTarget
+} from './skill-install-dialog-initial-target'
 import { defaultSelectedSkillProviders } from './skill-install-provider-groups'
 import { useSkillInstallDetectedAgents } from './use-skill-install-detected-agents'
 import type { SkillInstallProviderId } from '../../../../shared/skill-install-providers'
@@ -31,12 +35,16 @@ import { createBrowserUuid } from '@/lib/browser-uuid'
 export function SkillInstallDialog({
   open,
   onOpenChange,
-  initialLink = ''
+  initialLink = '',
+  initialTarget
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
   initialLink?: string
+  /** Opens the dialog on this machine with these agents; absent, it opens on this computer. */
+  initialTarget?: SkillInstallInitialTarget
 }): React.JSX.Element {
+  const [startState] = useState(() => skillInstallStartState(initialTarget))
   const runtimeEnvironments = useAppStore((state) => state.runtimeEnvironments)
   const runtimeStatus = useAppStore((state) => state.runtimeStatusByEnvironmentId)
   const worktreesByRepo = useAppStore((state) => state.worktreesByRepo)
@@ -46,14 +54,16 @@ export function SkillInstallDialog({
   const sshTargetLabels = useAppStore((state) => state.sshTargetLabels)
   const [link, setLink] = useState(initialLink)
   const [preview, setPreview] = useState<ResolvedSkillShare | null>(null)
-  const [environmentId, setEnvironmentId] = useState<string>('local')
+  const [environmentId, setEnvironmentId] = useState<string>(startState.environmentId)
   const [scope, setScope] = useState<'global' | 'workspace'>('global')
   // Why: null means "follow detection"; storing the derived default instead
   // would freeze the picker on whichever machine was selected first.
-  const [providerChoice, setProviderChoice] = useState<Set<SkillInstallProviderId> | null>(null)
+  const [providerChoice, setProviderChoice] = useState<Set<SkillInstallProviderId> | null>(
+    startState.providers
+  )
   const [workspace, setWorkspace] = useState<string>('')
   const [executionTarget, setExecutionTarget] = useState<{ kind: 'wsl'; distro: string } | null>(
-    null
+    startState.executionTarget
   )
   const [busy, setBusy] = useState(false)
   const [bundleBusy, setBundleBusy] = useState(false)

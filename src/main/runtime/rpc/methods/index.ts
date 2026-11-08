@@ -1,5 +1,6 @@
 import { STATUS_METHODS } from './status'
 import { BOT_TEAM_METHODS } from './bot-teams'
+import { BOT_TEAM_CONNECTED_APPS_METHODS } from './bot-team-connected-apps'
 import { BOT_TEAM_PROJECT_FILES_METHODS } from './bot-team-project-files'
 import { BOT_TEAM_ROOM_METHODS } from './bot-team-room'
 import { BOT_TEAM_ROUTINE_METHODS } from './bot-team-routine-methods'
@@ -47,6 +48,7 @@ import { CLIENT_EVENT_METHODS } from './client-events'
 import { WORKSPACE_PORT_METHODS } from './workspace-ports'
 import { PLUGIN_METHODS } from './plugins'
 import { SKILL_METHODS } from './skills'
+import { SKILL_PACKAGE_INSTALL_METHODS } from './skill-package-install-methods'
 import { CLIPBOARD_METHODS } from './clipboard'
 import { HOST_CAPABILITY_METHODS } from './host-capabilities'
 import { MOBILE_WEB_BUNDLE_METHODS } from './mobile-web-bundle'
@@ -63,10 +65,14 @@ import { STRUCTURED_AGENT_SESSION_PLAN_DOCUMENT_METHODS } from './structured-age
 import { STRUCTURED_AGENT_SESSION_RECORDED_FILE_METHODS } from './structured-agent-session-recorded-file'
 import { STRUCTURED_AGENT_SESSION_AGENTS_METHODS } from './structured-agent-session-agents'
 import { STRUCTURED_AGENT_SESSION_PROTOTYPE_METHODS } from './prototypes'
+import { CHAT_RESULTS_METHODS } from './chat-results'
 import { ARTIFACT_METHODS } from './artifacts'
 import { AGENT_HOOK_METHODS } from './agent-hooks'
 import { AGENT_LAUNCH_METHODS } from './agent-launch'
+import { MARKETPLACE_APPS_METHODS } from './marketplace-apps-methods'
 import { MARKETPLACE_VAULT_METHODS } from './marketplace-vault-methods'
+import { MARKETPLACE_SERVICE_METHODS } from './marketplace-service-methods'
+import { MARKETPLACE_CATALOG_AUDIT_METHODS } from './marketplace-catalog-audit-methods'
 
 // Why: a flat manifest keeps registration order explicit and provides one
 // grep-point for "what methods does the RPC server expose?" — useful when
@@ -78,6 +84,7 @@ export const ALL_RPC_METHODS = [
   ...AGENT_HOOK_METHODS,
   ...AI_VAULT_METHODS,
   ...BOT_TEAM_METHODS,
+  ...BOT_TEAM_CONNECTED_APPS_METHODS,
   ...BOT_TEAM_PROJECT_FILES_METHODS,
   ...BOT_TEAM_ROOM_METHODS,
   ...BOT_TEAM_ROUTINE_METHODS,
@@ -95,9 +102,13 @@ export const ALL_RPC_METHODS = [
   ...STRUCTURED_AGENT_SESSION_PLAN_DOCUMENT_METHODS,
   ...STRUCTURED_AGENT_SESSION_RECORDED_FILE_METHODS,
   ...STRUCTURED_AGENT_SESSION_PROTOTYPE_METHODS,
+  ...CHAT_RESULTS_METHODS,
   ...STRUCTURED_AGENT_SESSION_AGENTS_METHODS,
   ...AGENT_LAUNCH_METHODS,
+  ...MARKETPLACE_APPS_METHODS,
   ...MARKETPLACE_VAULT_METHODS,
+  ...MARKETPLACE_SERVICE_METHODS,
+  ...MARKETPLACE_CATALOG_AUDIT_METHODS,
   ...TERMINAL_METHODS,
   ...TERMINAL_ORPHAN_METHODS,
   ...BROWSER_CORE_METHODS,
@@ -132,6 +143,7 @@ export const ALL_RPC_METHODS = [
   ...WORKSPACE_PORT_METHODS,
   ...PLUGIN_METHODS,
   ...SKILL_METHODS,
+  ...SKILL_PACKAGE_INSTALL_METHODS,
   ...CLIPBOARD_METHODS,
   ...HOST_CAPABILITY_METHODS,
   ...MOBILE_WEB_BUNDLE_METHODS,

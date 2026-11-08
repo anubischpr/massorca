@@ -29,6 +29,16 @@ describe('a tab strip whose "+" menu follows another host', () => {
     expect(mocks.detectionTargetFor).toHaveBeenLastCalledWith('vps-worktree')
   })
 
+  it('lists the agents the selected host detects even when it has no workspace', () => {
+    renderHook(() =>
+      useTabBarRuntimeModel({ worktreeId: 'floating', hostEnvironmentId: 'vps-env' })
+    )
+    expect(mocks.useDetectedAgents).toHaveBeenLastCalledWith({
+      kind: 'runtime',
+      environmentId: 'vps-env'
+    })
+  })
+
   it('keeps detecting on its own workspace without a host', () => {
     renderHook(() => useTabBarRuntimeModel({ worktreeId: 'floating' }))
     expect(mocks.detectionTargetFor).toHaveBeenLastCalledWith('floating')
@@ -42,7 +52,7 @@ describe('a tab strip whose "+" menu follows another host', () => {
     )
     const createMenu = withHostAgentLaunch(
       { launchAgentFromNewTabEntry: ownLaunch },
-      { worktreeId: 'vps-worktree', launchAgent },
+      { environmentId: 'vps-env', worktreeId: 'vps-worktree', launchAgent },
       runtime.current.agentLaunchOptions
     )
     createMenu.launchAgentFromNewTabEntry('claude')

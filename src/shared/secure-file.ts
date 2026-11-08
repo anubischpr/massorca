@@ -8,7 +8,6 @@ import {
   openSync,
   renameSync,
   rmSync,
-  statSync,
   writeFileSync
 } from 'node:fs'
 import { dirname } from 'node:path'
@@ -24,24 +23,20 @@ import {
 } from './secure-path-hardening-retry-budget'
 import {
   bestEffortRestrictWindowsPath,
+  isWindowsSyncAclLaneAvailable,
   resetSecureFileWindowsUserSidForTests,
+  resolveWindowsUserSid,
   restrictWindowsPathSync
 } from './secure-path-windows-acl'
-
-type HardenedPathCacheEntry = {
-  isDirectory: boolean
-  dev: number
-  ino: number
-  size: number
-  mode: number
-  ctimeMs: number
-  mtimeMs: number
-  birthtimeMs: number
-}
+import {
+  getHardenedPathCacheEntry,
+  hardenedPathCacheEntriesMatch,
+  type HardenedPathCacheEntry
+} from './secure-path-metadata-snapshot'
 
 const UNSUPPORTED_DIRECTORY_FSYNC_CODES = new Set(['EINVAL', 'ENOTSUP', 'EOPNOTSUPP'])
 
-// Why: hardening spawns icacls synchronously (once when the DACL already verifies, four times when it must be rewritten), so cache idempotent re-hardens per process.
+// Why: a Windows harden spawns icacls up to four times, so cache idempotent re-hardens per process.
 let hardenedPathsThisProcess = new SecurePathHardeningCache<HardenedPathCacheEntry>(
   DEFAULT_HARDENING_CACHE_BOUNDS
 )
@@ -52,16 +47,92 @@ let hardenedDirectoryPathsThisProcess = new SecurePathHardeningCache<true>(
   DEFAULT_HARDENING_CACHE_BOUNDS
 )
 
+// Why: a file created inside a directory whose hardened DACL the async lane confirmed inherits only
+// the allowed SIDs, so it is current-user-only from its first byte with no per-file icacls spawn.
+let verifiedWindowsDirectoriesThisProcess = new SecurePathHardeningCache<true>(
+  DEFAULT_HARDENING_CACHE_BOUNDS
+)
+
+/** Published files awaiting their async protected DACL; true when another write landed meanwhile. */
+const publishedFileProtectInFlight = new Map<string, boolean>()
+
+// Why opt-in: orcad and the CLI have no window to freeze and fail closed on an unrestricted write,
+// so only the desktop UI process trades the blocking lane for the async one.
+let nonBlockingWindowsWrites = false
+
 function hardenSecureDirectoryOnce(dirPath: string): void {
-  // Why: dir hardening stays async — re-applying it stormed the main thread (#4901); files inside are hardened synchronously anyway.
+  // Why: dir hardening stays async — re-applying it stormed the main thread (#4901).
   if (hardenedDirectoryPathsThisProcess.get(dirPath)) {
     return
   }
   // Cache before the ACL lands so concurrent writes don't restorm; a failure drops it, under the retry budget.
   hardenedDirectoryPathsThisProcess.set(dirPath, true)
   applySecurePathRestriction(dirPath, true, process.platform, false, (restricted) => {
-    if (!restricted) {
+    if (restricted) {
+      verifiedWindowsDirectoriesThisProcess.set(dirPath, true)
+    } else {
       hardenedDirectoryPathsThisProcess.delete(dirPath)
+      verifiedWindowsDirectoriesThisProcess.delete(dirPath)
+    }
+  })
+}
+
+/**
+ * For the desktop UI process: secure writes stop waiting on icacls/whoami, which froze every
+ * window (pv85 "Not Responding"). Also starts the SID lookup and the directory verification off
+ * the main thread, so the first write after launch already finds a verified directory.
+ */
+export function enableNonBlockingSecureFileWrites(directories: readonly string[]): void {
+  if (process.platform !== 'win32') {
+    return
+  }
+  nonBlockingWindowsWrites = true
+  void resolveWindowsUserSid().then(() => {
+    for (const dir of directories) {
+      if (existsSync(dir)) {
+        hardenSecureDirectoryOnce(dir)
+      }
+    }
+  })
+}
+
+type StagedWindowsRestriction = 'protected' | 'inherited' | 'unrestricted'
+
+/**
+ * Restricts a staged Windows file without letting a slow host block the main thread:
+ * - `inherited`: the parent's hardened DACL is verified, so the file already grants only the
+ *   allowed SIDs; no spawn at all.
+ * - `protected`: the sync icacls lane ran and verified a protected DACL on the staged file.
+ * - `unrestricted`: neither held — the apply failed, or (non-blocking processes only) the SID is
+ *   still resolving or a stalled icacls tripped the sync lane; the file carries whatever its parent
+ *   grants until the async protect lands.
+ */
+function restrictStagedWindowsFile(dir: string, tmpFile: string): StagedWindowsRestriction {
+  if (verifiedWindowsDirectoriesThisProcess.get(dir)) {
+    return 'inherited'
+  }
+  if (nonBlockingWindowsWrites && !isWindowsSyncAclLaneAvailable()) {
+    return 'unrestricted'
+  }
+  // Why no retry floor here: the write path is user-driven, not polled, and a failed apply
+  // must still be retried on the next write of the same credential.
+  return restrictWindowsPathSync(tmpFile, false) ? 'protected' : 'unrestricted'
+}
+
+/** Converts a published file to a protected DACL off-thread; overlapping writes coalesce into one rerun. */
+function protectPublishedWindowsFile(targetPath: string): void {
+  if (publishedFileProtectInFlight.has(targetPath)) {
+    publishedFileProtectInFlight.set(targetPath, true)
+    return
+  }
+  publishedFileProtectInFlight.set(targetPath, false)
+  applySecurePathRestriction(targetPath, false, 'win32', false, (restricted) => {
+    const rewritten = publishedFileProtectInFlight.get(targetPath) === true
+    publishedFileProtectInFlight.delete(targetPath)
+    if (rewritten) {
+      protectPublishedWindowsFile(targetPath)
+    } else if (restricted) {
+      rememberHardenedPath(targetPath, false)
     }
   })
 }
@@ -119,6 +190,9 @@ export function writeDurableSecureJsonFile(targetPath: string, value: unknown): 
  * The return value covers the *file* only. The parent directory is hardened fire-and-forget — on
  * Windows that lane is async and answers `pending` regardless — so a `true` here says nothing
  * about the directory's ACL.
+ *
+ * On Windows this never spawns once the parent directory is verified, and never after a stalled
+ * icacls tripped the sync lane: icacls/whoami on the main thread froze every window (pv85).
  */
 export function writeSecureFile(
   targetPath: string,
@@ -141,19 +215,27 @@ export function writeSecureFile(
     if (options.durable) {
       fsyncFileSync(tmpFile)
     }
-    // Why: writeFileSync mode is a no-op on Windows, so restrict the credential's ACL synchronously before the rename publishes it under inherited ACLs.
-    const stagedOutcome = applySecurePathRestriction(tmpFile, false, process.platform, true)
+    // Why before the rename: writeFileSync mode is a no-op on Windows, so the staged file must
+    // already be restricted when the rename publishes it.
+    const staged: StagedWindowsRestriction =
+      process.platform === 'win32'
+        ? restrictStagedWindowsFile(dir, tmpFile)
+        : applySecurePathRestriction(tmpFile, false, process.platform, true) === 'applied'
+          ? 'protected'
+          : 'unrestricted'
+    // A same-volume rename keeps the staged file's DACL, so the published file needs no second pass.
     renameSync(tmpFile, targetPath)
-    // Why: these hold auth credentials, so the published path must stay current-user only; cache only on confirmed success so failures retry.
-    // The staged file's protected DACL survives the rename, so this pass usually just verifies it.
-    const publishedOutcome = applySecurePathRestriction(targetPath, false, process.platform, true)
-    if (publishedOutcome === 'applied') {
+    if (staged === 'protected') {
+      // Cache only on confirmed success so failures retry; a success also clears the read path's backoff.
       rememberHardenedPath(targetPath, false)
+      recordHardeningOutcome(targetPath, true)
+    } else if (process.platform === 'win32') {
+      protectPublishedWindowsFile(targetPath)
     }
     if (options.durable) {
       bestEffortFsyncDirectorySync(dir)
     }
-    return stagedOutcome === 'applied' && publishedOutcome === 'applied'
+    return staged !== 'unrestricted'
   } catch (error) {
     rmSync(tmpFile, { force: true })
     throw error
@@ -261,6 +343,7 @@ function applySecurePathRestriction(
   onAsyncSettled?: (restricted: boolean) => void
 ): HardeningOutcome {
   if (platform === 'win32') {
+    // Explicit sync callers keep blocking: their files rely on the restriction landing first.
     if (sync) {
       // Why no retry floor here: the write path is user-driven, not polled, and a failed apply
       // must still be retried on the next write of the same credential.
@@ -300,51 +383,6 @@ function rememberHardenedPath(targetPath: string, isDirectory: boolean): void {
   }
 }
 
-/**
- * Snapshots a path's identity, mode, and timestamps so later drift is detectable.
- * Mode is tracked directly so a chmod is caught even where coarse ctime granularity hides it.
- */
-function getHardenedPathCacheEntry(
-  targetPath: string,
-  isDirectory: boolean
-): HardenedPathCacheEntry | null {
-  try {
-    const stats = statSync(targetPath)
-    if (stats.isDirectory() !== isDirectory) {
-      return null
-    }
-    return {
-      isDirectory,
-      dev: stats.dev,
-      ino: stats.ino,
-      size: stats.size,
-      mode: stats.mode & 0o777,
-      ctimeMs: stats.ctimeMs,
-      mtimeMs: stats.mtimeMs,
-      birthtimeMs: stats.birthtimeMs
-    }
-  } catch {
-    return null
-  }
-}
-
-/** True when two snapshots describe the same unchanged path (identity, mode, timestamps). */
-function hardenedPathCacheEntriesMatch(
-  a: HardenedPathCacheEntry,
-  b: HardenedPathCacheEntry
-): boolean {
-  return (
-    a.isDirectory === b.isDirectory &&
-    a.dev === b.dev &&
-    a.ino === b.ino &&
-    a.size === b.size &&
-    a.mode === b.mode &&
-    a.ctimeMs === b.ctimeMs &&
-    a.mtimeMs === b.mtimeMs &&
-    a.birthtimeMs === b.birthtimeMs
-  )
-}
-
 export function __resetSecureFileWindowsUserSidForTests(): void {
   resetSecureFileWindowsUserSidForTests()
 }
@@ -354,6 +392,9 @@ export function __resetSecureFileHardenedPathsForTests(
 ): void {
   hardenedPathsThisProcess = new SecurePathHardeningCache(bounds)
   hardenedDirectoryPathsThisProcess = new SecurePathHardeningCache(bounds)
+  verifiedWindowsDirectoriesThisProcess = new SecurePathHardeningCache(bounds)
+  publishedFileProtectInFlight.clear()
+  nonBlockingWindowsWrites = false
   configureHardeningRetryBudget(bounds)
 }
 
