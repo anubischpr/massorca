@@ -6,7 +6,7 @@ import {
   PRBotAuthorOverrideUpdate,
   SettingsUpdate
 } from './client-settings-schemas'
-import { FeatureInteractionIdParam, UiUpdate } from './client-ui-schemas'
+import { FeatureInteractionIdParam, ThemeUpdate, UiUpdate } from './client-ui-schemas'
 // Type-only side effect: keeps the schema/PersistedUIState parity assertions in
 // the typecheck graph so drift fails the build instead of a paired client.
 
@@ -61,6 +61,18 @@ export const CLIENT_UI_METHODS = [
       runtime.updateClientNativeChatSessionOptions(params)
       return { ok: true as const }
     }
+  }),
+  defineMethod({
+    name: 'appearance.getTheme',
+    permission: 'workspace',
+    params: null,
+    handler: (_params, { runtime }) => ({ theme: runtime.getClientTheme() })
+  }),
+  defineMethod({
+    name: 'appearance.setTheme',
+    permission: 'settings-write',
+    params: ThemeUpdate,
+    handler: (params, { runtime }) => ({ theme: runtime.setClientTheme(params.theme) })
   }),
   defineMethod({
     name: 'ui.get',

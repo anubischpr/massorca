@@ -17,6 +17,7 @@ import { collectMemorySnapshot } from '../memory/collector'
 import type { PersistedUIState } from '../../shared/persisted-ui-state-types'
 import type { FeatureInteractionId } from '../../shared/feature-interactions'
 import type { RuntimeClientSettingsUpdate } from './runtime-client-settings'
+import type { GlobalSettings } from '../../shared/global-settings-types'
 import type { TerminalQuickCommand } from '../../shared/terminal-quick-command-types'
 import type { TerminalQuickCommandMutation } from '../../shared/terminal-quick-commands'
 import type { NativeChatSessionOptionSettingsMutation } from '../../shared/native-chat-session-options'
@@ -220,6 +221,14 @@ export class OrcaRuntimeWithPtyForegroundProcessReads extends OrcaRuntimeWithSta
 
   async updateClientSettings(updates: RuntimeClientSettingsUpdate) {
     return await this.clientSettings.update(updates)
+  }
+
+  getClientTheme(): GlobalSettings['theme'] {
+    return this.clientSettings.getTheme()
+  }
+
+  setClientTheme(theme: GlobalSettings['theme']): GlobalSettings['theme'] {
+    return this.clientSettings.setTheme(theme)
   }
 
   getClientTerminalQuickCommands(): TerminalQuickCommand[] {

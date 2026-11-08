@@ -38,6 +38,7 @@ import { runAfterFirstWindowShown } from './first-window-deferral'
 import { logStartupMilestone } from './startup-diagnostics'
 import { refreshInstalledOpenCodeStatusPlugins } from '../opencode/opencode-status-plugin-startup-refresh'
 import { pruneDesktopOrcadArtifactCache } from '../orcad/orcad-artifact-cache-retention'
+import { syncNativeThemeWithSettings } from './native-theme-sync'
 
 // Headless serve never opens a window, so the sweep still has to run off a timer there.
 const WORKTREE_TRASH_SWEEP_FALLBACK_MS = 15_000
@@ -104,7 +105,7 @@ export async function initializeReadyRuntimeServices(): Promise<void> {
       console.warn('[orcad-artifacts] Failed to bound the slot cache:', error)
     })
   }, WORKTREE_TRASH_SWEEP_FALLBACK_MS)
-  nativeTheme.themeSource = store.getSettings().theme ?? 'system'
+  syncNativeThemeWithSettings(store, nativeTheme)
   // Why here, after PATH hydration: the first Codex launch usually finds Codex's hook hash ready,
   // and launches find the reconcile in flight before CLI detection ends.
   startCodexHooks({
