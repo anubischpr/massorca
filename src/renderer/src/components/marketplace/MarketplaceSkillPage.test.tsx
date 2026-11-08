@@ -670,8 +670,10 @@ describe('MarketplaceSkillPage for a skill already installed', () => {
     expect(mocks.remove).not.toHaveBeenCalled()
   })
 
-  it('offers no Remove for a skill that is not installed', async () => {
+  it('offers no Remove for a skill that is not installed, and says there is no copy to remove', async () => {
     const page = await renderSkill({ skill: POOL_SKILL })
-    expect(page.textContent).not.toContain('Danger zone')
+    expect(page.querySelector('[data-marketplace-section="danger"]')).not.toBeNull()
+    expect(page.textContent).toContain('so there is no copy to remove.')
+    expect(page.textContent).not.toContain('Remove from')
   })
 })

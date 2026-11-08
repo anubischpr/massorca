@@ -6,6 +6,8 @@ import { useAppStore } from '@/store'
 import type { MarketplaceServiceId } from '../../../../shared/marketplace-services'
 import { UnsealedCredentialNotice } from '../settings/UnsealedCredentialNotice'
 import { ConnectionRow } from './MarketplaceAppConnection'
+import { MarketplaceFunctionNote } from './MarketplaceFunctionNote'
+import { MarketplaceIntegrationAccessNote } from './MarketplaceIntegrationAdvanced'
 import { MarketplaceIntegrationIcon } from './MarketplaceIntegrationIcon'
 import { MarketplaceIntegrationLayout } from './MarketplaceIntegrationLayout'
 import { MarketplaceIntegrationServiceDialog } from './MarketplaceIntegrationServiceDialog'
@@ -115,6 +117,15 @@ export function MarketplaceServiceIntegration({
                 action={null}
               />
             </div>
+            {connected ? (
+              <MarketplaceFunctionNote part="install">
+                {translate(
+                  `${COPY}.alreadyConnected`,
+                  'Already connected on {{host}}, so there is nothing new to connect.',
+                  { host: host.hostLabel }
+                )}
+              </MarketplaceFunctionNote>
+            ) : null}
             {cliMissing ? (
               <div className="flex flex-col items-start gap-3">
                 <p className="text-sm">
@@ -151,6 +162,12 @@ export function MarketplaceServiceIntegration({
             </div>
           </div>
         }
+        advanced={<MarketplaceIntegrationAccessNote id={service} />}
+        dangerNote={translate(
+          `${COPY}.noToken`,
+          '{{app}} has no token saved on {{host}}, so there is nothing to disconnect.',
+          { app: app.name, host: host.hostLabel }
+        )}
         disconnects={
           stored
             ? [

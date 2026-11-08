@@ -4,7 +4,10 @@ import { Button } from '@/components/ui/button'
 import { translate } from '@/i18n/i18n'
 import { useAppStore } from '@/store'
 import { UnsealedCredentialNotice } from '../settings/UnsealedCredentialNotice'
-import { MarketplaceIntegrationAccountScope } from './MarketplaceIntegrationAdvanced'
+import {
+  MarketplaceIntegrationAccessNote,
+  MarketplaceIntegrationAccountScope
+} from './MarketplaceIntegrationAdvanced'
 import {
   MarketplaceIntegrationAccounts,
   type IntegrationAccount
@@ -146,8 +149,17 @@ export function MarketplaceJiraIntegration(): React.JSX.Element {
             ) : null}
           </div>
         }
-        advanced={<MarketplaceIntegrationAccountScope />}
+        advanced={
+          <>
+            <MarketplaceIntegrationAccountScope />
+            <MarketplaceIntegrationAccessNote id="jira" />
+          </>
+        }
         disconnects={disconnects}
+        dangerNote={translate(
+          'auto.components.marketplace.MarketplaceIntegrationTaskProviders.jiraNotConnected',
+          'Jira is not connected, so there is nothing to disconnect.'
+        )}
       />
       <JiraConnectDialog open={dialogOpen} onOpenChange={setDialogOpen} />
     </>

@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { translate } from '@/i18n/i18n'
 import { MarketplaceAppSection } from './MarketplaceAppSection'
 import { MarketplaceFormDialog } from './MarketplaceFormDialog'
+import { MarketplaceFunctionNote } from './MarketplaceFunctionNote'
 
 /** One thing the page can disconnect, with the real call that does it. */
 export type IntegrationDisconnect = {
@@ -13,17 +14,29 @@ export type IntegrationDisconnect = {
   onConfirm: () => Promise<void>
 }
 
-/** Disconnecting is irreversible, so it sits alone at the end behind a confirmation. */
+/**
+ * Disconnecting is irreversible, so it sits alone at the end behind a confirmation. With nothing to
+ * disconnect, the section stays and says why.
+ */
 export function MarketplaceIntegrationDanger({
-  items
+  items,
+  emptyNote
 }: {
   items: readonly IntegrationDisconnect[]
-}): React.JSX.Element | null {
+  emptyNote: string
+}): React.JSX.Element {
   const [confirming, setConfirming] = useState<IntegrationDisconnect | null>(null)
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<string | null>(null)
   if (items.length === 0) {
-    return null
+    return (
+      <MarketplaceAppSection
+        id="danger"
+        title={translate('auto.components.marketplace.MarketplaceAppDanger.title', 'Danger zone')}
+      >
+        <MarketplaceFunctionNote part="uninstall">{emptyNote}</MarketplaceFunctionNote>
+      </MarketplaceAppSection>
+    )
   }
   const close = (): void => {
     setConfirming(null)

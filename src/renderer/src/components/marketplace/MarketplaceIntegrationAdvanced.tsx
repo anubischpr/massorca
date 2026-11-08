@@ -5,6 +5,28 @@ import { translate } from '@/i18n/i18n'
 import { useAppStore } from '@/store'
 import { getProviderAccountScope } from '../settings/provider-account-scope'
 import { ProviderHostScopeControl } from '../settings/ProviderHostScopeControl'
+import { MarketplaceFunctionNote } from './MarketplaceFunctionNote'
+import { MARKETPLACE_INTEGRATIONS, type MarketplaceIntegrationId } from './marketplace-integrations'
+
+/** Who can use an integration: per-agent limits are not backed for integrations yet, so the line says so. */
+export function MarketplaceIntegrationAccessNote({
+  id
+}: {
+  id: MarketplaceIntegrationId
+}): React.JSX.Element {
+  return (
+    <MarketplaceFunctionNote
+      part="access"
+      label={translate('auto.components.marketplace.MarketplaceAppAccess.title', 'Who can use it')}
+    >
+      {translate(
+        'auto.components.marketplace.MarketplaceIntegrationAdvanced.accessLimit',
+        'Limiting {{app}} per agent or bot team is not available yet.',
+        { app: MARKETPLACE_INTEGRATIONS[id].name }
+      )}
+    </MarketplaceFunctionNote>
+  )
+}
 
 /** Settings beyond connecting, open by default, like the app pages' Advanced options. */
 export function MarketplaceIntegrationAdvanced({

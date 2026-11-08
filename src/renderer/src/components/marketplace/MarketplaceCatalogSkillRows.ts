@@ -67,15 +67,10 @@ function skillRow(skill: DiscoveredSkill): CatalogRow {
 
 /** Custom skills open their own page; the custom list still decides their install state. */
 function customSkillRows(inputs: CatalogBuildInputs): CatalogRow[] {
-  const items = inputs.custom.kind === 'ready' ? inputs.custom.items : []
-  return customRows(inputs, 'skill', 'skills').map((row): CatalogRow => {
-    const item = items.find((candidate) => candidate.id === row.customId)
-    return {
-      ...row,
-      name: skillDisplayName(row.name),
-      target: item === undefined ? null : { kind: 'custom-skill', item }
-    }
-  })
+  return customRows(inputs, 'skill', 'skills').map((row): CatalogRow => ({
+    ...row,
+    name: skillDisplayName(row.name)
+  }))
 }
 
 function commandRow(command: BuiltInSkillCommand): CatalogRow {

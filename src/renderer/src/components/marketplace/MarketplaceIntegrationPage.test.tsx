@@ -196,7 +196,8 @@ describe('MarketplaceIntegrationPage', () => {
     Object.assign(window, { api: { marketplaceServices: { status: vi.fn(async () => NONE) } } })
     const gitlab = await mount('gitlab')
     expect(gitlab.textContent).toContain('Which merge requests are waiting for my review?')
-    expect(sectionIds(gitlab)).toEqual(['connection'])
+    // Why: every section stays on a token provider page; with no token, Danger zone says why.
+    expect(sectionIds(gitlab)).toEqual(['connection', 'advanced', 'danger'])
   })
 })
 
@@ -302,7 +303,7 @@ describe('MarketplaceIntegrationPage token entry', () => {
       await act(async () => {
         await Promise.resolve()
       })
-      expect(sectionIds(container)).toEqual(['connection'])
+      expect(sectionIds(container)).toEqual(['connection', 'advanced', 'danger'])
       expect(container.textContent).toContain('Not set on This computer')
 
       await click('Connect')
@@ -316,7 +317,7 @@ describe('MarketplaceIntegrationPage token entry', () => {
       })
       expect(document.body.querySelector('[role="dialog"]')).toBeNull()
       expect(document.body.textContent).not.toContain(TOKEN)
-      expect(sectionIds(container)).toEqual(['connection', 'danger'])
+      expect(sectionIds(container)).toEqual(['connection', 'advanced', 'danger'])
 
       await click('Disconnect')
       const confirm = Array.from(document.body.querySelectorAll('[role="dialog"] button')).find(
@@ -329,7 +330,7 @@ describe('MarketplaceIntegrationPage token entry', () => {
         confirm.click()
       })
       expect(api.disconnect).toHaveBeenCalledWith({ service: integration })
-      expect(sectionIds(container)).toEqual(['connection'])
+      expect(sectionIds(container)).toEqual(['connection', 'advanced', 'danger'])
     }
   )
 

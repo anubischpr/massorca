@@ -3,24 +3,32 @@ import { toast } from 'sonner'
 import { translate } from '@/i18n/i18n'
 import type { RuntimeClientTarget } from '@/runtime/runtime-client-target'
 import type { MarketplaceItemId } from '@/store/slices/ui/ui-slice-contract-core'
+import type { MarketplaceCustomItemStatus } from '../../../../shared/marketplace-custom'
 import type { TuiAgent } from '../../../../shared/tui-agent'
-import { skillAgentByRootPath } from '../skills/skill-agent-filter'
 import type { CatalogRow } from './MarketplaceCatalogRows'
-import {
-  marketplaceSkillPageFromScan,
-  type MarketplaceSkillListing,
-  type MarketplaceSkillPageData
-} from './MarketplaceSkillPageModel'
+import type { MarketplaceSkillListing, MarketplaceSkillPageData } from './MarketplaceSkillPageModel'
 import { BUILT_IN_SKILL_COMMANDS, type BuiltInSkillCommand } from './marketplace-skill-built-in'
-import { discoverSkillsForPickedHost } from './marketplace-skill-host-scan'
 import type { MarketplaceIntegrationId } from './marketplace-integrations'
+import {
+  planMarketplaceRowPage,
+  planSkillListingPage,
+  skillPageOutcome,
+  type MarketplaceRowBlockReason,
+  type MarketplaceRowPagePlan
+} from './marketplace-row-page-resolver'
 import type { MarketplaceVaultHostTarget } from './marketplace-vault-host-client'
 
-/** A page a list opened: an agent, a Settings integration, a built-in command, or a skill with the copies its page reads. */
+/**
+ * A page a list opened: an agent, a Settings integration, a built-in command, a board tool, a custom
+ * tool or agent (or the placeholder for them on a host), or a skill with the copies its page reads.
+ */
 export type MarketplaceOpenPage =
   | { kind: 'agent'; agent: TuiAgent }
   | { kind: 'integration'; id: MarketplaceIntegrationId }
   | { kind: 'built-in'; command: BuiltInSkillCommand }
+  | { kind: 'board-tool'; row: CatalogRow }
+  | { kind: 'custom-item'; item: MarketplaceCustomItemStatus }
+  | { kind: 'custom-unavailable'; row: CatalogRow }
   | { kind: 'skill'; listing: MarketplaceSkillListing; page: MarketplaceSkillPageData }
 
 export type MarketplaceOpenPageState = {
@@ -30,6 +38,8 @@ export type MarketplaceOpenPageState = {
   closePage: () => void
 }
 
+type SkillPlan = Extract<MarketplaceRowPagePlan, { kind: 'skill' }>
+
 function reportSkillOpenFailed(): void {
   toast.error(
     translate(
@@ -37,6 +47,78 @@ function reportSkillOpenFailed(): void {
       'Could not open this skill.'
     )
   )
+}
+
+/** Why: an SSH host cannot list skills, so it is the one blocked row the person is told about. */
+function reportBlockedRow(reason: MarketplaceRowBlockReason): void {
+  if (reason === 'ssh-no-skill-scan') {
+    reportSkillOpenFailed()
+  }
+}
+
+// Why: a skill page opens after its scan, so a later open or close must cancel it.
+function startSkillPage(
+  plan: SkillPlan,
+  openRequest: { current: number },
+  setOpenPage: (page: MarketplaceOpenPage) => void
+): void {
+  const request = ++openRequest.current
+  void plan.scan.then(
+    (result) => {
+      if (request !== openRequest.current) {
+        return
+      }
+      const outcome = skillPageOutcome(plan.listing, result)
+      if (outcome.opens) {
+        setOpenPage({ kind: 'skill', listing: plan.listing, page: outcome.page })
+      } else {
+        reportSkillOpenFailed()
+      }
+    },
+    () => {
+      if (request === openRequest.current) {
+        reportSkillOpenFailed()
+      }
+    }
+  )
+}
+
+function openRowPage(
+  row: CatalogRow,
+  onOpenItem: (id: MarketplaceItemId) => void,
+  setOpenPage: (page: MarketplaceOpenPage) => void
+): void {
+  const target = row.target
+  if (target === null) {
+    return
+  }
+  switch (target.kind) {
+    // Why: skill rows open through their scan, never through this path.
+    case 'skill':
+    case 'custom-skill':
+    case 'board-skill':
+      return
+    case 'item':
+      onOpenItem(target.id)
+      return
+    case 'integration':
+      setOpenPage({ kind: 'integration', id: target.id })
+      return
+    case 'built-in':
+      setOpenPage({ kind: 'built-in', command: BUILT_IN_SKILL_COMMANDS[target.id] })
+      return
+    case 'agent':
+      setOpenPage({ kind: 'agent', agent: target.agent })
+      return
+    case 'board-tool':
+      setOpenPage({ kind: 'board-tool', row })
+      return
+    case 'custom-item':
+      setOpenPage({ kind: 'custom-item', item: target.item })
+      return
+    case 'custom-unavailable':
+      setOpenPage({ kind: 'custom-unavailable', row })
+  }
 }
 
 /**
@@ -61,36 +143,12 @@ export function useMarketplaceOpenPage({
   // Why: the catalog keeps only the skill list, so the page takes one fresh scan for the copies it shows.
   const openSkillPage = useCallback(
     (listing: MarketplaceSkillListing): void => {
-      const scan = discoverSkillsForPickedHost(pickedTarget, skillTarget)
-      if (scan === null) {
-        if (pickedTarget !== null) {
-          reportSkillOpenFailed()
-        }
-        return
+      const plan = planSkillListingPage(listing, { pickedTarget, focusedRuntime: skillTarget })
+      if (plan.kind === 'skill') {
+        startSkillPage(plan, openRequest, setOpenPage)
+      } else if (!plan.resolution.opens) {
+        reportBlockedRow(plan.resolution.reason)
       }
-      const request = ++openRequest.current
-      void scan.then(
-        (result) => {
-          if (request !== openRequest.current) {
-            return
-          }
-          const page = marketplaceSkillPageFromScan(
-            listing,
-            result.skills,
-            skillAgentByRootPath(result)
-          )
-          if (page === null) {
-            reportSkillOpenFailed()
-            return
-          }
-          setOpenPage({ kind: 'skill', listing, page })
-        },
-        () => {
-          if (request === openRequest.current) {
-            reportSkillOpenFailed()
-          }
-        }
-      )
     },
     [pickedTarget, skillTarget]
   )
@@ -115,30 +173,19 @@ export function useMarketplaceOpenPage({
 
   const openRow = useCallback(
     (row: CatalogRow): void => {
-      const target = row.target
-      if (target === null) {
+      const plan = planMarketplaceRowPage(row, { pickedTarget, focusedRuntime: skillTarget })
+      if (plan.kind === 'skill') {
+        startSkillPage(plan, openRequest, setOpenPage)
         return
       }
-      if (target.kind === 'skill') {
-        openSkillPage({ kind: 'discovered', skill: target.skill })
-        return
-      }
-      if (target.kind === 'custom-skill') {
-        openSkillPage({ kind: 'custom', item: target.item })
+      if (!plan.resolution.opens) {
+        reportBlockedRow(plan.resolution.reason)
         return
       }
       openRequest.current += 1
-      if (target.kind === 'item') {
-        onOpenItem(target.id)
-      } else if (target.kind === 'integration') {
-        setOpenPage({ kind: 'integration', id: target.id })
-      } else if (target.kind === 'built-in') {
-        setOpenPage({ kind: 'built-in', command: BUILT_IN_SKILL_COMMANDS[target.id] })
-      } else {
-        setOpenPage({ kind: 'agent', agent: target.agent })
-      }
+      openRowPage(row, onOpenItem, setOpenPage)
     },
-    [openSkillPage, onOpenItem]
+    [pickedTarget, skillTarget, onOpenItem]
   )
 
   // Why: a scan still in flight, such as the rescan a removal starts, must not reopen the page it left.

@@ -12,6 +12,19 @@ const actions = vi.hoisted(() => ({ openSettingsPage: vi.fn(), openSettingsTarge
 vi.mock('@/store', () => ({
   useAppStore: (selector: (state: typeof actions) => unknown) => selector(actions)
 }))
+// Why: the page's host picker reads the host; this test checks the page, not the host list.
+vi.mock('./use-marketplace-app-host', () => ({
+  useMarketplaceAppHost: () => ({
+    targets: [],
+    selectedKey: null,
+    select: () => undefined,
+    apps: { status: 'ready', apps: [] },
+    failure: null,
+    scope: null,
+    wslDistro: null,
+    retry: () => undefined
+  })
+}))
 
 const { MarketplaceSkillBuiltInPage } = await import('./MarketplaceSkillBuiltInPage')
 
@@ -52,7 +65,9 @@ describe('MarketplaceSkillBuiltInPage', () => {
       'Built into MassOrca'
     )
     expect(page.textContent).toContain('Built into this version of MassOrca.')
-    expect(page.textContent).not.toContain('Danger zone')
+    // Why: the Danger zone stays on the page and says there is nothing to remove.
+    expect(page.querySelector('[data-marketplace-section="danger"]')).not.toBeNull()
+    expect(page.textContent).toContain('Built into MassOrca, so there is nothing to remove.')
     expect(page.textContent).not.toContain('Remove')
   })
 

@@ -1,5 +1,8 @@
 import { translate } from '@/i18n/i18n'
-import { MarketplaceIntegrationAccountScope } from './MarketplaceIntegrationAdvanced'
+import {
+  MarketplaceIntegrationAccessNote,
+  MarketplaceIntegrationAccountScope
+} from './MarketplaceIntegrationAdvanced'
 import { MarketplaceIntegrationLayout } from './MarketplaceIntegrationLayout'
 import { notOnHostMessage } from './marketplace-integration-service-copy'
 import { MARKETPLACE_INTEGRATIONS, type MarketplaceIntegrationId } from './marketplace-integrations'
@@ -31,8 +34,18 @@ export function MarketplaceRuntimeScopedIntegration({
               )}
         </p>
       }
-      advanced={<MarketplaceIntegrationAccountScope />}
+      advanced={
+        <>
+          <MarketplaceIntegrationAccountScope />
+          <MarketplaceIntegrationAccessNote id={id} />
+        </>
+      }
       disconnects={[]}
+      dangerNote={translate(
+        'auto.components.marketplace.MarketplaceIntegrationRuntimeScoped.disconnect',
+        'Disconnecting {{app}} on {{host}} is not available from this page yet.',
+        { app: MARKETPLACE_INTEGRATIONS[id].name, host: target.label }
+      )}
     />
   )
 }

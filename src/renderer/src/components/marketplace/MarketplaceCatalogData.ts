@@ -1,11 +1,10 @@
-import { useCallback } from 'react'
 import type { MarketplaceAppsState } from '@/store/slices/ui/ui-slice-contract-core'
 import type { PreflightStatus } from '../../../../preload/api-types'
 import type { MarketplaceAppAgent } from '../../../../shared/marketplace-apps'
 import type { MarketplaceCustomItemStatus } from '../../../../shared/marketplace-custom'
 import type { DiscoveredSkill } from '../../../../shared/skills'
 import type { TuiAgent } from '../../../../shared/tui-agent'
-import { useMarketplaceCustomItems } from './MarketplaceCatalogCustom'
+import { useMarketplaceCustomItems, type MarketplaceCustomItems } from './MarketplaceCatalogCustom'
 import {
   useMarketplaceInstalledSkills,
   type MarketplaceInstalledSkills
@@ -15,6 +14,7 @@ import {
   ownedRows,
   type CatalogAgentEntry,
   type CatalogBadge,
+  type CatalogBuildInputs,
   type CatalogCheck,
   type CatalogListState,
   type CatalogRow,
@@ -22,11 +22,12 @@ import {
   type CliBadges
 } from './MarketplaceCatalogRows'
 import type { MarketplaceItemId } from './marketplace-catalog'
+import type { MarketplaceIntegrationStates } from './marketplace-integrations'
 import { useMarketplaceIntegrationStates } from './marketplace-integration-status'
 import { marketplaceBadgeState, type MarketplaceBadgeState } from './marketplace-status'
 import type { MarketplaceVaultHostTarget } from './marketplace-vault-host-client'
 import { useMarketplaceAgents } from './use-marketplace-agents'
-import { useMarketplacePreflight } from './use-marketplace-preflight'
+import { useMarketplacePreflight, type MarketplacePreflight } from './use-marketplace-preflight'
 import {
   useMarketplaceRemoteDetection,
   type RemoteHostReads,
@@ -53,6 +54,65 @@ export type MarketplaceCatalog = {
   connected: readonly CatalogRow[]
   badgeFor: (id: MarketplaceItemId) => MarketplaceBadgeState
   installCustom: (id: string) => Promise<void>
+}
+
+/** The reads one host's catalog is built from: the page's hooks, or the audit's direct reads. */
+export type CatalogHostReads = {
+  local: boolean
+  hostLabel: string
+  apps: MarketplaceAppsState
+  preflight: MarketplacePreflight
+  marketplaceAgents: readonly MarketplaceAppAgent[] | null
+  skills: MarketplaceInstalledSkills
+  custom: Pick<MarketplaceCustomItems, 'items' | 'installingIds'>
+  remote: RemoteHostReads
+  integrations: MarketplaceIntegrationStates
+}
+
+/** The rows' build inputs and badge reader for one host; the page and the audit build rows from it. */
+export function catalogBuildInputsFor(reads: CatalogHostReads): {
+  inputs: CatalogBuildInputs
+  badgeFor: (id: MarketplaceItemId) => MarketplaceBadgeState
+} {
+  const rowBadgeFor = (id: MarketplaceItemId): CatalogBadge =>
+    reads.local
+      ? marketplaceBadgeState(id, {
+          preflight: reads.preflight.preflight,
+          preflightChecked: reads.preflight.checked,
+          apps: reads.apps
+        })
+      : remoteBadgeFor(id, reads.remote)
+  const agents: CatalogAgentEntry[] = BOARD_AGENTS.map((entry) => ({
+    id: entry.id,
+    label: entry.label,
+    check: reads.local
+      ? localAgentCheck(entry.app, reads.marketplaceAgents)
+      : remoteAgentCheck(entry, reads.remote)
+  }))
+  const customList: CatalogListState<MarketplaceCustomItemStatus> = !reads.local
+    ? { kind: 'unavailable' }
+    : reads.custom.items === null
+      ? { kind: 'loading' }
+      : { kind: 'ready', items: reads.custom.items }
+  return {
+    inputs: {
+      hostLabel: reads.hostLabel,
+      badgeFor: rowBadgeFor,
+      cli: reads.local
+        ? cliBadges(reads.preflight.preflight, reads.preflight.checked)
+        : remoteCliBadges(reads.remote),
+      integrations: reads.integrations,
+      agents,
+      skills: reads.local ? localSkillsCheck(reads.skills) : reads.remote.skills,
+      custom: customList,
+      installingCustomIds: reads.custom.installingIds
+    },
+    // Why: the item page's badge has no update state, so a host too old for the check reads as not checked.
+    badgeFor: (id) => {
+      const badge = rowBadgeFor(id)
+      return badge === 'update-required' ? 'unknown' : badge
+    }
+  }
 }
 
 /**
@@ -82,60 +142,18 @@ export function useMarketplaceCatalog({
   const remote = useMarketplaceRemoteDetection(local ? null : remoteTarget)
   const integrations = useMarketplaceIntegrationStates()
 
-  const rowBadgeFor = useCallback(
-    (id: MarketplaceItemId): CatalogBadge => {
-      if (!local) {
-        return remoteBadgeFor(id, remote)
-      }
-      return marketplaceBadgeState(id, {
-        preflight: preflight.preflight,
-        preflightChecked: preflight.checked,
-        apps
-      })
-    },
-    [apps, local, preflight.checked, preflight.preflight, remote]
-  )
-
-  const badgeFor = useCallback(
-    (id: MarketplaceItemId): MarketplaceBadgeState => {
-      const badge = rowBadgeFor(id)
-      // Why: the item page's badge has no update state, so a host too old for the check reads as not checked.
-      return badge === 'update-required' ? 'unknown' : badge
-    },
-    [rowBadgeFor]
-  )
-
-  const agents: CatalogAgentEntry[] = BOARD_AGENTS.map((entry) => ({
-    id: entry.id,
-    label: entry.label,
-    check: local ? localAgentCheck(entry.app, marketplaceAgents) : remoteAgentCheck(entry, remote)
-  }))
-
-  const skillList: CatalogCheck<readonly DiscoveredSkill[]> = local
-    ? localSkillsCheck(skills)
-    : remote.skills
-
-  const customList: CatalogListState<MarketplaceCustomItemStatus> = !local
-    ? { kind: 'unavailable' }
-    : custom.items === null
-      ? { kind: 'loading' }
-      : { kind: 'ready', items: custom.items }
-
-  const cli: CliBadges = local
-    ? cliBadges(preflight.preflight, preflight.checked)
-    : remoteCliBadges(remote)
-
-  const sections = buildCatalogSections({
+  const { inputs, badgeFor } = catalogBuildInputsFor({
     hostLabel,
-    badgeFor: rowBadgeFor,
-    cli,
-    integrations,
-    agents,
-    skills: skillList,
-    custom: customList,
-    installingCustomIds: custom.installingIds
+    local,
+    apps,
+    preflight,
+    marketplaceAgents,
+    skills,
+    custom,
+    remote,
+    integrations
   })
-
+  const sections = buildCatalogSections(inputs)
   const owned = ownedRows(sections)
   return {
     sections,
