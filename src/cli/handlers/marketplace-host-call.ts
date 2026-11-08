@@ -9,10 +9,13 @@ function isMethodNotFound(error: unknown): boolean {
 export async function callMarketplaceHost<TResult = unknown>(
   ctx: HandlerContext,
   method: string,
-  params?: unknown
+  params?: unknown,
+  options?: { timeoutMs?: number }
 ): Promise<RuntimeRpcSuccess<TResult>> {
   try {
-    return await ctx.client.call<TResult>(method, params)
+    return await (options
+      ? ctx.client.call<TResult>(method, params, options)
+      : ctx.client.call<TResult>(method, params))
   } catch (error) {
     if (isMethodNotFound(error)) {
       throw new RuntimeClientError(

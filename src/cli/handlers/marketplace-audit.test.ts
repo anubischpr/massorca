@@ -113,6 +113,7 @@ describe('orca marketplace audit', () => {
     await main(['marketplace', 'audit'], '/tmp/repo')
 
     expect(auditParams()).toEqual([{}])
+    expect(callMock.mock.calls[0][2]).toEqual({ timeoutMs: 100_000 })
     const text = output('log')
     expect(text).toContain('Marketplace on This computer:')
     expect(text).toContain('Skills / caveman: opens → skill')

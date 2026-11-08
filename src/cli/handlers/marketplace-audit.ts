@@ -5,6 +5,8 @@ import { resolveMarketplaceSkillHost, type MarketplaceSkillHost } from '../marke
 import { callMarketplaceHost } from './marketplace-host-call'
 
 const AUDIT_METHOD = 'marketplace.catalog.audit'
+// Why: the host relays to its renderer for up to 90 s; the 60 s CLI default would cut it off first.
+const AUDIT_TIMEOUT_MS = 100_000
 
 type AuditStructure = {
   hostPicker: boolean
@@ -88,7 +90,8 @@ export const MARKETPLACE_AUDIT_HANDLERS: Record<string, CommandHandler> = {
     const response = await callMarketplaceHost<MarketplaceAudit>(
       ctx,
       AUDIT_METHOD,
-      param ? { host: param } : {}
+      param ? { host: param } : {},
+      { timeoutMs: AUDIT_TIMEOUT_MS }
     )
     const audit = response.result
     if (!audit.ok) {
