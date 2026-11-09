@@ -51,7 +51,11 @@ const BOX: MarketplaceAgentHost = { kind: 'ssh', connectionId: 'conn-1', label: 
 
 const roots: { container: HTMLDivElement; root: Root }[] = []
 
-async function render(host: MarketplaceAgentHost, onDetection = vi.fn()): Promise<HTMLDivElement> {
+async function render(
+  host: MarketplaceAgentHost,
+  onDetection = vi.fn(),
+  installManaged = false
+): Promise<HTMLDivElement> {
   const container = document.createElement('div')
   document.body.appendChild(container)
   const root = createRoot(container)
@@ -63,6 +67,7 @@ async function render(host: MarketplaceAgentHost, onDetection = vi.fn()): Promis
           host={host}
           agentId="claude"
           installUrl={INSTALL_URL}
+          installManaged={installManaged}
           onDetection={onDetection}
         />
       </TooltipProvider>
@@ -97,6 +102,15 @@ describe('MarketplaceAgentHostPicked', () => {
     const remote = await render(VPS)
     expect(remote.querySelector('a')).toBeNull()
     expect(remote.querySelector('button')?.disabled).toBe(true)
+  })
+
+  it('leaves Install to the page card when MassOrca installs the agent itself', async () => {
+    const local = await render(LOCAL, vi.fn(), true)
+    expect(local.querySelector('a')).toBeNull()
+    expect(local.querySelector('button')).toBeNull()
+    expect(local.textContent).toContain('Missing')
+    const remote = await render(VPS, vi.fn(), true)
+    expect(remote.querySelector('button')).toBeNull()
   })
 
   it('shows no action on a host that never answered the probe', async () => {

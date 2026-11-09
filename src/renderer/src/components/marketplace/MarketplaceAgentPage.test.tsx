@@ -17,6 +17,8 @@ type Mocks = {
   withWsl: boolean
   alone: boolean
   wslByDistro: Record<string, WslProbe>
+  readStatus: (program: string, hostKey: string) => Promise<unknown>
+  runAction: (action: string, program: string, hostKey: string) => Promise<unknown>
 }
 
 const mocks = vi.hoisted((): Mocks => ({
@@ -25,7 +27,9 @@ const mocks = vi.hoisted((): Mocks => ({
   updateSettings: vi.fn(),
   withWsl: false,
   alone: false,
-  wslByDistro: {}
+  wslByDistro: {},
+  readStatus: vi.fn(),
+  runAction: vi.fn()
 }))
 
 // Why: the host list must be the same array on every render, or the app host reloads forever.
@@ -98,6 +102,12 @@ vi.mock('./marketplace-host-wsl', async (importOriginal) => ({
     distro === null
       ? { detectedIds: null, detectionFailed: false }
       : (mocks.wslByDistro[distro] ?? { detectedIds: null, detectionFailed: false })
+}))
+vi.mock('./marketplace-host-program-client', async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
+  readHostProgramStatus: (program: string, hostKey: string) => mocks.readStatus(program, hostKey),
+  runHostProgramAction: (action: string, program: string, hostKey: string) =>
+    mocks.runAction(action, program, hostKey)
 }))
 vi.mock('./marketplace-apps-host-client', () => ({
   readHostApps: () => Promise.resolve({ ok: true, apps: [] }),
@@ -185,9 +195,22 @@ beforeEach(() => {
   mocks.detectedByTarget = { local: ['claude'], 'runtime:env-1': [], 'ssh:conn-1': null }
   mocks.failedTargets = new Set(['ssh:conn-1'])
   mocks.updateSettings = vi.fn()
+  mocks.readStatus = vi.fn(async () => ({
+    ok: true,
+    installed: true,
+    method: 'npm',
+    version: 'claude 2',
+    canInstall: false,
+    canUninstall: true,
+    uninstallCommand: 'npm uninstall -g @anthropic-ai/claude-code'
+  }))
+  mocks.runAction = vi.fn(async () => ({ ok: true }))
   seedStore(store, {
     settings: getDefaultSettings('/tmp'),
     updateSettings: mocks.updateSettings,
+    refreshDetectedAgents: vi.fn(async () => []),
+    refreshRemoteDetectedAgents: vi.fn(async () => []),
+    refreshRuntimeDetectedAgents: vi.fn(async () => []),
     marketplaceHostKey: null
   })
 })
@@ -241,14 +264,15 @@ describe('MarketplaceAgentPage', () => {
     expect(vps.textContent).toContain('VPS')
     expect(vps.textContent).toContain('Not installed')
     expect(vps.textContent).toContain('Missing')
-    expect(buttonIn(vps, 'Install').disabled).toBe(true)
+    // Why: the page's own Install card installs it, so the row carries no second Install.
+    expect(vps.querySelector('button')).toBeNull()
     expect(page.querySelector('[data-marketplace-agent-host="local"]')).toBeNull()
     expect(page.querySelector('[data-marketplace-status-line]')?.textContent).toBe(
       'Not installed on VPS'
     )
   })
 
-  it('shows a picked WSL distro with its own detection and a disabled Install', async () => {
+  it('shows a picked WSL distro with its own detection and no row Install', async () => {
     mocks.withWsl = true
     mocks.wslByDistro = { Ubuntu: { detectedIds: [], detectionFailed: false } }
     seedStore(store, { marketplaceHostKey: 'wsl:Ubuntu' })
@@ -257,7 +281,7 @@ describe('MarketplaceAgentPage', () => {
     const row = hostRow('wsl:Ubuntu')
     expect(row.textContent).toContain('WSL: Ubuntu')
     expect(row.textContent).toContain('Missing')
-    expect(buttonIn(row, 'Install').disabled).toBe(true)
+    expect(row.querySelector('button')).toBeNull()
     expect(page.querySelector('[data-marketplace-agent-host="local"]')).toBeNull()
     expect(page.querySelector('[data-marketplace-status-line]')?.textContent).toBe(
       'Not installed on WSL: Ubuntu'
@@ -293,12 +317,20 @@ describe('MarketplaceAgentPage', () => {
     )
   })
 
-  it('links Install on This computer to the agent install page', async () => {
+  it('installs on This computer from the Install card, not a link to the vendor page', async () => {
     mocks.detectedByTarget.local = []
-    await renderPage()
-    const link = hostRow('local').querySelector('a')
-    expect(link?.textContent).toBe('Install')
-    expect(link?.getAttribute('href')).toBe('https://example.test/claude')
+    mocks.readStatus = vi.fn(async () => ({
+      ok: true,
+      installed: false,
+      canInstall: true,
+      canUninstall: false,
+      installCommand: 'winget install --id Anthropic.ClaudeCode -e'
+    }))
+    const page = await renderPage()
+    expect(hostRow('local').querySelector('a')).toBeNull()
+    const card = section(page, '[data-marketplace-host-program="install"]')
+    await act(async () => buttonIn(card, 'Install').click())
+    expect(mocks.runAction).toHaveBeenCalledWith('install', 'claude', 'local')
   })
 
   it('turns the agent off and sets it as default from On This computer', async () => {
@@ -335,5 +367,50 @@ describe('MarketplaceAgentPage', () => {
     await act(async () => envEdit.click())
     expect(envEdit.getAttribute('aria-expanded')).toBe('true')
     expect(commandEdit.getAttribute('aria-expanded')).toBe('false')
+  })
+
+  it('installs the agent on the picked host from its own Install card', async () => {
+    seedStore(store, { marketplaceHostKey: 'runtime:env-1' })
+    mocks.readStatus = vi.fn(async () => ({
+      ok: true,
+      installed: false,
+      canInstall: true,
+      canUninstall: false,
+      installCommand: 'curl -fsSL https://claude.ai/install.sh | bash'
+    }))
+    const page = await renderPage()
+    const card = section(page, '[data-marketplace-host-program="install"]')
+    expect(card.textContent).toContain(
+      'MassOrca will run: curl -fsSL https://claude.ai/install.sh | bash'
+    )
+    await act(async () => buttonIn(card, 'Install').click())
+    expect(mocks.runAction).toHaveBeenCalledWith('install', 'claude', 'runtime:env-1')
+  })
+
+  it('uninstalls from the Danger zone only after a confirm, naming what stays', async () => {
+    const page = await renderPage()
+    const danger = section(page, '[data-marketplace-section="danger"]')
+    expect(danger.textContent).not.toContain('MassOrca does not uninstall')
+    expect(danger.textContent).toContain('installed with npm')
+    await act(async () => buttonIn(danger, 'Uninstall').click())
+    const dialog = section(document, '[role="dialog"]')
+    expect(dialog.textContent).toContain('Uninstall Claude Code from This computer?')
+    expect(dialog.textContent).toContain('Your data in ~/.claude stays.')
+    expect(mocks.runAction).not.toHaveBeenCalled()
+    await act(async () => buttonIn(dialog, 'Uninstall').click())
+    expect(mocks.runAction).toHaveBeenCalledWith('uninstall', 'claude', 'local')
+  })
+
+  it('shows the real error when the uninstall cannot finish', async () => {
+    mocks.runAction = vi.fn(async () => ({
+      ok: false,
+      reason: 'failed',
+      message: 'EBUSY file in use'
+    }))
+    const page = await renderPage()
+    const danger = section(page, '[data-marketplace-section="danger"]')
+    await act(async () => buttonIn(danger, 'Uninstall').click())
+    await act(async () => buttonIn(section(document, '[role="dialog"]'), 'Uninstall').click())
+    expect(section(page, '[role="alert"]').textContent).toContain('EBUSY file in use')
   })
 })

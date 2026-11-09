@@ -9,7 +9,8 @@ import type { MarketplaceCustomItemStatus } from '../../../../shared/marketplace
 import type { GitInstallPlanView } from '../../../../shared/marketplace-install'
 import type { BotTeam } from '../../../../shared/rpc-contract/bot-team-params'
 import type { DiscoveredSkill } from '../../../../shared/skills'
-import { MARKETPLACE_CATALOG } from './marketplace-catalog'
+import { MARKETPLACE_CATALOG, type MarketplaceCatalogItem } from './marketplace-catalog'
+import type { GitInstallView } from './GitInstallState'
 import {
   MARKETPLACE_PAGE_STRUCTURE,
   marketplaceRowSource,
@@ -21,6 +22,15 @@ import type { MarketplaceSkillPageSkill } from './MarketplaceSkillPageModel'
 import type { MarketplaceVaultHostTarget } from './marketplace-vault-host-client'
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true
+
+// Why: the host-program card and the agent and Git cards read these; each test sets the state it needs.
+const mocks = vi.hoisted(
+  (): { programs: Record<string, unknown>; agentsFound: string[]; gitView: GitInstallView } => ({
+    programs: {},
+    agentsFound: [],
+    gitView: { kind: 'checking' }
+  })
+)
 
 // Why: the target and team lists must be the same array on every render, or the app host reloads forever.
 const NO_TARGETS: MarketplaceVaultHostTarget[] = []
@@ -63,10 +73,10 @@ vi.mock('@/lib/agent-catalog', () => {
 vi.mock('@/lib/agent-icon-gentle-shell', () => ({ GentleShellIcon: () => null }))
 vi.mock('@/lib/pi-agent-display', () => ({ piRuntimeLabel: () => 'Gentle Shell' }))
 vi.mock('@/lib/use-pi-runtime', () => ({ usePiDisplayRuntime: () => 'unknown' }))
-// Why: this computer has no claude, so the agent page offers Install.
+// Why: this computer has no claude unless a test adds it, so the agent page offers Install until then.
 vi.mock('@/hooks/useDetectedAgents', () => ({
   useDetectedAgents: () => ({
-    detectedIds: [],
+    detectedIds: mocks.agentsFound,
     isLoading: false,
     detectionFailed: false,
     isRefreshing: false,
@@ -101,9 +111,15 @@ vi.mock('../settings/use-integration-provider-status-refresh', () => ({
 vi.mock('../settings/linear-agent-skill-install-cta', () => ({
   LinearAgentSkillInstallCta: () => null
 }))
+vi.mock('./marketplace-host-program-client', async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
+  readHostProgramStatus: (program: string) =>
+    Promise.resolve(mocks.programs[program] ?? NOT_INSTALLED),
+  runHostProgramAction: () => Promise.resolve({ ok: true })
+}))
 vi.mock('./GitInstallController', () => ({
   useGitInstallController: () => ({
-    view: { kind: 'before', plan: GIT_PLAN },
+    view: mocks.gitView,
     install: () => undefined,
     adopt: () => undefined,
     recheck: () => undefined
@@ -261,6 +277,24 @@ const CUSTOM_TOOL: MarketplaceCustomItemStatus = {
   presence: 'missing'
 }
 
+// Why: a program this computer lacks, and one it has; the host-program card reads them.
+const NOT_INSTALLED = {
+  ok: true,
+  installed: false,
+  canInstall: true,
+  canUninstall: false,
+  installCommand: 'brew install git'
+}
+const INSTALLED = {
+  ok: true,
+  installed: true,
+  method: 'winget',
+  version: '2.60',
+  canInstall: false,
+  canUninstall: true,
+  uninstallCommand: 'winget uninstall --id GitHub.cli -e'
+}
+
 const roots: { container: HTMLDivElement; root: Root }[] = []
 
 async function render(element: ReactElement): Promise<HTMLDivElement> {
@@ -300,6 +334,21 @@ function isInstallText(text: string): boolean {
   )
 }
 
+/** Whether the page's Danger zone has a button that reads exactly this text. */
+function dangerHas(page: HTMLElement, text: string): boolean {
+  const danger = page.querySelector<HTMLElement>('[data-marketplace-section="danger"]')
+  return danger !== null && hasAction(danger, (label) => label === text)
+}
+
+/** The Git item from the catalog, for the item-detail page. */
+function gitItem(): MarketplaceCatalogItem {
+  const git = MARKETPLACE_CATALOG.find((item) => item.id === 'git')
+  if (!git) {
+    throw new Error('Git item missing from the catalog')
+  }
+  return git
+}
+
 /**
  * The page's structure as the DOM shows it. Markers: the host picker is the dropdown trigger;
  * install and uninstall are the action buttons; sections are data-marketplace-section ids, each
@@ -312,7 +361,10 @@ function observe(page: HTMLElement): MarketplacePageStructure {
   return {
     hostPicker: page.querySelector('button[aria-haspopup="menu"]') !== null,
     install: hasAction(page, isInstallText),
-    uninstall: hasAction(page, (text) => text === 'Disconnect' || text.startsWith('Remove from ')),
+    uninstall: hasAction(
+      page,
+      (text) => text === 'Uninstall' || text === 'Disconnect' || text.startsWith('Remove from ')
+    ),
     connectionConfig: page.querySelector('[data-marketplace-section="connection"] button') !== null,
     accessPolicy:
       page.querySelector(
@@ -347,6 +399,9 @@ function missingWithoutNote(page: HTMLElement, structure: MarketplacePageStructu
 }
 
 beforeEach(() => {
+  mocks.programs = {}
+  mocks.agentsFound = []
+  mocks.gitView = { kind: 'before', plan: GIT_PLAN }
   seedStore(store, {
     settings,
     updateSettings: vi.fn(),
@@ -376,10 +431,22 @@ afterEach(async () => {
 })
 
 describe('Marketplace page structure matches the rendered pages', () => {
-  it('agent: picker, Install for a host without the agent, Use this agent, no uninstall', async () => {
+  it('agent not installed on the picked host: picker, Install in the host card, Use this agent, the Danger zone says why', async () => {
     const page = await render(<MarketplaceAgentPage agentId="claude" onBack={() => undefined} />)
-    expect(observe(page)).toEqual(MARKETPLACE_PAGE_STRUCTURE.agent)
-    expect(missingWithoutNote(page, MARKETPLACE_PAGE_STRUCTURE.agent)).toEqual([])
+    const expected = { ...MARKETPLACE_PAGE_STRUCTURE.agent, install: true, uninstall: false }
+    expect(observe(page)).toEqual(expected)
+    expect(missingWithoutNote(page, expected)).toEqual([])
+  })
+
+  it('agent installed on the picked host: Uninstall in the Danger zone, no Install', async () => {
+    mocks.agentsFound = ['claude']
+    mocks.programs.claude = INSTALLED
+    const page = await render(<MarketplaceAgentPage agentId="claude" onBack={() => undefined} />)
+    const expected = { ...MARKETPLACE_PAGE_STRUCTURE.agent, install: false, uninstall: true }
+    expect(observe(page)).toEqual(expected)
+    expect(dangerHas(page, 'Uninstall')).toBe(true)
+    // Why: an installed program shows no Install line; the status line and the Danger zone say it is there.
+    expect(missingWithoutNote(page, expected).filter((part) => part !== 'install')).toEqual([])
   })
 
   it('built-in: picker, every section with a why line, no install or uninstall', async () => {
@@ -505,30 +572,72 @@ describe('Marketplace page structure matches the rendered pages', () => {
     expect(observe(page)).toEqual(MARKETPLACE_PAGE_STRUCTURE['item-app'])
   })
 
-  it('item-detail (Git): Install board while Git is missing, every section with a why line', async () => {
-    const git = MARKETPLACE_CATALOG.find((item) => item.id === 'git')
-    if (!git) {
-      throw new Error('Git item missing from the catalog')
-    }
+  it('item-detail (Git) missing here: Install board, the Danger zone says why, every section', async () => {
     const page = await render(
-      <MarketplaceDetail item={git} badgeState="not-installed" onBack={() => undefined} />
+      <MarketplaceDetail item={gitItem()} badgeState="not-installed" onBack={() => undefined} />
     )
-    expect(observe(page)).toEqual(MARKETPLACE_PAGE_STRUCTURE['item-detail'])
-    expect(missingWithoutNote(page, MARKETPLACE_PAGE_STRUCTURE['item-detail'])).toEqual([])
+    const expected = {
+      ...MARKETPLACE_PAGE_STRUCTURE['item-detail'],
+      install: true,
+      uninstall: false
+    }
+    expect(observe(page)).toEqual(expected)
+    expect(missingWithoutNote(page, expected)).toEqual([])
   })
 
-  it('board tool GitHub CLI: picker, a disabled install with its why, every section', async () => {
+  it('item-detail (Git) installed here: Uninstall in the Danger zone, no Install', async () => {
+    mocks.gitView = { kind: 'installed', version: '2.50', path: '/usr/bin/git' }
+    mocks.programs.git = INSTALLED
+    const page = await render(
+      <MarketplaceDetail item={gitItem()} badgeState="installed" onBack={() => undefined} />
+    )
+    const expected = {
+      ...MARKETPLACE_PAGE_STRUCTURE['item-detail'],
+      install: false,
+      uninstall: true
+    }
+    expect(observe(page)).toEqual(expected)
+    expect(dangerHas(page, 'Uninstall')).toBe(true)
+    // Why: as for the agent, an installed program shows no Install line.
+    expect(missingWithoutNote(page, expected).filter((part) => part !== 'install')).toEqual([])
+  })
+
+  it('board tool GitHub CLI not installed here: Install in the host card, the Danger zone says why, every section', async () => {
     const page = await render(<MarketplaceBoardToolPage row={TOOL_ROW} onBack={() => undefined} />)
-    expect(observe(page)).toEqual(MARKETPLACE_PAGE_STRUCTURE['board-tool'])
-    expect(missingWithoutNote(page, MARKETPLACE_PAGE_STRUCTURE['board-tool'])).toEqual([])
-    expect(page.textContent).toContain('MassOrca cannot install GitHub CLI yet.')
+    const expected = {
+      ...MARKETPLACE_PAGE_STRUCTURE['board-tool'],
+      install: true,
+      uninstall: false
+    }
+    expect(observe(page)).toEqual(expected)
+    expect(missingWithoutNote(page, expected)).toEqual([])
+    expect(page.textContent).toContain('Not installed on This computer')
   })
 
-  it('board tool Node.js: the same structure, with Node.js wording', async () => {
+  it('board tool GitHub CLI installed here: Uninstall in the Danger zone, no Install', async () => {
+    mocks.programs.gh = INSTALLED
+    const page = await render(<MarketplaceBoardToolPage row={TOOL_ROW} onBack={() => undefined} />)
+    const expected = {
+      ...MARKETPLACE_PAGE_STRUCTURE['board-tool'],
+      install: false,
+      uninstall: true
+    }
+    expect(observe(page)).toEqual(expected)
+    expect(dangerHas(page, 'Uninstall')).toBe(true)
+    // Why: as for the agent, an installed program shows no Install line.
+    expect(missingWithoutNote(page, expected).filter((part) => part !== 'install')).toEqual([])
+  })
+
+  it('board tool Node.js not installed here: the same structure, with Node.js wording', async () => {
     const page = await render(<MarketplaceBoardToolPage row={NODE_ROW} onBack={() => undefined} />)
-    expect(observe(page)).toEqual(MARKETPLACE_PAGE_STRUCTURE['board-tool'])
-    expect(page.textContent).toContain('MassOrca cannot install Node.js yet.')
+    const expected = {
+      ...MARKETPLACE_PAGE_STRUCTURE['board-tool'],
+      install: true,
+      uninstall: false
+    }
+    expect(observe(page)).toEqual(expected)
     expect(page.textContent).toContain('Node.js needs no account.')
+    expect(page.textContent).not.toContain('MassOrca cannot install Node.js yet.')
   })
 
   it('custom tool not installed here: Install, the commands, Remove from Marketplace', async () => {

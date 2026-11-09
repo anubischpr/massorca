@@ -15,15 +15,22 @@ import {
   marketplaceAgentHostKey,
   marketplaceAgentHostLabel,
   marketplaceAgentHostStatus,
-  type MarketplaceAgentDetection
+  type MarketplaceAgentDetection,
+  type MarketplaceAgentHost
 } from './MarketplaceAgentHostState'
 import { MarketplaceAgentSettings } from './MarketplaceAgentSettings'
 import { MarketplaceAppSection } from './MarketplaceAppSection'
 import { MarketplaceBreadcrumb, MarketplaceItemHeader } from './MarketplaceDetail'
 import { MarketplaceFunctionNote } from './MarketplaceFunctionNote'
+import { agentHostProgram } from './marketplace-host-program-client'
+import {
+  MarketplaceHostProgramInstall,
+  MarketplaceHostProgramUninstall
+} from './MarketplaceHostProgramControls'
 import { MarketplaceIntegrationAdvanced } from './MarketplaceIntegrationAdvanced'
 import { MarketplacePageHostRow } from './MarketplacePageHostRow'
 import { useMarketplaceAppHost } from './use-marketplace-app-host'
+import { useMarketplaceHostProgram } from './use-marketplace-host-program'
 import { marketplaceHostKey } from './use-marketplace-host-targets'
 
 // Why: the agent catalog carries no description; only agents whose maker is certain get one.
@@ -39,6 +46,18 @@ const AGENT_DESCRIPTIONS: Partial<Record<TuiAgent, { key: string; fallback: stri
   gemini: {
     key: 'auto.components.marketplace.MarketplaceAgentPage.description.gemini',
     fallback: 'Coding agent from Google.'
+  }
+}
+
+/** Re-detects the agents of the picked host, so the page reads the install or uninstall it just made. */
+function refreshAgentDetection(host: MarketplaceAgentHost): void {
+  const state = useAppStore.getState()
+  if (host.kind === 'runtime') {
+    void state.refreshRuntimeDetectedAgents(host.environmentId).catch(() => undefined)
+  } else if (host.kind === 'ssh') {
+    void state.refreshRemoteDetectedAgents(host.connectionId).catch(() => undefined)
+  } else if (host.kind === 'local') {
+    void state.refreshDetectedAgents().catch(() => undefined)
   }
 }
 
@@ -58,6 +77,16 @@ export function MarketplaceAgentPage({
   const pickedTarget =
     host.targets.find((target) => marketplaceHostKey(target) === host.selectedKey) ?? null
   const pickedHost = marketplaceAgentHostFromTarget(pickedTarget)
+  const [detectionTick, setDetectionTick] = useState(0)
+  const hostProgram = useMarketplaceHostProgram(
+    agentHostProgram(agentId),
+    pickedTarget ? marketplaceHostKey(pickedTarget) : 'local',
+    () => {
+      refreshAgentDetection(pickedHost)
+      // Why: a WSL distro is probed by the Hosts card itself, so a new key makes it ask again.
+      setDetectionTick((tick) => tick + 1)
+    }
+  )
   const [detections, setDetections] = useState<Record<string, MarketplaceAgentDetection>>({})
   const reportDetection = useCallback((key: string, detection: MarketplaceAgentDetection) => {
     setDetections((current) =>
@@ -87,11 +116,19 @@ export function MarketplaceAgentPage({
         status={status.text}
       />
       <MarketplaceAgentHosts
+        key={detectionTick}
         host={pickedHost}
         agentId={agentId}
         installUrl={entry?.homepageUrl ?? ''}
+        installManaged={agentHostProgram(agentId) !== null}
         onDetection={reportDetection}
       />
+      {hostProgram ? (
+        <MarketplaceHostProgramInstall
+          program={hostProgram}
+          host={marketplaceAgentHostLabel(pickedHost)}
+        />
+      ) : null}
       {entry && settings ? (
         <MarketplaceAgentSettings
           hostName={marketplaceAgentHostLabel({ kind: 'local' })}
@@ -135,13 +172,20 @@ export function MarketplaceAgentPage({
         id="danger"
         title={translate('auto.components.marketplace.MarketplaceAppDanger.title', 'Danger zone')}
       >
-        <MarketplaceFunctionNote part="uninstall">
-          {translate(
-            'auto.components.marketplace.MarketplaceAgentPage.noUninstall',
-            'MassOrca does not uninstall {{name}}. Remove it with its own uninstaller.',
-            { name }
-          )}
-        </MarketplaceFunctionNote>
+        {hostProgram ? (
+          <MarketplaceHostProgramUninstall
+            program={hostProgram}
+            host={marketplaceAgentHostLabel(pickedHost)}
+          />
+        ) : (
+          <MarketplaceFunctionNote part="uninstall">
+            {translate(
+              'auto.components.marketplace.MarketplaceAgentPage.noUninstall',
+              'MassOrca does not uninstall {{name}}. Remove it with its own uninstaller.',
+              { name }
+            )}
+          </MarketplaceFunctionNote>
+        )}
       </MarketplaceAppSection>
     </div>
   )

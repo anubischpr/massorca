@@ -13,11 +13,13 @@ export function MarketplaceAgentHosts({
   host,
   agentId,
   installUrl,
+  installManaged,
   onDetection
 }: {
   host: MarketplaceAgentHost
   agentId: TuiAgent
   installUrl: string
+  installManaged?: boolean
   onDetection: (key: string, detection: MarketplaceAgentDetection) => void
 }): React.JSX.Element {
   return (
@@ -32,6 +34,7 @@ export function MarketplaceAgentHosts({
           host={host}
           agentId={agentId}
           installUrl={installUrl}
+          installManaged={installManaged}
           onDetection={onDetection}
         />
       </MarketplaceCard>

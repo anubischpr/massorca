@@ -3,9 +3,10 @@ import { Button } from '@/components/ui/button'
 import { translate } from '@/i18n/i18n'
 import { cn } from '@/lib/utils'
 import { SKILLS_PAGE_COLUMN } from '../skills/skills-page-column'
-import { GitDetail } from './GitDetail'
+import { GitDetail, useGitDetailControls } from './GitDetail'
 import { MarketplaceAppSection } from './MarketplaceAppSection'
 import { MarketplaceFunctionNote } from './MarketplaceFunctionNote'
+import { MarketplaceHostProgramUninstall } from './MarketplaceHostProgramControls'
 import { MarketplaceIntegrationAdvanced } from './MarketplaceIntegrationAdvanced'
 import { MarketplaceItemIcon } from './MarketplaceItemIcon'
 import { MarketplacePageHostRow } from './MarketplacePageHostRow'
@@ -26,6 +27,10 @@ export function MarketplaceDetail({
   onBack: () => void
 }): React.JSX.Element {
   const host = useMarketplaceAppHost()
+  const hostLabel = host.scope?.label ?? null
+  const git = useGitDetailControls(hostLabel)
+  // Why: only Git has a host program here; any other item keeps the note that MassOrca does not remove it.
+  const program = item.id === 'git' ? git.program : null
   return (
     <div className={cn(SKILLS_PAGE_COLUMN, 'flex flex-col gap-5 py-4')}>
       <MarketplacePageHostRow host={host}>
@@ -44,7 +49,7 @@ export function MarketplaceDetail({
         </div>
         <MarketplaceStatusBadge state={badgeState} />
       </div>
-      <GitDetail state={badgeState} hostLabel={host.scope?.label ?? null} />
+      <GitDetail state={badgeState} hostLabel={hostLabel} controls={git} />
       <MarketplaceFunctionNote part="banner">
         {translate(
           'auto.components.marketplace.MarketplaceDetail.noBanner',
@@ -93,13 +98,23 @@ export function MarketplaceDetail({
         id="danger"
         title={translate('auto.components.marketplace.MarketplaceAppDanger.title', 'Danger zone')}
       >
-        <MarketplaceFunctionNote part="uninstall">
-          {translate(
-            'auto.components.marketplace.MarketplaceDetail.noUninstall',
-            'MassOrca does not remove {{name}}.',
-            { name: item.name }
-          )}
-        </MarketplaceFunctionNote>
+        {program ? (
+          <MarketplaceHostProgramUninstall
+            program={program}
+            host={
+              hostLabel ??
+              translate('auto.components.marketplace.GitDetail.thisComputer', 'This computer')
+            }
+          />
+        ) : (
+          <MarketplaceFunctionNote part="uninstall">
+            {translate(
+              'auto.components.marketplace.MarketplaceDetail.noUninstall',
+              'MassOrca does not remove {{name}}.',
+              { name: item.name }
+            )}
+          </MarketplaceFunctionNote>
+        )}
       </MarketplaceAppSection>
     </div>
   )

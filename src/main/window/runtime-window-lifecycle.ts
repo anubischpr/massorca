@@ -15,6 +15,7 @@ import { requestAgentLaunchTabPublishFromRenderer } from './agent-launch-tab-pub
 import type { OrcaRuntimeService } from '../runtime/orca-runtime'
 import { setMarketplaceCatalogAuditRequester } from '../runtime/rpc/methods/marketplace-catalog-audit-methods'
 import { requestMarketplaceCatalogAudit } from '../marketplace/marketplace-catalog-audit-relay'
+import { installHostProgramTransports } from '../marketplace/host-programs/host-program-transports'
 import { requestMobileMarkdownFromRenderer } from './mobile-markdown-request-relay'
 import { registerRendererDocumentNavigation } from './renderer-document-navigation'
 import { createRuntimeRendererNotificationSender } from './runtime-renderer-notification-sender'
@@ -227,6 +228,8 @@ export function registerRuntimeWindowLifecycle(
   })
   // Why: the Marketplace audit asks this window's renderer, so the requester closes over this window.
   setMarketplaceCatalogAuditRequester((host) => requestMarketplaceCatalogAudit(mainWindow, host))
+  // Why: host-program installs reach SSH and paired hosts through the desktop; installing is idempotent.
+  installHostProgramTransports()
   registerRendererDocumentNavigation(mainWebContents, () => {
     rendererNotifications.onMainFrameReloadStarted()
     const fence = runtime.markRendererReloading(mainWindow.id)

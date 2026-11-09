@@ -61,10 +61,10 @@ const SERVICE_LIKE: MarketplacePageStructure = {
 export const MARKETPLACE_PAGE_STRUCTURE: Record<MarketplacePageKind, MarketplacePageStructure> = {
   agent: {
     hostPicker: true,
-    // Only when the picked host lacks the agent: an Install link here, a disabled one elsewhere.
+    // Install on the picked host, in the host-program card; hidden once the agent is installed there.
     install: true,
-    // Agents are installed by their vendor, so MassOrca has nothing to uninstall.
-    uninstall: false,
+    // Uninstall in the Danger zone, from the same card, once the agent is installed on the picked host.
+    uninstall: true,
     connectionConfig: false,
     // "Use this agent" On/Off, which is per host.
     accessPolicy: true,
@@ -108,19 +108,20 @@ export const MARKETPLACE_PAGE_STRUCTURE: Record<MarketplacePageKind, Marketplace
   },
   'item-detail': {
     hostPicker: true,
-    // Only while Git is missing on this computer: the Install board.
+    // Only while Git is missing on the page's host: the Install board, or Install on a picked host.
     install: true,
-    // MassOrca does not remove Git.
-    uninstall: false,
+    // Uninstall in the Danger zone, once Git is installed on the page's host.
+    uninstall: true,
     connectionConfig: false,
     accessPolicy: false,
     sections: ALL_SECTIONS
   },
   'board-tool': {
     hostPicker: true,
-    // Neither GitHub CLI nor Node.js has an install MassOrca can run yet.
-    install: false,
-    uninstall: false,
+    // Install on the picked host, in the host-program card; hidden once GitHub CLI or Node.js is there.
+    install: true,
+    // Uninstall in the Danger zone, once GitHub CLI or Node.js is installed on the picked host.
+    uninstall: true,
     connectionConfig: false,
     accessPolicy: false,
     sections: ALL_SECTIONS

@@ -1,5 +1,6 @@
 import { Button } from '@/components/ui/button'
 import { translate } from '@/i18n/i18n'
+import { useAppStore } from '@/store'
 import {
   GitInstallBeforeBoard,
   GitInstallFailedBoard,
@@ -11,26 +12,63 @@ import {
 import { useGitInstallController } from './GitInstallController'
 import type { GitInstallView } from './GitInstallState'
 import { GIT_DOWNLOADS_URL } from './marketplace-catalog'
+import { MarketplaceHostProgramInstall } from './MarketplaceHostProgramControls'
+import {
+  useMarketplaceHostProgram,
+  type MarketplaceHostProgram
+} from './use-marketplace-host-program'
 import type { MarketplaceBadgeState } from './marketplace-status'
+
+/** Git's controls on one page, read once: This computer's install board and the program on the picked host. */
+export type GitDetailControls = {
+  controller: ReturnType<typeof useGitInstallController>
+  /** Install (the card) and Uninstall (the Danger zone) both read this one instance. */
+  program: MarketplaceHostProgram | null
+}
+
+/** Holds a Git page's controls once per page, so the card's Install and the Danger zone's Uninstall agree. */
+export function useGitDetailControls(hostLabel: string | null): GitDetailControls {
+  const controller = useGitInstallController()
+  // Why the store key: a resolved host label means the pick is a live target, and the pick is that key.
+  const pickedKey = useAppStore((s) => s.marketplaceHostKey)
+  const onThisComputer = hostLabel === null
+  const program = useMarketplaceHostProgram(
+    'git',
+    onThisComputer ? 'local' : (pickedKey ?? 'local'),
+    () => {
+      if (onThisComputer) {
+        controller.recheck()
+        void useAppStore.getState().refreshPreflightStatus({ force: true })
+      }
+    }
+  )
+  return { controller, program }
+}
 
 /** Git's card: a picked host reports its own Git state; This computer gets the install and adopt boards. */
 export function GitDetail({
   state,
-  hostLabel
+  hostLabel,
+  controls
 }: {
   state: MarketplaceBadgeState
   /** The picked host's name; null for This computer. */
   hostLabel: string | null
+  controls: GitDetailControls
 }): React.JSX.Element {
   if (hostLabel !== null) {
-    return <RemoteGitState state={state} host={hostLabel} />
+    return <RemoteGitState state={state} host={hostLabel} program={controls.program} />
   }
-  return <ThisComputerGitDetail state={state} />
+  return <ThisComputerGitBoard state={state} controller={controls.controller} />
 }
 
-/** This computer's Git: live install progress, the installed facts, and the failure board with a manual command. */
-function ThisComputerGitDetail({ state }: { state: MarketplaceBadgeState }): React.JSX.Element {
-  const controller = useGitInstallController()
+function ThisComputerGitBoard({
+  state,
+  controller
+}: {
+  state: MarketplaceBadgeState
+  controller: ReturnType<typeof useGitInstallController>
+}): React.JSX.Element {
   const view = controller.view
   switch (view.kind) {
     case 'before':
@@ -79,13 +117,15 @@ function ThisComputerGitDetail({ state }: { state: MarketplaceBadgeState }): Rea
   }
 }
 
-/** A picked host's Git as that host reports it; installing Git there is not offered yet. */
+/** A picked host's Git as that host reports it; Install is here, and Uninstall sits in the Danger zone. */
 function RemoteGitState({
   state,
-  host
+  host,
+  program
 }: {
   state: MarketplaceBadgeState
   host: string
+  program: MarketplaceHostProgram | null
 }): React.JSX.Element {
   if (state === 'installed') {
     return (
@@ -108,13 +148,7 @@ function RemoteGitState({
             { host }
           )}
         </p>
-        <p className="text-xs text-muted-foreground">
-          {translate(
-            'auto.components.marketplace.GitDetail.remoteInstallLater',
-            'Installing Git on {{host}} is not available yet.',
-            { host }
-          )}
-        </p>
+        {program ? <MarketplaceHostProgramInstall program={program} host={host} /> : null}
       </div>
     )
   }

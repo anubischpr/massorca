@@ -290,6 +290,7 @@ import {
 import {
   ApplyAccountGitConfig,
   BindableAccounts,
+  HostGitHubAccount,
   InferRepoAccount,
   ListAccountOrgs,
   ListHostBindableAccounts,
@@ -442,6 +443,7 @@ import {
   MarketplaceAppsSetOpenMetadataToken
 } from './marketplace-apps-params'
 import { MarketplaceCatalogAuditParams } from './marketplace-catalog-audit-params'
+import { MarketplaceHostProgramParams } from './marketplace-host-program-params'
 import {
   MarketplaceServiceConnect,
   MarketplaceServiceDisconnect
@@ -1063,6 +1065,7 @@ export const RPC_PARAMS_BY_METHOD = {
   'github.project.workItemDetailsBySlug': ProjectWorkItemDetailsBySlug,
   'github.rateLimit': RateLimit,
   'github.readAccountGitConfig': ReadAccountGitConfig,
+  'github.removeAccount': HostGitHubAccount,
   'github.removePRReviewers': RemovePrReviewers,
   'github.repoSlug': RepoSelector,
   'github.repoUpstream': RepoSelector,
@@ -1072,6 +1075,7 @@ export const RPC_PARAMS_BY_METHOD = {
   'github.setPRAutoMerge': SetPrAutoMerge,
   'github.setPRCommentReaction': PRCommentReaction,
   'github.setPRFileViewed': PullRequestFileViewed,
+  'github.switchActiveAccount': HostGitHubAccount,
   'github.updateIssue': UpdateIssue,
   'github.updatePR': UpdatePr,
   'github.updatePRState': UpdatePrState,
@@ -1197,6 +1201,10 @@ export const RPC_PARAMS_BY_METHOD = {
   'marketplace.apps.setEngramServer': MarketplaceAppsSetEngramServer,
   'marketplace.apps.setOpenMetadataToken': MarketplaceAppsSetOpenMetadataToken,
   'marketplace.catalog.audit': MarketplaceCatalogAuditParams,
+  'marketplace.program.install': MarketplaceHostProgramParams,
+  'marketplace.program.reinstall': MarketplaceHostProgramParams,
+  'marketplace.program.status': MarketplaceHostProgramParams,
+  'marketplace.program.uninstall': MarketplaceHostProgramParams,
   'marketplace.service.connect': MarketplaceServiceConnect,
   'marketplace.service.disconnect': MarketplaceServiceDisconnect,
   'marketplace.service.status': null,

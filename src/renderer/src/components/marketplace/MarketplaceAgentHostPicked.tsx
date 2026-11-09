@@ -19,6 +19,8 @@ type PickedRowProps = {
   host: MarketplaceAgentHost
   agentId: TuiAgent
   installUrl: string
+  /** MassOrca installs this agent from the page card, so the row shows no Install of its own. */
+  installManaged?: boolean
   onDetection: (key: string, detection: MarketplaceAgentDetection) => void
 }
 
@@ -56,6 +58,7 @@ function detectionOf(
 function HostRow({
   host,
   installUrl,
+  installManaged = false,
   onDetection,
   detection
 }: PickedRowProps & { detection: MarketplaceAgentDetection }): React.JSX.Element {
@@ -63,7 +66,11 @@ function HostRow({
   useEffect(() => {
     onDetection(key, detection)
   }, [detection, key, onDetection])
-  const view = marketplaceAgentHostView(detection)
+  const detectionView = marketplaceAgentHostView(detection)
+  const view =
+    installManaged && detectionView.action === 'install'
+      ? { ...detectionView, action: null }
+      : detectionView
   // Why: only installing on this computer has a backend today (the agent's own install page).
   const installHere = view.action === 'install' && host.kind === 'local'
   return (
