@@ -16,6 +16,8 @@ import { inferRepoGhAccount } from '../github/gh-account-repo-inference'
 import { listGhAccountOrgs } from '../github/gh-account-orgs'
 import { removeGhAccount } from '../github/gh-account-logout'
 import { switchGhActiveAccount } from '../github/gh-account-switch'
+import { createGitHubAccountsRelayClient } from '../github/gh-account-remote-client'
+import { getActiveMultiplexer } from '../ssh/ssh-target-registry'
 import {
   cancelGhSignIn,
   GH_SIGN_IN_EVENT_CHANNEL,
@@ -26,6 +28,9 @@ import type { Store } from '../persistence'
 import { getCohortAtEmit } from '../telemetry/cohort-classifier'
 import { track } from '../telemetry/client'
 import { assertRegisteredGitHubRepo, getGitHubLocalGitOptionArgs } from './github-repo-routing'
+
+// Why: SSH hosts answer over their own relay, so a picked SSH host's logins are the ones it reads and changes.
+const remoteGitHubAccounts = createGitHubAccountsRelayClient(getActiveMultiplexer)
 
 export function registerGitHubAccountHandlers(store: Store): void {
   ipcMain.handle('gh:viewer', () => getAuthenticatedViewer())
@@ -125,6 +130,16 @@ export function registerGitHubAccountHandlers(store: Store): void {
         { host: args?.host, user: args?.user },
         args?.wslDistro ? { wslDistro: args.wslDistro } : {}
       )
+  )
+
+  ipcMain.handle('gh:remote:listHostBindableAccounts', (_event, args: unknown) =>
+    remoteGitHubAccounts.listHostBindableAccounts(args)
+  )
+  ipcMain.handle('gh:remote:switchActiveAccount', (_event, args: unknown) =>
+    remoteGitHubAccounts.switchActiveAccount(args)
+  )
+  ipcMain.handle('gh:remote:removeAccount', (_event, args: unknown) =>
+    remoteGitHubAccounts.removeAccount(args)
   )
 
   ipcMain.handle(

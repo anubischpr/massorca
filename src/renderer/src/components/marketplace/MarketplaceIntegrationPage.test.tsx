@@ -192,6 +192,13 @@ describe('MarketplaceIntegrationPage', () => {
     expect(disconnectLinear).toHaveBeenCalledTimes(1)
   })
 
+  it('shows the account scope in GitLab Advanced options', async () => {
+    const container = await mount('gitlab')
+    expect(container.querySelector('[data-marketplace-section="advanced"]')?.textContent).toContain(
+      'Account scope'
+    )
+  })
+
   it('keeps the banner prompts on a token provider page', async () => {
     Object.assign(window, { api: { marketplaceServices: { status: vi.fn(async () => NONE) } } })
     const gitlab = await mount('gitlab')

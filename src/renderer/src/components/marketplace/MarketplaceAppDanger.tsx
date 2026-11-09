@@ -6,7 +6,7 @@ import { MarketplaceAppSection } from './MarketplaceAppSection'
 
 /** Disconnect is the only irreversible action on the page, so it sits alone at the end. */
 export function MarketplaceAppDanger({ ctx }: { ctx: MarketplaceAppContext }): React.JSX.Element {
-  const { appId, info } = ctx
+  const { info } = ctx
   return (
     <MarketplaceAppSection
       id="danger"
@@ -21,24 +21,7 @@ export function MarketplaceAppDanger({ ctx }: { ctx: MarketplaceAppContext }): R
               { app: info.name }
             )}
           </CardTitle>
-          <CardDescription>
-            {appId === 'github'
-              ? translate(
-                  'auto.components.marketplace.MarketplaceAppDanger.githubDescription',
-                  'Removes GitHub from agents on this computer. It does not sign you out of the GitHub CLI (gh).'
-                )
-              : ctx.hostLabel
-                ? translate(
-                    'auto.components.marketplace.MarketplaceAppDanger.descriptionHost',
-                    'Removes {{app}} from the agents on {{host}} and deletes the credentials stored there. You can connect it again later.',
-                    { app: info.name, host: ctx.hostLabel }
-                  )
-                : translate(
-                    'auto.components.marketplace.MarketplaceAppDanger.description',
-                    'Removes {{app}} and its skills from MassOrca on this computer. You can connect it again later.',
-                    { app: info.name }
-                  )}
-          </CardDescription>
+          <CardDescription>{disconnectDescription(ctx)}</CardDescription>
         </CardHeader>
         <CardContent>
           <Button
@@ -53,4 +36,31 @@ export function MarketplaceAppDanger({ ctx }: { ctx: MarketplaceAppContext }): R
       </Card>
     </MarketplaceAppSection>
   )
+}
+
+function disconnectDescription(ctx: MarketplaceAppContext): string {
+  const { appId, info } = ctx
+  if (ctx.hostLabel) {
+    return appId === 'github'
+      ? translate(
+          'auto.components.marketplace.MarketplaceAppDanger.githubHostDescription',
+          'Removes GitHub from agents on {{host}}. It does not sign you out of the GitHub CLI (gh) on {{host}}.',
+          { host: ctx.hostLabel }
+        )
+      : translate(
+          'auto.components.marketplace.MarketplaceAppDanger.descriptionHost',
+          'Removes {{app}} from the agents on {{host}} and deletes the credentials stored there. You can connect it again later.',
+          { app: info.name, host: ctx.hostLabel }
+        )
+  }
+  return appId === 'github'
+    ? translate(
+        'auto.components.marketplace.MarketplaceAppDanger.githubDescription',
+        'Removes GitHub from agents on this computer. It does not sign you out of the GitHub CLI (gh).'
+      )
+    : translate(
+        'auto.components.marketplace.MarketplaceAppDanger.description',
+        'Removes {{app}} and its skills from MassOrca on this computer. You can connect it again later.',
+        { app: info.name }
+      )
 }

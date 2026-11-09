@@ -7,7 +7,11 @@ import type {
   GhAccountBindingValidationResult,
   GhAuthDiagnostic
 } from '../../shared/github/auth-types'
-import type { GhSignInEvent, GhSignInStartResult } from './github-account-api'
+import type {
+  GhSignInEvent,
+  GhSignInStartResult,
+  GithubAccountsOnHostApi
+} from './github-account-api'
 import type {
   GhAccountGitConfigResult,
   GhAccountGitConfigState
@@ -46,6 +50,14 @@ import type {
 } from '../../shared/github/project-request-types'
 import type { AppStarSource } from '../../shared/gh-star-source'
 import type { PreloadApi } from '../api-types'
+
+/** Picked SSH hosts' gh logins; a separate namespace so the gh bridge keeps its function-only shape. */
+export const githubAccountsOnHostApi: GithubAccountsOnHostApi = {
+  listHostBindableAccounts: (args) =>
+    ipcRenderer.invoke('gh:remote:listHostBindableAccounts', args),
+  switchActiveAccount: (args) => ipcRenderer.invoke('gh:remote:switchActiveAccount', args),
+  removeAccount: (args) => ipcRenderer.invoke('gh:remote:removeAccount', args)
+}
 
 export const ghMutationsAndProjectsApi = {
   setPRAutoMerge: (args: {

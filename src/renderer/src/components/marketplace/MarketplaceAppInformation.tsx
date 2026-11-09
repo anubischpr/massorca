@@ -33,7 +33,14 @@ export function MarketplaceAppInformation({
       )}
     >
       <p className="text-sm text-muted-foreground">
-        {translate(info.description.key, info.description.fallback)}
+        {/* Why: the GitHub description names this computer; a picked host gets its own line. */}
+        {ctx.appId === 'github' && ctx.hostLabel
+          ? translate(
+              'auto.components.marketplace.MarketplaceAppInformation.githubHostDescription',
+              'Pull requests, issues and checks from GitHub, through the GitHub CLI on {{host}}.',
+              { host: ctx.hostLabel }
+            )
+          : translate(info.description.key, info.description.fallback)}
       </p>
       <dl className="flex flex-col">
         <InfoRow

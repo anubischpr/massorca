@@ -1,35 +1,35 @@
 import { Button } from '@/components/ui/button'
 import { translate } from '@/i18n/i18n'
 import { GITHUB_CLI_URL } from './marketplace-catalog'
+import { GitHubAccountsCard } from './GitHubAccountsCard'
 import { MarketplaceAppSection } from './MarketplaceAppSection'
 import type { CatalogCheck } from './MarketplaceCatalogRows'
+import type { GitHubAccounts } from './use-github-accounts'
 import type { RemoteTools } from './use-marketplace-remote-detection'
 
 /**
- * GitHub on a picked host: the GitHub CLI state that host reports. Its accounts are not reachable
- * from here yet, so this computer's accounts never show for it.
+ * GitHub on a picked host: the GitHub CLI state that host reports, then its logins. A host whose
+ * CLI is missing or too old shows only that state; `tools` null means a WSL distro, whose logins
+ * are read directly.
  */
 export function GitHubRemoteConnection({
   host,
-  tools
+  tools,
+  accounts
 }: {
   host: string
-  tools: CatalogCheck<RemoteTools>
+  tools: CatalogCheck<RemoteTools> | null
+  accounts: GitHubAccounts
 }): React.JSX.Element {
+  const showsAccounts = tools === null || (tools.kind === 'ready' && tools.value.gh.installed)
   return (
     <MarketplaceAppSection
       id="connection"
       title={translate('auto.components.marketplace.MarketplaceAppConnection.title', 'Connection')}
     >
       <div className="flex flex-col gap-3">
-        <GhState host={host} tools={tools} />
-        <p className="text-sm text-muted-foreground">
-          {translate(
-            'auto.components.marketplace.GitHubRemoteConnection.accounts',
-            'Not available on {{host}} yet',
-            { host }
-          )}
-        </p>
+        {tools ? <GhState host={host} tools={tools} /> : null}
+        {showsAccounts ? <GitHubAccountsCard accounts={accounts} hostLabel={host} /> : null}
       </div>
     </MarketplaceAppSection>
   )

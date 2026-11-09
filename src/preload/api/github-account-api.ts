@@ -8,6 +8,10 @@ import type {
   GhAccountGitConfigState
 } from '../../shared/github/gh-account-git-config'
 import type { RepoGhAccountInference } from '../../shared/github/gh-account-inference'
+import type {
+  GitHubAccountsHostChange,
+  GitHubAccountsHostList
+} from '../../shared/rpc-contract/github-account-binding-params'
 
 /** Why: the sign-in dialog reads only these; the token never leaves gh's credential store. */
 export type GhSignInFailureReason = 'cancelled' | 'timeout' | 'unavailable' | 'failed'
@@ -27,6 +31,21 @@ export type GhSignInStartResult =
 export type GhAccountRemoveResult =
   | { ok: true }
   | { ok: false; reason: 'invalid_account' | 'unsupported' | 'failed' }
+
+/** A picked SSH host's gh logins, read and changed through that host's relay; never a token. */
+export type GithubAccountsOnHostApi = {
+  listHostBindableAccounts: (args: { connectionId: string }) => Promise<GitHubAccountsHostList>
+  switchActiveAccount: (args: {
+    connectionId: string
+    host: string
+    user: string
+  }) => Promise<GitHubAccountsHostChange>
+  removeAccount: (args: {
+    connectionId: string
+    host: string
+    user: string
+  }) => Promise<GitHubAccountsHostChange>
+}
 
 export type GithubAccountApi = {
   listBindableAccounts: (args: {

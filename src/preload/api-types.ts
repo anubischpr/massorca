@@ -31,7 +31,7 @@ import type { EphemeralVmApi } from './api/ephemeral-vm-api'
 import type { ExportApi, FilesystemApi } from './api/filesystem-api'
 import type { GitInspectionApi } from './api/git-inspection-api'
 import type { GitOperationApi } from './api/git-operation-api'
-import type { GithubAccountApi } from './api/github-account-api'
+import type { GithubAccountApi, GithubAccountsOnHostApi } from './api/github-account-api'
 import type { GithubPullRequestApi } from './api/github-pull-request-api'
 import type { GithubWorkItemApi } from './api/github-work-item-api'
 import type { GitLabApi } from './api/gitlab-api'
@@ -104,6 +104,8 @@ export type PreloadApi = {
   crashReports: CrashReportsApi
   export: ExportApi
   gh: Merged<GithubPullRequestApi & GithubWorkItemApi & GithubAccountApi>
+  /** Optional: picked SSH hosts' gh logins; older preloads and the web build do not expose it. */
+  githubAccountsOnHost?: GithubAccountsOnHostApi
   hostedReview: HostedReviewApi
   gl: GitLabApi
   bitbucket: BitbucketApi

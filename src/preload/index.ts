@@ -24,6 +24,7 @@ import { feedbackApi } from './api/feedback-bridge'
 import { crashReportsApi } from './api/crash-reports-bridge'
 import { exportApi } from './api/export-bridge'
 import { ghApi } from './api/gh-bridge'
+import { githubAccountsOnHostApi } from './api/gh-bridge-mutations-and-projects'
 import { hostedReviewApi } from './api/hosted-review-bridge'
 import { glApiBridge } from './api/gl-bridge'
 import { bitbucketApi } from './api/bitbucket-bridge'
@@ -131,6 +132,7 @@ const api = {
   crashReports: crashReportsApi,
   export: exportApi,
   gh: ghApi,
+  githubAccountsOnHost: githubAccountsOnHostApi,
   hostedReview: hostedReviewApi,
   gl: glApiBridge,
   bitbucket: bitbucketApi,

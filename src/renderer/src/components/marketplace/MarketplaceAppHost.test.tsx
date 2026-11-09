@@ -251,9 +251,105 @@ describe('the host picker on an app page', () => {
     const container = await mount('github')
     await pickHost(container, 'srv2056164')
     expect(container.textContent).toContain('The GitHub CLI (gh) is not installed on srv2056164.')
-    expect(container.textContent).toContain('Not available on srv2056164 yet')
+    expect(container.textContent).not.toContain('Signed in on srv2056164')
     expect(container.textContent).not.toContain('on this computer')
     expect(buttonWithText(container, 'Add account')).toBeUndefined()
+  })
+
+  it('keeps Information, Advanced options and Danger zone on a picked GitHub host', async () => {
+    seedHosts({ runtime: true })
+    mocks.callRuntimeRpc.mockImplementation(async (_target: unknown, method: string) => {
+      if (method === 'preflight.check') {
+        return { git: { installed: true }, gh: { installed: true, authenticated: true } }
+      }
+      return method === 'marketplace.apps.list'
+        ? { ok: true, apps: [{ id: 'github', connected: true, agents: [] }] }
+        : undefined
+    })
+    const container = await mount('github')
+    await pickHost(container, 'srv2056164')
+    expect(container.querySelector('[data-marketplace-section="information"]')).not.toBeNull()
+    expect(container.querySelector('[data-marketplace-section="advanced"]')).not.toBeNull()
+    expect(container.querySelector('[data-marketplace-section="danger"]')).not.toBeNull()
+    expect(container.textContent).toContain('Removes GitHub from agents on srv2056164.')
+    expect(container.textContent).not.toContain('on this computer')
+    expect(container.textContent).not.toContain('Account for new projects')
+  })
+
+  it('lists the picked host GitHub accounts and removes one on that host', async () => {
+    seedHosts({ runtime: true })
+    mocks.callRuntimeRpc.mockImplementation(async (_target: unknown, method: string) => {
+      if (method === 'preflight.check') {
+        return { git: { installed: true }, gh: { installed: true, authenticated: true } }
+      }
+      if (method === 'github.listHostBindableAccounts') {
+        return {
+          capability: 'supported',
+          accounts: [
+            {
+              host: 'github.com',
+              user: 'dev-box',
+              active: false,
+              envToken: null,
+              source: 'keyring',
+              scopes: ['repo']
+            }
+          ]
+        }
+      }
+      if (method === 'github.removeAccount') {
+        return { ok: true }
+      }
+      return method === 'marketplace.apps.list'
+        ? { ok: true, apps: [{ id: 'github', connected: true, agents: [] }] }
+        : undefined
+    })
+    const container = await mount('github')
+    await pickHost(container, 'srv2056164')
+    expect(container.textContent).toContain('dev-box')
+    expect(container.textContent).toContain('Signed in on srv2056164')
+
+    await clickButton(container, 'Remove')
+    const confirm = [...document.body.querySelectorAll('[role="dialog"] button')].find(
+      (button) => button.textContent?.trim() === 'Remove'
+    )
+    if (!(confirm instanceof HTMLButtonElement)) {
+      throw new Error('No Remove confirm button')
+    }
+    await act(async () => {
+      confirm.click()
+    })
+    expect(mocks.callRuntimeRpc).toHaveBeenCalledWith(
+      expect.anything(),
+      'github.removeAccount',
+      { host: 'github.com', user: 'dev-box' },
+      expect.anything()
+    )
+  })
+
+  it('shows the account scope in GitHub Advanced options on this computer', async () => {
+    const container = await mount('github')
+    await act(async () => {})
+    expect(container.querySelector('[data-marketplace-section="advanced"]')?.textContent).toContain(
+      'Account scope'
+    )
+  })
+
+  it('shows the Engram MCP switches in Advanced options on this computer', async () => {
+    Object.assign(window.api, {
+      marketplace: {
+        detect: vi.fn(async () => ({
+          engram: { cli: 'found', store: 'found', agents: { claude: 'set', codex: 'missing' } },
+          openMetadata: { agents: {} }
+        })),
+        setEngramMcp: vi.fn()
+      }
+    })
+    const container = await mount('engram')
+    await act(async () => {})
+    expect(
+      container.querySelector('[data-marketplace-section="advanced"] [role="switch"]')
+    ).not.toBeNull()
   })
 
   it('shows the SSH host status and sends every action to that host, not this computer', async () => {

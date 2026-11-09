@@ -20,6 +20,7 @@ import type { MarketplaceAppContext, MarketplaceAppDialog } from './marketplace-
 import { MARKETPLACE_APP_INFO } from './marketplace-app-info'
 import { appStatusFor } from './marketplace-status'
 import { useGitHubAccounts } from './use-github-accounts'
+import { useMarketplaceGitHubHostAccounts } from './use-marketplace-github-host-accounts'
 import { useMarketplaceAppAction, type MarketplacePerform } from './use-marketplace-app-action'
 import { useMarketplaceAppHost } from './use-marketplace-app-host'
 import { marketplaceHostKey } from './use-marketplace-host-targets'
@@ -45,7 +46,13 @@ export function MarketplaceAppPage({
     appId === 'github' && host.scope !== null && host.wslDistro === null ? pickedTarget : null
   const githubTools = useMarketplaceRemoteDetection(githubRemoteTarget).tools
   // Why: this computer's GitHub accounts are read only while this computer is the host shown.
-  const github = useGitHubAccounts(appId === 'github' && host.scope === null)
+  const localGithub = useGitHubAccounts(
+    appId === 'github' && host.scope === null && host.wslDistro === null
+  )
+  // Why: a picked host (SSH, runtime or WSL) reads and changes its own logins, never this computer's.
+  const githubAccountsTarget = appId === 'github' ? pickedTarget : null
+  const hostGithub = useMarketplaceGitHubHostAccounts(githubAccountsTarget)
+  const github = githubAccountsTarget ? hostGithub : localGithub
   const [dialog, setDialog] = useState<MarketplaceAppDialog | null>(null)
   const [pageError, setPageError] = useState<string | null>(null)
 
@@ -114,6 +121,7 @@ export function MarketplaceAppPage({
         githubTools={githubTools}
         onRetry={host.retry}
         wslDistro={host.wslDistro}
+        wslLabel={pickedTarget?.label ?? host.wslDistro}
       />
       <MarketplaceAppDialogs ctx={ctx} dialog={dialog} onClose={() => setDialog(null)} />
     </div>
@@ -126,7 +134,8 @@ function AppPageBody({
   failure,
   githubTools,
   onRetry,
-  wslDistro
+  wslDistro,
+  wslLabel
 }: {
   apps: MarketplaceAppsState
   ctx: MarketplaceAppContext
@@ -134,9 +143,15 @@ function AppPageBody({
   githubTools: CatalogCheck<RemoteTools>
   onRetry: () => void
   wslDistro: string | null
+  wslLabel: string | null
 }): React.JSX.Element {
-  // Why: the apps have no WSL path yet, so the page says so instead of offering a retry or actions.
+  // Why: the apps have no WSL path yet, so the page says so; GitHub reads that distro's own logins.
   if (wslDistro !== null) {
+    if (ctx.appId === 'github') {
+      return (
+        <GitHubRemoteConnection host={wslLabel ?? wslDistro} tools={null} accounts={ctx.github} />
+      )
+    }
     return (
       <Notice>
         {translate(
@@ -188,9 +203,16 @@ function AppPageBody({
       </div>
     )
   }
-  // Why: GitHub on a picked host shows only that host's gh state; the info copy describes this computer.
+  // Why: a picked host has no account list yet, so only its Connection differs from this computer.
   if (ctx.appId === 'github' && ctx.hostLabel !== null) {
-    return <GitHubRemoteConnection host={ctx.hostLabel} tools={githubTools} />
+    return (
+      <>
+        <GitHubRemoteConnection host={ctx.hostLabel} tools={githubTools} accounts={ctx.github} />
+        <MarketplaceAppInformation ctx={ctx} />
+        <MarketplaceAppAdvanced ctx={ctx} />
+        <MarketplaceAppDanger ctx={ctx} />
+      </>
+    )
   }
   return (
     <>

@@ -7,7 +7,10 @@ import type { MarketplaceServiceId } from '../../../../shared/marketplace-servic
 import { UnsealedCredentialNotice } from '../settings/UnsealedCredentialNotice'
 import { ConnectionRow } from './MarketplaceAppConnection'
 import { MarketplaceFunctionNote } from './MarketplaceFunctionNote'
-import { MarketplaceIntegrationAccessNote } from './MarketplaceIntegrationAdvanced'
+import {
+  MarketplaceIntegrationAccessNote,
+  MarketplaceIntegrationAccountScope
+} from './MarketplaceIntegrationAdvanced'
 import { MarketplaceIntegrationIcon } from './MarketplaceIntegrationIcon'
 import { MarketplaceIntegrationLayout } from './MarketplaceIntegrationLayout'
 import { MarketplaceIntegrationServiceDialog } from './MarketplaceIntegrationServiceDialog'
@@ -162,7 +165,12 @@ export function MarketplaceServiceIntegration({
             </div>
           </div>
         }
-        advanced={<MarketplaceIntegrationAccessNote id={service} />}
+        advanced={
+          <>
+            {service === 'gitlab' ? <MarketplaceIntegrationAccountScope /> : null}
+            <MarketplaceIntegrationAccessNote id={service} />
+          </>
+        }
         dangerNote={translate(
           `${COPY}.noToken`,
           '{{app}} has no token saved on {{host}}, so there is nothing to disconnect.',

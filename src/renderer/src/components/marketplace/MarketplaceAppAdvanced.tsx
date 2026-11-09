@@ -6,8 +6,10 @@ import type { MarketplaceAppContext } from './marketplace-app-context'
 import { MarketplaceAppAccess } from './MarketplaceAppAccess'
 import { MarketplaceEngramCloud } from './MarketplaceEngramCloud'
 import { MarketplaceEngramImport } from './MarketplaceEngramImport'
+import { MarketplaceEngramMcpSwitches } from './MarketplaceEngramMcpSwitches'
 import { MarketplaceEngramProgram } from './MarketplaceEngramProgram'
 import { MarketplaceInfoRow } from './MarketplaceInfoRow'
+import { MarketplaceIntegrationAccountScope } from './MarketplaceIntegrationAdvanced'
 
 /** Settings beyond the basics, open by default; each app shows only its own options. */
 export function MarketplaceAppAdvanced({ ctx }: { ctx: MarketplaceAppContext }): React.JSX.Element {
@@ -103,6 +105,8 @@ function EngramAdvanced({ ctx }: { ctx: MarketplaceAppContext }): React.JSX.Elem
       </div>
       {serverUrl ? <MarketplaceEngramCloud /> : null}
       <MarketplaceEngramProgram />
+      {/* Why: the switches edit this computer's agent settings only. */}
+      {ctx.hostLabel === null ? <MarketplaceEngramMcpSwitches /> : null}
       <MarketplaceEngramImport />
     </>
   )
@@ -205,26 +209,32 @@ function GitHubAdvanced({ ctx }: { ctx: MarketplaceAppContext }): React.JSX.Elem
     inventory.kind === 'loaded'
       ? inventory.value.accounts.find((account) => account.active)
       : undefined
+  // Why: the active account is this computer's; a picked host has no account list yet.
   return (
-    <MarketplaceInfoRow
-      label={translate(
-        'auto.components.marketplace.MarketplaceAppAdvanced.newProjects',
-        'Account for new projects'
-      )}
-    >
-      <span className="text-sm">
-        {active
-          ? active.user
-          : translate('auto.components.marketplace.MarketplaceAppAdvanced.noActive', 'None')}
-      </span>
-      {active ? (
-        <span className="text-xs text-muted-foreground">
-          {translate(
-            'auto.components.marketplace.MarketplaceAppAdvanced.activeNote',
-            '(the active account)'
+    <>
+      {ctx.hostLabel === null ? (
+        <MarketplaceInfoRow
+          label={translate(
+            'auto.components.marketplace.MarketplaceAppAdvanced.newProjects',
+            'Account for new projects'
           )}
-        </span>
+        >
+          <span className="text-sm">
+            {active
+              ? active.user
+              : translate('auto.components.marketplace.MarketplaceAppAdvanced.noActive', 'None')}
+          </span>
+          {active ? (
+            <span className="text-xs text-muted-foreground">
+              {translate(
+                'auto.components.marketplace.MarketplaceAppAdvanced.activeNote',
+                '(the active account)'
+              )}
+            </span>
+          ) : null}
+        </MarketplaceInfoRow>
       ) : null}
-    </MarketplaceInfoRow>
+      <MarketplaceIntegrationAccountScope />
+    </>
   )
 }

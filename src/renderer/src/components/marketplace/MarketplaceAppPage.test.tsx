@@ -485,6 +485,12 @@ describe('MarketplaceAppPage', () => {
     expect(sectionOf(container, 'advanced').textContent).toContain('personal')
   })
 
+  it('copies the GitHub sign-in command from Connection', async () => {
+    const container = await mount('github')
+    await clickButton(sectionOf(container, 'connection'), 'Copy')
+    expect(mocks.writeClipboardText).toHaveBeenCalledWith('gh auth login')
+  })
+
   it('sets the address of your own Engram server through a dialog', async () => {
     const container = await mount('engram')
 

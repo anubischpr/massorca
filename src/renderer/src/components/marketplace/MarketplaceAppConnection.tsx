@@ -1,4 +1,5 @@
-import { Database, Plus, RotateCw } from 'lucide-react'
+import { Copy, Database, Plus, RotateCw } from 'lucide-react'
+import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { translate } from '@/i18n/i18n'
@@ -270,6 +271,19 @@ function GitHubConnection({ ctx }: { ctx: MarketplaceAppContext }): React.JSX.El
   )
 }
 
+async function copyGhLoginCommand(): Promise<void> {
+  try {
+    await window.api.ui.writeClipboardText(GH_LOGIN_COMMAND)
+    toast.success(
+      translate('auto.components.marketplace.GitHubAccountsCard.copied', 'Copied to clipboard')
+    )
+  } catch {
+    toast.error(
+      translate('auto.components.marketplace.GitHubAccountsCard.copyFailed', 'Could not copy')
+    )
+  }
+}
+
 function GitHubAddAccount({ ctx }: { ctx: MarketplaceAppContext }): React.JSX.Element {
   return (
     <div className="flex items-center gap-1">
@@ -279,6 +293,10 @@ function GitHubAddAccount({ ctx }: { ctx: MarketplaceAppContext }): React.JSX.El
           'auto.components.marketplace.MarketplaceAppConnection.addAccount',
           'Add account'
         )}
+      </Button>
+      <Button type="button" variant="ghost" size="sm" onClick={() => void copyGhLoginCommand()}>
+        <Copy />
+        {translate('auto.components.marketplace.GitHubAccountsCard.copy', 'Copy')}
       </Button>
       <Button
         type="button"

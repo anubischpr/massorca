@@ -10,23 +10,34 @@ import { GitHubSignInDialog } from './GitHubSignInDialog'
 import { MarketplaceItemIcon } from './MarketplaceItemIcon'
 import { gitHubAccountKey, type GitHubAccounts } from './use-github-accounts'
 
-/** This computer's GitHub logins, the active one, and the projects each login serves. */
-export function GitHubAccountsCard({ accounts }: { accounts: GitHubAccounts }): React.JSX.Element {
+/**
+ * The GitHub logins on this computer, or on a picked host when `hostLabel` is set. Tokens never
+ * reach the renderer; only the login name, its active flag and where it is signed in show.
+ */
+export function GitHubAccountsCard({
+  accounts,
+  hostLabel = null
+}: {
+  accounts: GitHubAccounts
+  hostLabel?: string | null
+}): React.JSX.Element {
   const { inventory, pendingKey, switchError } = accounts
   // Why: removal waits for a confirmation; the row only opens the dialog for its own login.
   const [removing, setRemoving] = useState<GhAuthAccount | null>(null)
   return (
     <div className="flex flex-col gap-3">
-      <GitHubSignInDialog
-        open={accounts.signInOpen}
-        host="github.com"
-        onOpenChange={(open) => {
-          if (!open) {
-            accounts.closeSignIn()
-          }
-        }}
-        onSignedIn={() => void accounts.reload()}
-      />
+      {hostLabel === null ? (
+        <GitHubSignInDialog
+          open={accounts.signInOpen}
+          host="github.com"
+          onOpenChange={(open) => {
+            if (!open) {
+              accounts.closeSignIn()
+            }
+          }}
+          onSignedIn={() => void accounts.reload()}
+        />
+      ) : null}
       {removing ? (
         <GitHubRemoveAccountDialog
           account={removing}
@@ -44,10 +55,16 @@ export function GitHubAccountsCard({ accounts }: { accounts: GitHubAccounts }): 
       ) : null}
       {inventory.kind === 'failed' ? (
         <p className="text-sm text-muted-foreground">
-          {translate(
-            'auto.components.marketplace.GitHubAccountsCard.failed',
-            'Could not read the GitHub accounts on this computer.'
-          )}
+          {hostLabel === null
+            ? translate(
+                'auto.components.marketplace.GitHubAccountsCard.failed',
+                'Could not read the GitHub accounts on this computer.'
+              )
+            : translate(
+                'auto.components.marketplace.GitHubAccountsCard.failedOnHost',
+                'Could not read the GitHub accounts on {{host}}.',
+                { host: hostLabel }
+              )}
         </p>
       ) : null}
       {inventory.kind === 'loaded' ? (
@@ -59,6 +76,7 @@ export function GitHubAccountsCard({ accounts }: { accounts: GitHubAccounts }): 
           onMakeActive={accounts.makeActive}
           onRemove={setRemoving}
           onSignIn={accounts.openSignIn}
+          hostLabel={hostLabel}
         />
       ) : null}
       {switchError ? <p className="text-sm text-destructive">{switchError}</p> : null}
@@ -73,7 +91,8 @@ function AccountList({
   pendingKey,
   onMakeActive,
   onRemove,
-  onSignIn
+  onSignIn,
+  hostLabel
 }: {
   inventory: GhAccountBindingInventory
   repos: GitHubAccounts['localRepos']
@@ -82,20 +101,32 @@ function AccountList({
   onMakeActive: (account: GhAuthAccount) => Promise<void>
   onRemove: (account: GhAuthAccount) => void
   onSignIn: () => void
+  hostLabel: string | null
 }): React.JSX.Element {
   const groups = groupReposByGitHubAccount(inventory.accounts, repos)
   if (inventory.accounts.length === 0) {
     return (
       <div className="flex flex-col items-start gap-2">
         <p className="text-sm text-muted-foreground">
-          {translate(
-            'auto.components.marketplace.GitHubAccountsCard.none',
-            'No GitHub account is signed in on this computer.'
-          )}
+          {hostLabel === null
+            ? translate(
+                'auto.components.marketplace.GitHubAccountsCard.none',
+                'No GitHub account is signed in on this computer.'
+              )
+            : translate(
+                'auto.components.marketplace.GitHubAccountsCard.noneOnHost',
+                'No GitHub account is signed in on {{host}}.',
+                { host: hostLabel }
+              )}
         </p>
-        <Button type="button" variant="outline" size="sm" onClick={onSignIn}>
-          {translate('auto.components.marketplace.GitHubAccountsCard.signIn', 'Sign in to GitHub')}
-        </Button>
+        {hostLabel === null ? (
+          <Button type="button" variant="outline" size="sm" onClick={onSignIn}>
+            {translate(
+              'auto.components.marketplace.GitHubAccountsCard.signIn',
+              'Sign in to GitHub'
+            )}
+          </Button>
+        ) : null}
       </div>
     )
   }
@@ -127,7 +158,12 @@ function AccountList({
                 )}
               </div>
               <p className="truncate text-xs text-muted-foreground">
-                {accountDetail(account, repoNames, orgsByKey[ghAccountKey(account)] ?? [])}
+                {accountDetail(
+                  account,
+                  repoNames,
+                  orgsByKey[ghAccountKey(account)] ?? [],
+                  hostLabel
+                )}
               </p>
             </div>
             {account.active ? (
@@ -191,9 +227,10 @@ function AccountList({
 function accountDetail(
   account: GhAuthAccount,
   repoNames: readonly string[],
-  orgs: readonly string[]
+  orgs: readonly string[],
+  hostLabel: string | null
 ): string {
-  const base = accountBaseDetail(account, repoNames)
+  const base = accountBaseDetail(account, repoNames, hostLabel)
   if (orgs.length === 0) {
     return base
   }
@@ -205,12 +242,24 @@ function accountDetail(
   return `${base} · ${orgText}`
 }
 
-function accountBaseDetail(account: GhAuthAccount, repoNames: readonly string[]): string {
+function accountBaseDetail(
+  account: GhAuthAccount,
+  repoNames: readonly string[],
+  hostLabel: string | null
+): string {
   if (account.source === 'env') {
     return translate(
       'auto.components.marketplace.GitHubAccountsCard.envToken',
       'Comes from {{variable}}, so it cannot be switched here.',
       { variable: account.envToken ?? 'GITHUB_TOKEN' }
+    )
+  }
+  // Why: a picked host has no project mapping here yet, so its rows say only where the login is.
+  if (hostLabel !== null) {
+    return translate(
+      'auto.components.marketplace.GitHubAccountsCard.signedInOn',
+      'Signed in on {{host}}',
+      { host: hostLabel }
     )
   }
   const signedIn = translate(
