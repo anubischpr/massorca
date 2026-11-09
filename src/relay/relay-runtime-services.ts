@@ -18,6 +18,7 @@ import { AgentExecHandler } from './agent-exec-handler'
 import { WorkspaceSessionHandler } from './workspace-session-handler'
 import { AiVaultHandler } from './ai-vault-handler'
 import { MarketplaceAppsHandler } from './relay-marketplace-apps'
+import { GitHubAccountsHandler } from './relay-github-accounts'
 import { MarketplaceVaultHandler } from './relay-marketplace-vault'
 import { createRelayAiVaultService } from './ai-vault-service-factory'
 import { registerRelayPluginHostCallHandlers } from './plugin-host-call-handler'
@@ -112,6 +113,7 @@ export class RelayRuntimeServices {
       workspaceSessionHandler,
       new MarketplaceVaultHandler(dispatcher),
       new MarketplaceAppsHandler(dispatcher),
+      new GitHubAccountsHandler(dispatcher),
       new AiVaultHandler(dispatcher, {
         hostPlatform,
         service: this.aiVaultService ?? undefined
