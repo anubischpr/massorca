@@ -1,19 +1,6 @@
 import type { MarketplaceHostProgramId } from '../../../shared/rpc-contract/marketplace-host-program-params'
 import type { InstallOption, ProgramSpec } from './host-program-types'
 
-const POSIX_NATIVE_CLAUDE_REMOVAL = {
-  script: 'rm -f "$HOME/.local/bin/claude" && rm -rf "$HOME/.local/share/claude"',
-  display: 'rm -f ~/.local/bin/claude && rm -rf ~/.local/share/claude'
-}
-
-const WINDOWS_NATIVE_CLAUDE_REMOVAL = {
-  script:
-    "Remove-Item -LiteralPath (Join-Path $env:USERPROFILE '.local\\bin\\claude.exe') -Force; " +
-    "Remove-Item -LiteralPath (Join-Path $env:USERPROFILE '.local\\share\\claude') -Recurse -Force",
-  display:
-    'Remove-Item "$env:USERPROFILE\\.local\\bin\\claude.exe"; Remove-Item -Recurse "$env:USERPROFILE\\.local\\share\\claude"'
-}
-
 function shellScript(url: string, shell: 'bash' | 'sh'): InstallOption {
   const text = `curl -fsSL ${url} | ${shell}`
   return { method: 'script', text, display: text, shell: 'sh' }
@@ -52,11 +39,6 @@ const SPECS: Record<MarketplaceHostProgramId, ProgramSpec> = {
       ]
     },
     nativePath: /[\\/]\.local[\\/](?:bin|share)[\\/]/,
-    nativeUninstall: {
-      win32: WINDOWS_NATIVE_CLAUDE_REMOVAL,
-      darwin: POSIX_NATIVE_CLAUDE_REMOVAL,
-      linux: POSIX_NATIVE_CLAUDE_REMOVAL
-    },
     keepsData: '~/.claude and ~/.claude.json'
   },
   codex: {

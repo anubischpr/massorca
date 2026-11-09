@@ -15,7 +15,8 @@ function facts(
     isRoot: extra.isRoot ?? false,
     family: extra.family ?? (platform === 'linux' ? 'debian' : null),
     home: null,
-    localAppData: null
+    localAppData: null,
+    userProfile: null
   }
 }
 
@@ -125,28 +126,13 @@ describe('uninstall command per owner', () => {
     ['node', 'linux', 'apt', 'sudo apt-get remove -y nodejs npm']
   ]
   it.each(cases)('%s on %s through %s', (id, platform, method, expected) => {
-    const plan = planRemoval(programSpec(id), pick(id, platform, method), facts(platform, []))
+    const plan = planRemoval(pick(id, platform, method), facts(platform, []))
     expect(plan?.display).toBe(expected)
-  })
-
-  it('removes the native Claude Code files the vendor documents and nothing under ~/.claude', () => {
-    const posix = planRemoval(programSpec('claude'), 'native', facts('linux', []))
-    expect(posix?.display).toBe('rm -f ~/.local/bin/claude && rm -rf ~/.local/share/claude')
-    const windows = planRemoval(programSpec('claude'), 'native', facts('win32', []))
-    expect(windows?.steps[0]?.script).toContain('.local\\bin\\claude.exe')
-    for (const plan of [posix, windows]) {
-      expect(JSON.stringify(plan?.steps)).not.toMatch(/[\\/]\.claude/)
-    }
-  })
-
-  it('has no vendor removal for a Codex or Antigravity installer script', () => {
-    expect(planRemoval(programSpec('codex'), 'native', facts('win32', []))).toBeNull()
-    expect(planRemoval(programSpec('antigravity'), 'native', facts('linux', []))).toBeNull()
   })
 
   it('removes only the Gentle Shell package, never its self-uninstall that deletes chats and sign-ins', () => {
     const option = pick('gentle-shell', 'linux', 'npm')
-    const plan = planRemoval(programSpec('gentle-shell'), option, facts('linux', []))
+    const plan = planRemoval(option, facts('linux', []))
     expect(plan?.display).not.toContain('self-uninstall')
   })
 })

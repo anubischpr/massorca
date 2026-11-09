@@ -18,7 +18,7 @@ import {
 } from '../../../marketplace/host-programs/host-program-service'
 import { defineMethod } from '../core'
 
-// Why accounts-admin: the same level as the Marketplace's other install and connect methods.
+// Why: install, uninstall and reinstall change a host, so they need host-admin; status only reads. Every paired client that holds accounts-admin holds host-admin too.
 export const marketplaceProgramStatusMethod = defineMethod({
   name: MARKETPLACE_PROGRAM_STATUS_METHOD,
   permission: 'accounts-admin',
@@ -34,7 +34,7 @@ export const marketplaceProgramStatusMethod = defineMethod({
 
 export const marketplaceProgramInstallMethod = defineMethod({
   name: MARKETPLACE_PROGRAM_INSTALL_METHOD,
-  permission: 'accounts-admin',
+  permission: 'host-admin',
   params: MarketplaceHostProgramParams,
   handler: (params): Promise<MarketplaceHostProgramResult> =>
     dispatchHostProgram(
@@ -47,7 +47,7 @@ export const marketplaceProgramInstallMethod = defineMethod({
 
 export const marketplaceProgramReinstallMethod = defineMethod({
   name: MARKETPLACE_PROGRAM_REINSTALL_METHOD,
-  permission: 'accounts-admin',
+  permission: 'host-admin',
   params: MarketplaceHostProgramParams,
   handler: (params): Promise<MarketplaceHostProgramResult> =>
     dispatchHostProgram(
@@ -60,7 +60,7 @@ export const marketplaceProgramReinstallMethod = defineMethod({
 
 export const marketplaceProgramUninstallMethod = defineMethod({
   name: MARKETPLACE_PROGRAM_UNINSTALL_METHOD,
-  permission: 'accounts-admin',
+  permission: 'host-admin',
   params: MarketplaceHostProgramParams,
   handler: async (params): Promise<MarketplaceHostProgramResult> => {
     // Why: the relay MassOrca runs on an SSH host is a Node.js program, so removing it would cut the host off.

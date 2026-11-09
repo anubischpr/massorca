@@ -169,17 +169,6 @@ describe('uninstall', () => {
     expect(host.calls.join('\n')).not.toMatch(/\.codex/)
   })
 
-  it('removes a native Claude Code install by the files the vendor documents', async () => {
-    const script = 'rm -f "$HOME/.local/bin/claude" && rm -rf "$HOME/.local/share/claude"'
-    const host = fakeHost({
-      platform: 'linux',
-      present: { claude: '/home/u/.local/bin/claude' },
-      answers: { [`script:${script}`]: { code: 0 } },
-      effects: { [`script:${script}`]: (h) => h.present.delete('claude') }
-    })
-    await expect(uninstallHostProgram('claude', host)).resolves.toEqual({ ok: true })
-  })
-
   it('says so when a Codex copy is outside the vendor install folder, and removes nothing', async () => {
     const host = fakeHost({
       platform: 'win32',

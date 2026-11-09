@@ -15,7 +15,9 @@ const QUERY_TIMEOUT_MS = 20_000
 
 // Why constants: both are fixed text the host runs, and the proofs read what they print.
 export const HOME_SCRIPT = 'printf %s "$HOME"'
-export const LOCAL_APP_DATA_SCRIPT = '[Console]::Out.Write($env:LOCALAPPDATA)'
+// Why two lines: LOCALAPPDATA, then USERPROFILE, so the proofs name the folders the host really uses.
+export const LOCAL_APP_DATA_SCRIPT =
+  '[Console]::Out.Write($env:LOCALAPPDATA + [char]10 + $env:USERPROFILE)'
 
 const PROBED_COMMANDS = ['winget', 'brew', 'npm', 'curl', 'bash', 'apt-get', 'dnf', 'sudo'] as const
 
@@ -29,6 +31,8 @@ export type HostFacts = {
   home: string | null
   /** The host's LOCALAPPDATA on Windows, when it answered with a drive path. */
   localAppData: string | null
+  /** The host's USERPROFILE on Windows, when it answered with a drive path. */
+  userProfile: string | null
 }
 
 export async function gatherHostFacts(exec: HostExecutor): Promise<HostFacts> {
@@ -41,7 +45,9 @@ export async function gatherHostFacts(exec: HostExecutor): Promise<HostFacts> {
     exec.platform === 'linux' ? exec.run(['cat', '/etc/os-release'], QUERY_TIMEOUT_MS) : null,
     exec.script(posix ? HOME_SCRIPT : LOCAL_APP_DATA_SCRIPT, QUERY_TIMEOUT_MS)
   ])
-  const folderPath = folder.code === 0 ? folder.stdout.trim() : ''
+  const [folderPath = '', profilePath = ''] =
+    folder.code === 0 ? folder.stdout.split('\n').map((line) => line.trim()) : []
+  const drivePath = (path: string): string | null => (/^[A-Za-z]:[\\/]/.test(path) ? path : null)
   return {
     platform: exec.platform,
     has: new Set(
@@ -50,7 +56,8 @@ export async function gatherHostFacts(exec: HostExecutor): Promise<HostFacts> {
     isRoot: uid?.code === 0 && uid.stdout.trim() === '0',
     family: osRelease?.code === 0 ? linuxFamily(osRelease.stdout) : null,
     home: posix && folderPath.startsWith('/') ? folderPath : null,
-    localAppData: !posix && /^[A-Za-z]:[\\/]/.test(folderPath) ? folderPath : null
+    localAppData: posix ? null : drivePath(folderPath),
+    userProfile: posix ? null : drivePath(profilePath)
   }
 }
 
@@ -143,23 +150,8 @@ export function planInstall(spec: ProgramSpec, facts: HostFacts): ProgramPlan | 
   return null
 }
 
-/** The removal for the option that owns the program, or the vendor's documented native removal. */
-export function planRemoval(
-  spec: ProgramSpec,
-  owner: InstallOption | 'native',
-  facts: HostFacts
-): ProgramPlan | null {
-  if (owner === 'native') {
-    const removal = spec.nativeUninstall?.[facts.platform]
-    return removal
-      ? {
-          method: 'script',
-          steps: [{ script: removal.script, timeoutMs: QUERY_TIMEOUT_MS }],
-          display: removal.display,
-          needsSudo: false
-        }
-      : null
-  }
+/** The removal for the package-manager option that owns the program. */
+export function planRemoval(owner: InstallOption, facts: HostFacts): ProgramPlan | null {
   const argv = argvOf(owner, 'uninstall')
   return argv ? packagePlan(owner, argv, facts) : null
 }

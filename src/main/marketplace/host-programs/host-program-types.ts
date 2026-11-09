@@ -59,8 +59,6 @@ export type ProgramSpec = {
   options: Record<HostPlatform, readonly InstallOption[]>
   /** A path under which the vendor's own installer puts the program. */
   nativePath?: RegExp
-  /** Removal of that native install, only where the vendor documents one. */
-  nativeUninstall?: Record<HostPlatform, { script: string; display: string } | null>
   /** Version managers own the binary; MassOrca will not uninstall through them. */
   versionManaged?: boolean
   /** What the vendor's own uninstaller would also delete, so the confirm step can say so. */

@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   MARKETPLACE_PROGRAM_INSTALL_METHOD,
+  MARKETPLACE_PROGRAM_REINSTALL_METHOD,
   MARKETPLACE_PROGRAM_STATUS_METHOD,
   MARKETPLACE_PROGRAM_UNINSTALL_METHOD,
   MarketplaceHostProgramParams
@@ -47,16 +48,16 @@ describe('marketplace.program params', () => {
     )
   })
 
-  it('registers all three methods with the Marketplace permission level', () => {
-    const names = [
-      MARKETPLACE_PROGRAM_STATUS_METHOD,
+  it('puts status with the Marketplace level and the programs it changes at host-admin', () => {
+    const permissionOf = (name: string) =>
+      ALL_RPC_METHODS.find((method) => method.name === name)?.permission
+    expect(permissionOf(MARKETPLACE_PROGRAM_STATUS_METHOD)).toBe('accounts-admin')
+    for (const name of [
       MARKETPLACE_PROGRAM_INSTALL_METHOD,
+      MARKETPLACE_PROGRAM_REINSTALL_METHOD,
       MARKETPLACE_PROGRAM_UNINSTALL_METHOD
-    ]
-    for (const name of names) {
-      expect(ALL_RPC_METHODS.find((method) => method.name === name)?.permission).toBe(
-        'accounts-admin'
-      )
+    ]) {
+      expect(permissionOf(name)).toBe('host-admin')
     }
   })
 })

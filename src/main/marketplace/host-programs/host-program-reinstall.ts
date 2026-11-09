@@ -10,7 +10,7 @@ import {
   reinstallPlanFor,
   vendorInstallCommand
 } from './host-program-service'
-import type { HostExecutor } from './host-program-types'
+import type { HostExecutor, HostPlatform, ProgramPlan } from './host-program-types'
 
 /**
  * Moves a copy MassOrca cannot remove on its own to the managed install. The managed copy goes in
@@ -41,9 +41,24 @@ export async function reinstallHostProgram(
   if (failure) {
     return failure
   }
+  // Why inspect first: the old copy goes only after the new one is seen resolving on the PATH and running.
+  const after = await inspectProgram(spec, exec, facts)
+  if (after.state !== 'found') {
+    return {
+      ok: false,
+      reason: 'failed',
+      message: `${spec.label} installed, but it is not on this host's PATH yet. The old copy at ${inspection.path} was left in place.`,
+      command: plan.display
+    }
+  }
   // Why not for a script reinstall: it writes to the same place the old copy sits, so removing it would remove the new one.
+  const replacesInPlace = plan.method === 'script' && inspection.standalone !== undefined
+  const newCopyWorks =
+    after.version !== undefined && !samePath(after.path, inspection.path, facts.platform)
   const removal =
-    inspection.standalone && plan.method !== 'script' ? standalonePlan(inspection.standalone) : null
+    inspection.standalone && !replacesInPlace && newCopyWorks
+      ? standalonePlan(inspection.standalone)
+      : null
   if (removal) {
     const removalFailure = await runPlan(exec, removal)
     if (removalFailure) {
@@ -53,25 +68,49 @@ export async function reinstallHostProgram(
         message: `${spec.label} was installed, but the old copy was not removed: ${removalFailure.message ?? 'the step failed.'}`
       }
     }
-  }
-  const after = await inspectProgram(spec, exec, facts)
-  if (after.state !== 'found') {
-    return {
-      ok: false,
-      reason: 'failed',
-      message: `${spec.label} installed, but it is not on this host's PATH yet.`,
-      command: plan.display
+    if ((await exec.which(spec.command)).state !== 'found') {
+      return {
+        ok: false,
+        reason: 'failed',
+        message: `${spec.label} is no longer on this host's PATH after the old copy was removed.`
+      }
     }
   }
-  const keptOld = !removal && !(plan.method === 'script' && inspection.standalone)
-  const message = removal
-    ? removal.removedNote
-    : keptOld
-      ? `The old copy at ${inspection.path} was left in place and may still come first on the PATH.`
-      : undefined
   return {
     ok: true,
     ...(after.version ? { version: after.version } : {}),
-    ...(message ? { message } : {})
+    ...(keptOldMessage(removal, replacesInPlace, newCopyWorks, inspection.path, after.path)
+      ? {
+          message: keptOldMessage(
+            removal,
+            replacesInPlace,
+            newCopyWorks,
+            inspection.path,
+            after.path
+          )
+        }
+      : {})
   }
+}
+
+function samePath(a: string, b: string, platform: HostPlatform): boolean {
+  return platform === 'win32' ? a.toLowerCase() === b.toLowerCase() : a === b
+}
+
+function keptOldMessage(
+  removal: ProgramPlan | null,
+  replacesInPlace: boolean,
+  newCopyWorks: boolean,
+  oldPath: string,
+  newPath: string
+): string | undefined {
+  if (removal) {
+    return removal.removedNote
+  }
+  if (replacesInPlace) {
+    return undefined
+  }
+  return newCopyWorks
+    ? `The old copy at ${oldPath} was left in place.`
+    : `The old copy at ${oldPath} was left in place, because the new copy at ${newPath} does not come first on the PATH and run.`
 }

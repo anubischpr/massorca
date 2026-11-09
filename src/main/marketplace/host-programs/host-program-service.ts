@@ -61,12 +61,8 @@ export function removalFor(spec: ProgramSpec, found: Found, facts: HostFacts): R
     }
   }
   if (owner.kind === 'option') {
-    const plan = planRemoval(spec, owner.option, facts)
+    const plan = planRemoval(owner.option, facts)
     return plan ? { plan } : { why: `MassOrca has no removal for ${spec.label} at ${path}.` }
-  }
-  const documented = owner.kind === 'native' ? planRemoval(spec, 'native', facts) : null
-  if (documented) {
-    return { plan: documented }
   }
   // Why only a proof: the vendor documents no uninstaller, so a delete needs the exact installer path.
   if (standalone) {

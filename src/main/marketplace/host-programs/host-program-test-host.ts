@@ -20,6 +20,10 @@ type FakeHostOptions = {
   home?: string | null
   /** The host's LOCALAPPDATA (Windows); null makes the lookup fail. */
   localAppData?: string | null
+  /** The host's USERPROFILE (Windows); null leaves it out of the answer. */
+  userProfile?: string | null
+  /** Answers for scripts by their text, for tests that must not repeat a long script. */
+  scripts?: { match: RegExp; result?: Partial<RunResult>; effect?: (host: FakeHost) => void }[]
 }
 
 /** A host that records every command and answers from a table; nothing real is ever started. */
@@ -50,7 +54,11 @@ export function fakeHost(options: FakeHostOptions): FakeHost {
     } else if (key === `script:${LOCAL_APP_DATA_SCRIPT}`) {
       const dir =
         options.localAppData === undefined ? 'C:\\Users\\u\\AppData\\Local' : options.localAppData
-      result = dir === null ? base : { ...base, code: 0, stdout: dir }
+      const profile = options.userProfile === undefined ? 'C:\\Users\\u' : options.userProfile
+      result =
+        dir === null
+          ? base
+          : { ...base, code: 0, stdout: profile === null ? dir : `${dir}\n${profile}` }
     } else if (key.endsWith(' --version') && present.has(key.slice(0, -' --version'.length))) {
       result = { ...base, code: 0, stdout: `${key.slice(0, -' --version'.length)} 1.2.3\n` }
     }
@@ -61,6 +69,13 @@ export function fakeHost(options: FakeHostOptions): FakeHost {
       result = { ...result, code: 0 }
     }
     options.effects?.[key]?.(host)
+    const script = key.startsWith('script:')
+      ? options.scripts?.find((entry) => entry.match.test(key))
+      : undefined
+    if (script) {
+      result = { ...result, code: 0, ...script.result }
+      script.effect?.(host)
+    }
     return result
   }
   return host
